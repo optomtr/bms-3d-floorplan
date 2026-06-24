@@ -213,13 +213,7 @@ export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): Built
     const built = buildFloor(group, room, i, poly);
     if (built) {
       roomById.set(i, built.mesh);
-      if (room.name) {
-        const label = new TextLabel(1.4);
-        label.setText(room.name, '#e8e8e8');
-        label.setPosition(built.centroid.x, 0.05, built.centroid.y);
-        labels.push(label);
-        group.add(label.sprite);
-      }
+      // (room name labels intentionally NOT rendered — no floating text in rooms)
     }
     // Shape rooms also generate their perimeter walls. They're owned by the
     // room (tagged roomIndex, not wallIndex) so clicking a wall selects the

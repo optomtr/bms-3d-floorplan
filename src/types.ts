@@ -108,6 +108,9 @@ export interface FurnitureDef {
   color?: string;
   /** Unique id so entity bindings can anchor to this placement. */
   id?: string;
+  /** Link to an opening this piece fills (door/window placed by the tool), so
+   *  deleting the piece also removes the wall/room opening. */
+  attach?: { kind: 'wall' | 'room'; index: number; edge?: number; opening: number };
 }
 
 export type BindingBehavior =

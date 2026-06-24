@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY } from '../furniture/library';
+import { defaultY, isWallMount } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
@@ -276,7 +276,21 @@ export class EditorController {
     if (this.dragMode === 'furniture' && this.selectedId) {
       const obj = this.sm.getFurnitureObject(this.selectedId);
       const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
-      if (obj && f) f.position = [obj.position.x, f.position[1], obj.position.z];
+      if (obj && f) {
+        if (isWallMount(f.model)) {
+          const w = this.nearestWallPoint(obj.position.x, obj.position.z);
+          if (w) {
+            f.position = [w.x, f.position[1], w.z];
+            f.rotation = w.rotation;
+            this.rebuild();
+            this.reselect();
+          } else {
+            f.position = [obj.position.x, f.position[1], obj.position.z];
+          }
+        } else {
+          f.position = [obj.position.x, f.position[1], obj.position.z];
+        }
+      }
     }
     this.dragMode = null;
     this.dragVertex = null;
@@ -421,14 +435,59 @@ export class EditorController {
     if (!fl.furniture) fl.furniture = [];
     const wh = fl.wallHeight ?? this.plan.wallHeight ?? 2.6;
     const id = `f${fl.furniture.length}_${Math.floor(performance.now() % 100000)}`;
+    let x = snap(p.x);
+    let z = snap(p.z);
+    let rotation = 0;
+    // Wall-mount items (TV, painting, sconce, door/window models…) snap to the
+    // nearest wall and orient to it.
+    if (isWallMount(this.selectedModel)) {
+      const w = this.nearestWallPoint(p.x, p.z);
+      if (w) {
+        x = w.x;
+        z = w.z;
+        rotation = w.rotation;
+      }
+    }
     fl.furniture.push({
       model: this.selectedModel,
-      position: [snap(p.x), defaultY(this.selectedModel, wh), snap(p.z)],
-      rotation: 0,
+      position: [x, defaultY(this.selectedModel, wh), z],
+      rotation,
       id,
     });
     this.rebuild();
     this.selectFurniture(id);
+  }
+
+  /** Nearest point on any wall / shape-room edge, with orientation, for snapping
+   *  wall-mounted furniture. */
+  private nearestWallPoint(px: number, pz: number): { x: number; z: number; rotation: number } | null {
+    let bd = 1.2;
+    let best: { x: number; z: number; rotation: number } | null = null;
+    const fl = this.floor();
+    const tryEdge = (ax: number, az: number, bx: number, bz: number) => {
+      const dx = bx - ax, dz = bz - az;
+      const len2 = dx * dx + dz * dz;
+      if (len2 < 1e-6) return;
+      let t = ((px - ax) * dx + (pz - az) * dz) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const cx = ax + dx * t, cz = az + dz * t;
+      const d = Math.hypot(px - cx, pz - cz);
+      if (d < bd) {
+        bd = d;
+        best = { x: cx, z: cz, rotation: (-Math.atan2(dz, dx) * 180) / Math.PI };
+      }
+    };
+    for (const w of fl.walls ?? []) tryEdge(w.start[0], w.start[1], w.end[0], w.end[1]);
+    for (const room of fl.rooms ?? []) {
+      if (!isShapeRoom(room)) continue;
+      const poly = roomPolygon(room);
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % poly.length];
+        tryEdge(a[0], a[1], b[0], b[1]);
+      }
+    }
+    return best;
   }
 
   selectFurniture(id: string | null): void {
@@ -791,6 +850,13 @@ export class EditorController {
   deleteSelected(): void {
     const fl = this.floor();
     if (this.selectedKind === 'furniture' && this.selectedId) {
+      const piece = fl.furniture?.find((x) => x.id === this.selectedId);
+      // A door/window model linked to an opening removes that opening too.
+      if (piece?.attach) {
+        const a = piece.attach;
+        const ops = a.kind === 'wall' ? fl.walls?.[a.index]?.openings : fl.rooms?.[a.index]?.openings;
+        if (ops && a.opening < ops.length) ops.splice(a.opening, 1);
+      }
       fl.furniture = (fl.furniture ?? []).filter((x) => x.id !== this.selectedId);
       fl.bindings = (fl.bindings ?? []).filter((b) => b.anchor_object !== this.selectedId);
     } else if (this.selectedKind === 'wall' && this.selectedWall >= 0) {
@@ -1045,14 +1111,40 @@ export class EditorController {
     }
     const hit = best as Hit;
     const position = Math.max(0, Math.min(hit.len - width, hit.along - width / 2));
+    const center = position + width / 2;
+    let seg: [number, number, number, number];
+    let attach: { kind: 'wall' | 'room'; index: number; edge?: number; opening: number };
     if (hit.type === 'wall') {
       if (!hit.wall.openings) hit.wall.openings = [];
       hit.wall.openings.push({ kind, position, width });
+      seg = [hit.wall.start[0], hit.wall.start[1], hit.wall.end[0], hit.wall.end[1]];
+      attach = { kind: 'wall', index: (fl.walls ?? []).indexOf(hit.wall), opening: hit.wall.openings.length - 1 };
     } else {
       if (!hit.room.openings) hit.room.openings = [];
       hit.room.openings.push({ kind, edge: hit.edge, position, width });
+      const poly = roomPolygon(hit.room);
+      const a = poly[hit.edge];
+      const b = poly[(hit.edge + 1) % poly.length];
+      seg = [a[0], a[1], b[0], b[1]];
+      attach = { kind: 'room', index: (fl.rooms ?? []).indexOf(hit.room), edge: hit.edge, opening: hit.room.openings.length - 1 };
     }
+    // Place a SELECTABLE door/window model in the opening, oriented to the wall.
+    const [ax, az, bx, bz] = seg;
+    const len = Math.hypot(bx - ax, bz - az) || 1;
+    const wx = ax + ((bx - ax) / len) * center;
+    const wz = az + ((bz - az) / len) * center;
+    const rotDeg = (-Math.atan2(bz - az, bx - ax) * 180) / Math.PI;
+    if (!fl.furniture) fl.furniture = [];
+    const fid = `op${fl.furniture.length}_${Math.floor(performance.now() % 100000)}`;
+    fl.furniture.push({
+      model: kind === 'door' ? 'door' : 'window_frame',
+      position: [wx, 0, wz],
+      rotation: rotDeg,
+      id: fid,
+      attach,
+    });
     this.rebuild();
+    this.selectFurniture(fid); // selectable immediately
     this.onChange?.();
   }
 

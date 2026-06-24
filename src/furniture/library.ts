@@ -155,18 +155,30 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   door: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(0.85, 2.0, 0.05, mat(WOOD), 0, 1.0, 0), c));
-    g.add(cyl(0.03, 0.03, 0.1, mat(METAL), 0.32, 1.0, 0.05)); // knob
+    const jamb = mat(WHITE);
+    // Frame (jambs + header) so it reads as a real door, then the leaf + panels.
+    g.add(box(0.06, 2.06, 0.16, jamb, -0.46, 1.03, 0));
+    g.add(box(0.06, 2.06, 0.16, jamb, 0.46, 1.03, 0));
+    g.add(box(0.98, 0.06, 0.16, jamb, 0, 2.06, 0));
+    const leaf = tint(box(0.84, 2.0, 0.05, mat(WOOD), 0, 1.0, 0), c);
+    g.add(leaf);
+    // Two recessed panels.
+    g.add(box(0.5, 0.7, 0.06, mat(0x000000, { transparent: true, opacity: 0.12 }), 0, 1.45, 0.01));
+    g.add(box(0.5, 0.7, 0.06, mat(0x000000, { transparent: true, opacity: 0.12 }), 0, 0.6, 0.01));
+    g.add(cyl(0.03, 0.03, 0.12, mat(0xb8932e), 0.33, 1.0, 0.06)); // brass handle
     return g;
   },
   window_frame: (c) => {
     const g = new THREE.Group();
-    const frame = mat(WHITE);
-    g.add(tint(box(1.0, 0.05, 0.08, frame, 0, 1.5, 0), c)); // top
-    g.add(tint(box(1.0, 0.05, 0.08, frame, 0, 0.9, 0), c)); // bottom
-    g.add(box(0.05, 0.6, 0.08, frame, -0.47, 1.2, 0)); // left
-    g.add(box(0.05, 0.6, 0.08, frame, 0.47, 1.2, 0)); // right
-    g.add(box(0.9, 0.55, 0.01, mat(GLASS, { transparent: true, opacity: 0.35 }), 0, 1.2, 0));
+    const frame = mat(0x55606a); // dark frame so the window is clearly visible
+    const W = 1.2, H = 1.2, yc = 1.45, fw = 0.07, d = 0.1;
+    g.add(tint(box(W, fw, d, frame, 0, yc + H / 2, 0), c)); // top
+    g.add(tint(box(W, fw, d, frame, 0, yc - H / 2, 0), c)); // bottom (sill)
+    g.add(box(fw, H, d, frame, -W / 2 + fw / 2, yc, 0)); // left
+    g.add(box(fw, H, d, frame, W / 2 - fw / 2, yc, 0)); // right
+    g.add(box(0.05, H, d * 0.6, frame, 0, yc, 0)); // vertical mullion
+    g.add(box(W, 0.05, d * 0.6, frame, 0, yc, 0)); // horizontal mullion
+    g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.5, metalness: 0.2 }), 0, yc, 0));
     return g;
   },
   ceiling_light: (c) => {
@@ -451,6 +463,53 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(0.6, 0.02, 0.36, mat(METAL), -0.35, 0.41, 0));
     return g;
   },
+  kitchen_island: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(1.6, 0.9, 0.9, mat(WHITE), 0, 0.45, 0), c));
+    g.add(box(1.7, 0.05, 1.0, mat(DARK), 0, 0.92, 0)); // worktop
+    return g;
+  },
+  sideboard: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(1.6, 0.8, 0.45, mat(WOOD), 0, 0.4, 0), c));
+    for (let i = -1; i <= 1; i++) g.add(box(0.02, 0.1, 0.02, mat(METAL), i * 0.5, 0.5, 0.23));
+    return g;
+  },
+  bunk_bed: (c) => {
+    const g = new THREE.Group();
+    for (const y of [0.4, 1.4]) {
+      g.add(box(1.0, 0.12, 2.0, mat(WOOD), 0, y, 0));
+      g.add(tint(box(0.95, 0.12, 1.95, mat(WHITE), 0, y + 0.12, 0), c));
+    }
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(box(0.08, 1.9, 0.08, mat(WOOD), sx * 0.46, 0.95, sz * 0.96));
+    return g;
+  },
+  bar_counter: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(2.0, 1.05, 0.55, mat(WOOD), 0, 0.525, 0), c));
+    g.add(box(2.1, 0.05, 0.65, mat(DARK), 0, 1.07, 0));
+    return g;
+  },
+  piano: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(1.5, 0.9, 0.6, mat(0x16181c), 0, 0.45, 0), c));
+    g.add(box(1.4, 0.06, 0.25, mat(WHITE), 0, 0.78, 0.18)); // keys
+    return g;
+  },
+  range_hood: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.9, 0.25, 0.5, mat(METAL), 0, 0, 0), c));
+    g.add(box(0.3, 0.4, 0.3, mat(METAL), 0, 0.3, 0));
+    return g;
+  },
+  wall_clock: (c) => {
+    const g = new THREE.Group();
+    const face = cyl(0.18, 0.18, 0.04, mat(WHITE), 0, 0, 0, 24);
+    face.rotateX(Math.PI / 2);
+    g.add(tint(face, c));
+    return g;
+  },
 
   // Generic fallback marker so an unknown model key still renders something.
   marker: (c) => {
@@ -461,6 +520,16 @@ const builders: Record<string, FurnitureBuilder> = {
 };
 
 export const FURNITURE_KEYS = Object.keys(builders).filter((k) => k !== 'marker');
+
+/** Models that should auto-attach to a wall when placed (snap + orient). */
+export const WALL_MOUNT_KEYS = [
+  'door', 'double_door', 'sliding_door', 'window_frame', 'tv', 'painting',
+  'mirror', 'wall_light', 'wall_clock', 'ac_unit', 'intercom', 'security_camera',
+  'curtain', 'range_hood',
+];
+export function isWallMount(model: string): boolean {
+  return WALL_MOUNT_KEYS.includes(model);
+}
 
 /** Lighting fixtures (have an emissive mesh; bind a light.* entity to them). */
 export const LIGHT_KEYS = [
