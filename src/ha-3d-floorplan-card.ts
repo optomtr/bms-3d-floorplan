@@ -30,6 +30,7 @@ import {
 import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor } from './furniture/library';
 import { getThumbnail } from './furniture/thumbnails';
 import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
+import { isZirconPlan, convertZircon } from './import/zircon';
 
 @customElement('ha-3d-floorplan-card')
 export class Ha3dFloorplanCard extends LitElement {
@@ -502,7 +503,9 @@ export class Ha3dFloorplanCard extends LitElement {
   private async onImportLoad(): Promise<void> {
     let plan: FloorPlan;
     try {
-      plan = JSON.parse(this.importText) as FloorPlan;
+      const raw = JSON.parse(this.importText);
+      // Accept native Zircon3D `spacePlan` exports by converting them on the fly.
+      plan = isZirconPlan(raw) ? convertZircon(raw) : (raw as FloorPlan);
       if (!plan || !Array.isArray(plan.floors) || plan.floors.length === 0) {
         throw new Error('Plan must have a non-empty "floors" array');
       }
