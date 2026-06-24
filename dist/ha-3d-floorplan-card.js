@@ -21415,7 +21415,7 @@ function dM(i) {
     e.geometry && e.geometry.dispose(), e.material && (Array.isArray(e.material) ? e.material : [e.material]).forEach((s) => s.dispose());
   });
 }
-const fM = "0.10.5", uo = "ha-3d-floorplan-sidebar-item", nu = "ha-3d-floorplan-overlay";
+const fM = "0.10.6", uo = "ha-3d-floorplan-sidebar-item", nu = "ha-3d-floorplan-overlay";
 function pM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -22796,10 +22796,25 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const t = Object.keys(this.hass.states);
     let e = i.length ? t.filter((s) => i.includes(s.split(".")[0])) : t;
     const n = i.length > 0 && e.length === 0;
-    return n && (e = t), e = [...e].sort((s, r) => this.entityLabel(s).localeCompare(this.entityLabel(r))), { ids: e, fellBack: n };
+    return n && (e = t), e = [...e].sort((s, r) => {
+      const o = this.entityArea(s), a = this.entityArea(r);
+      return o !== a ? (o || "￿").localeCompare(a || "￿") : this.entityLabel(s).localeCompare(this.entityLabel(r));
+    }), { ids: e, fellBack: n };
   }
   entityLabel(i) {
     return this.hass?.states[i]?.attributes?.friendly_name || i;
+  }
+  /** The HA area (room) an entity belongs to: its own area, else its device's. */
+  entityArea(i) {
+    const t = this.hass, e = t?.entities?.[i];
+    let n = e?.area_id ?? void 0;
+    return !n && e?.device_id && (n = t?.devices?.[e.device_id]?.area_id), n && t?.areas?.[n]?.name || "";
+  }
+  /** Rich option text: "Friendly name · Room · entity.id" so same-named
+   *  entities in different rooms are easy to tell apart. */
+  entityOptionText(i) {
+    const t = this.entityLabel(i), e = this.entityArea(i), n = [t];
+    return e && n.push(e), i !== t && n.push(i), n.join("  ·  ");
   }
   async onSavePlan() {
     if (!this.editor) return;
@@ -23010,8 +23025,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                           — bind entity —
                         </option>
                         ${a.map(
-        (c) => Ft`<option value=${c} ?selected=${c === this.editSelectedEntity}>
-                            ${this.entityLabel(c)}
+        (c) => Ft`<option value=${c} ?selected=${c === this.editSelectedEntity}
+                            title=${c}>
+                            ${this.entityOptionText(c)}
                           </option>`
       )}
                       </select>

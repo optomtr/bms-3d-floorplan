@@ -608,12 +608,41 @@ export class Ha3dFloorplanCard extends LitElement {
       : all;
     const fellBack = domains.length > 0 && ids.length === 0;
     if (fellBack) ids = all; // filter too strict → show everything
-    ids = [...ids].sort((a, b) => this.entityLabel(a).localeCompare(this.entityLabel(b)));
+    // Sort by room (area) first, then friendly name — groups same-named entities
+    // by where they are so the right one is easy to pick.
+    ids = [...ids].sort((a, b) => {
+      const ra = this.entityArea(a);
+      const rb = this.entityArea(b);
+      if (ra !== rb) return (ra || '￿').localeCompare(rb || '￿');
+      return this.entityLabel(a).localeCompare(this.entityLabel(b));
+    });
     return { ids, fellBack };
   }
 
   private entityLabel(id: string): string {
     return this.hass?.states[id]?.attributes?.friendly_name || id;
+  }
+
+  /** The HA area (room) an entity belongs to: its own area, else its device's. */
+  private entityArea(id: string): string {
+    const h = this.hass as any;
+    const ent = h?.entities?.[id];
+    let areaId: string | undefined = ent?.area_id ?? undefined;
+    if (!areaId && ent?.device_id) areaId = h?.devices?.[ent.device_id]?.area_id;
+    if (!areaId) return '';
+    const a = h?.areas?.[areaId];
+    return (a?.name as string) || '';
+  }
+
+  /** Rich option text: "Friendly name · Room · entity.id" so same-named
+   *  entities in different rooms are easy to tell apart. */
+  private entityOptionText(id: string): string {
+    const name = this.entityLabel(id);
+    const area = this.entityArea(id);
+    const parts = [name];
+    if (area) parts.push(area);
+    if (id !== name) parts.push(id);
+    return parts.join('  ·  ');
   }
 
   private async onSavePlan(): Promise<void> {
@@ -895,8 +924,9 @@ export class Ha3dFloorplanCard extends LitElement {
                           — bind entity —
                         </option>
                         ${ids.map(
-                          (id) => html`<option value=${id} ?selected=${id === this.editSelectedEntity}>
-                            ${this.entityLabel(id)}
+                          (id) => html`<option value=${id} ?selected=${id === this.editSelectedEntity}
+                            title=${id}>
+                            ${this.entityOptionText(id)}
                           </option>`,
                         )}
                       </select>
