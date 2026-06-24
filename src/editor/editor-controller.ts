@@ -1180,12 +1180,12 @@ export class EditorController {
     let attach: { kind: 'wall' | 'room'; index: number; edge?: number; opening: number };
     if (hit.type === 'wall') {
       if (!hit.wall.openings) hit.wall.openings = [];
-      hit.wall.openings.push({ kind, position, width });
+      hit.wall.openings.push({ kind, position, width, bare: true });
       seg = [hit.wall.start[0], hit.wall.start[1], hit.wall.end[0], hit.wall.end[1]];
       attach = { kind: 'wall', index: (fl.walls ?? []).indexOf(hit.wall), opening: hit.wall.openings.length - 1 };
     } else {
       if (!hit.room.openings) hit.room.openings = [];
-      hit.room.openings.push({ kind, edge: hit.edge, position, width });
+      hit.room.openings.push({ kind, edge: hit.edge, position, width, bare: true });
       const poly = roomPolygon(hit.room);
       const a = poly[hit.edge];
       const b = poly[(hit.edge + 1) % poly.length];
@@ -1230,7 +1230,7 @@ export class EditorController {
     for (const w of fl.walls ?? []) {
       if (hit.type === 'wall' && w === hit.wall) continue;
       const pos = cutSeg(w.start[0], w.start[1], w.end[0], w.end[1]);
-      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width });
+      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width, bare: true });
     }
     for (const room of fl.rooms ?? []) {
       if (!isShapeRoom(room)) continue;
@@ -1239,7 +1239,7 @@ export class EditorController {
         if (hit.type === 'room' && room === hit.room && e === hit.edge) continue;
         const a = poly[e], b = poly[(e + 1) % poly.length];
         const pos = cutSeg(a[0], a[1], b[0], b[1]);
-        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width });
+        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width, bare: true });
       }
     }
     this.rebuild();

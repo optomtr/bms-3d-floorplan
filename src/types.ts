@@ -39,6 +39,9 @@ export interface OpeningDef {
   sill?: number;
   /** Top of the opening above the floor. Default 2.05 for doors, 2.1 for windows. */
   top?: number;
+  /** Cut the hole only — don't render the leaf/glass infill (a placed door/window
+   *  model fills it). Avoids z-fighting between the two. */
+  bare?: boolean;
 }
 
 export type RoomShape = 'rect' | 'lshape' | 'bevel';
@@ -91,6 +94,8 @@ export interface RoomOpening {
   width: number;
   sill?: number;
   top?: number;
+  /** Cut the hole only — a placed model fills it (see OpeningDef.bare). */
+  bare?: boolean;
 }
 
 export interface FurnitureDef {

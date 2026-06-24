@@ -20723,7 +20723,8 @@ function Ky(i, t, e) {
       position: c.position,
       width: c.width,
       sill: c.sill,
-      top: c.top
+      top: c.top,
+      bare: c.bare
     }));
     s.push({
       start: o,
@@ -20824,7 +20825,10 @@ function Qh(i, t, e, n) {
     if (R <= P) continue;
     Is(c, s, l, u, P, w, 0, d, f, g);
     const O = T.sill ?? (T.kind === "window" ? 0.9 : 0), _ = T.top ?? (T.kind === "window" ? 2.1 : 2.05);
-    O > 0 && Is(c, s, l, u, w, R, 0, O, f, g), _ < d && Is(c, s, l, u, w, R, _, d, f, g);
+    if (O > 0 && Is(c, s, l, u, w, R, 0, O, f, g), _ < d && Is(c, s, l, u, w, R, _, d, f, g), T.bare) {
+      P = Math.max(P, R);
+      continue;
+    }
     const b = (F, H, q, k, Q, W) => Is(c, s, l, u, F, H, q, k, Q, W), N = 0.06;
     if (T.kind === "door") {
       b(w, w + N, O, _, f, m), b(R - N, R, O, _, f, m), b(w, R, _ - N, _, f, m), b(w + N, R - N, O, _ - N, 0.05, v);
@@ -21413,7 +21417,7 @@ function dM(i) {
     e.geometry && e.geometry.dispose(), e.material && (Array.isArray(e.material) ? e.material : [e.material]).forEach((s) => s.dispose());
   });
 }
-const fM = "0.10.3", uo = "ha-3d-floorplan-sidebar-item", nu = "ha-3d-floorplan-overlay";
+const fM = "0.10.4", uo = "ha-3d-floorplan-sidebar-item", nu = "ha-3d-floorplan-overlay";
 function pM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -22224,9 +22228,9 @@ class TM {
     const l = o, c = Math.max(0, Math.min(l.len - s, l.along - s / 2)), h = c + s / 2;
     let u, d;
     if (l.type === "wall")
-      l.wall.openings || (l.wall.openings = []), l.wall.openings.push({ kind: e, position: c, width: s }), u = [l.wall.start[0], l.wall.start[1], l.wall.end[0], l.wall.end[1]], d = { kind: "wall", index: (n.walls ?? []).indexOf(l.wall), opening: l.wall.openings.length - 1 };
+      l.wall.openings || (l.wall.openings = []), l.wall.openings.push({ kind: e, position: c, width: s, bare: !0 }), u = [l.wall.start[0], l.wall.start[1], l.wall.end[0], l.wall.end[1]], d = { kind: "wall", index: (n.walls ?? []).indexOf(l.wall), opening: l.wall.openings.length - 1 };
     else {
-      l.room.openings || (l.room.openings = []), l.room.openings.push({ kind: e, edge: l.edge, position: c, width: s });
+      l.room.openings || (l.room.openings = []), l.room.openings.push({ kind: e, edge: l.edge, position: c, width: s, bare: !0 });
       const R = vi(l.room), O = R[l.edge], _ = R[(l.edge + 1) % R.length];
       u = [O[0], O[1], _[0], _[1]], d = { kind: "room", index: (n.rooms ?? []).indexOf(l.room), edge: l.edge, opening: l.room.openings.length - 1 };
     }
@@ -22254,7 +22258,7 @@ class TM {
     for (const R of n.walls ?? []) {
       if (l.type === "wall" && R === l.wall) continue;
       const O = w(R.start[0], R.start[1], R.end[0], R.end[1]);
-      O != null && (R.openings ??= []).push({ kind: e, position: O, width: s });
+      O != null && (R.openings ??= []).push({ kind: e, position: O, width: s, bare: !0 });
     }
     for (const R of n.rooms ?? []) {
       if (!On(R)) continue;
@@ -22262,7 +22266,7 @@ class TM {
       for (let _ = 0; _ < O.length; _++) {
         if (l.type === "room" && R === l.room && _ === l.edge) continue;
         const b = O[_], N = O[(_ + 1) % O.length], F = w(b[0], b[1], N[0], N[1]);
-        F != null && (R.openings ??= []).push({ kind: e, edge: _, position: F, width: s });
+        F != null && (R.openings ??= []).push({ kind: e, edge: _, position: F, width: s, bare: !0 });
       }
     }
     this.rebuild(), this.selectFurniture(P), this.onChange?.();

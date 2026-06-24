@@ -87,6 +87,7 @@ export function roomWalls(
         width: o.width,
         sill: o.sill,
         top: o.top,
+        bare: o.bare,
       }));
     walls.push({
       start: a,

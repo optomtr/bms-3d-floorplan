@@ -124,6 +124,12 @@ function buildWall(
     if (top < height) {
       addWallSpan(group, start, dir, normalAngle, opStart, opEnd, top, height, thickness, material);
     }
+    // "bare" openings are just holes — a placed door/window model fills them, so
+    // skip the leaf/glass infill (avoids z-fighting / flicker).
+    if (op.bare) {
+      cursor = Math.max(cursor, opEnd);
+      continue;
+    }
     // Fill the hole with a framed door leaf / window, sized to the opening.
     const span = (a: number, b: number, yb: number, yt: number, th: number, mat: THREE.Material) =>
       addWallSpan(group, start, dir, normalAngle, a, b, yb, yt, th, mat);
