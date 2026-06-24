@@ -76,6 +76,10 @@ export class EditorController {
   private dragVertex: Vec2 | null = null;
   private wallDrag0: { s: Vec2; e: Vec2 } | null = null;
   private furnDrag0: Vec2 = [0, 0];
+  private undoStack: string[] = [];
+  private redoStack: string[] = [];
+  private dragSnapshot: string | null = null;
+  private readonly HISTORY_MAX = 80;
   private gizmoHandle: string | null = null;
   private gizmoGrab: Vec2 = [0, 0];
   private gizmoRoom0 = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 };
@@ -138,6 +142,7 @@ export class EditorController {
 
   addFloor(): void {
     const wh = this.plan.floors[0]?.wallHeight ?? this.plan.wallHeight ?? 2.6;
+    this.pushUndo();
     const maxElev = Math.max(0, ...this.plan.floors.map((f) => f.elevation ?? 0));
     const idx = this.plan.floors.length;
     this.plan.floors.push({
@@ -159,6 +164,7 @@ export class EditorController {
       this.onMessage?.('Cannot delete the only floor');
       return;
     }
+    this.pushUndo();
     this.plan.floors.splice(this.floorIndex, 1);
     const ni = Math.min(this.floorIndex, this.plan.floors.length - 1);
     this.clearSelection();
@@ -171,6 +177,8 @@ export class EditorController {
 
   private dragStart(e: PointerEvent): boolean {
     if (this.tool !== 'select') return false;
+    // Snapshot before any drag; committed to history in dragEnd if it changed.
+    this.dragSnapshot = JSON.stringify(this.plan);
     // 1) Position Helper handle (when a shape room is selected).
     if (this.selectedKind === 'room') {
       const handle = this.sm.pickGizmo(e);
@@ -296,6 +304,13 @@ export class EditorController {
     this.dragVertex = null;
     this.gizmoHandle = null;
     this.wallDrag0 = null;
+    // Commit to undo history only if the drag actually changed the plan.
+    if (this.dragSnapshot && this.dragSnapshot !== JSON.stringify(this.plan)) {
+      this.undoStack.push(this.dragSnapshot);
+      if (this.undoStack.length > this.HISTORY_MAX) this.undoStack.shift();
+      this.redoStack = [];
+    }
+    this.dragSnapshot = null;
     this.onChange?.();
   }
 
@@ -352,6 +367,7 @@ export class EditorController {
     if (this.selectedKind !== 'wall') return;
     const w = this.floor().walls?.[this.selectedWall];
     if (!w?.openings) return;
+    this.pushUndo();
     w.openings.splice(index, 1);
     this.rebuild();
     this.reselect();
@@ -371,6 +387,7 @@ export class EditorController {
   deleteRoomOpening(index: number): void {
     const room = this.currentRoom();
     if (!room?.openings) return;
+    this.pushUndo();
     room.openings.splice(index, 1);
     this.rebuild();
     this.reselect();
@@ -382,6 +399,7 @@ export class EditorController {
     if (this.selectedKind !== 'wall' || !(len > 0)) return;
     const w = this.floor().walls?.[this.selectedWall];
     if (!w) return;
+    this.pushUndo();
     const dx = w.end[0] - w.start[0];
     const dz = w.end[1] - w.start[1];
     const cur = Math.hypot(dx, dz) || 1;
@@ -432,6 +450,7 @@ export class EditorController {
 
   private placeFurniture(p: THREE.Vector3): void {
     const fl = this.floor();
+    this.pushUndo();
     if (!fl.furniture) fl.furniture = [];
     const wh = fl.wallHeight ?? this.plan.wallHeight ?? 2.6;
     const id = `f${fl.furniture.length}_${Math.floor(performance.now() % 100000)}`;
@@ -572,6 +591,7 @@ export class EditorController {
   /** Drop a parametric room shape at the camera target and select it. */
   addRoomShape(shape: RoomShape): void {
     const fl = this.floor();
+    this.pushUndo();
     if (!fl.rooms) fl.rooms = [];
     const c = this.sm.controls.target;
     const room: RoomDef = {
@@ -595,6 +615,7 @@ export class EditorController {
   setRoomField(field: 'name' | 'width' | 'depth' | 'height' | 'rotation', value: number | string): void {
     const room = this.currentRoom();
     if (!room) return;
+    this.pushUndo();
     if (field === 'name') room.name = String(value);
     else {
       const v = Number(value);
@@ -767,6 +788,7 @@ export class EditorController {
     if (this.selectedKind !== 'furniture') return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
+    this.pushUndo();
     f.rotation = ((f.rotation ?? 0) + 45) % 360;
     this.rebuild();
     this.reselect();
@@ -778,6 +800,7 @@ export class EditorController {
     if (this.selectedKind !== 'furniture') return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
+    this.pushUndo();
     f.position[1] = Math.max(0, Math.round((f.position[1] + delta) * 100) / 100);
     this.rebuild();
     this.reselect();
@@ -798,6 +821,7 @@ export class EditorController {
     if (this.selectedKind !== 'furniture' || !(v > 0)) return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
+    this.pushUndo();
     const s = f.scale ?? 1;
     const cur: Vec3 = Array.isArray(s) ? [s[0], s[1], s[2]] : [s, s, s];
     cur[axis] = Math.max(0.1, Math.round(v * 100) / 100);
@@ -810,6 +834,7 @@ export class EditorController {
   /** Surface material preset for the selected wall (or floor of a room). */
   setSurfaceMaterial(name: string): void {
     const fl = this.floor();
+    this.pushUndo();
     if (this.selectedKind === 'wall' && fl.walls?.[this.selectedWall]) {
       fl.walls[this.selectedWall].material = name;
     } else if (this.selectedKind === 'room' && fl.rooms?.[this.selectedRoom]) {
@@ -832,6 +857,7 @@ export class EditorController {
   /** Set the color of the selected furniture / wall / room. */
   setColor(color: string): void {
     const fl = this.floor();
+    this.pushUndo();
     if (this.selectedKind === 'furniture') {
       const f = fl.furniture?.find((x) => x.id === this.selectedId);
       if (f) f.color = color;
@@ -849,6 +875,8 @@ export class EditorController {
 
   deleteSelected(): void {
     const fl = this.floor();
+    if (!this.selectedKind) return;
+    this.pushUndo();
     if (this.selectedKind === 'furniture' && this.selectedId) {
       const piece = fl.furniture?.find((x) => x.id === this.selectedId);
       // A door/window model linked to an opening removes that opening too.
@@ -958,6 +986,7 @@ export class EditorController {
 
   private commitWall(a: Vec2, b: Vec2): void {
     const fl = this.floor();
+    this.pushUndo();
     if (!fl.walls) fl.walls = [];
     fl.walls.push({ start: [a[0], a[1]], end: [b[0], b[1]] });
   }
@@ -1061,6 +1090,7 @@ export class EditorController {
   /** Add a door/window opening to the wall nearest the tapped point. */
   private addOpening(p: THREE.Vector3, kind: 'door' | 'window'): void {
     const fl = this.floor();
+    this.pushUndo();
     const width = kind === 'door' ? 0.9 : 1.0;
     // Nearest segment among BOTH explicit walls and shape-room perimeter edges.
     let bd = 0.6;
@@ -1143,6 +1173,41 @@ export class EditorController {
       id: fid,
       attach,
     });
+    // Cut through any OTHER coincident (collinear, overlapping) wall / room edge
+    // at the same spot, so a door/window placed where two rooms share a wall
+    // doesn't stay blocked by the second wall.
+    const ang0 = Math.atan2(bz - az, bx - ax);
+    const cutSeg = (ax2: number, az2: number, bx2: number, bz2: number): number | null => {
+      const dx = bx2 - ax2, dz = bz2 - az2;
+      const l2 = dx * dx + dz * dz;
+      if (l2 < 1e-6) return null;
+      let a2 = Math.atan2(dz, dx);
+      // collinear if parallel or anti-parallel
+      const da = Math.abs(((a2 - ang0 + Math.PI) % Math.PI));
+      if (da > 0.03 && Math.abs(da - Math.PI) > 0.03) return null;
+      const l = Math.sqrt(l2);
+      const t = ((wx - ax2) * dx + (wz - az2) * dz) / l2;
+      const cx = ax2 + dx * t, cz = az2 + dz * t;
+      if (Math.hypot(wx - cx, wz - cz) > 0.12) return null; // not on this line
+      const along = t * l;
+      if (along < 0 || along > l) return null;
+      return Math.max(0, Math.min(l - width, along - width / 2));
+    };
+    for (const w of fl.walls ?? []) {
+      if (hit.type === 'wall' && w === hit.wall) continue;
+      const pos = cutSeg(w.start[0], w.start[1], w.end[0], w.end[1]);
+      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width });
+    }
+    for (const room of fl.rooms ?? []) {
+      if (!isShapeRoom(room)) continue;
+      const poly = roomPolygon(room);
+      for (let e = 0; e < poly.length; e++) {
+        if (hit.type === 'room' && room === hit.room && e === hit.edge) continue;
+        const a = poly[e], b = poly[(e + 1) % poly.length];
+        const pos = cutSeg(a[0], a[1], b[0], b[1]);
+        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width });
+      }
+    }
     this.rebuild();
     this.selectFurniture(fid); // selectable immediately
     this.onChange?.();
@@ -1188,6 +1253,140 @@ export class EditorController {
   private rebuild(): void {
     this.sm.loadPlan(this.plan, true); // keep camera where it is
     this.applySceneEditState();
+  }
+
+  // -- Undo / redo ------------------------------------------------------------
+
+  /** Snapshot the plan before a mutating action. Call at the start of each edit. */
+  private pushUndo(): void {
+    this.undoStack.push(JSON.stringify(this.plan));
+    if (this.undoStack.length > this.HISTORY_MAX) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+  get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  undo(): void {
+    if (!this.undoStack.length) return;
+    this.redoStack.push(JSON.stringify(this.plan));
+    this.plan = JSON.parse(this.undoStack.pop() as string);
+    this.restoreHistory();
+  }
+
+  redo(): void {
+    if (!this.redoStack.length) return;
+    this.undoStack.push(JSON.stringify(this.plan));
+    this.plan = JSON.parse(this.redoStack.pop() as string);
+    this.restoreHistory();
+  }
+
+  private restoreHistory(): void {
+    this.cancelChain();
+    this.clearSelection();
+    if (this.floorIndex >= this.plan.floors.length) {
+      this.floorIndex = this.plan.floors.length - 1;
+    }
+    this.sm.loadPlan(this.plan, true);
+    this.sm.setActiveFloor(this.floorIndex);
+    this.applySceneEditState();
+    this.onChange?.();
+  }
+
+  // -- Wall cleanup: dedupe + merge collinear overlapping walls ---------------
+
+  /** Merge duplicate / overlapping collinear walls on the current floor into
+   *  single segments (so coincident walls don't block openings and corners are
+   *  clean). Openings are preserved via world-coordinate remap. */
+  mergeWalls(): void {
+    const fl = this.floor();
+    const walls = fl.walls ?? [];
+    if (walls.length < 2) {
+      this.onMessage?.('Nothing to merge');
+      return;
+    }
+    this.pushUndo();
+    const EPS = 0.08;
+    // Describe each wall on its infinite line.
+    type Item = { w: WallDef; ang: number; perp: number; t0: number; t1: number };
+    const items: Item[] = walls.map((w) => {
+      const dx = w.end[0] - w.start[0];
+      const dz = w.end[1] - w.start[1];
+      let ang = Math.atan2(dz, dx);
+      if (ang < 0) ang += Math.PI; // normalize to [0, π)
+      const ux = Math.cos(ang), uz = Math.sin(ang);
+      const t0 = w.start[0] * ux + w.start[1] * uz;
+      const t1 = w.end[0] * ux + w.end[1] * uz;
+      const perp = w.start[0] * -uz + w.start[1] * ux; // signed distance from origin
+      return { w, ang, perp, t0: Math.min(t0, t1), t1: Math.max(t0, t1) };
+    });
+    const used = new Array(items.length).fill(false);
+    const out: WallDef[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (used[i]) continue;
+      const group = [items[i]];
+      used[i] = true;
+      for (let j = i + 1; j < items.length; j++) {
+        if (used[j]) continue;
+        const a = items[i], b = items[j];
+        const sameLine =
+          Math.abs(a.ang - b.ang) < 0.03 && Math.abs(a.perp - b.perp) < EPS;
+        if (!sameLine) continue;
+        // overlap (or touch) with any member already in the group
+        const overlaps = group.some((g) => b.t1 >= g.t0 - EPS && b.t0 <= g.t1 + EPS);
+        if (overlaps) {
+          group.push(b);
+          used[j] = true;
+        }
+      }
+      if (group.length === 1) {
+        out.push(group[0].w);
+        continue;
+      }
+      // Merge the group into one segment spanning [min t0, max t1] on its line.
+      const ang = group[0].ang;
+      const ux = Math.cos(ang), uz = Math.sin(ang);
+      const tmin = Math.min(...group.map((g) => g.t0));
+      const tmax = Math.max(...group.map((g) => g.t1));
+      const perp = group[0].perp;
+      // A point on the line: origin + perp * normal, then move along u by t.
+      const nx = -uz, nz = ux;
+      const px = perp * nx, pz = perp * nz;
+      const ms: Vec2 = [px + ux * tmin, pz + uz * tmin];
+      const me: Vec2 = [px + ux * tmax, pz + uz * tmax];
+      const merged: WallDef = {
+        start: ms,
+        end: me,
+        height: group[0].w.height,
+        thickness: group[0].w.thickness,
+        color: group[0].w.color,
+        material: group[0].w.material,
+        openings: [],
+      };
+      for (const g of group) {
+        for (const op of g.w.openings ?? []) {
+          // opening world-start along its own wall, then param on merged line
+          const wdx = g.w.end[0] - g.w.start[0];
+          const wdz = g.w.end[1] - g.w.start[1];
+          const wlen = Math.hypot(wdx, wdz) || 1;
+          const owx = g.w.start[0] + (wdx / wlen) * op.position;
+          const owz = g.w.start[1] + (wdz / wlen) * op.position;
+          const pos = (owx - ms[0]) * ux + (owz - ms[1]) * uz;
+          merged.openings!.push({ ...op, position: Math.max(0, pos) });
+        }
+      }
+      if (!merged.openings!.length) delete merged.openings;
+      out.push(merged);
+    }
+    fl.walls = out;
+    this.clearSelection();
+    this.rebuild();
+    this.onChange?.();
+    this.onMessage?.(`Walls merged: ${walls.length} → ${out.length}`);
   }
 
   private renderPreview(): void {

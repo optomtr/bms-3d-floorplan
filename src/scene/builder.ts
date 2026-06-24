@@ -153,6 +153,16 @@ function buildWall(
   // Remaining solid wall after the last opening.
   addWallSpan(group, start, dir, normalAngle, cursor, length, 0, height, thickness, material);
 
+  // Corner posts at both ends fill the gap where walls meet at an angle (a 90°
+  // joint would otherwise leave an open corner).
+  for (const pt of [start, end]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(thickness, height, thickness), material);
+    post.position.set(pt.x, height / 2, pt.y);
+    post.castShadow = true;
+    post.receiveShadow = true;
+    group.add(post);
+  }
+
   parent.add(group);
   return group;
 }

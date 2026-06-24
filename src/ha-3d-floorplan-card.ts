@@ -56,6 +56,8 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editRoom: RoomDef | null = null;
   @state() private editFurnScale: [number, number, number] | null = null;
   @state() private editMaterial = 'plain';
+  @state() private editCanUndo = false;
+  @state() private editCanRedo = false;
   @state() private importOpen = false;
   @state() private importText = '';
   @state() private projectList: ProjectInfo[] = [];
@@ -315,6 +317,8 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editMaterial = ed.selectedMaterial;
       this.editFloorIndex = ed.floorIndex;
       this.editPlanName = ed.plan.name ?? '';
+      this.editCanUndo = ed.canUndo;
+      this.editCanRedo = ed.canRedo;
       this.requestUpdate();
     };
     this.editor.onMessage = (m) => this.showToast(m);
@@ -362,6 +366,18 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private onUndoPoint(): void {
     this.editor?.undoPoint();
+  }
+
+  private onUndo(): void {
+    this.editor?.undo();
+  }
+
+  private onRedo(): void {
+    this.editor?.redo();
+  }
+
+  private onMergeWalls(): void {
+    this.editor?.mergeWalls();
   }
 
   private onToggleSnap(): void {
@@ -538,6 +554,17 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private trackShift = (e: KeyboardEvent) => {
     if (this.editor) this.editor.shiftHeld = e.shiftKey;
+    // Undo/redo shortcuts while editing.
+    if (this.editing && this.editor && e.type === 'keydown' && (e.ctrlKey || e.metaKey)) {
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        this.editor.undo();
+      } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        this.editor.redo();
+      }
+    }
   };
 
   private onDeleteFloor(): void {
@@ -666,6 +693,14 @@ export class Ha3dFloorplanCard extends LitElement {
 
     return html`
       <div class="overlay top-left toolbar">
+        <div class="toolrow">
+          <button class="btn" title="Undo (Ctrl+Z)" ?disabled=${!this.editCanUndo}
+            @click=${this.onUndo}>↶ Undo</button>
+          <button class="btn" title="Redo (Ctrl+Y)" ?disabled=${!this.editCanRedo}
+            @click=${this.onRedo}>↷ Redo</button>
+          <button class="btn" title="Merge duplicate / overlapping walls into one"
+            @click=${this.onMergeWalls}>🧹 Merge walls</button>
+        </div>
         <div class="toolrow">
           <button class="btn ${tool === 'wall' ? 'active' : ''}" title="Draw walls"
             @click=${() => this.onEditTool('wall')}>▟ Wall</button>
