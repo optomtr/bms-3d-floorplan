@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY, isWallMount } from '../furniture/library';
+import { defaultY, isWallMount, isSurfaceMount } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
@@ -288,8 +288,9 @@ export class EditorController {
         if (isWallMount(f.model)) {
           const w = this.nearestWallPoint(obj.position.x, obj.position.z);
           if (w) {
-            f.position = [w.x, f.position[1], w.z];
-            f.rotation = w.rotation;
+            const r = this.resolveWallMount(f.model, w);
+            f.position = [r.x, f.position[1], r.z];
+            f.rotation = r.rotation;
             this.rebuild();
             this.reselect();
           } else {
@@ -462,9 +463,10 @@ export class EditorController {
     if (isWallMount(this.selectedModel)) {
       const w = this.nearestWallPoint(p.x, p.z);
       if (w) {
-        x = w.x;
-        z = w.z;
-        rotation = w.rotation;
+        const r = this.resolveWallMount(this.selectedModel, w);
+        x = r.x;
+        z = r.z;
+        rotation = r.rotation;
       }
     }
     fl.furniture.push({
@@ -477,13 +479,19 @@ export class EditorController {
     this.selectFurniture(id);
   }
 
-  /** Nearest point on any wall / shape-room edge, with orientation, for snapping
-   *  wall-mounted furniture. */
-  private nearestWallPoint(px: number, pz: number): { x: number; z: number; rotation: number } | null {
+  /** Nearest point on any wall / shape-room edge, with orientation + normal/side
+   *  (which face of the wall the tapped point is on), for snapping wall-mounted
+   *  furniture. */
+  private nearestWallPoint(
+    px: number,
+    pz: number,
+  ): { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number } | null {
     let bd = 1.2;
-    let best: { x: number; z: number; rotation: number } | null = null;
+    let best:
+      | { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number }
+      | null = null;
     const fl = this.floor();
-    const tryEdge = (ax: number, az: number, bx: number, bz: number) => {
+    const tryEdge = (ax: number, az: number, bx: number, bz: number, thickness: number) => {
       const dx = bx - ax, dz = bz - az;
       const len2 = dx * dx + dz * dz;
       if (len2 < 1e-6) return;
@@ -493,20 +501,46 @@ export class EditorController {
       const d = Math.hypot(px - cx, pz - cz);
       if (d < bd) {
         bd = d;
-        best = { x: cx, z: cz, rotation: (-Math.atan2(dz, dx) * 180) / Math.PI };
+        const len = Math.sqrt(len2);
+        // unit normal pointing toward the tapped side
+        let nx = -dz / len, nz = dx / len;
+        if ((px - cx) * nx + (pz - cz) * nz < 0) {
+          nx = -nx;
+          nz = -nz;
+        }
+        best = { x: cx, z: cz, rotation: (-Math.atan2(dz, dx) * 180) / Math.PI, nx, nz, thickness };
       }
     };
-    for (const w of fl.walls ?? []) tryEdge(w.start[0], w.start[1], w.end[0], w.end[1]);
+    for (const w of fl.walls ?? []) {
+      tryEdge(w.start[0], w.start[1], w.end[0], w.end[1], w.thickness ?? 0.12);
+    }
     for (const room of fl.rooms ?? []) {
       if (!isShapeRoom(room)) continue;
       const poly = roomPolygon(room);
+      const th = room.thickness ?? 0.12;
       for (let i = 0; i < poly.length; i++) {
         const a = poly[i];
         const b = poly[(i + 1) % poly.length];
-        tryEdge(a[0], a[1], b[0], b[1]);
+        tryEdge(a[0], a[1], b[0], b[1], th);
       }
     }
     return best;
+  }
+
+  /** Resolve final position + rotation for a wall-mounted piece. Surface-mount
+   *  items (TV, painting…) are pushed onto the room-side face and turned to face
+   *  the room; doors/windows/curtains stay in the wall plane. */
+  private resolveWallMount(
+    model: string,
+    p: { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number },
+  ): { x: number; z: number; rotation: number } {
+    if (!isSurfaceMount(model)) return { x: p.x, z: p.z, rotation: p.rotation };
+    const off = p.thickness / 2 + 0.04;
+    const x = p.x + p.nx * off;
+    const z = p.z + p.nz * off;
+    // Rotation so the model's front (+Z local) faces the room (the normal).
+    const rotation = (Math.atan2(p.nx, p.nz) * 180) / Math.PI;
+    return { x, z, rotation };
   }
 
   selectFurniture(id: string | null): void {

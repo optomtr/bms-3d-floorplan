@@ -124,12 +124,11 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
   tv: (c) => {
+    // Flat wall panel, centered at local y=0 (placed at defaultY). The back sits
+    // at local z=0 so it can be offset to rest flush on the wall surface.
     const g = new THREE.Group();
-    g.add(box(1.2, 0.7, 0.05, mat(DARK), 0, 0.95, 0)); // screen
-    const screen = box(1.1, 0.6, 0.02, mat(0x0a0a0a, { emissive: 0x111417 }), 0, 0.95, 0.03);
-    g.add(screen);
-    g.add(box(0.4, 0.05, 0.2, mat(DARK), 0, 0.6, 0)); // stand
-    tint(g.children[0] as THREE.Mesh, c);
+    g.add(tint(box(1.3, 0.78, 0.06, mat(DARK), 0, 0, 0.03), c)); // bezel
+    g.add(box(1.18, 0.66, 0.02, mat(0x0a0a0a, { emissive: 0x111417 }), 0, 0, 0.07)); // screen
     return g;
   },
   fridge: (c) => {
@@ -511,6 +510,35 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  patio_door: (c) => {
+    // Wide floor-to-ceiling terrace door / glass wall (built from the floor up).
+    const g = new THREE.Group();
+    const fr = mat(0x55606a);
+    const W = 2.6, H = 2.2, fw = 0.08, d = 0.1;
+    g.add(tint(box(W, fw, d, fr, 0, H - fw / 2, 0), c));
+    g.add(box(W, fw, d, fr, 0, fw / 2, 0));
+    g.add(box(fw, H, d, fr, -W / 2 + fw / 2, H / 2, 0));
+    g.add(box(fw, H, d, fr, W / 2 - fw / 2, H / 2, 0));
+    g.add(box(0.06, H, d * 0.6, fr, -W / 6, H / 2, 0)); // mullions → 3 panes
+    g.add(box(0.06, H, d * 0.6, fr, W / 6, H / 2, 0));
+    g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.42, metalness: 0.2 }), 0, H / 2, 0));
+    return g;
+  },
+  terrace_window: (c) => {
+    // Wide panoramic window, centered at local y=0 (placed at defaultY).
+    const g = new THREE.Group();
+    const fr = mat(0x55606a);
+    const W = 2.6, H = 1.5, fw = 0.07, d = 0.1;
+    g.add(tint(box(W, fw, d, fr, 0, H / 2, 0), c));
+    g.add(box(W, fw, d, fr, 0, -H / 2, 0));
+    g.add(box(fw, H, d, fr, -W / 2 + fw / 2, 0, 0));
+    g.add(box(fw, H, d, fr, W / 2 - fw / 2, 0, 0));
+    g.add(box(0.05, H, d * 0.6, fr, -W / 4, 0, 0)); // mullions → 3 panes
+    g.add(box(0.05, H, d * 0.6, fr, W / 4, 0, 0));
+    g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.45 }), 0, 0, 0));
+    return g;
+  },
+
   // Generic fallback marker so an unknown model key still renders something.
   marker: (c) => {
     const g = new THREE.Group();
@@ -523,12 +551,22 @@ export const FURNITURE_KEYS = Object.keys(builders).filter((k) => k !== 'marker'
 
 /** Models that should auto-attach to a wall when placed (snap + orient). */
 export const WALL_MOUNT_KEYS = [
-  'door', 'double_door', 'sliding_door', 'window_frame', 'tv', 'painting',
-  'mirror', 'wall_light', 'wall_clock', 'ac_unit', 'intercom', 'security_camera',
-  'curtain', 'range_hood',
+  'door', 'double_door', 'sliding_door', 'window_frame', 'patio_door',
+  'terrace_window', 'tv', 'painting', 'mirror', 'wall_light', 'wall_clock',
+  'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
+}
+
+/** Wall-mount models that sit ON the room-side surface of the wall (offset out
+ *  so they're not buried in the wall). Doors/windows/curtains sit in-plane. */
+export const SURFACE_MOUNT_KEYS = [
+  'tv', 'painting', 'mirror', 'wall_light', 'wall_clock', 'ac_unit',
+  'intercom', 'security_camera', 'range_hood', 'terrace_window',
+];
+export function isSurfaceMount(model: string): boolean {
+  return SURFACE_MOUNT_KEYS.includes(model);
 }
 
 /** Lighting fixtures (have an emissive mesh; bind a light.* entity to them). */
@@ -594,6 +632,9 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'spotlight' || model === 'led_strip') return wallHeight - 0.02;
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'painting' || model === 'mirror' || model === 'tv' || model === 'intercom') return 1.4;
+  if (model === 'terrace_window') return 1.2;
+  if (model === 'wall_clock') return 1.7;
+  if (model === 'range_hood') return 1.6;
   if (model === 'curtain') return 0.1;
   return 0;
 }
