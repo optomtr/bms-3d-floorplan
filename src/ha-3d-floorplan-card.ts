@@ -29,6 +29,7 @@ import {
 } from './storage';
 import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor } from './furniture/library';
 import { getThumbnail } from './furniture/thumbnails';
+import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
 
 @customElement('ha-3d-floorplan-card')
 export class Ha3dFloorplanCard extends LitElement {
@@ -53,6 +54,8 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editSelectedColor: string | null = null;
   @state() private editSelectedWallLength: number | null = null;
   @state() private editRoom: RoomDef | null = null;
+  @state() private editFurnScale: [number, number, number] | null = null;
+  @state() private editMaterial = 'plain';
   @state() private importOpen = false;
   @state() private importText = '';
   @state() private projectList: ProjectInfo[] = [];
@@ -308,6 +311,8 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editSelectedColor = ed.selectedColor;
       this.editSelectedWallLength = ed.selectedWallLength;
       this.editRoom = ed.selectedRoomData;
+      this.editFurnScale = ed.selectedFurnitureScale as [number, number, number] | null;
+      this.editMaterial = ed.selectedMaterial;
       this.editFloorIndex = ed.floorIndex;
       this.editPlanName = ed.plan.name ?? '';
       this.requestUpdate();
@@ -452,6 +457,15 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSetColor(e: Event): void {
     const color = (e.target as HTMLInputElement).value;
     this.editor?.setColor(color);
+  }
+
+  private onSetFurnScale(axis: 0 | 1 | 2, e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v)) this.editor?.setFurnitureScale(axis, v);
+  }
+
+  private onSetMaterial(e: Event): void {
+    this.editor?.setSurfaceMaterial((e.target as HTMLSelectElement).value);
   }
 
   private onOpenImport(): void {
@@ -748,7 +762,29 @@ export class Ha3dFloorplanCard extends LitElement {
                 .value=${this.editSelectedColor ?? (kind === 'room' ? '#cfc7ba' : kind === 'wall' ? '#e6e6e6' : '#ffffff')}
                 @input=${this.onSetColor}
               />
+              ${kind === 'wall' || kind === 'room'
+                ? html`<span class="hint">${kind === 'room' ? 'Floor' : 'Wall'}:</span>
+                    <select class="select" @change=${this.onSetMaterial}>
+                      ${(kind === 'room' ? FLOOR_MATERIALS : WALL_MATERIALS).map(
+                        (m) => html`<option value=${m} ?selected=${m === this.editMaterial}>${m}</option>`,
+                      )}
+                    </select>`
+                : nothing}
             </div>
+            ${isFurniture && this.editFurnScale
+              ? html`<div class="toolrow">
+                  <span class="hint">Size</span>
+                  <input class="num-input" type="number" min="0.1" step="0.1" title="Width"
+                    .value=${this.editFurnScale[0].toFixed(1)}
+                    @change=${(e: Event) => this.onSetFurnScale(0, e)} />
+                  <input class="num-input" type="number" min="0.1" step="0.1" title="Height"
+                    .value=${this.editFurnScale[1].toFixed(1)}
+                    @change=${(e: Event) => this.onSetFurnScale(1, e)} />
+                  <input class="num-input" type="number" min="0.1" step="0.1" title="Depth"
+                    .value=${this.editFurnScale[2].toFixed(1)}
+                    @change=${(e: Event) => this.onSetFurnScale(2, e)} />
+                </div>`
+              : nothing}
             ${kind === 'wall'
               ? html`<div class="toolrow">
                   <span class="hint">Length (m):</span>

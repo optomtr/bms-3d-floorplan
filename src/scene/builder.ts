@@ -12,6 +12,7 @@ import type { FloorDef, WallDef, RoomDef, Vec2 } from '../types';
 import { resolveFurniture } from '../furniture/loader';
 import { TextLabel } from './labels';
 import { isShapeRoom, roomPolygon, roomWalls } from './room-shapes';
+import { surfaceTexture, tiled } from './materials';
 
 const DEFAULT_WALL_HEIGHT = 2.6;
 const DEFAULT_THICKNESS = 0.12;
@@ -29,11 +30,12 @@ export interface BuiltFloor {
   labels: TextLabel[];
 }
 
-function wallMaterial(color?: string): THREE.MeshStandardMaterial {
+function wallMaterial(color?: string, material?: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
     color: color ?? '#e6e6e6',
     roughness: 0.95,
     metalness: 0.0,
+    map: material && material !== 'plain' ? tiled(surfaceTexture(material), 3, 2) : null,
   });
 }
 
@@ -88,18 +90,20 @@ function buildWall(
 
   const height = wall.height ?? defaultHeight;
   const thickness = wall.thickness ?? DEFAULT_THICKNESS;
-  const material = wallMaterial(wall.color);
+  const material = wallMaterial(wall.color, wall.material);
   // Door/window frames are rendered INTO the wall group so they're owned by the
   // wall (deleted with it), coupled to the opening, and sized to the hole.
   const doorMat = new THREE.MeshStandardMaterial({ color: 0xb98a52, roughness: 0.6 });
   const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x9fd0e0,
+    color: 0x9cc7da,
     transparent: true,
-    opacity: 0.3,
+    opacity: 0.55, // more visible than before (was nearly see-through)
     roughness: 0.05,
-    metalness: 0.15,
+    metalness: 0.25,
   });
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.8 });
+  // Window frame is darker so it reads against light walls (was invisible white-on-white).
+  const winFrameMat = new THREE.MeshStandardMaterial({ color: 0x55606a, roughness: 0.6 });
   const handleMat = new THREE.MeshStandardMaterial({ color: 0x3a3f47, metalness: 0.6, roughness: 0.3 });
 
   const openings = [...(wall.openings ?? [])].sort((a, b) => a.position - b.position);
@@ -133,16 +137,16 @@ function buildWall(
       const hy = (sill + top) / 2;
       span(opEnd - 0.22, opEnd - 0.14, hy - 0.06, hy + 0.06, 0.14, handleMat);
     } else {
-      // Frame all around + glass + cross mullions.
-      span(opStart, opStart + fw, sill, top, thickness, frameMat);
-      span(opEnd - fw, opEnd, sill, top, thickness, frameMat);
-      span(opStart, opEnd, sill, sill + fw, thickness, frameMat);
-      span(opStart, opEnd, top - fw, top, thickness, frameMat);
-      span(opStart + fw, opEnd - fw, sill + fw, top - fw, 0.03, glassMat);
+      // Frame all around + glass + cross mullions (dark frame so it's visible).
+      span(opStart, opStart + fw, sill, top, thickness * 1.1, winFrameMat);
+      span(opEnd - fw, opEnd, sill, top, thickness * 1.1, winFrameMat);
+      span(opStart, opEnd, sill, sill + fw, thickness * 1.1, winFrameMat);
+      span(opStart, opEnd, top - fw, top, thickness * 1.1, winFrameMat);
+      span(opStart + fw, opEnd - fw, sill + fw, top - fw, 0.04, glassMat);
       const mid = (opStart + opEnd) / 2;
-      span(mid - 0.025, mid + 0.025, sill + fw, top - fw, 0.05, frameMat); // vertical mullion
+      span(mid - 0.03, mid + 0.03, sill + fw, top - fw, 0.06, winFrameMat); // vertical mullion
       const ymid = (sill + top) / 2;
-      span(opStart + fw, opEnd - fw, ymid - 0.025, ymid + 0.025, 0.05, frameMat); // horizontal
+      span(opStart + fw, opEnd - fw, ymid - 0.03, ymid + 0.03, 0.06, winFrameMat); // horizontal
     }
     cursor = Math.max(cursor, opEnd);
   }
@@ -176,6 +180,7 @@ function buildFloor(
       roughness: 1,
       metalness: 0,
       side: THREE.DoubleSide,
+      map: room.material && room.material !== 'plain' ? surfaceTexture(room.material) : null,
     }),
   );
   mesh.position.y = 0.005;

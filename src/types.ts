@@ -21,6 +21,8 @@ export interface WallDef {
   thickness?: number;
   /** Base color tint (hex string, e.g. "#dddddd"). */
   color?: string;
+  /** Surface material preset (plain/stripes/plaster/brick/panel). */
+  material?: string;
   /** Openings (doors/windows) cut into this wall. */
   openings?: OpeningDef[];
 }
@@ -48,6 +50,8 @@ export interface RoomDef {
   polygon: Vec2[];
   /** Floor material color. */
   color?: string;
+  /** Floor surface material preset (plain/wood/tile/plaster). */
+  material?: string;
 
   // --- Shape-room (Designer Mode) fields. When `shape` is set the builder
   //     derives the polygon + perimeter walls from these, so rooms can be

@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorPlan, FloorDef, WallDef, Vec2, RoomDef, RoomShape } from '../types';
+import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
 import { defaultY } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
@@ -723,6 +723,51 @@ export class EditorController {
     this.rebuild();
     this.reselect();
     this.onChange?.();
+  }
+
+  /** Current per-axis scale of the selected furniture (defaults to 1,1,1). */
+  get selectedFurnitureScale(): Vec3 | null {
+    if (this.selectedKind !== 'furniture') return null;
+    const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
+    if (!f) return null;
+    const s = f.scale ?? 1;
+    return Array.isArray(s) ? (s as Vec3) : [s, s, s];
+  }
+
+  /** Resize the selected furniture along one axis (0=x width, 1=y height, 2=z depth). */
+  setFurnitureScale(axis: 0 | 1 | 2, v: number): void {
+    if (this.selectedKind !== 'furniture' || !(v > 0)) return;
+    const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
+    if (!f) return;
+    const s = f.scale ?? 1;
+    const cur: Vec3 = Array.isArray(s) ? [s[0], s[1], s[2]] : [s, s, s];
+    cur[axis] = Math.max(0.1, Math.round(v * 100) / 100);
+    f.scale = cur;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  /** Surface material preset for the selected wall (or floor of a room). */
+  setSurfaceMaterial(name: string): void {
+    const fl = this.floor();
+    if (this.selectedKind === 'wall' && fl.walls?.[this.selectedWall]) {
+      fl.walls[this.selectedWall].material = name;
+    } else if (this.selectedKind === 'room' && fl.rooms?.[this.selectedRoom]) {
+      fl.rooms[this.selectedRoom].material = name;
+    } else {
+      return;
+    }
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  get selectedMaterial(): string {
+    const fl = this.floor();
+    if (this.selectedKind === 'wall') return fl.walls?.[this.selectedWall]?.material ?? 'plain';
+    if (this.selectedKind === 'room') return fl.rooms?.[this.selectedRoom]?.material ?? 'plain';
+    return 'plain';
   }
 
   /** Set the color of the selected furniture / wall / room. */
