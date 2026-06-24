@@ -1177,36 +1177,24 @@ export class EditorController {
     const position = Math.max(0, Math.min(hit.len - width, hit.along - width / 2));
     const center = position + width / 2;
     let seg: [number, number, number, number];
-    let attach: { kind: 'wall' | 'room'; index: number; edge?: number; opening: number };
     if (hit.type === 'wall') {
       if (!hit.wall.openings) hit.wall.openings = [];
-      hit.wall.openings.push({ kind, position, width, bare: true });
+      hit.wall.openings.push({ kind, position, width });
       seg = [hit.wall.start[0], hit.wall.start[1], hit.wall.end[0], hit.wall.end[1]];
-      attach = { kind: 'wall', index: (fl.walls ?? []).indexOf(hit.wall), opening: hit.wall.openings.length - 1 };
     } else {
       if (!hit.room.openings) hit.room.openings = [];
-      hit.room.openings.push({ kind, edge: hit.edge, position, width, bare: true });
+      hit.room.openings.push({ kind, edge: hit.edge, position, width });
       const poly = roomPolygon(hit.room);
       const a = poly[hit.edge];
       const b = poly[(hit.edge + 1) % poly.length];
       seg = [a[0], a[1], b[0], b[1]];
-      attach = { kind: 'room', index: (fl.rooms ?? []).indexOf(hit.room), edge: hit.edge, opening: hit.room.openings.length - 1 };
     }
-    // Place a SELECTABLE door/window model in the opening, oriented to the wall.
+    // The opening is drawn directly by the builder (a simple frameless leaf /
+    // framed window) — no separate model, so nothing overlaps to flicker.
     const [ax, az, bx, bz] = seg;
     const len = Math.hypot(bx - ax, bz - az) || 1;
     const wx = ax + ((bx - ax) / len) * center;
     const wz = az + ((bz - az) / len) * center;
-    const rotDeg = (-Math.atan2(bz - az, bx - ax) * 180) / Math.PI;
-    if (!fl.furniture) fl.furniture = [];
-    const fid = `op${fl.furniture.length}_${Math.floor(performance.now() % 100000)}`;
-    fl.furniture.push({
-      model: kind === 'door' ? 'door' : 'window_frame',
-      position: [wx, 0, wz],
-      rotation: rotDeg,
-      id: fid,
-      attach,
-    });
     // Cut through any OTHER coincident (collinear, overlapping) wall / room edge
     // at the same spot, so a door/window placed where two rooms share a wall
     // doesn't stay blocked by the second wall.
@@ -1230,7 +1218,7 @@ export class EditorController {
     for (const w of fl.walls ?? []) {
       if (hit.type === 'wall' && w === hit.wall) continue;
       const pos = cutSeg(w.start[0], w.start[1], w.end[0], w.end[1]);
-      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width, bare: true });
+      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width });
     }
     for (const room of fl.rooms ?? []) {
       if (!isShapeRoom(room)) continue;
@@ -1239,12 +1227,12 @@ export class EditorController {
         if (hit.type === 'room' && room === hit.room && e === hit.edge) continue;
         const a = poly[e], b = poly[(e + 1) % poly.length];
         const pos = cutSeg(a[0], a[1], b[0], b[1]);
-        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width, bare: true });
+        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width });
       }
     }
     this.rebuild();
-    this.selectFurniture(fid); // selectable immediately
     this.onChange?.();
+    this.onMessage?.(`${kind === 'door' ? 'Door' : 'Window'} added — select the wall to edit/delete it`);
   }
 
   /** Undo: remove the last committed wall of the current run (and its point). */

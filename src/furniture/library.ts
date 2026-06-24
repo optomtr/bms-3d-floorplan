@@ -159,11 +159,8 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(0.06, 2.06, 0.16, jamb, -0.46, 1.03, 0));
     g.add(box(0.06, 2.06, 0.16, jamb, 0.46, 1.03, 0));
     g.add(box(0.98, 0.06, 0.16, jamb, 0, 2.06, 0));
-    const leaf = tint(box(0.84, 2.0, 0.05, mat(WOOD), 0, 1.0, 0), c);
+    const leaf = tint(box(0.84, 2.0, 0.06, mat(WOOD), 0, 1.0, 0), c);
     g.add(leaf);
-    // Two recessed panels.
-    g.add(box(0.5, 0.7, 0.06, mat(0x000000, { transparent: true, opacity: 0.12 }), 0, 1.45, 0.01));
-    g.add(box(0.5, 0.7, 0.06, mat(0x000000, { transparent: true, opacity: 0.12 }), 0, 0.6, 0.01));
     g.add(cyl(0.03, 0.03, 0.12, mat(0xb8932e), 0.33, 1.0, 0.06)); // brass handle
     return g;
   },

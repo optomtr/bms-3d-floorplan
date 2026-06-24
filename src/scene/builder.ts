@@ -101,10 +101,8 @@ function buildWall(
     roughness: 0.05,
     metalness: 0.25,
   });
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.8 });
   // Window frame is darker so it reads against light walls (was invisible white-on-white).
   const winFrameMat = new THREE.MeshStandardMaterial({ color: 0x55606a, roughness: 0.6 });
-  const handleMat = new THREE.MeshStandardMaterial({ color: 0x3a3f47, metalness: 0.6, roughness: 0.3 });
 
   const openings = [...(wall.openings ?? [])].sort((a, b) => a.position - b.position);
 
@@ -135,13 +133,9 @@ function buildWall(
       addWallSpan(group, start, dir, normalAngle, a, b, yb, yt, th, mat);
     const fw = 0.06; // frame width
     if (op.kind === 'door') {
-      // Jambs + header (white frame), inset wood leaf, and a handle.
-      span(opStart, opStart + fw, sill, top, thickness, frameMat);
-      span(opEnd - fw, opEnd, sill, top, thickness, frameMat);
-      span(opStart, opEnd, top - fw, top, thickness, frameMat);
-      span(opStart + fw, opEnd - fw, sill, top - fw, 0.05, doorMat);
-      const hy = (sill + top) / 2;
-      span(opEnd - 0.22, opEnd - 0.14, hy - 0.06, hy + 0.06, 0.14, handleMat);
+      // Simple frameless door leaf filling the opening (no frame / handle), so
+      // there's a single slab — no coplanar overlap to flicker.
+      span(opStart, opEnd, sill, top, 0.06, doorMat);
     } else {
       // Frame all around + glass + cross mullions (dark frame so it's visible).
       span(opStart, opStart + fw, sill, top, thickness * 1.1, winFrameMat);
