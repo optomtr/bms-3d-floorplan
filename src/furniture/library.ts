@@ -536,6 +536,251 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  // ---- Kitchen ----
+  oven: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.6, 0.9, 0.6, mat(METAL, { metalness: 0.6, roughness: 0.4 }), 0, 0.45, 0), c));
+    g.add(box(0.5, 0.5, 0.02, mat(0x111417, { metalness: 0.3 }), 0, 0.5, 0.3)); // glass door
+    g.add(box(0.5, 0.06, 0.04, mat(DARK), 0, 0.78, 0.31)); // handle
+    for (const x of [-0.18, -0.06, 0.06, 0.18]) g.add(cyl(0.03, 0.03, 0.04, mat(DARK), x, 0.86, 0.31, 12));
+    return g;
+  },
+  kettle: (c) => {
+    const g = new THREE.Group();
+    g.add(cyl(0.11, 0.11, 0.03, mat(DARK), 0, 0.015, 0, 18));
+    g.add(tint(cyl(0.09, 0.11, 0.2, mat(METAL, { metalness: 0.5, roughness: 0.3 }), 0, 0.12, 0, 18), c));
+    g.add(box(0.04, 0.14, 0.04, mat(DARK), 0, 0.18, -0.11));
+    return g;
+  },
+  coffee_machine: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.26, 0.36, 0.3, mat(DARK), 0, 0.18, 0), c));
+    g.add(box(0.2, 0.05, 0.06, mat(METAL), 0, 0.12, 0.16));
+    g.add(cyl(0.05, 0.05, 0.08, mat(0x6b4a2f), 0, 0.05, 0.13, 12));
+    return g;
+  },
+  toaster: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.3, 0.18, 0.16, mat(METAL, { metalness: 0.6, roughness: 0.3 }), 0, 0.09, 0), c));
+    g.add(box(0.22, 0.02, 0.02, mat(DARK), 0, 0.19, 0));
+    return g;
+  },
+  blender: (c) => {
+    const g = new THREE.Group();
+    g.add(box(0.15, 0.1, 0.15, mat(DARK), 0, 0.05, 0));
+    g.add(tint(cyl(0.07, 0.06, 0.22, mat(GLASS, { transparent: true, opacity: 0.5 }), 0, 0.21, 0, 14), c));
+    return g;
+  },
+  trash_can: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(cyl(0.18, 0.16, 0.5, mat(METAL, { metalness: 0.5, roughness: 0.4 }), 0, 0.25, 0, 20), c));
+    g.add(cyl(0.19, 0.19, 0.03, mat(METAL, { metalness: 0.5 }), 0, 0.51, 0, 20));
+    return g;
+  },
+  wine_rack: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(tint(box(0.05, 0.8, 0.05, w, sx * 0.28, 0.4, sz * 0.14), c));
+    for (const y of [0.15, 0.35, 0.55, 0.75]) g.add(box(0.56, 0.03, 0.28, w, 0, y, 0));
+    return g;
+  },
+  // ---- Living / common ----
+  recliner: (c) => {
+    const g = new THREE.Group();
+    const f = mat(FABRIC);
+    g.add(tint(box(0.9, 0.4, 0.95, f, 0, 0.25, 0), c));
+    g.add(tint(box(0.9, 0.7, 0.18, f, 0, 0.6, -0.38), c));
+    g.add(tint(box(0.18, 0.35, 0.95, f, -0.45, 0.45, 0), c));
+    g.add(tint(box(0.18, 0.35, 0.95, f, 0.45, 0.45, 0), c));
+    g.add(box(0.78, 0.16, 0.36, f, 0, 0.22, 0.62)); // footrest
+    return g;
+  },
+  ottoman: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.6, 0.4, 0.6, mat(FABRIC), 0, 0.2, 0), c));
+    return g;
+  },
+  console_table: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    g.add(tint(box(1.2, 0.05, 0.4, w, 0, 0.8, 0), c));
+    for (const sx of [-1, 1]) g.add(box(0.06, 0.8, 0.36, w, sx * 0.55, 0.4, 0));
+    g.add(box(1.1, 0.04, 0.36, w, 0, 0.4, 0));
+    return g;
+  },
+  fireplace: (c) => {
+    const g = new THREE.Group();
+    const stone = mat(0x8a8a86, { roughness: 1 });
+    g.add(tint(box(1.4, 1.2, 0.4, stone, 0, 0.6, 0), c));
+    g.add(box(0.9, 0.7, 0.26, mat(0x141414), 0, 0.5, 0.1));
+    g.add(box(0.74, 0.36, 0.18, mat(0xff7a30, { emissive: 0xff5a1a }), 0, 0.4, 0.14)); // fire glow
+    g.add(box(1.5, 0.1, 0.5, stone, 0, 1.22, 0)); // mantel
+    return g;
+  },
+  floor_vase: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(cyl(0.1, 0.18, 0.7, mat(0xb5651d), 0, 0.35, 0, 20), c));
+    g.add(cyl(0.12, 0.1, 0.08, mat(0xb5651d), 0, 0.74, 0, 20));
+    for (const dx of [-0.05, 0.05, 0]) g.add(box(0.012, 0.5, 0.012, mat(0x3a6b3a), dx, 1.0, 0));
+    return g;
+  },
+  aquarium: (c) => {
+    const g = new THREE.Group();
+    g.add(box(1.0, 0.5, 0.4, mat(WOOD), 0, 0.25, 0)); // stand
+    g.add(box(0.95, 0.18, 0.38, mat(0x2a6fa0, { transparent: true, opacity: 0.55 }), 0, 0.62, 0)); // water
+    g.add(tint(box(0.96, 0.46, 0.39, mat(GLASS, { transparent: true, opacity: 0.28, metalness: 0.1 }), 0, 0.73, 0), c));
+    return g;
+  },
+  pool_table: (c) => {
+    const g = new THREE.Group();
+    g.add(box(2.1, 0.16, 1.2, mat(WOOD), 0, 0.68, 0)); // rails
+    g.add(tint(box(1.96, 0.06, 1.06, mat(0x1f7a3d), 0, 0.79, 0), c)); // felt
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(box(0.14, 0.6, 0.14, mat(WOOD), sx * 0.95, 0.3, sz * 0.5));
+    return g;
+  },
+  // ---- Bedroom ----
+  crib: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WHITE);
+    g.add(tint(box(0.66, 0.1, 1.16, w, 0, 0.5, 0), c));
+    for (const sz of [-1, 1]) g.add(box(0.7, 0.5, 0.04, w, 0, 0.65, sz * 0.58));
+    for (const sx of [-1, 1]) g.add(box(0.04, 0.5, 1.2, w, sx * 0.33, 0.65, 0));
+    return g;
+  },
+  vanity: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WHITE);
+    g.add(tint(box(1.0, 0.05, 0.45, w, 0, 0.78, 0), c));
+    for (const sx of [-1, 1]) g.add(box(0.36, 0.78, 0.42, w, sx * 0.3, 0.39, 0));
+    g.add(box(0.66, 0.66, 0.04, w, 0, 1.2, -0.22)); // mirror frame
+    g.add(box(0.6, 0.6, 0.02, mat(0xcfe0e6, { metalness: 0.4, roughness: 0.1 }), 0, 1.2, -0.2));
+    return g;
+  },
+  bench: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    g.add(tint(box(1.1, 0.1, 0.4, mat(FABRIC), 0, 0.45, 0), c));
+    for (const sx of [-1, 1]) g.add(box(0.06, 0.45, 0.36, w, sx * 0.5, 0.225, 0));
+    return g;
+  },
+  ceiling_fan: (c) => {
+    const g = new THREE.Group();
+    g.add(cyl(0.1, 0.1, 0.1, mat(METAL), 0, 0, 0, 16));
+    g.add(tint(box(1.4, 0.02, 0.18, mat(WOOD), 0, -0.02, 0), c));
+    g.add(tint(box(0.18, 0.02, 1.4, mat(WOOD), 0, -0.02, 0), c));
+    g.add(cyl(0.04, 0.04, 0.22, mat(METAL), 0, 0.14, 0, 10));
+    return g;
+  },
+  // ---- Bathroom ----
+  bidet: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.4, 0.4, 0.55, mat(WHITE), 0, 0.2, 0), c));
+    g.add(cyl(0.16, 0.18, 0.12, mat(WHITE), 0, 0.42, 0.05, 18));
+    return g;
+  },
+  towel_rack: (c) => {
+    const g = new THREE.Group();
+    g.add(box(0.6, 0.04, 0.05, mat(METAL, { metalness: 0.6, roughness: 0.3 }), 0, 0.12, 0.04));
+    g.add(tint(box(0.5, 0.32, 0.02, mat(WHITE), 0, -0.05, 0.06), c)); // towel
+    return g;
+  },
+  bathroom_cabinet: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.6, 0.7, 0.15, mat(WHITE), 0, 0, 0.075), c));
+    g.add(box(0.56, 0.66, 0.02, mat(0xcfe0e6, { metalness: 0.4, roughness: 0.1 }), 0, 0, 0.16));
+    return g;
+  },
+  dryer: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.6, 0.85, 0.6, mat(WHITE), 0, 0.425, 0), c));
+    g.add(cyl(0.22, 0.22, 0.04, mat(0x2a2f36, { metalness: 0.3 }), 0, 0.5, 0.3, 24));
+    g.add(box(0.5, 0.08, 0.04, mat(METAL), 0, 0.78, 0.31));
+    return g;
+  },
+  // ---- Office ----
+  filing_cabinet: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.45, 1.0, 0.55, mat(METAL, { metalness: 0.4, roughness: 0.5 }), 0, 0.5, 0), c));
+    for (const y of [0.25, 0.5, 0.75]) g.add(box(0.4, 0.02, 0.02, mat(DARK), 0, y, 0.28));
+    return g;
+  },
+  monitor: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.5, 0.32, 0.03, mat(DARK), 0, 0.45, 0), c));
+    g.add(box(0.46, 0.28, 0.01, mat(0x0a0a0a, { emissive: 0x10131a }), 0, 0.45, 0.02));
+    g.add(cyl(0.03, 0.03, 0.18, mat(DARK), 0, 0.3, -0.02, 10));
+    g.add(box(0.2, 0.02, 0.14, mat(DARK), 0, 0.21, -0.02));
+    return g;
+  },
+  printer: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.45, 0.3, 0.4, mat(WHITE), 0, 0.15, 0), c));
+    g.add(box(0.4, 0.02, 0.3, mat(DARK), 0, 0.31, 0));
+    g.add(box(0.34, 0.04, 0.08, mat(0xddddee), 0, 0.3, 0.12));
+    return g;
+  },
+  whiteboard: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(1.26, 0.86, 0.02, mat(METAL), 0, 0, 0), c));
+    g.add(box(1.2, 0.8, 0.02, mat(0xf6f6f6), 0, 0, 0.02));
+    g.add(box(0.4, 0.03, 0.06, mat(METAL), 0, -0.36, 0.05));
+    return g;
+  },
+  // ---- Entry / utility / decor ----
+  shoe_rack: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    for (const y of [0.1, 0.3, 0.5]) g.add(tint(box(0.8, 0.03, 0.3, w, 0, y, 0), c));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(box(0.04, 0.55, 0.04, w, sx * 0.38, 0.275, sz * 0.13));
+    return g;
+  },
+  coat_rack: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    g.add(tint(cyl(0.04, 0.06, 1.7, w, 0, 0.85, 0, 12), c));
+    g.add(cyl(0.25, 0.25, 0.04, w, 0, 0.02, 0, 16));
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      g.add(box(0.18, 0.03, 0.03, w, Math.cos(a) * 0.09, 1.6, Math.sin(a) * 0.09));
+    }
+    return g;
+  },
+  water_heater: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(cyl(0.25, 0.25, 0.9, mat(WHITE), 0, 0.45, 0, 20), c));
+    g.add(cyl(0.25, 0.25, 0.05, mat(METAL), 0, 0.9, 0, 20));
+    g.add(box(0.1, 0.1, 0.1, mat(METAL), 0, 0.2, 0.26));
+    return g;
+  },
+  books: (c) => {
+    const g = new THREE.Group();
+    const cols = [0x8a3b3b, 0x3b5a8a, 0x3b8a5a, 0xb5912f];
+    let y = 0.02;
+    for (let i = 0; i < 4; i++) {
+      g.add(box(0.22, 0.04, 0.16, mat(cols[i % cols.length]), 0, y, (i % 2) * 0.01));
+      y += 0.045;
+    }
+    tint(g.children[0] as THREE.Mesh, c);
+    return g;
+  },
+  vase: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(cyl(0.06, 0.1, 0.28, mat(0xdfe6ea, { metalness: 0.1, roughness: 0.3 }), 0, 0.14, 0, 18), c));
+    for (const dx of [-0.03, 0.03, 0]) g.add(box(0.01, 0.3, 0.01, mat(0x3a6b3a), dx, 0.4, 0));
+    return g;
+  },
+  wall_shelf: (c) => {
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    g.add(tint(box(0.8, 0.04, 0.22, w, 0, 0, 0.11), c));
+    g.add(box(0.04, 0.2, 0.2, w, -0.36, -0.1, 0.1));
+    g.add(box(0.04, 0.2, 0.2, w, 0.36, -0.1, 0.1));
+    return g;
+  },
+
   // Generic fallback marker so an unknown model key still renders something.
   marker: (c) => {
     const g = new THREE.Group();
@@ -551,6 +796,7 @@ export const WALL_MOUNT_KEYS = [
   'door', 'double_door', 'sliding_door', 'window_frame', 'patio_door',
   'terrace_window', 'tv', 'painting', 'mirror', 'wall_light', 'wall_clock',
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
+  'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -561,6 +807,7 @@ export function isWallMount(model: string): boolean {
 export const SURFACE_MOUNT_KEYS = [
   'tv', 'painting', 'mirror', 'wall_light', 'wall_clock', 'ac_unit',
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
+  'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -589,6 +836,8 @@ export function entityDomainsFor(model: string): string[] {
   switch (model) {
     case 'ac_unit':
       return ['climate', 'fan', 'switch'];
+    case 'ceiling_fan':
+      return ['fan', 'switch'];
     case 'tv':
     case 'tv_stand':
       return ['media_player', 'switch'];
@@ -627,8 +876,12 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'ceiling_light' || model === 'chandelier' || model === 'pendant_light')
     return wallHeight - 0.05;
   if (model === 'spotlight' || model === 'led_strip') return wallHeight - 0.02;
+  if (model === 'ceiling_fan') return wallHeight - 0.25;
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
+  if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
+  if (model === 'wall_shelf') return 1.4;
   if (model === 'painting' || model === 'mirror' || model === 'tv' || model === 'intercom') return 1.4;
+  if (model === 'towel_rack') return 1.1;
   if (model === 'terrace_window') return 1.2;
   if (model === 'wall_clock') return 1.7;
   if (model === 'range_hood') return 1.6;
