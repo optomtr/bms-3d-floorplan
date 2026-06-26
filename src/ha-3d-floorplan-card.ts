@@ -325,6 +325,14 @@ export class Ha3dFloorplanCard extends LitElement {
       this.requestUpdate();
     };
     this.editor.onMessage = (m) => this.showToast(m);
+    this.editor.onCalibrate = (measured) => {
+      const s = window.prompt(
+        `Measured ${measured.toFixed(2)} m on screen between those points.\nEnter their REAL length in meters:`,
+      );
+      const real = parseFloat(s ?? '');
+      if (real > 0) this.editor?.applyUnderlayScale(measured, real);
+      else this.showToast('Calibration cancelled');
+    };
     this.sceneManager.loadPlan(editable, true);
     // Edit the floor the user is currently viewing — not always floor 0.
     this.editor.floorIndex = Math.min(this.activeFloorIndex, editable.floors.length - 1);
@@ -583,6 +591,14 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.removeUnderlay();
   }
 
+  private onCalibrateUnderlay(): void {
+    this.editor?.startUnderlayCalibration();
+  }
+
+  private onFinishWall(): void {
+    this.editor?.finishChain();
+  }
+
   private onSetRoomField(
     field: 'name' | 'width' | 'depth' | 'height' | 'rotation',
     e: Event,
@@ -601,6 +617,16 @@ export class Ha3dFloorplanCard extends LitElement {
       } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
         e.preventDefault();
         this.editor.redo();
+      }
+    }
+    // Enter finishes the current wall run; Escape cancels it.
+    if (this.editing && this.editor && e.type === 'keydown') {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.editor.finishChain();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.editor.cancelChain();
       }
     }
   };
@@ -812,6 +838,8 @@ export class Ha3dFloorplanCard extends LitElement {
                 <button class="btn" @click=${() => this.onNudgeUnderlay(0.25, 0)}>▶</button>
                 <button class="btn" @click=${() => this.onNudgeUnderlay(0, -0.25)}>▲</button>
                 <button class="btn" @click=${() => this.onNudgeUnderlay(0, 0.25)}>▼</button>
+                <button class="btn" title="Set scale by tapping two points of known length"
+                  @click=${this.onCalibrateUnderlay}>📏 Calibrate (2 pts)</button>
                 <button class="btn" title="Remove reference image" @click=${this.onRemoveUnderlay}>🗑 Remove</button>
               </div>`
           : html`<div class="toolrow">
@@ -847,11 +875,12 @@ export class Ha3dFloorplanCard extends LitElement {
 
         ${tool === 'wall'
           ? html`<div class="toolrow">
-              <button class="btn" title="Remove the last wall" @click=${this.onUndoPoint}>⤺ Undo wall</button>
+              <button class="btn" title="Remove the last point / wall" @click=${this.onUndoPoint}>⤺ Undo point</button>
+              <button class="btn" title="Finish this wall run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
               <button class="btn ${this.editSnap ? 'active' : ''}"
                 title="Snap assist: parallel/perpendicular angles, equal lengths, alignment"
                 @click=${this.onToggleSnap}>🧲 Snap</button>
-              <span class="hint">tap 2 points = 1 wall (auto)</span>
+              <span class="hint">tap to add points · tap start to close (adds floor) · Finish/Enter to end</span>
             </div>`
           : nothing}
 

@@ -68,6 +68,12 @@ export class EditorController {
   /** Points of the wall run being drawn; each new click commits a wall. */
   private chain: Vec2[] = [];
   private cursor: Vec2 | null = null;
+  /** Underlay scale calibration: collecting two ground points. */
+  private calibrating = false;
+  private calibPts: Vec2[] = [];
+  /** Host hook: called with the measured distance (m) after two calibration
+   *  taps, so the UI can prompt for the real length. */
+  onCalibrate?: (measuredMeters: number) => void;
   /** Drawing aids on/off (angle/length/alignment snapping). */
   snapEnabled = true;
   private snapInfo: SnapResult | null = null;
@@ -417,7 +423,7 @@ export class EditorController {
     this.tool = t;
     // Camera is on unless a movable object is selected (then left/one-finger
     // moves it). A TAP always performs the tool. No separate "View" tool.
-    if (t !== 'wall') this.cancelChain();
+    if (t !== 'wall') this.finishChain(); // don't lose an in-progress run
     if (t !== 'select') this.clearSelection();
     this.applyReserve();
     this.onChange?.();
@@ -968,6 +974,22 @@ export class EditorController {
   }
 
   private onClick(p: THREE.Vector3, e?: PointerEvent): void {
+    // Underlay scale calibration: collect two ground points a known distance
+    // apart, then ask the host for the real length.
+    if (this.calibrating) {
+      this.calibPts.push([p.x, p.z]);
+      if (this.calibPts.length >= 2) {
+        const a = this.calibPts[0];
+        const b = this.calibPts[1];
+        const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        this.calibrating = false;
+        this.calibPts = [];
+        this.onCalibrate?.(d);
+      } else {
+        this.onMessage?.('Now tap the second point');
+      }
+      return;
+    }
     if (this.tool === 'furniture') {
       this.placeFurniture(p);
       return;
@@ -1004,13 +1026,53 @@ export class EditorController {
       return;
     }
 
-    // Second tap: commit the wall and auto-end the run (each wall = 2 taps).
-    const start = this.chain[0];
-    if (start[0] === pt[0] && start[1] === pt[1]) return; // ignore same point
-    this.commitWall(start, pt);
-    this.cancelChain(); // auto "end run" — next tap starts a fresh wall
+    const startPt = this.chain[0];
+    const lastPt = this.chain[this.chain.length - 1];
+
+    // Tap the same spot as the last vertex again → finish the open run.
+    if (lastPt[0] === pt[0] && lastPt[1] === pt[1]) {
+      this.commitChain(false);
+      return;
+    }
+
+    // Tap the start vertex (≥3 points) → close the loop and drop a floor.
+    if (this.chain.length >= 2 && Math.hypot(pt[0] - startPt[0], pt[1] - startPt[1]) < 1e-3) {
+      this.commitChain(true);
+      return;
+    }
+
+    // Continuous chaining: keep adding vertices; walls commit on finish/close.
+    this.chain.push(pt);
+    this.renderPreview();
+    this.onChange?.();
+  }
+
+  /** Commit the in-progress wall chain. When `close`, also add the closing wall
+   *  back to the start and fill the loop with a floor (room). */
+  private commitChain(close: boolean): void {
+    const pts = this.chain;
+    if (pts.length < 2) {
+      this.cancelChain();
+      return;
+    }
+    this.pushUndo();
+    const fl = this.floor();
+    if (!fl.walls) fl.walls = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      fl.walls.push({ start: [pts[i][0], pts[i][1]], end: [pts[i + 1][0], pts[i + 1][1]] });
+    }
+    if (close) {
+      const a = pts[pts.length - 1];
+      const b = pts[0];
+      fl.walls.push({ start: [a[0], a[1]], end: [b[0], b[1]] });
+      if (!fl.rooms) fl.rooms = [];
+      fl.rooms.push({ polygon: pts.map((p) => [p[0], p[1]] as Vec2), color: '#c9c4bb' });
+    }
+    const n = pts.length - 1 + (close ? 1 : 0);
+    this.cancelChain();
     this.rebuild();
     this.onChange?.();
+    this.onMessage?.(close ? 'Room closed — floor added' : `${n} wall${n === 1 ? '' : 's'} added`);
   }
 
   private onMove(p: THREE.Vector3): void {
@@ -1019,13 +1081,6 @@ export class EditorController {
     this.cursor = r.pt;
     this.snapInfo = r;
     this.renderPreview();
-  }
-
-  private commitWall(a: Vec2, b: Vec2): void {
-    const fl = this.floor();
-    this.pushUndo();
-    if (!fl.walls) fl.walls = [];
-    fl.walls.push({ start: [a[0], a[1]], end: [b[0], b[1]] });
   }
 
   /**
@@ -1240,19 +1295,23 @@ export class EditorController {
 
   /** Undo: remove the last committed wall of the current run (and its point). */
   undoPoint(): void {
-    // If a wall start is pending, cancel it; otherwise remove the last wall.
+    // While drawing: step back one vertex. Otherwise remove the last wall.
     if (this.chain.length >= 1) {
-      this.cancelChain();
+      this.chain.pop();
+      if (this.chain.length === 0) this.cancelChain();
+      else this.renderPreview();
     } else if ((this.floor().walls?.length ?? 0) > 0) {
+      this.pushUndo();
       this.floor().walls!.pop();
       this.rebuild();
     }
     this.onChange?.();
   }
 
-  /** End the current wall run (walls are already committed). */
+  /** Finish the current wall run, committing the chain as an open polyline. */
   finishChain(): void {
-    this.cancelChain();
+    if (this.chain.length >= 2) this.commitChain(false);
+    else this.cancelChain();
   }
 
   cancelChain(): void {
@@ -1331,6 +1390,30 @@ export class EditorController {
     fl.underlay.z = Math.round(((fl.underlay.z ?? 0) + dz) * 100) / 100;
     this.applyUnderlay();
     this.onChange?.();
+  }
+
+  /** Begin two-point scale calibration (the next two ground taps). */
+  startUnderlayCalibration(): void {
+    if (!this.floor().underlay) {
+      this.onMessage?.('Add a reference image first');
+      return;
+    }
+    this.cancelChain();
+    this.calibrating = true;
+    this.calibPts = [];
+    this.onMessage?.('Calibrate: tap two points a known distance apart on the image');
+  }
+
+  /** Apply a calibration: rescale the underlay so `measured` metres on screen
+   *  equals the `real` metres the user entered. */
+  applyUnderlayScale(measured: number, real: number): void {
+    const fl = this.floor();
+    if (!fl.underlay || !(measured > 0) || !(real > 0)) return;
+    this.pushUndo();
+    fl.underlay.widthM = Math.max(0.2, fl.underlay.widthM * (real / measured));
+    this.applyUnderlay();
+    this.onChange?.();
+    this.onMessage?.(`Scale set — ${real} m across those points`);
   }
 
   removeUnderlay(): void {

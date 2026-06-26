@@ -21618,7 +21618,7 @@ function _M(i) {
     e.geometry && e.geometry.dispose(), e.material && (Array.isArray(e.material) ? e.material : [e.material]).forEach((s) => s.dispose());
   });
 }
-const vM = "0.12.0", _o = "ha-3d-floorplan-sidebar-item", ru = "ha-3d-floorplan-overlay";
+const vM = "0.12.1", _o = "ha-3d-floorplan-sidebar-item", ru = "ha-3d-floorplan-overlay";
 function xM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -21796,7 +21796,7 @@ const AM = {
 };
 class LM {
   constructor(t, e) {
-    this.floorIndex = 0, this.tool = "wall", this.selectedModel = "sofa", this.selectedKind = null, this.selectedId = null, this.selectedWall = -1, this.selectedRoom = -1, this.chain = [], this.cursor = null, this.snapEnabled = !0, this.snapInfo = null, this.dragMode = null, this.dragVertex = null, this.wallDrag0 = null, this.furnDrag0 = [0, 0], this.undoStack = [], this.redoStack = [], this.dragSnapshot = null, this.HISTORY_MAX = 80, this.gizmoHandle = null, this.gizmoGrab = [0, 0], this.gizmoRoom0 = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 }, this.shiftHeld = !1, this.sm = t, this.plan = e;
+    this.floorIndex = 0, this.tool = "wall", this.selectedModel = "sofa", this.selectedKind = null, this.selectedId = null, this.selectedWall = -1, this.selectedRoom = -1, this.chain = [], this.cursor = null, this.calibrating = !1, this.calibPts = [], this.snapEnabled = !0, this.snapInfo = null, this.dragMode = null, this.dragVertex = null, this.wallDrag0 = null, this.furnDrag0 = [0, 0], this.undoStack = [], this.redoStack = [], this.dragSnapshot = null, this.HISTORY_MAX = 80, this.gizmoHandle = null, this.gizmoGrab = [0, 0], this.gizmoRoom0 = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 }, this.shiftHeld = !1, this.sm = t, this.plan = e;
   }
   get pointCount() {
     return this.chain.length;
@@ -21981,7 +21981,7 @@ class LM {
     e.end = [e.start[0] + n / r * t, e.start[1] + s / r * t], this.rebuild(), this.reselect(), this.onChange?.();
   }
   setTool(t) {
-    this.tool = t, t !== "wall" && this.cancelChain(), t !== "select" && this.clearSelection(), this.applyReserve(), this.onChange?.();
+    this.tool = t, t !== "wall" && this.finishChain(), t !== "select" && this.clearSelection(), this.applyReserve(), this.onChange?.();
   }
   floor() {
     return this.plan.floors[this.floorIndex];
@@ -22286,6 +22286,14 @@ class LM {
     }), this.applyReserve();
   }
   onClick(t, e) {
+    if (this.calibrating) {
+      if (this.calibPts.push([t.x, t.z]), this.calibPts.length >= 2) {
+        const o = this.calibPts[0], a = this.calibPts[1], l = Math.hypot(a[0] - o[0], a[1] - o[1]);
+        this.calibrating = !1, this.calibPts = [], this.onCalibrate?.(l);
+      } else
+        this.onMessage?.("Now tap the second point");
+      return;
+    }
     if (this.tool === "furniture") {
       this.placeFurniture(t);
       return;
@@ -22295,18 +22303,18 @@ class LM {
       return;
     }
     if (this.tool === "select") {
-      const r = e ? this.sm.pickFurniture(e) : null;
-      if (r) {
-        this.selectFurniture(r.id);
-        return;
-      }
-      const o = e ? this.sm.pickWall(e) : null;
+      const o = e ? this.sm.pickFurniture(e) : null;
       if (o) {
-        this.selectWall(o.index);
+        this.selectFurniture(o.id);
         return;
       }
-      const a = e ? this.sm.pickRoom(e) : null;
-      a ? this.selectRoom(a.index) : this.clearSelection();
+      const a = e ? this.sm.pickWall(e) : null;
+      if (a) {
+        this.selectWall(a.index);
+        return;
+      }
+      const l = e ? this.sm.pickRoom(e) : null;
+      l ? this.selectRoom(l.index) : this.clearSelection();
       return;
     }
     if (this.tool !== "wall") return;
@@ -22315,17 +22323,41 @@ class LM {
       this.chain = [n], this.renderPreview(), this.onChange?.();
       return;
     }
-    const s = this.chain[0];
-    s[0] === n[0] && s[1] === n[1] || (this.commitWall(s, n), this.cancelChain(), this.rebuild(), this.onChange?.());
+    const s = this.chain[0], r = this.chain[this.chain.length - 1];
+    if (r[0] === n[0] && r[1] === n[1]) {
+      this.commitChain(!1);
+      return;
+    }
+    if (this.chain.length >= 2 && Math.hypot(n[0] - s[0], n[1] - s[1]) < 1e-3) {
+      this.commitChain(!0);
+      return;
+    }
+    this.chain.push(n), this.renderPreview(), this.onChange?.();
+  }
+  /** Commit the in-progress wall chain. When `close`, also add the closing wall
+   *  back to the start and fill the loop with a floor (room). */
+  commitChain(t) {
+    const e = this.chain;
+    if (e.length < 2) {
+      this.cancelChain();
+      return;
+    }
+    this.pushUndo();
+    const n = this.floor();
+    n.walls || (n.walls = []);
+    for (let r = 0; r < e.length - 1; r++)
+      n.walls.push({ start: [e[r][0], e[r][1]], end: [e[r + 1][0], e[r + 1][1]] });
+    if (t) {
+      const r = e[e.length - 1], o = e[0];
+      n.walls.push({ start: [r[0], r[1]], end: [o[0], o[1]] }), n.rooms || (n.rooms = []), n.rooms.push({ polygon: e.map((a) => [a[0], a[1]]), color: "#c9c4bb" });
+    }
+    const s = e.length - 1 + (t ? 1 : 0);
+    this.cancelChain(), this.rebuild(), this.onChange?.(), this.onMessage?.(t ? "Room closed — floor added" : `${s} wall${s === 1 ? "" : "s"} added`);
   }
   onMove(t) {
     if (this.tool !== "wall" || this.chain.length === 0) return;
     const e = this.snapPoint(t.x, t.z);
     this.cursor = e.pt, this.snapInfo = e, this.renderPreview();
-  }
-  commitWall(t, e) {
-    const n = this.floor();
-    this.pushUndo(), n.walls || (n.walls = []), n.walls.push({ start: [t[0], t[1]], end: [e[0], e[1]] });
   }
   /**
    * Snap a candidate point with drawing aids, in priority:
@@ -22464,11 +22496,11 @@ class LM {
   }
   /** Undo: remove the last committed wall of the current run (and its point). */
   undoPoint() {
-    this.chain.length >= 1 ? this.cancelChain() : (this.floor().walls?.length ?? 0) > 0 && (this.floor().walls.pop(), this.rebuild()), this.onChange?.();
+    this.chain.length >= 1 ? (this.chain.pop(), this.chain.length === 0 ? this.cancelChain() : this.renderPreview()) : (this.floor().walls?.length ?? 0) > 0 && (this.pushUndo(), this.floor().walls.pop(), this.rebuild()), this.onChange?.();
   }
-  /** End the current wall run (walls are already committed). */
+  /** Finish the current wall run, committing the chain as an open polyline. */
   finishChain() {
-    this.cancelChain();
+    this.chain.length >= 2 ? this.commitChain(!1) : this.cancelChain();
   }
   cancelChain() {
     this.chain = [], this.cursor = null, this.snapInfo = null, this.measureLabel && (this.measureLabel.sprite.visible = !1), this.sm.clearPreview(), this.onChange?.();
@@ -22509,6 +22541,20 @@ class LM {
   nudgeUnderlay(t, e) {
     const n = this.floor();
     n.underlay && (this.pushUndo(), n.underlay.x = Math.round(((n.underlay.x ?? 0) + t) * 100) / 100, n.underlay.z = Math.round(((n.underlay.z ?? 0) + e) * 100) / 100, this.applyUnderlay(), this.onChange?.());
+  }
+  /** Begin two-point scale calibration (the next two ground taps). */
+  startUnderlayCalibration() {
+    if (!this.floor().underlay) {
+      this.onMessage?.("Add a reference image first");
+      return;
+    }
+    this.cancelChain(), this.calibrating = !0, this.calibPts = [], this.onMessage?.("Calibrate: tap two points a known distance apart on the image");
+  }
+  /** Apply a calibration: rescale the underlay so `measured` metres on screen
+   *  equals the `real` metres the user entered. */
+  applyUnderlayScale(t, e) {
+    const n = this.floor();
+    !n.underlay || !(t > 0) || !(e > 0) || (this.pushUndo(), n.underlay.widthM = Math.max(0.2, n.underlay.widthM * (e / t)), this.applyUnderlay(), this.onChange?.(), this.onMessage?.(`Scale set — ${e} m across those points`));
   }
   removeUnderlay() {
     const t = this.floor();
@@ -22869,6 +22915,7 @@ let Vt = class extends Ji {
         const t = i.key.toLowerCase();
         t === "z" && !i.shiftKey ? (i.preventDefault(), this.editor.undo()) : (t === "y" || t === "z" && i.shiftKey) && (i.preventDefault(), this.editor.redo());
       }
+      this.editing && this.editor && i.type === "keydown" && (i.key === "Enter" ? (i.preventDefault(), this.editor.finishChain()) : i.key === "Escape" && (i.preventDefault(), this.editor.cancelChain()));
     };
   }
   // -- Lovelace lifecycle -----------------------------------------------------
@@ -23010,7 +23057,13 @@ let Vt = class extends Ji {
     this.editor = new LM(this.sceneManager, i), this.editor.onChange = () => {
       const t = this.editor;
       this.editTool = t.tool, this.editSelectedModel = t.selectedModel, this.editSelectedEntity = t.selectedEntity, this.editSelectedObjModel = t.selectedObjectModel, this.editSelectedKind = t.selectedKind, this.editSelectedColor = t.selectedColor, this.editSelectedWallLength = t.selectedWallLength, this.editRoom = t.selectedRoomData, this.editFurnScale = t.selectedFurnitureScale, this.editMaterial = t.selectedMaterial, this.editFloorIndex = t.floorIndex, this.editPlanName = t.plan.name ?? "", this.editCanUndo = t.canUndo, this.editCanRedo = t.canRedo, this.editUnderlay = t.underlay, this.requestUpdate();
-    }, this.editor.onMessage = (t) => this.showToast(t), this.sceneManager.loadPlan(i, !0), this.editor.floorIndex = Math.min(this.activeFloorIndex, i.floors.length - 1), this.editFloorIndex = this.editor.floorIndex, this.editor.setSnap(this.editSnap), this.editShowAllEntities = !1, this.editingProjectId = this.currentProjectId, this.editPlanName = i.name ?? "Plan", this.editor.start(), this.editing = !0, this.editTool = this.editor.tool, this.showToast('Edit mode — pick "Draw wall", tap the floor to place points');
+    }, this.editor.onMessage = (t) => this.showToast(t), this.editor.onCalibrate = (t) => {
+      const e = window.prompt(
+        `Measured ${t.toFixed(2)} m on screen between those points.
+Enter their REAL length in meters:`
+      ), n = parseFloat(e ?? "");
+      n > 0 ? this.editor?.applyUnderlayScale(t, n) : this.showToast("Calibration cancelled");
+    }, this.sceneManager.loadPlan(i, !0), this.editor.floorIndex = Math.min(this.activeFloorIndex, i.floors.length - 1), this.editFloorIndex = this.editor.floorIndex, this.editor.setSnap(this.editSnap), this.editShowAllEntities = !1, this.editingProjectId = this.currentProjectId, this.editPlanName = i.name ?? "Plan", this.editor.start(), this.editing = !0, this.editTool = this.editor.tool, this.showToast('Edit mode — pick "Draw wall", tap the floor to place points');
   }
   async exitEdit() {
     this.editor && await this.onSavePlan(), this.editor?.stop(), this.editor = void 0, this.editing = !1, this.currentPlan && this.sceneManager && (this.sceneManager.loadPlan(this.currentPlan), this.hass && (this.lastHass = void 0, this.applyHass(this.hass)));
@@ -23149,6 +23202,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   onRemoveUnderlay() {
     this.editor?.removeUnderlay();
+  }
+  onCalibrateUnderlay() {
+    this.editor?.startUnderlayCalibration();
+  }
+  onFinishWall() {
+    this.editor?.finishChain();
   }
   onSetRoomField(i, t) {
     this.editor?.setRoomField(i, t.target.value);
@@ -23292,6 +23351,8 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 <button class="btn" @click=${() => this.onNudgeUnderlay(0.25, 0)}>▶</button>
                 <button class="btn" @click=${() => this.onNudgeUnderlay(0, -0.25)}>▲</button>
                 <button class="btn" @click=${() => this.onNudgeUnderlay(0, 0.25)}>▼</button>
+                <button class="btn" title="Set scale by tapping two points of known length"
+                  @click=${this.onCalibrateUnderlay}>📏 Calibrate (2 pts)</button>
                 <button class="btn" title="Remove reference image" @click=${this.onRemoveUnderlay}>🗑 Remove</button>
               </div>` : Ot`<div class="toolrow">
               <label class="btn" title="Import a top-down 2D plan image to trace over">
@@ -23319,11 +23380,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     })()}
 
         ${i === "wall" ? Ot`<div class="toolrow">
-              <button class="btn" title="Remove the last wall" @click=${this.onUndoPoint}>⤺ Undo wall</button>
+              <button class="btn" title="Remove the last point / wall" @click=${this.onUndoPoint}>⤺ Undo point</button>
+              <button class="btn" title="Finish this wall run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
               <button class="btn ${this.editSnap ? "active" : ""}"
                 title="Snap assist: parallel/perpendicular angles, equal lengths, alignment"
                 @click=${this.onToggleSnap}>🧲 Snap</button>
-              <span class="hint">tap 2 points = 1 wall (auto)</span>
+              <span class="hint">tap to add points · tap start to close (adds floor) · Finish/Enter to end</span>
             </div>` : Lt}
 
         ${i === "furniture" ? Ot`<div class="toolrow">

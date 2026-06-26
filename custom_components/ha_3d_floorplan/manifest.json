@@ -1,7 +1,7 @@
 {
   "domain": "ha_3d_floorplan",
   "name": "3D Floor Plan",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "documentation": "https://github.com/Abdunazar7/bms-3d-floorplan",
   "issue_tracker": "https://github.com/Abdunazar7/bms-3d-floorplan/issues",
   "codeowners": ["@Abdunazar7"],
