@@ -107,11 +107,13 @@ export class EditorController {
       end: () => this.dragEnd(),
     });
     this.applySceneEditState();
+    this.applyUnderlay();
     this.setTool('wall');
   }
 
   stop(): void {
     this.cancelChain();
+    this.sm.setUnderlay(null);
     if (this.measureLabel) {
       this.sm.scene.remove(this.measureLabel.sprite);
       this.measureLabel.dispose();
@@ -137,6 +139,7 @@ export class EditorController {
     this.floorIndex = index;
     this.sm.setActiveFloor(index);
     this.applySceneEditState();
+    this.applyUnderlay();
     this.onChange?.();
   }
 
@@ -1275,6 +1278,69 @@ export class EditorController {
   private rebuild(): void {
     this.sm.loadPlan(this.plan, true); // keep camera where it is
     this.applySceneEditState();
+    this.applyUnderlay();
+  }
+
+  // -- Reference image underlay (tracing guide) -------------------------------
+
+  /** Push the current floor's underlay into the scene (or clear it). */
+  private applyUnderlay(): void {
+    this.sm.setUnderlay(this.floor().underlay ?? null);
+  }
+
+  get underlay(): import('../types').Underlay | null {
+    return this.floor().underlay ?? null;
+  }
+
+  /** Set/replace the reference image for the current floor. */
+  setUnderlayImage(image: string, naturalW: number, naturalH: number): void {
+    this.pushUndo();
+    const fl = this.floor();
+    const c = this.sm.controls.target;
+    const prev = fl.underlay;
+    fl.underlay = {
+      image,
+      widthM: prev?.widthM ?? 10,
+      aspect: naturalW > 0 ? naturalH / naturalW : 1,
+      x: prev?.x ?? Math.round(c.x * 100) / 100,
+      z: prev?.z ?? Math.round(c.z * 100) / 100,
+      rotation: prev?.rotation ?? 0,
+      opacity: prev?.opacity ?? 0.6,
+    };
+    this.applyUnderlay();
+    this.onChange?.();
+    this.onMessage?.('Reference image added — set its width (m), then trace walls');
+  }
+
+  setUnderlayField(field: 'widthM' | 'opacity' | 'rotation' | 'x' | 'z', value: number): void {
+    const fl = this.floor();
+    if (!fl.underlay || Number.isNaN(value)) return;
+    this.pushUndo();
+    if (field === 'widthM') fl.underlay.widthM = Math.max(0.2, value);
+    else if (field === 'opacity') fl.underlay.opacity = Math.max(0.05, Math.min(1, value));
+    else fl.underlay[field] = value;
+    this.applyUnderlay();
+    this.onChange?.();
+  }
+
+  nudgeUnderlay(dx: number, dz: number): void {
+    const fl = this.floor();
+    if (!fl.underlay) return;
+    this.pushUndo();
+    fl.underlay.x = Math.round(((fl.underlay.x ?? 0) + dx) * 100) / 100;
+    fl.underlay.z = Math.round(((fl.underlay.z ?? 0) + dz) * 100) / 100;
+    this.applyUnderlay();
+    this.onChange?.();
+  }
+
+  removeUnderlay(): void {
+    const fl = this.floor();
+    if (!fl.underlay) return;
+    this.pushUndo();
+    delete fl.underlay;
+    this.applyUnderlay();
+    this.onChange?.();
+    this.onMessage?.('Reference image removed');
   }
 
   // -- Undo / redo ------------------------------------------------------------
@@ -1316,6 +1382,7 @@ export class EditorController {
     this.sm.loadPlan(this.plan, true);
     this.sm.setActiveFloor(this.floorIndex);
     this.applySceneEditState();
+    this.applyUnderlay();
     this.onChange?.();
   }
 

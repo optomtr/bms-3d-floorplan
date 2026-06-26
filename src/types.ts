@@ -143,6 +143,24 @@ export interface BindingDef {
   label?: string;
 }
 
+/** A reference image (e.g. a scanned/exported 2D floor plan) laid flat on the
+ *  floor as a tracing guide. Editor-only; removable. */
+export interface Underlay {
+  /** Image as a data URL. */
+  image: string;
+  /** Real-world width of the image in meters (sets the scale). */
+  widthM: number;
+  /** imageHeight / imageWidth, to derive the depth from widthM. */
+  aspect: number;
+  /** Center position on the floor plane (meters). */
+  x?: number;
+  z?: number;
+  /** Rotation in degrees about the vertical axis. */
+  rotation?: number;
+  /** Opacity 0..1. */
+  opacity?: number;
+}
+
 export interface FloorDef {
   /** Display name shown in the floor switcher. */
   name: string;
@@ -156,6 +174,8 @@ export interface FloorDef {
   rooms?: RoomDef[];
   furniture?: FurnitureDef[];
   bindings?: BindingDef[];
+  /** Optional reference image traced over while drawing this floor. */
+  underlay?: Underlay;
 }
 
 /** A building groups floors. Optional — a plan with top-level `floors` is

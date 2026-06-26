@@ -59,6 +59,7 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editMaterial = 'plain';
   @state() private editCanUndo = false;
   @state() private editCanRedo = false;
+  @state() private editUnderlay: import('./types').Underlay | null = null;
   @state() private importOpen = false;
   @state() private importText = '';
   @state() private projectList: ProjectInfo[] = [];
@@ -320,6 +321,7 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editPlanName = ed.plan.name ?? '';
       this.editCanUndo = ed.canUndo;
       this.editCanRedo = ed.canRedo;
+      this.editUnderlay = ed.underlay;
       this.requestUpdate();
     };
     this.editor.onMessage = (m) => this.showToast(m);
@@ -548,6 +550,39 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.addRoomShape(shape);
   }
 
+  /** Import a 2D plan image as a tracing underlay (reference). */
+  private onPickUnderlay(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !this.editor) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || '');
+      const img = new Image();
+      img.onload = () => {
+        this.editor?.setUnderlayImage(url, img.naturalWidth, img.naturalHeight);
+      };
+      img.onerror = () => this.showToast('Could not read that image');
+      img.src = url;
+    };
+    reader.onerror = () => this.showToast('Could not read that file');
+    reader.readAsDataURL(file);
+    input.value = ''; // allow re-picking the same file
+  }
+
+  private onSetUnderlayField(field: 'widthM' | 'opacity' | 'rotation', e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    this.editor?.setUnderlayField(field, v);
+  }
+
+  private onNudgeUnderlay(dx: number, dz: number): void {
+    this.editor?.nudgeUnderlay(dx, dz);
+  }
+
+  private onRemoveUnderlay(): void {
+    this.editor?.removeUnderlay();
+  }
+
   private onSetRoomField(
     field: 'name' | 'width' | 'depth' | 'height' | 'rotation',
     e: Event,
@@ -754,6 +789,39 @@ export class Ha3dFloorplanCard extends LitElement {
           <button class="btn" title="Bevelled room" @click=${() => this.onAddRoomShape('bevel')}>⬡ Bevel</button>
           <span class="hint">then drag / rotate / resize it</span>
         </div>
+
+        <div class="panel-group">Reference image — trace a 2D plan</div>
+        ${this.editUnderlay
+          ? html`<div class="toolrow">
+                <label class="hint">Width (m):</label>
+                <input class="num-input" type="number" min="0.5" step="0.1"
+                  .value=${String(this.editUnderlay.widthM)}
+                  @change=${(e: Event) => this.onSetUnderlayField('widthM', e)} />
+                <label class="hint">Opacity:</label>
+                <input type="range" min="0.05" max="1" step="0.05"
+                  .value=${String(this.editUnderlay.opacity ?? 0.6)}
+                  @input=${(e: Event) => this.onSetUnderlayField('opacity', e)} />
+                <label class="hint">Rotate°:</label>
+                <input class="num-input" type="number" step="1"
+                  .value=${String(this.editUnderlay.rotation ?? 0)}
+                  @change=${(e: Event) => this.onSetUnderlayField('rotation', e)} />
+              </div>
+              <div class="toolrow">
+                <span class="hint">Move:</span>
+                <button class="btn" @click=${() => this.onNudgeUnderlay(-0.25, 0)}>◀</button>
+                <button class="btn" @click=${() => this.onNudgeUnderlay(0.25, 0)}>▶</button>
+                <button class="btn" @click=${() => this.onNudgeUnderlay(0, -0.25)}>▲</button>
+                <button class="btn" @click=${() => this.onNudgeUnderlay(0, 0.25)}>▼</button>
+                <button class="btn" title="Remove reference image" @click=${this.onRemoveUnderlay}>🗑 Remove</button>
+              </div>`
+          : html`<div class="toolrow">
+              <label class="btn" title="Import a top-down 2D plan image to trace over">
+                📷 Import image
+                <input type="file" accept="image/*" style="display:none"
+                  @change=${this.onPickUnderlay} />
+              </label>
+              <span class="hint">then set its width (m) and draw walls over it</span>
+            </div>`}
 
         ${(() => {
           // Derive the floor list from the LIVE edit plan (not View-mode state),

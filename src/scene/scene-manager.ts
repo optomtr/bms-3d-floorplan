@@ -9,7 +9,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { FloorPlan } from '../types';
+import type { FloorPlan, Underlay } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
 
@@ -49,6 +49,8 @@ export class SceneManager {
   readonly previewGroup = new THREE.Group();
   /** Gizmo handle meshes (Position Helper) live here. */
   readonly gizmoGroup = new THREE.Group();
+  /** Reference-image underlay (tracing guide) lives here. */
+  readonly underlayGroup = new THREE.Group();
   private editing = false;
   private gridHelper?: THREE.GridHelper;
   private selectionHelper?: THREE.BoxHelper;
@@ -81,6 +83,7 @@ export class SceneManager {
     this.scene.background = new THREE.Color(background);
     this.scene.add(this.previewGroup);
     this.scene.add(this.gizmoGroup);
+    this.scene.add(this.underlayGroup);
 
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
     this.camera.position.set(8, 8, 8);
@@ -531,6 +534,47 @@ export class SceneManager {
       }
     }
     this.previewGroup.clear();
+  }
+
+  /** Show (or clear, when null) a flat reference image on the floor plane that
+   *  walls can be traced over. Editor-only; not part of the rendered plan. */
+  setUnderlay(u: Underlay | null): void {
+    // Dispose any previous underlay.
+    for (const g of [...this.underlayGroup.children]) {
+      g.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.geometry) m.geometry.dispose();
+        const mat = m.material as THREE.MeshBasicMaterial | undefined;
+        if (mat) {
+          mat.map?.dispose();
+          mat.dispose();
+        }
+      });
+    }
+    this.underlayGroup.clear();
+    if (!u || !u.image) return;
+
+    const aspect = u.aspect > 0 ? u.aspect : 1;
+    const w = Math.max(0.1, u.widthM || 10);
+    const d = w * aspect;
+    const tex = new THREE.TextureLoader().load(u.image);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      opacity: u.opacity ?? 0.6,
+      depthWrite: false, // walls/floor draw over it cleanly
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+    mesh.rotation.x = -Math.PI / 2; // lie flat on the floor (XZ plane)
+    mesh.renderOrder = -1;
+
+    const wrap = new THREE.Group();
+    wrap.add(mesh);
+    wrap.position.set(u.x ?? 0, 0.012, u.z ?? 0);
+    wrap.rotation.y = (u.rotation ?? 0) * (Math.PI / 180);
+    this.underlayGroup.add(wrap);
   }
 
   private handlePick(e: PointerEvent): void {
