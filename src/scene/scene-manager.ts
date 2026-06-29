@@ -388,6 +388,30 @@ export class SceneManager {
     return this.pickByUserData(e, 'wallIndex');
   }
 
+  /** Raycast for a door/window leaf — returns the wall + opening index so the
+   *  opening can be selected directly (without selecting the wall first). */
+  pickOpening(e: PointerEvent): { wallIndex: number; openingIndex: number; object: THREE.Object3D } | null {
+    const group = this.floorGroups[this.activeFloor];
+    if (!group) return null;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObject(group, true);
+    for (const h of hits) {
+      let cur: THREE.Object3D | null = h.object;
+      while (cur) {
+        const wi = cur.userData?.openingWall;
+        const oi = cur.userData?.openingIndex;
+        if (wi !== undefined && oi !== undefined) {
+          return { wallIndex: wi as number, openingIndex: oi as number, object: cur };
+        }
+        cur = cur.parent;
+      }
+    }
+    return null;
+  }
+
   /** Raycast for a room floor mesh (returns its room array-index). */
   pickRoom(e: PointerEvent): { index: number; object: THREE.Object3D } | null {
     return this.pickByUserData(e, 'roomIndex');

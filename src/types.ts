@@ -42,6 +42,8 @@ export interface OpeningDef {
   /** Cut the hole only — don't render the leaf/glass infill (a placed door/window
    *  model fills it). Avoids z-fighting between the two. */
   bare?: boolean;
+  /** Style variant (door: single/double/glass/sliding; window: single/double/picture/sliding). */
+  variant?: string;
 }
 
 export type RoomShape = 'rect' | 'lshape' | 'bevel';
@@ -96,6 +98,8 @@ export interface RoomOpening {
   top?: number;
   /** Cut the hole only — a placed model fills it (see OpeningDef.bare). */
   bare?: boolean;
+  /** Style variant (see OpeningDef.variant). */
+  variant?: string;
 }
 
 export interface FurnitureDef {

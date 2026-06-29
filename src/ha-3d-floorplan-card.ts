@@ -31,6 +31,7 @@ import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor } from './furniture/librar
 import { getThumbnail } from './furniture/thumbnails';
 import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
 import { isZirconPlan, convertZircon } from './import/zircon';
+import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
 
 @customElement('ha-3d-floorplan-card')
 export class Ha3dFloorplanCard extends LitElement {
@@ -51,7 +52,10 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editShowAllEntities = false;
   @state() private editSnap = true;
   @state() private editFloorIndex = 0;
-  @state() private editSelectedKind: 'furniture' | 'wall' | 'room' | null = null;
+  @state() private editSelectedKind: 'furniture' | 'wall' | 'room' | 'opening' | null = null;
+  @state() private editOpeningKind: 'door' | 'window' | 'opening' | null = null;
+  @state() private editOpeningVariant = 'single';
+  @state() private editOpeningWidth: number | null = null;
   @state() private editSelectedColor: string | null = null;
   @state() private editSelectedWallLength: number | null = null;
   @state() private editRoom: RoomDef | null = null;
@@ -312,6 +316,9 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editSelectedEntity = ed.selectedEntity;
       this.editSelectedObjModel = ed.selectedObjectModel;
       this.editSelectedKind = ed.selectedKind;
+      this.editOpeningKind = ed.selectedOpeningKind;
+      this.editOpeningVariant = ed.selectedOpeningVariant;
+      this.editOpeningWidth = ed.selectedOpeningWidth;
       this.editSelectedColor = ed.selectedColor;
       this.editSelectedWallLength = ed.selectedWallLength;
       this.editRoom = ed.selectedRoomData;
@@ -393,6 +400,19 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private onAutoFloors(): void {
     this.editor?.autoFloors();
+  }
+
+  private onSetOpeningVariant(e: Event): void {
+    this.editor?.setOpeningVariant((e.target as HTMLSelectElement).value);
+  }
+
+  private onSetOpeningKind(e: Event): void {
+    this.editor?.setOpeningKind((e.target as HTMLSelectElement).value as 'door' | 'window' | 'opening');
+  }
+
+  private onSetOpeningWidth(e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v) && v > 0) this.editor?.setOpeningWidth(v);
   }
 
   private onToggleSnap(): void {
@@ -930,23 +950,51 @@ export class Ha3dFloorplanCard extends LitElement {
                 ? html`<button class="btn" title="Delete" @click=${this.onDeleteSelected}>🗑 Delete</button>`
                 : nothing}
             </div>
-            <div class="toolrow">
-              <span class="hint">Color:</span>
-              <input
-                class="color"
-                type="color"
-                .value=${this.editSelectedColor ?? (kind === 'room' ? '#cfc7ba' : kind === 'wall' ? '#e6e6e6' : '#ffffff')}
-                @input=${this.onSetColor}
-              />
-              ${kind === 'wall' || kind === 'room'
-                ? html`<span class="hint">${kind === 'room' ? 'Floor' : 'Wall'}:</span>
-                    <select class="select" @change=${this.onSetMaterial}>
-                      ${(kind === 'room' ? FLOOR_MATERIALS : WALL_MATERIALS).map(
-                        (m) => html`<option value=${m} ?selected=${m === this.editMaterial}>${m}</option>`,
+            ${kind === 'opening'
+              ? html`<div class="toolrow">
+                    <span class="hint">Type:</span>
+                    <select class="select" @change=${this.onSetOpeningKind}>
+                      ${['door', 'window', 'opening'].map(
+                        (k) => html`<option value=${k} ?selected=${k === this.editOpeningKind}>${k}</option>`,
                       )}
-                    </select>`
-                : nothing}
-            </div>
+                    </select>
+                  </div>
+                  ${this.editOpeningKind !== 'opening'
+                    ? html`<div class="toolrow">
+                        <span class="hint">Style:</span>
+                        <select class="select" @change=${this.onSetOpeningVariant}>
+                          ${(this.editOpeningKind === 'door' ? DOOR_VARIANTS : WINDOW_VARIANTS).map(
+                            (v) => html`<option value=${v} ?selected=${v === this.editOpeningVariant}>${v}</option>`,
+                          )}
+                        </select>
+                      </div>`
+                    : nothing}
+                  <div class="toolrow">
+                    <span class="hint">Width (m):</span>
+                    <input class="num-input" type="number" min="0.3" step="0.1"
+                      .value=${this.editOpeningWidth != null ? this.editOpeningWidth.toFixed(2) : ''}
+                      @change=${this.onSetOpeningWidth} />
+                  </div>`
+              : nothing}
+            ${kind !== 'opening'
+              ? html`<div class="toolrow">
+                  <span class="hint">Color:</span>
+                  <input
+                    class="color"
+                    type="color"
+                    .value=${this.editSelectedColor ?? (kind === 'room' ? '#cfc7ba' : kind === 'wall' ? '#e6e6e6' : '#ffffff')}
+                    @input=${this.onSetColor}
+                  />
+                  ${kind === 'wall' || kind === 'room'
+                    ? html`<span class="hint">${kind === 'room' ? 'Floor' : 'Wall'}:</span>
+                        <select class="select" @change=${this.onSetMaterial}>
+                          ${(kind === 'room' ? FLOOR_MATERIALS : WALL_MATERIALS).map(
+                            (m) => html`<option value=${m} ?selected=${m === this.editMaterial}>${m}</option>`,
+                          )}
+                        </select>`
+                    : nothing}
+                </div>`
+              : nothing}
             ${isFurniture && this.editFurnScale
               ? html`<div class="toolrow">
                   <span class="hint">Size</span>

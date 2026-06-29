@@ -17,6 +17,10 @@ import { surfaceTexture, tiled } from './materials';
 const DEFAULT_WALL_HEIGHT = 2.6;
 const DEFAULT_THICKNESS = 0.12;
 
+/** Selectable style variants for door / window openings. */
+export const DOOR_VARIANTS = ['single', 'double', 'glass', 'sliding'];
+export const WINDOW_VARIANTS = ['single', 'double', 'picture', 'sliding'];
+
 export interface BuiltFloor {
   group: THREE.Group;
   /** Map of furniture id -> Object3D, for binding anchors. */
@@ -97,17 +101,22 @@ function buildWall(
   const glassMat = new THREE.MeshStandardMaterial({
     color: 0x9cc7da,
     transparent: true,
-    opacity: 0.55, // more visible than before (was nearly see-through)
+    opacity: 0.38, // see-through: glass reads as a real opening through the wall
     roughness: 0.05,
     metalness: 0.25,
+    depthWrite: false,
   });
   // Window frame is darker so it reads against light walls (was invisible white-on-white).
   const winFrameMat = new THREE.MeshStandardMaterial({ color: 0x55606a, roughness: 0.6 });
 
-  const openings = [...(wall.openings ?? [])].sort((a, b) => a.position - b.position);
+  // Keep each opening's ORIGINAL index (for selection/editing) while drawing
+  // them left-to-right.
+  const openings = (wall.openings ?? [])
+    .map((op, oi) => ({ op, oi }))
+    .sort((a, b) => a.op.position - b.op.position);
 
   let cursor = 0;
-  for (const op of openings) {
+  for (const { op, oi } of openings) {
     const opStart = clamp(op.position, 0, length);
     const opEnd = clamp(op.position + op.width, 0, length);
     if (opEnd <= cursor) continue; // fully engulfed by a previous opening — skip
@@ -123,31 +132,57 @@ function buildWall(
     if (top < height) {
       addWallSpan(group, start, dir, normalAngle, opStart, opEnd, top, height, thickness, material);
     }
-    // "bare" openings are just holes — a placed door/window model fills them, so
-    // skip the leaf/glass infill (avoids z-fighting / flicker).
+    // "bare" openings are just holes — skip the leaf/glass infill.
     if (op.bare) {
       cursor = Math.max(cursor, opEnd);
       continue;
     }
-    // Fill the hole with a framed door leaf / window, sized to the opening.
+    // The leaf/glass lives in its own sub-group so it can be picked + selected +
+    // restyled (variant) independently of the wall.
+    const opGroup = new THREE.Group();
+    // Only explicit walls (index >= 0) get pickable openings; shape-room walls
+    // (index -1) stay part of the room selection.
+    if (index >= 0) {
+      opGroup.userData.openingWall = index;
+      opGroup.userData.openingIndex = oi;
+    }
+    group.add(opGroup);
     const span = (a: number, b: number, yb: number, yt: number, th: number, mat: THREE.Material) =>
-      addWallSpan(group, start, dir, normalAngle, a, b, yb, yt, th, mat);
+      addWallSpan(opGroup, start, dir, normalAngle, a, b, yb, yt, th, mat);
     const fw = 0.06; // frame width
+    const mid = (opStart + opEnd) / 2;
+    const ymid = (sill + top) / 2;
     if (op.kind === 'door') {
-      // Simple frameless door leaf filling the opening (no frame / handle), so
-      // there's a single slab — no coplanar overlap to flicker.
-      span(opStart, opEnd, sill, top, 0.06, doorMat);
+      const v = op.variant || 'single';
+      if (v === 'double') {
+        span(opStart, mid - 0.03, sill, top, 0.06, doorMat);
+        span(mid + 0.03, opEnd, sill, top, 0.06, doorMat);
+      } else if (v === 'glass') {
+        span(opStart, opStart + fw, sill, top, thickness, doorMat);
+        span(opEnd - fw, opEnd, sill, top, thickness, doorMat);
+        span(opStart, opEnd, top - fw, top, thickness, doorMat);
+        span(opStart + fw, opEnd - fw, sill, top - fw, 0.04, glassMat);
+      } else if (v === 'sliding') {
+        span(opStart, mid + 0.06, sill, top, 0.045, glassMat);
+        span(mid - 0.06, opEnd, sill, top, 0.05, doorMat);
+      } else {
+        span(opStart, opEnd, sill, top, 0.06, doorMat); // single leaf
+      }
     } else {
-      // Frame all around + glass + cross mullions (dark frame so it's visible).
-      span(opStart, opStart + fw, sill, top, thickness * 1.1, winFrameMat);
-      span(opEnd - fw, opEnd, sill, top, thickness * 1.1, winFrameMat);
-      span(opStart, opEnd, sill, sill + fw, thickness * 1.1, winFrameMat);
-      span(opStart, opEnd, top - fw, top, thickness * 1.1, winFrameMat);
-      span(opStart + fw, opEnd - fw, sill + fw, top - fw, 0.04, glassMat);
-      const mid = (opStart + opEnd) / 2;
-      span(mid - 0.03, mid + 0.03, sill + fw, top - fw, 0.06, winFrameMat); // vertical mullion
-      const ymid = (sill + top) / 2;
-      span(opStart + fw, opEnd - fw, ymid - 0.03, ymid + 0.03, 0.06, winFrameMat); // horizontal
+      // Window: frame all around + see-through glass spanning the wall thickness.
+      const v = op.variant || 'single';
+      span(opStart, opStart + fw, sill, top, thickness * 1.05, winFrameMat);
+      span(opEnd - fw, opEnd, sill, top, thickness * 1.05, winFrameMat);
+      span(opStart, opEnd, sill, sill + fw, thickness * 1.05, winFrameMat);
+      span(opStart, opEnd, top - fw, top, thickness * 1.05, winFrameMat);
+      span(opStart + fw, opEnd - fw, sill + fw, top - fw, thickness, glassMat);
+      if (v === 'single') {
+        span(mid - 0.03, mid + 0.03, sill + fw, top - fw, thickness * 1.05, winFrameMat);
+        span(opStart + fw, opEnd - fw, ymid - 0.03, ymid + 0.03, thickness * 1.05, winFrameMat);
+      } else if (v === 'double' || v === 'sliding') {
+        span(mid - 0.03, mid + 0.03, sill + fw, top - fw, thickness * 1.05, winFrameMat);
+      }
+      // 'picture' → no mullions (clean pane).
     }
     cursor = Math.max(cursor, opEnd);
   }

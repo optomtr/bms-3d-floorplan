@@ -11,13 +11,20 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind } from '../types';
+import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
 import { defaultY, isWallMount, isSurfaceMount } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
 export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening' | 'floor';
+
+/** Furniture-palette glazing models that become real wall openings on placement. */
+const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant: string; sill?: number; top?: number }> = {
+  window_frame: { kind: 'window', width: 1.2, variant: 'single' },
+  terrace_window: { kind: 'window', width: 2.4, variant: 'picture' },
+  patio_door: { kind: 'door', width: 2.4, variant: 'glass', sill: 0, top: 2.2 },
+};
 
 const SNAP = 0.1; // grid snap, meters
 const CLOSE_DIST = 0.4; // distance to first point that closes a room
@@ -59,10 +66,12 @@ export class EditorController {
   /** Furniture model to drop with the furniture tool. */
   selectedModel = 'sofa';
   /** Current selection (select tool). */
-  selectedKind: 'furniture' | 'wall' | 'room' | null = null;
+  selectedKind: 'furniture' | 'wall' | 'room' | 'opening' | null = null;
   selectedId: string | null = null; // furniture id
   selectedWall = -1; // wall array index
   selectedRoom = -1; // room array index
+  selectedOpeningWall = -1; // wall index owning the selected opening
+  selectedOpeningIndex = -1; // opening index within that wall
 
   private sm: SceneManager;
   /** Points of the wall run being drawn; each new click commits a wall. */
@@ -198,6 +207,12 @@ export class EditorController {
     if (f) {
       this.selectFurniture(f.id);
       return this.beginFurnitureMove(e);
+    }
+    // 2.5) A door/window leaf → select the opening (not the wall); no drag.
+    const opHit = this.sm.pickOpening(e);
+    if (opHit) {
+      this.selectOpening(opHit.wallIndex, opHit.openingIndex);
+      return false;
     }
     // 3) Shape-room body → select + move.
     const r = this.sm.pickRoom(e);
@@ -462,6 +477,9 @@ export class EditorController {
 
   private placeFurniture(p: THREE.Vector3): void {
     const fl = this.floor();
+    // Glazing models (window / patio door) cut a real see-through opening in the
+    // nearest wall instead of sitting on its surface.
+    if (GLAZING_MODELS[this.selectedModel] && this.placeGlazing(p, this.selectedModel)) return;
     this.pushUndo();
     if (!fl.furniture) fl.furniture = [];
     const wh = fl.wallHeight ?? this.plan.wallHeight ?? 2.6;
@@ -488,6 +506,48 @@ export class EditorController {
     });
     this.rebuild();
     this.selectFurniture(id);
+  }
+
+  /** Cut a window/door opening into the nearest wall for a glazing furniture
+   *  model. Returns false if no wall is close enough (then place as furniture). */
+  private placeGlazing(p: THREE.Vector3, model: string): boolean {
+    const cfg = GLAZING_MODELS[model];
+    if (!cfg) return false;
+    const walls = this.floor().walls ?? [];
+    let best: { i: number; along: number; len: number } | null = null;
+    let bd = 0.9;
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      const ax = w.start[0], az = w.start[1], bx = w.end[0], bz = w.end[1];
+      const dx = bx - ax, dz = bz - az;
+      const l2 = dx * dx + dz * dz;
+      if (l2 < 1e-6) continue;
+      let t = ((p.x - ax) * dx + (p.z - az) * dz) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const cx = ax + dx * t, cz = az + dz * t;
+      const d = Math.hypot(p.x - cx, p.z - cz);
+      if (d < bd) {
+        bd = d;
+        best = { i, along: t * Math.sqrt(l2), len: Math.sqrt(l2) };
+      }
+    }
+    if (!best) return false;
+    const width = Math.min(cfg.width, Math.max(0.4, best.len - 0.1));
+    const position = Math.max(0, Math.min(best.len - width, best.along - width / 2));
+    this.pushUndo();
+    const w = walls[best.i];
+    (w.openings ??= []).push({
+      kind: cfg.kind,
+      position,
+      width,
+      variant: cfg.variant,
+      ...(cfg.sill !== undefined ? { sill: cfg.sill } : {}),
+      ...(cfg.top !== undefined ? { top: cfg.top } : {}),
+    });
+    this.rebuild();
+    this.selectOpening(best.i, w.openings!.length - 1);
+    this.onMessage?.(`${cfg.kind === 'door' ? 'Glass door' : 'Window'} cut into wall`);
+    return true;
   }
 
   /** Nearest point on any wall / shape-room edge, with orientation + normal/side
@@ -585,11 +645,89 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Select a door/window opening directly (picked from its leaf/glass). */
+  selectOpening(wallIndex: number, openingIndex: number): void {
+    this.selectedKind = 'opening';
+    this.selectedOpeningWall = wallIndex;
+    this.selectedOpeningIndex = openingIndex;
+    this.selectedId = null;
+    this.selectedWall = -1;
+    this.selectedRoom = -1;
+    this.sm.setSelection(this.sm.getWallObject(wallIndex) ?? null);
+    this.applyReserve();
+    this.onChange?.();
+  }
+
+  /** The currently-selected opening's definition (or null). */
+  get selectedOpeningData(): OpeningDef | null {
+    if (this.selectedKind !== 'opening') return null;
+    return this.floor().walls?.[this.selectedOpeningWall]?.openings?.[this.selectedOpeningIndex] ?? null;
+  }
+  get selectedOpeningKind(): OpeningKind | null {
+    return this.selectedOpeningData?.kind ?? null;
+  }
+  get selectedOpeningVariant(): string {
+    return this.selectedOpeningData?.variant ?? 'single';
+  }
+  get selectedOpeningWidth(): number | null {
+    return this.selectedOpeningData?.width ?? null;
+  }
+
+  setOpeningVariant(variant: string): void {
+    const op = this.selectedOpeningData;
+    if (!op) return;
+    this.pushUndo();
+    op.variant = variant;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  /** Swap a selected opening between door / window / opening. */
+  setOpeningKind(kind: OpeningKind): void {
+    const op = this.selectedOpeningData;
+    if (!op) return;
+    this.pushUndo();
+    op.kind = kind;
+    op.bare = kind === 'opening' ? true : undefined;
+    delete op.sill;
+    delete op.top; // let the builder pick kind-appropriate defaults
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  setOpeningWidth(width: number): void {
+    const op = this.selectedOpeningData;
+    if (!op || !(width > 0)) return;
+    const wall = this.floor().walls?.[this.selectedOpeningWall];
+    if (!wall) return;
+    const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]);
+    this.pushUndo();
+    op.width = Math.min(width, Math.max(0.3, len - op.position));
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  deleteSelectedOpening(): void {
+    if (this.selectedKind !== 'opening') return;
+    const wall = this.floor().walls?.[this.selectedOpeningWall];
+    if (!wall?.openings) return;
+    this.pushUndo();
+    wall.openings.splice(this.selectedOpeningIndex, 1);
+    this.clearSelection();
+    this.rebuild();
+    this.onChange?.();
+  }
+
   clearSelection(): void {
     this.selectedKind = null;
     this.selectedId = null;
     this.selectedWall = -1;
     this.selectedRoom = -1;
+    this.selectedOpeningWall = -1;
+    this.selectedOpeningIndex = -1;
     this.sm.setSelection(null);
     this.sm.clearGizmo();
     this.applyReserve();
@@ -619,6 +757,8 @@ export class EditorController {
     else if (this.selectedKind === 'room' && this.selectedRoom >= 0) {
       this.sm.setSelection(this.sm.getRoomObject(this.selectedRoom) ?? null);
       this.buildGizmo();
+    } else if (this.selectedKind === 'opening' && this.selectedOpeningWall >= 0) {
+      this.sm.setSelection(this.sm.getWallObject(this.selectedOpeningWall) ?? null);
     }
   }
 
@@ -921,6 +1061,10 @@ export class EditorController {
   deleteSelected(): void {
     const fl = this.floor();
     if (!this.selectedKind) return;
+    if (this.selectedKind === 'opening') {
+      this.deleteSelectedOpening();
+      return;
+    }
     this.pushUndo();
     if (this.selectedKind === 'furniture' && this.selectedId) {
       const piece = fl.furniture?.find((x) => x.id === this.selectedId);
@@ -1005,6 +1149,12 @@ export class EditorController {
       const hitF = e ? this.sm.pickFurniture(e) : null;
       if (hitF) {
         this.selectFurniture(hitF.id);
+        return;
+      }
+      // A door/window leaf takes priority over its wall, so it's selectable.
+      const hitOp = e ? this.sm.pickOpening(e) : null;
+      if (hitOp) {
+        this.selectOpening(hitOp.wallIndex, hitOp.openingIndex);
         return;
       }
       const hitW = e ? this.sm.pickWall(e) : null;
