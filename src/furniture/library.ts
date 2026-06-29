@@ -324,7 +324,7 @@ const builders: Record<string, FurnitureBuilder> = {
     // Pleated fabric, slightly off the wall, in two pivot panels named
     // "curtainPivot" so a bound cover entity can slide them open/closed.
     const g = new THREE.Group();
-    const W = 1.8, H = 2.2, OFF = 0.14;
+    const W = 1.8, H = 2.2, OFF = 0.03;
     const fabric = mat(0x9a8b76, { roughness: 1 });
     const rod = cyl(0.022, 0.022, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
     rod.rotation.z = Math.PI / 2;
@@ -347,7 +347,7 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   curtain_sheer: (c) => {
     const g = new THREE.Group();
-    const W = 1.8, H = 2.2, OFF = 0.1;
+    const W = 1.8, H = 2.2, OFF = 0.03;
     const sheer = mat(0xf2efe9, { transparent: true, opacity: 0.5, roughness: 1 });
     const rod = cyl(0.02, 0.02, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
     rod.rotation.z = Math.PI / 2;
@@ -371,7 +371,7 @@ const builders: Record<string, FurnitureBuilder> = {
     // Window roller blind: a roll at top + a panel that "rolls up" (scale.y) via
     // the curtainPivot hook (anchored at the top).
     const g = new THREE.Group();
-    const W = 1.4, H = 1.9, OFF = 0.08;
+    const W = 1.4, H = 1.9, OFF = 0.02;
     const roll = cyl(0.05, 0.05, W, mat(0xd8d2c4), 0, H, OFF, 10);
     roll.rotation.z = Math.PI / 2;
     g.add(roll);
@@ -383,7 +383,7 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   roman_blind: (c) => {
     const g = new THREE.Group();
-    const W = 1.4, H = 1.9, OFF = 0.08;
+    const W = 1.4, H = 1.9, OFF = 0.02;
     const fabric = mat(0x8a7f6c, { roughness: 1 });
     const rod = cyl(0.04, 0.04, W, mat(METAL), 0, H + 0.02, OFF, 8);
     rod.rotation.z = Math.PI / 2;
@@ -999,6 +999,7 @@ export const SURFACE_MOUNT_KEYS = [
   'tv', 'painting', 'mirror', 'wall_light', 'wall_clock', 'ac_unit',
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
+  'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);

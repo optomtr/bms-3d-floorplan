@@ -20388,7 +20388,7 @@ const gl = {
     return t;
   },
   curtain: (i) => {
-    const t = new K(), e = 1.8, n = 2.2, s = 0.14, r = C(10128246, { roughness: 1 }), o = pt(0.022, 0.022, e + 0.2, C(bt), 0, n + 0.02, s, 8);
+    const t = new K(), e = 1.8, n = 2.2, s = 0.03, r = C(10128246, { roughness: 1 }), o = pt(0.022, 0.022, e + 0.2, C(bt), 0, n + 0.02, s, 8);
     o.rotation.z = Math.PI / 2, t.add(o);
     const a = (l) => {
       const c = new K();
@@ -20403,7 +20403,7 @@ const gl = {
     return t.add(a(-1)), t.add(a(1)), t;
   },
   curtain_sheer: (i) => {
-    const t = new K(), e = 1.8, n = 2.2, s = 0.1, r = C(15921129, { transparent: !0, opacity: 0.5, roughness: 1 }), o = pt(0.02, 0.02, e + 0.2, C(bt), 0, n + 0.02, s, 8);
+    const t = new K(), e = 1.8, n = 2.2, s = 0.03, r = C(15921129, { transparent: !0, opacity: 0.5, roughness: 1 }), o = pt(0.02, 0.02, e + 0.2, C(bt), 0, n + 0.02, s, 8);
     o.rotation.z = Math.PI / 2, t.add(o);
     const a = (l) => {
       const c = new K();
@@ -20418,13 +20418,13 @@ const gl = {
     return t.add(a(-1)), t.add(a(1)), t;
   },
   roller_blind: (i) => {
-    const t = new K(), e = 1.4, n = 1.9, s = 0.08, r = pt(0.05, 0.05, e, C(14209732), 0, n, s, 10);
+    const t = new K(), e = 1.4, n = 1.9, s = 0.02, r = pt(0.05, 0.05, e, C(14209732), 0, n, s, 10);
     r.rotation.z = Math.PI / 2, t.add(r);
     const o = new K();
     return o.name = "curtainPivot", o.add(j(I(e, n, 0.02, C(12562067, { roughness: 1 }), 0, n / 2, s), i)), t.add(o), t;
   },
   roman_blind: (i) => {
-    const t = new K(), e = 1.4, n = 1.9, s = 0.08, r = C(9076588, { roughness: 1 }), o = pt(0.04, 0.04, e, C(bt), 0, n + 0.02, s, 8);
+    const t = new K(), e = 1.4, n = 1.9, s = 0.02, r = C(9076588, { roughness: 1 }), o = pt(0.04, 0.04, e, C(bt), 0, n + 0.02, s, 8);
     o.rotation.z = Math.PI / 2, t.add(o);
     const a = new K();
     a.name = "curtainPivot";
@@ -20862,7 +20862,11 @@ const Xy = [
   "bathroom_cabinet",
   "whiteboard",
   "wall_shelf",
-  "wall_cabinet"
+  "wall_cabinet",
+  "curtain",
+  "curtain_sheer",
+  "roller_blind",
+  "roman_blind"
 ];
 function jy(i) {
   return Xy.includes(i);
@@ -21794,7 +21798,7 @@ function MM(i) {
     e.geometry && e.geometry.dispose(), e.material && (Array.isArray(e.material) ? e.material : [e.material]).forEach((s) => s.dispose());
   });
 }
-const SM = "0.15.0", vo = "ha-3d-floorplan-sidebar-item", rd = "ha-3d-floorplan-overlay";
+const SM = "0.15.1", vo = "ha-3d-floorplan-sidebar-item", rd = "ha-3d-floorplan-overlay";
 function bM() {
   return window.ha3dFloorplan ?? {};
 }
