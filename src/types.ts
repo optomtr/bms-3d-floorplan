@@ -115,6 +115,8 @@ export interface FurnitureDef {
   scale?: number | Vec3;
   /** Base color tint applied to the model. */
   color?: string;
+  /** Manual glow level 0..1 for light models (emissive intensity when unbound). */
+  brightness?: number;
   /** Unique id so entity bindings can anchor to this placement. */
   id?: string;
   /** Link to an opening this piece fills (door/window placed by the tool), so
@@ -194,6 +196,8 @@ export interface FloorPlan {
   name?: string;
   /** Default wall height when not set per-floor or per-wall. */
   wallHeight?: number;
+  /** Saved reset-view distance multiplier for this project (<1 closer). */
+  cameraDistance?: number;
   /** Legacy / single-building: floors live here. */
   floors: FloorDef[];
   /** Designer Mode: multiple buildings (each with its own floors). */
@@ -222,6 +226,8 @@ export interface CardConfig {
   height?: string;
   /** Background color of the 3D viewport. */
   background?: string;
+  /** Reset-view framing distance multiplier (<1 = closer, >1 = further). Default 1. */
+  cameraDistance?: number;
   /** Start in editor mode. Default false. */
   editor?: boolean;
   /** Optional backend base URL for project CRUD (stretch goal). */

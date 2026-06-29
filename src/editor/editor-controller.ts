@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY, isWallMount, isSurfaceMount } from '../furniture/library';
+import { defaultY, isWallMount, isSurfaceMount, LIGHT_KEYS } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
@@ -1016,6 +1016,30 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Whether the selected furniture is a light fixture (brightness applies). */
+  get selectedIsLight(): boolean {
+    if (this.selectedKind !== 'furniture' || !this.selectedId) return false;
+    const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
+    return !!f && LIGHT_KEYS.includes(f.model);
+  }
+  get selectedBrightness(): number {
+    if (this.selectedKind !== 'furniture' || !this.selectedId) return 0;
+    const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
+    return f?.brightness ?? 0;
+  }
+
+  /** Manually set the selected light's glow level (0..1). */
+  setBrightness(v: number): void {
+    if (this.selectedKind !== 'furniture' || !this.selectedId) return;
+    const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
+    if (!f) return;
+    this.pushUndo();
+    f.brightness = Math.max(0, Math.min(1, v));
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
   /** Surface material preset for the selected wall (or floor of a room). */
   setSurfaceMaterial(name: string): void {
     const fl = this.floor();
@@ -1595,6 +1619,20 @@ export class EditorController {
     this.applyUnderlay();
     this.onChange?.();
     this.onMessage?.(`Scale set — ${real} m across those points`);
+  }
+
+  /** Saved reset-view distance multiplier for this project. */
+  get cameraDistance(): number {
+    return this.plan.cameraDistance ?? 1;
+  }
+
+  /** Set the default camera framing distance (persists with the project). */
+  setCameraDistance(v: number): void {
+    if (!(v > 0)) return;
+    this.plan.cameraDistance = Math.round(v * 100) / 100;
+    this.sm.setCameraDistance(v);
+    this.sm.resetView();
+    this.onChange?.();
   }
 
   removeUnderlay(): void {

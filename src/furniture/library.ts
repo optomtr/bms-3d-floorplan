@@ -321,10 +321,140 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
   curtain: (c) => {
+    // Pleated fabric, slightly off the wall, in two pivot panels named
+    // "curtainPivot" so a bound cover entity can slide them open/closed.
     const g = new THREE.Group();
-    g.add(tint(box(1.4, 1.8, 0.05, mat(FABRIC), 0, 1.4, 0), c));
+    const W = 1.8, H = 2.2, OFF = 0.14;
+    const fabric = mat(0x9a8b76, { roughness: 1 });
+    const rod = cyl(0.022, 0.022, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod);
+    const panel = (sign: number) => {
+      const pivot = new THREE.Group();
+      pivot.name = 'curtainPivot';
+      pivot.position.x = (sign * W) / 2; // hinge at the outer edge
+      const half = W / 2, n = 9, seg = half / n;
+      for (let i = 0; i < n; i++) {
+        const px = -sign * (i + 0.5) * seg; // pleats run inward
+        const wave = i % 2 === 0 ? 0.035 : -0.025;
+        pivot.add(tint(box(seg * 0.96, H, 0.05, fabric, px, H / 2, OFF + wave), c));
+      }
+      return pivot;
+    };
+    g.add(panel(-1));
+    g.add(panel(1));
     return g;
   },
+  curtain_sheer: (c) => {
+    const g = new THREE.Group();
+    const W = 1.8, H = 2.2, OFF = 0.1;
+    const sheer = mat(0xf2efe9, { transparent: true, opacity: 0.5, roughness: 1 });
+    const rod = cyl(0.02, 0.02, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod);
+    const panel = (sign: number) => {
+      const pivot = new THREE.Group();
+      pivot.name = 'curtainPivot';
+      pivot.position.x = (sign * W) / 2;
+      const half = W / 2, n = 8, seg = half / n;
+      for (let i = 0; i < n; i++) {
+        const px = -sign * (i + 0.5) * seg;
+        pivot.add(tint(box(seg * 0.96, H, 0.03, sheer, px, H / 2, OFF + (i % 2 ? 0.02 : -0.02)), c));
+      }
+      return pivot;
+    };
+    g.add(panel(-1));
+    g.add(panel(1));
+    return g;
+  },
+  roller_blind: (c) => {
+    // Window roller blind: a roll at top + a panel that "rolls up" (scale.y) via
+    // the curtainPivot hook (anchored at the top).
+    const g = new THREE.Group();
+    const W = 1.4, H = 1.9, OFF = 0.08;
+    const roll = cyl(0.05, 0.05, W, mat(0xd8d2c4), 0, H, OFF, 10);
+    roll.rotation.z = Math.PI / 2;
+    g.add(roll);
+    const pivot = new THREE.Group();
+    pivot.name = 'curtainPivot';
+    pivot.add(tint(box(W, H, 0.02, mat(0xbfae93, { roughness: 1 }), 0, H / 2, OFF), c));
+    g.add(pivot);
+    return g;
+  },
+  roman_blind: (c) => {
+    const g = new THREE.Group();
+    const W = 1.4, H = 1.9, OFF = 0.08;
+    const fabric = mat(0x8a7f6c, { roughness: 1 });
+    const rod = cyl(0.04, 0.04, W, mat(METAL), 0, H + 0.02, OFF, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod);
+    const pivot = new THREE.Group();
+    pivot.name = 'curtainPivot';
+    for (let i = 0; i < 5; i++) {
+      pivot.add(tint(box(W, 0.36, 0.04 + (i % 2 ? 0.02 : 0), fabric, 0, 0.2 + i * 0.36, OFF), c)); // folds
+    }
+    g.add(pivot);
+    return g;
+  },
+  // ---- Extra kitchen ----
+  wall_cabinet: (c) => {
+    // Upper kitchen cabinets (wall-mounted run of doors).
+    const g = new THREE.Group();
+    const W = 1.6, H = 0.7, D = 0.34;
+    g.add(tint(box(W, H, D, mat(WHITE), 0, 0, 0), c));
+    for (const sx of [-1, 1]) {
+      g.add(box(W / 2 - 0.03, H - 0.04, 0.02, mat(0xf6f6f6), (sx * W) / 4, 0, D / 2 + 0.005));
+      g.add(box(0.04, 0.18, 0.03, mat(METAL), sx * 0.03, -H / 4, D / 2 + 0.02)); // handles
+    }
+    return g;
+  },
+  cooktop: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.6, 0.04, 0.52, mat(0x141414, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), c));
+    for (const [dx, dz] of [[-0.15, -0.13], [0.15, -0.13], [-0.15, 0.13], [0.15, 0.13]] as const)
+      g.add(cyl(0.07, 0.07, 0.006, mat(0x2a2a2a), dx, 0.923, dz, 18));
+    return g;
+  },
+  dish_rack: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.42, 0.04, 0.3, mat(METAL, { metalness: 0.5, roughness: 0.4 }), 0, 0.92, 0), c));
+    for (let i = 0; i < 5; i++) g.add(box(0.006, 0.16, 0.26, mat(METAL), -0.18 + i * 0.09, 1.0, 0));
+    return g;
+  },
+  // ---- Extra lighting (emissive; bindable as lights) ----
+  track_light: (c) => {
+    const g = new THREE.Group();
+    const rail = box(1.2, 0.05, 0.05, mat(DARK), 0, 0, 0);
+    g.add(tint(rail, c));
+    for (const x of [-0.4, 0, 0.4]) {
+      g.add(box(0.08, 0.1, 0.08, mat(DARK), x, -0.08, 0));
+      const bulb = cyl(0.05, 0.06, 0.08, mat(0xfff4d6, { emissive: 0x000000 }), x, -0.16, 0, 12);
+      bulb.name = 'emissive';
+      g.add(bulb);
+    }
+    return g;
+  },
+  lantern: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.22, 0.04, 0.22, mat(DARK), 0, 0, 0), c));
+    g.add(box(0.22, 0.04, 0.22, mat(DARK), 0, 0.5, 0));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(box(0.02, 0.5, 0.02, mat(DARK), sx * 0.1, 0.25, sz * 0.1));
+    const glow = box(0.16, 0.42, 0.16, mat(0xfff1c0, { emissive: 0x000000, transparent: true, opacity: 0.85 }), 0, 0.25, 0);
+    glow.name = 'emissive';
+    g.add(glow);
+    return g;
+  },
+  led_panel: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.6, 0.04, 0.6, mat(METAL), 0, 0, 0), c));
+    const panel = box(0.56, 0.02, 0.56, mat(0xf7faff, { emissive: 0x000000 }), 0, -0.02, 0);
+    panel.name = 'emissive';
+    g.add(panel);
+    return g;
+  },
+
+  // Generic fallback marker so an unknown model key still renders something.
   painting: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(0.7, 0.5, 0.04, mat(WOOD), 0, 0, 0), c));
@@ -857,6 +987,7 @@ export const WALL_MOUNT_KEYS = [
   'terrace_window', 'tv', 'painting', 'mirror', 'wall_light', 'wall_clock',
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
+  'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -867,7 +998,7 @@ export function isWallMount(model: string): boolean {
 export const SURFACE_MOUNT_KEYS = [
   'tv', 'painting', 'mirror', 'wall_light', 'wall_clock', 'ac_unit',
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
-  'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
+  'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -883,6 +1014,9 @@ export const LIGHT_KEYS = [
   'spotlight',
   'pendant_light',
   'led_strip',
+  'track_light',
+  'lantern',
+  'led_panel',
 ];
 
 /**
@@ -906,6 +1040,9 @@ export function entityDomainsFor(model: string): string[] {
     case 'speaker':
       return ['media_player'];
     case 'curtain':
+    case 'curtain_sheer':
+    case 'roller_blind':
+    case 'roman_blind':
       return ['cover'];
     case 'door':
     case 'double_door':
@@ -937,8 +1074,10 @@ export function entityDomainsFor(model: string): string[] {
 export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'ceiling_light' || model === 'chandelier' || model === 'pendant_light')
     return wallHeight - 0.05;
-  if (model === 'spotlight' || model === 'led_strip') return wallHeight - 0.02;
+  if (model === 'spotlight' || model === 'led_strip' || model === 'led_panel' || model === 'track_light')
+    return wallHeight - 0.02;
   if (model === 'ceiling_fan') return wallHeight - 0.25;
+  if (model === 'wall_cabinet') return 1.55;
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
   if (model === 'wall_shelf') return 1.4;
@@ -947,7 +1086,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'terrace_window') return 1.2;
   if (model === 'wall_clock') return 1.7;
   if (model === 'range_hood') return 1.6;
-  if (model === 'curtain') return 0.1;
+  if (model === 'curtain' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind') return 0.1;
   return 0;
 }
 

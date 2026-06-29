@@ -30,6 +30,10 @@ interface ActiveBinding {
   lastState?: string;
   /** Domain-default fan/cover spin handle. */
   spin?: THREE.Object3D;
+  /** Curtain pivot groups to slide open/closed (cover behavior). */
+  curtains?: THREE.Object3D[];
+  /** Target open fraction for curtains (0 closed .. 1 open). */
+  coverOpen?: number;
 }
 
 const TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'media_player']);
@@ -56,6 +60,14 @@ function collectEmissive(root: THREE.Object3D): THREE.Mesh[] {
   // If any explicitly-named emissive mesh exists, use only those.
   const named = out.filter((m) => m.name === 'emissive');
   return named.length ? named : out;
+}
+
+function collectByName(root: THREE.Object3D, name: string): THREE.Object3D[] {
+  const out: THREE.Object3D[] = [];
+  root.traverse((o) => {
+    if (o.name === name) out.push(o);
+  });
+  return out;
 }
 
 export class BindingManager {
@@ -93,6 +105,7 @@ export class BindingManager {
         anchor,
         worldPos,
         emissiveMeshes: anchor ? collectEmissive(anchor) : [],
+        curtains: anchor ? collectByName(anchor, 'curtainPivot') : [],
       };
 
       this.setupVisual(ab, floor);
@@ -205,8 +218,15 @@ export class BindingManager {
         break;
       }
       case 'cover': {
-        const open = state === 'open';
-        this.setEmissive(ab, open ? 0x4fd06a : 0x000000, open ? 0.4 : 0);
+        // Use position attr (0-100) if present, else open/closed.
+        const pos = ent?.attributes?.current_position;
+        const open = typeof pos === 'number' ? pos / 100
+          : (state === 'open' || state === 'opening') ? 1 : 0;
+        if (ab.curtains && ab.curtains.length) {
+          ab.coverOpen = open; // curtains slide in animate()
+        } else {
+          this.setEmissive(ab, open > 0.5 ? 0x4fd06a : 0x000000, open > 0.5 ? 0.4 : 0);
+        }
         break;
       }
       case 'fan': {
@@ -227,11 +247,19 @@ export class BindingManager {
     }
   }
 
-  /** Per-frame animation for fans etc. */
+  /** Per-frame animation for fans + sliding curtains. */
   animate(delta: number): void {
     for (const ab of this.bindings) {
       if (ab.behavior === 'fan' && ab.spin) {
         ab.spin.rotation.y += delta * 6;
+      }
+      if (ab.curtains && ab.curtains.length && ab.coverOpen !== undefined) {
+        // Closed = scale.x 1 (full span); open = 0.16 (gathered to the side).
+        const target = 1 - 0.84 * ab.coverOpen;
+        const k = Math.min(1, delta * 4); // smooth slide
+        for (const piv of ab.curtains) {
+          piv.scale.x += (target - piv.scale.x) * k;
+        }
       }
     }
   }

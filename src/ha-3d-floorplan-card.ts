@@ -64,6 +64,9 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editCanUndo = false;
   @state() private editCanRedo = false;
   @state() private editUnderlay: import('./types').Underlay | null = null;
+  @state() private editCameraDistance = 1;
+  @state() private editIsLight = false;
+  @state() private editBrightness = 0;
   @state() private importOpen = false;
   @state() private importText = '';
   @state() private projectList: ProjectInfo[] = [];
@@ -190,6 +193,7 @@ export class Ha3dFloorplanCard extends LitElement {
     if (!this.viewport) return;
     const bg = this.config?.background ?? '#1b1d22';
     this.sceneManager = new SceneManager(this.viewport, bg);
+    if (this.config?.cameraDistance) this.sceneManager.setCameraDistance(this.config.cameraDistance);
     this.sceneManager.setPickHandler((r) => this.handlePick(r));
     this.sceneManager.start();
     this.loadActiveProject();
@@ -329,6 +333,9 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editCanUndo = ed.canUndo;
       this.editCanRedo = ed.canRedo;
       this.editUnderlay = ed.underlay;
+      this.editCameraDistance = ed.cameraDistance;
+      this.editIsLight = ed.selectedIsLight;
+      this.editBrightness = ed.selectedBrightness;
       this.requestUpdate();
     };
     this.editor.onMessage = (m) => this.showToast(m);
@@ -400,6 +407,16 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private onAutoFloors(): void {
     this.editor?.autoFloors();
+  }
+
+  private onSetCameraDistance(e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v)) this.editor?.setCameraDistance(v);
+  }
+
+  private onSetBrightness(e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v)) this.editor?.setBrightness(v);
   }
 
   private onSetOpeningVariant(e: Event): void {
@@ -900,6 +917,13 @@ export class Ha3dFloorplanCard extends LitElement {
             ${efloors.length > 1
               ? html`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>`
               : nothing}
+          </div>
+          <div class="toolrow">
+            <span class="hint">View distance:</span>
+            <input type="range" min="0.4" max="2" step="0.05"
+              .value=${String(this.editCameraDistance)}
+              title="Default camera distance on Reset (saved with the project)"
+              @input=${this.onSetCameraDistance} />
           </div>`;
         })()}
 
@@ -950,6 +974,15 @@ export class Ha3dFloorplanCard extends LitElement {
                 ? html`<button class="btn" title="Delete" @click=${this.onDeleteSelected}>🗑 Delete</button>`
                 : nothing}
             </div>
+            ${isFurniture && this.editIsLight
+              ? html`<div class="toolrow">
+                  <span class="hint">Brightness:</span>
+                  <input type="range" min="0" max="1" step="0.05"
+                    .value=${String(this.editBrightness)}
+                    title="Manual glow level (bound light overrides)"
+                    @input=${this.onSetBrightness} />
+                </div>`
+              : nothing}
             ${kind === 'opening'
               ? html`<div class="toolrow">
                     <span class="hint">Type:</span>

@@ -284,6 +284,20 @@ export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): Built
   const furnitureById = new Map<string, THREE.Object3D>();
   for (const f of floor.furniture ?? []) {
     const obj = resolveFurniture(f);
+    // Manual brightness: glow the emissive parts even without a bound entity
+    // (a bound light still overrides this on state updates).
+    if (f.brightness != null && f.brightness > 0) {
+      obj.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh && m.name === 'emissive') {
+          const mat = m.material as THREE.MeshStandardMaterial;
+          if (mat && 'emissive' in mat) {
+            mat.emissive.setHex(0xfff1d0);
+            mat.emissiveIntensity = f.brightness as number;
+          }
+        }
+      });
+    }
     group.add(obj);
     if (f.id) furnitureById.set(f.id, obj);
   }

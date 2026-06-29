@@ -35,6 +35,8 @@ export class SceneManager {
   private bindingManagers: BindingManager[] = [];
   private activeFloor = 0;
   private fullBBox = new THREE.Box3();
+  /** Framing-distance multiplier for resetView (config: cameraDistance). */
+  private cameraDistance = 1;
 
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -166,6 +168,8 @@ export class SceneManager {
       this.fullBBox.union(built.bbox);
     });
 
+    if (plan.cameraDistance) this.cameraDistance = plan.cameraDistance;
+
     const floor = keepView ? Math.min(prevFloor, this.floors.length - 1) : 0;
     this.activeFloor = Math.max(0, floor);
     this.floorGroups.forEach((g, i) => (g.visible = i === this.activeFloor));
@@ -230,13 +234,19 @@ export class SceneManager {
     const maxDim = Math.max(size.x, size.z, 2);
 
     this.controls.target.copy(center);
-    // Pull back enough to frame the floor.
-    const dist = maxDim * 1.4 + 4;
+    // Pull back enough to frame the floor. `cameraDistance` (config) scales it —
+    // <1 = closer, >1 = further. Default sits noticeably closer than before.
+    const dist = (maxDim * 0.95 + 3) * this.cameraDistance;
     this.camera.position.set(center.x + dist * 0.7, center.y + dist * 0.8, center.z + dist * 0.7);
-    this.controls.maxDistance = dist * 2.2;
-    this.controls.minDistance = Math.max(1.5, maxDim * 0.15);
+    this.controls.maxDistance = dist * 3;
+    this.controls.minDistance = Math.max(1.2, maxDim * 0.1);
     this.camera.lookAt(center);
     this.controls.update();
+  }
+
+  /** Multiplier on the reset-view framing distance (from card config). */
+  setCameraDistance(f: number): void {
+    if (f > 0) this.cameraDistance = f;
   }
 
   /** Keep the orbit target from drifting outside the floor bbox + margin. */
