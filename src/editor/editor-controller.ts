@@ -1035,8 +1035,8 @@ export class EditorController {
       return;
     }
 
-    // Tap the start vertex (≥3 points) → close the loop and drop a floor.
-    if (this.chain.length >= 2 && Math.hypot(pt[0] - startPt[0], pt[1] - startPt[1]) < 1e-3) {
+    // Tap near the start vertex (≥3 points) → close the loop and drop a floor.
+    if (this.chain.length >= 2 && Math.hypot(pt[0] - startPt[0], pt[1] - startPt[1]) < 0.25) {
       this.commitChain(true);
       return;
     }
@@ -1467,6 +1467,126 @@ export class EditorController {
     this.applySceneEditState();
     this.applyUnderlay();
     this.onChange?.();
+  }
+
+  // -- Auto floors: fill every closed wall loop with a floor ------------------
+
+  /** Detect the closed regions (faces) formed by the current floor's walls and
+   *  add a floor (RoomDef polygon) to each enclosed area that doesn't already
+   *  have one. Works for hand-traced walls that weren't closed via the start. */
+  autoFloors(): void {
+    const fl = this.floor();
+    const walls = fl.walls ?? [];
+    if (walls.length < 3) {
+      this.onMessage?.('Draw or import some walls first');
+      return;
+    }
+    const key = (p: Vec2) => `${Math.round(p[0] * 100)},${Math.round(p[1] * 100)}`;
+    const nodes = new Map<string, Vec2>();
+    const adj = new Map<string, Set<string>>();
+    const addNode = (p: Vec2): string => {
+      const k = key(p);
+      if (!nodes.has(k)) {
+        nodes.set(k, [p[0], p[1]]);
+        adj.set(k, new Set());
+      }
+      return k;
+    };
+    for (const w of walls) {
+      const a = addNode(w.start as Vec2);
+      const b = addNode(w.end as Vec2);
+      if (a !== b) {
+        adj.get(a)!.add(b);
+        adj.get(b)!.add(a);
+      }
+    }
+    const ang = (from: string, to: string): number => {
+      const f = nodes.get(from)!;
+      const t = nodes.get(to)!;
+      return Math.atan2(t[1] - f[1], t[0] - f[0]);
+    };
+    const TAU = Math.PI * 2;
+    const used = new Set<string>();
+    const he = (u: string, v: string) => `${u}|${v}`;
+    const faces: Vec2[][] = [];
+    for (const w of walls) {
+      const a = key(w.start as Vec2);
+      const b = key(w.end as Vec2);
+      if (a === b) continue;
+      for (const [u0, v0] of [[a, b], [b, a]] as const) {
+        if (used.has(he(u0, v0))) continue;
+        const facePts: string[] = [];
+        let u = u0;
+        let v = v0;
+        let guard = 0;
+        do {
+          used.add(he(u, v));
+          facePts.push(u);
+          const back = ang(v, u);
+          let bestW: string | null = null;
+          let bestTurn = Infinity;
+          for (const w2 of adj.get(v)!) {
+            let turn = back - ang(v, w2);
+            turn = ((turn % TAU) + TAU) % TAU; // (0, 2π]
+            if (turn < 1e-9) turn = TAU; // going straight back is the last resort
+            if (turn < bestTurn) {
+              bestTurn = turn;
+              bestW = w2;
+            }
+          }
+          if (bestW === null) break;
+          u = v;
+          v = bestW;
+          guard++;
+        } while (!(u === u0 && v === v0) && guard < 100000);
+        if (facePts.length >= 3) faces.push(facePts.map((k) => nodes.get(k)!));
+      }
+    }
+    const area = (poly: Vec2[]): number => {
+      let s = 0;
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % poly.length];
+        s += a[0] * b[1] - b[0] * a[1];
+      }
+      return s / 2;
+    };
+    const centroid = (poly: Vec2[]): Vec2 => {
+      let cx = 0, cz = 0;
+      for (const p of poly) {
+        cx += p[0];
+        cz += p[1];
+      }
+      return [cx / poly.length, cz / poly.length];
+    };
+    // Interior faces have positive signed area in this traversal; the outer
+    // boundary is negative. Keep reasonably-sized interior faces.
+    const interior = faces.filter((f) => area(f) > 0.5);
+    if (!interior.length) {
+      this.onMessage?.('No closed rooms found — make sure walls connect at corners');
+      return;
+    }
+    const existing = (fl.rooms ?? []).map((r) => {
+      const poly = isShapeRoom(r) ? roomPolygon(r) : r.polygon;
+      return { c: centroid(poly), a: Math.abs(area(poly)) };
+    });
+    let added = 0;
+    this.pushUndo();
+    if (!fl.rooms) fl.rooms = [];
+    for (const f of interior) {
+      const c = centroid(f);
+      const a = Math.abs(area(f));
+      const dup = existing.some(
+        (e) => Math.hypot(e.c[0] - c[0], e.c[1] - c[1]) < 0.4 && Math.abs(e.a - a) / Math.max(e.a, a) < 0.2,
+      );
+      if (dup) continue;
+      fl.rooms.push({ polygon: f.map((p) => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as Vec2), color: '#c9c4bb' });
+      existing.push({ c, a });
+      added++;
+    }
+    this.rebuild();
+    this.onChange?.();
+    this.onMessage?.(added ? `Added ${added} floor${added === 1 ? '' : 's'}` : 'All rooms already have floors');
   }
 
   // -- Wall cleanup: dedupe + merge collinear overlapping walls ---------------

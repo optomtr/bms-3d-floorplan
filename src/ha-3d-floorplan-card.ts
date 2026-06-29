@@ -391,6 +391,10 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.mergeWalls();
   }
 
+  private onAutoFloors(): void {
+    this.editor?.autoFloors();
+  }
+
   private onToggleSnap(): void {
     if (!this.editor) return;
     this.editSnap = !this.editSnap;
@@ -793,6 +797,8 @@ export class Ha3dFloorplanCard extends LitElement {
             @click=${this.onRedo}>↷ Redo</button>
           <button class="btn" title="Merge duplicate / overlapping walls into one"
             @click=${this.onMergeWalls}>🧹 Merge walls</button>
+          <button class="btn" title="Fill every closed wall loop with a floor"
+            @click=${this.onAutoFloors}>▦ Auto floors</button>
         </div>
         <div class="toolrow">
           <button class="btn ${tool === 'wall' ? 'active' : ''}" title="Draw walls"
