@@ -781,6 +781,66 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  // ---- Wardrobes / cabinets ----
+  wardrobe_glass: (c) => {
+    // Multi-shelf wardrobe with transparent glass doors (see the shelves).
+    const g = new THREE.Group();
+    const W = 1.2, H = 2.1, D = 0.58;
+    g.add(tint(box(W, H, D, mat(WHITE), 0, H / 2, 0), c)); // body
+    g.add(box(W - 0.06, H - 0.06, D - 0.08, mat(0x202428), 0, H / 2, -0.02)); // dark interior
+    for (const y of [0.45, 0.9, 1.35, 1.75]) g.add(box(W - 0.1, 0.03, D - 0.1, mat(WOOD), 0, y, 0)); // shelves
+    const gl = mat(GLASS, { transparent: true, opacity: 0.3, metalness: 0.2, roughness: 0.05 });
+    g.add(box(W / 2 - 0.04, H - 0.14, 0.02, gl, -W / 4, H / 2, D / 2 + 0.01));
+    g.add(box(W / 2 - 0.04, H - 0.14, 0.02, gl, W / 4, H / 2, D / 2 + 0.01));
+    g.add(box(0.04, H - 0.1, 0.05, mat(METAL), 0, H / 2, D / 2 + 0.015)); // center stile
+    g.add(cyl(0.012, 0.012, 0.2, mat(METAL), -0.06, H / 2, D / 2 + 0.05, 8));
+    g.add(cyl(0.012, 0.012, 0.2, mat(METAL), 0.06, H / 2, D / 2 + 0.05, 8));
+    return g;
+  },
+  display_cabinet: (c) => {
+    // Tall glass display cabinet with lit-looking shelves + a couple of items.
+    const g = new THREE.Group();
+    const W = 0.9, H = 1.9, D = 0.4;
+    g.add(tint(box(W, H, D, mat(WOOD), 0, H / 2, 0), c));
+    g.add(box(W - 0.08, H - 0.2, D - 0.06, mat(0x1c2024), 0, H / 2 + 0.04, -0.01)); // interior
+    const gl = mat(GLASS, { transparent: true, opacity: 0.26, metalness: 0.2, roughness: 0.05 });
+    g.add(box(W - 0.06, H - 0.28, 0.02, gl, 0, H / 2 + 0.04, D / 2)); // front glass
+    for (const y of [0.55, 0.95, 1.35, 1.7]) g.add(box(W - 0.1, 0.02, D - 0.08, mat(0xf2f2f2), 0, y, 0));
+    g.add(tint(cyl(0.05, 0.07, 0.16, mat(0xdfe6ea), -0.2, 0.63, 0, 12), c));
+    g.add(box(0.12, 0.18, 0.1, mat(0x8a3b3b), 0.18, 0.64, 0));
+    return g;
+  },
+  shelving_unit: (c) => {
+    // Tall open multi-tier shelving.
+    const g = new THREE.Group();
+    const w = mat(WOOD);
+    const W = 1.0, H = 2.0, D = 0.32;
+    g.add(tint(box(0.04, H, D, w, -W / 2, H / 2, 0), c));
+    g.add(tint(box(0.04, H, D, w, W / 2, H / 2, 0), c));
+    g.add(box(W, 0.03, 0.04, w, 0, H - 0.02, -D / 2 + 0.02)); // top back rail
+    for (let i = 0; i < 6; i++) g.add(box(W, 0.03, D, w, 0, 0.04 + (i * (H - 0.08)) / 5, 0));
+    return g;
+  },
+  wardrobe_lit: (c) => {
+    // Backlit wardrobe: the LED strips (named "emissive") glow when a bound
+    // light/switch entity is on. Open-front so the glow is visible.
+    const g = new THREE.Group();
+    const W = 1.2, H = 2.1, D = 0.58;
+    g.add(tint(box(W, H, D, mat(WHITE), 0, H / 2, 0), c)); // body
+    g.add(box(W - 0.06, H - 0.06, D - 0.08, mat(0x14171a), 0, H / 2, -0.02)); // dark interior
+    for (const y of [0.6, 1.5]) g.add(box(W - 0.1, 0.03, D - 0.1, mat(WOOD), 0, y, 0)); // shelves
+    const rod = cyl(0.015, 0.015, W - 0.16, mat(METAL), 0, 1.95, 0.05, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod); // hanging rail
+    // LED strips laid along the underside of the top and a shelf — these glow.
+    for (const y of [H - 0.12, 1.45, 0.55]) {
+      const led = box(W - 0.16, 0.035, 0.04, mat(0xeaeaea, { emissive: 0x000000 }), 0, y, D / 2 - 0.12);
+      led.name = 'emissive';
+      g.add(led);
+    }
+    return g;
+  },
+
   // Generic fallback marker so an unknown model key still renders something.
   marker: (c) => {
     const g = new THREE.Group();
@@ -838,6 +898,8 @@ export function entityDomainsFor(model: string): string[] {
       return ['climate', 'fan', 'switch'];
     case 'ceiling_fan':
       return ['fan', 'switch'];
+    case 'wardrobe_lit':
+      return ['light', 'switch'];
     case 'tv':
     case 'tv_stand':
       return ['media_player', 'switch'];
