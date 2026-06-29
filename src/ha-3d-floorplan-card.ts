@@ -809,6 +809,8 @@ export class Ha3dFloorplanCard extends LitElement {
             @click=${() => this.onEditTool('window')}>🪟 Window</button>
           <button class="btn ${tool === 'opening' ? 'active' : ''}" title="Add an open passage (no door) — tap a wall"
             @click=${() => this.onEditTool('opening')}>⬚ Opening</button>
+          <button class="btn ${tool === 'floor' ? 'active' : ''}" title="Trace a floor: tap corners, tap start (or Finish) to close"
+            @click=${() => this.onEditTool('floor')}>▱ Floor</button>
           <button class="btn ${tool === 'furniture' ? 'active' : ''}" title="Place furniture"
             @click=${() => this.onEditTool('furniture')}>🛋 Furniture</button>
           <button class="btn ${tool === 'select' ? 'active' : ''}" title="Select / move / bind (camera always works: drag empty = orbit)"
@@ -881,14 +883,16 @@ export class Ha3dFloorplanCard extends LitElement {
           </div>`;
         })()}
 
-        ${tool === 'wall'
+        ${tool === 'wall' || tool === 'floor'
           ? html`<div class="toolrow">
-              <button class="btn" title="Remove the last point / wall" @click=${this.onUndoPoint}>⤺ Undo point</button>
-              <button class="btn" title="Finish this wall run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
+              <button class="btn" title="Remove the last point" @click=${this.onUndoPoint}>⤺ Undo point</button>
+              <button class="btn" title="Finish this run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
               <button class="btn ${this.editSnap ? 'active' : ''}"
                 title="Snap assist: parallel/perpendicular angles, equal lengths, alignment"
                 @click=${this.onToggleSnap}>🧲 Snap</button>
-              <span class="hint">tap to add points · tap start to close (adds floor) · Finish/Enter to end</span>
+              <span class="hint">${tool === 'floor'
+                ? 'trace a floor: tap corners · tap start (or Finish) to close'
+                : 'tap to add points · tap start to close (adds floor) · Finish/Enter to end'}</span>
             </div>`
           : nothing}
 

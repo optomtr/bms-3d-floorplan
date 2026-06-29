@@ -17,7 +17,7 @@ import { defaultY, isWallMount, isSurfaceMount } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
-export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening';
+export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening' | 'floor';
 
 const SNAP = 0.1; // grid snap, meters
 const CLOSE_DIST = 0.4; // distance to first point that closes a room
@@ -420,10 +420,12 @@ export class EditorController {
   }
 
   setTool(t: EditTool): void {
+    // Commit any in-progress chain using the CURRENT (previous) tool before
+    // switching, so switching tools doesn't lose or mis-commit a run.
+    if (this.chain.length && t !== this.tool) this.finishChain();
     this.tool = t;
     // Camera is on unless a movable object is selected (then left/one-finger
     // moves it). A TAP always performs the tool. No separate "View" tool.
-    if (t !== 'wall') this.finishChain(); // don't lose an in-progress run
     if (t !== 'select') this.clearSelection();
     this.applyReserve();
     this.onChange?.();
@@ -1015,7 +1017,8 @@ export class EditorController {
       else this.clearSelection();
       return;
     }
-    if (this.tool !== 'wall') return;
+    if (this.tool !== 'wall' && this.tool !== 'floor') return;
+    const floorTool = this.tool === 'floor';
     const { pt } = this.snapPoint(p.x, p.z);
 
     // First tap: drop the start point.
@@ -1029,22 +1032,42 @@ export class EditorController {
     const startPt = this.chain[0];
     const lastPt = this.chain[this.chain.length - 1];
 
-    // Tap the same spot as the last vertex again → finish the open run.
+    // Tap the same spot as the last vertex again → finish the run.
     if (lastPt[0] === pt[0] && lastPt[1] === pt[1]) {
-      this.commitChain(false);
+      if (floorTool) this.commitFloorChain();
+      else this.commitChain(false);
       return;
     }
 
-    // Tap near the start vertex (≥3 points) → close the loop and drop a floor.
+    // Tap near the start vertex (≥3 points) → close the loop.
     if (this.chain.length >= 2 && Math.hypot(pt[0] - startPt[0], pt[1] - startPt[1]) < 0.25) {
-      this.commitChain(true);
+      if (floorTool) this.commitFloorChain();
+      else this.commitChain(true);
       return;
     }
 
-    // Continuous chaining: keep adding vertices; walls commit on finish/close.
+    // Continuous chaining: keep adding vertices; commit on finish/close.
     this.chain.push(pt);
     this.renderPreview();
     this.onChange?.();
+  }
+
+  /** Commit the in-progress chain as a floor polygon only (no walls). */
+  private commitFloorChain(): void {
+    const pts = this.chain;
+    if (pts.length < 3) {
+      this.cancelChain();
+      this.onMessage?.('Tap at least 3 corners for a floor');
+      return;
+    }
+    this.pushUndo();
+    const fl = this.floor();
+    if (!fl.rooms) fl.rooms = [];
+    fl.rooms.push({ polygon: pts.map((p) => [p[0], p[1]] as Vec2), color: '#c9c4bb' });
+    this.cancelChain();
+    this.rebuild();
+    this.onChange?.();
+    this.onMessage?.('Floor added');
   }
 
   /** Commit the in-progress wall chain. When `close`, also add the closing wall
@@ -1076,7 +1099,7 @@ export class EditorController {
   }
 
   private onMove(p: THREE.Vector3): void {
-    if (this.tool !== 'wall' || this.chain.length === 0) return;
+    if ((this.tool !== 'wall' && this.tool !== 'floor') || this.chain.length === 0) return;
     const r = this.snapPoint(p.x, p.z);
     this.cursor = r.pt;
     this.snapInfo = r;
@@ -1311,10 +1334,15 @@ export class EditorController {
     this.onChange?.();
   }
 
-  /** Finish the current wall run, committing the chain as an open polyline. */
+  /** Finish the current run: a floor polygon (floor tool) or an open wall run. */
   finishChain(): void {
-    if (this.chain.length >= 2) this.commitChain(false);
-    else this.cancelChain();
+    if (this.tool === 'floor') {
+      this.commitFloorChain();
+    } else if (this.chain.length >= 2) {
+      this.commitChain(false);
+    } else {
+      this.cancelChain();
+    }
   }
 
   cancelChain(): void {
@@ -1484,41 +1512,39 @@ export class EditorController {
       this.onMessage?.('Draw or import some walls first');
       return;
     }
-    const key = (p: Vec2) => `${Math.round(p[0] * 100)},${Math.round(p[1] * 100)}`;
-    const nodes = new Map<string, Vec2>();
-    const adj = new Map<string, Set<string>>();
-    const addNode = (p: Vec2): string => {
-      const k = key(p);
-      if (!nodes.has(k)) {
-        nodes.set(k, [p[0], p[1]]);
-        adj.set(k, new Set());
+    // Weld near-coincident endpoints into one node, so hand-traced corners that
+    // don't meet exactly (small gaps) still close into rooms.
+    const WELD = 0.2;
+    const pts: Vec2[] = [];
+    const adj = new Map<number, Set<number>>();
+    const nodeId = (p: Vec2): number => {
+      for (let i = 0; i < pts.length; i++) {
+        if (Math.hypot(pts[i][0] - p[0], pts[i][1] - p[1]) <= WELD) return i;
       }
-      return k;
+      pts.push([p[0], p[1]]);
+      adj.set(pts.length - 1, new Set());
+      return pts.length - 1;
     };
+    const edges: Array<[number, number]> = [];
     for (const w of walls) {
-      const a = addNode(w.start as Vec2);
-      const b = addNode(w.end as Vec2);
+      const a = nodeId(w.start as Vec2);
+      const b = nodeId(w.end as Vec2);
       if (a !== b) {
         adj.get(a)!.add(b);
         adj.get(b)!.add(a);
+        edges.push([a, b]);
       }
     }
-    const ang = (from: string, to: string): number => {
-      const f = nodes.get(from)!;
-      const t = nodes.get(to)!;
-      return Math.atan2(t[1] - f[1], t[0] - f[0]);
-    };
+    const ang = (from: number, to: number): number =>
+      Math.atan2(pts[to][1] - pts[from][1], pts[to][0] - pts[from][0]);
     const TAU = Math.PI * 2;
     const used = new Set<string>();
-    const he = (u: string, v: string) => `${u}|${v}`;
+    const he = (u: number, v: number) => `${u}|${v}`;
     const faces: Vec2[][] = [];
-    for (const w of walls) {
-      const a = key(w.start as Vec2);
-      const b = key(w.end as Vec2);
-      if (a === b) continue;
+    for (const [a, b] of edges) {
       for (const [u0, v0] of [[a, b], [b, a]] as const) {
         if (used.has(he(u0, v0))) continue;
-        const facePts: string[] = [];
+        const facePts: number[] = [];
         let u = u0;
         let v = v0;
         let guard = 0;
@@ -1526,7 +1552,7 @@ export class EditorController {
           used.add(he(u, v));
           facePts.push(u);
           const back = ang(v, u);
-          let bestW: string | null = null;
+          let bestW: number | null = null;
           let bestTurn = Infinity;
           for (const w2 of adj.get(v)!) {
             let turn = back - ang(v, w2);
@@ -1542,7 +1568,7 @@ export class EditorController {
           v = bestW;
           guard++;
         } while (!(u === u0 && v === v0) && guard < 100000);
-        if (facePts.length >= 3) faces.push(facePts.map((k) => nodes.get(k)!));
+        if (facePts.length >= 3) faces.push(facePts.map((i) => pts[i]));
       }
     }
     const area = (poly: Vec2[]): number => {
