@@ -1347,7 +1347,7 @@ export class EditorController {
 
   /** Push the current floor's underlay into the scene (or clear it). */
   private applyUnderlay(): void {
-    this.sm.setUnderlay(this.floor().underlay ?? null);
+    this.sm.setUnderlay(this.floor().underlay ?? null, this.elevation());
   }
 
   get underlay(): import('../types').Underlay | null {

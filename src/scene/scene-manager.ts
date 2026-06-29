@@ -538,7 +538,7 @@ export class SceneManager {
 
   /** Show (or clear, when null) a flat reference image on the floor plane that
    *  walls can be traced over. Editor-only; not part of the rendered plan. */
-  setUnderlay(u: Underlay | null): void {
+  setUnderlay(u: Underlay | null, elevation = 0): void {
     // Dispose any previous underlay.
     for (const g of [...this.underlayGroup.children]) {
       g.traverse((o) => {
@@ -572,7 +572,7 @@ export class SceneManager {
 
     const wrap = new THREE.Group();
     wrap.add(mesh);
-    wrap.position.set(u.x ?? 0, 0.012, u.z ?? 0);
+    wrap.position.set(u.x ?? 0, elevation + 0.012, u.z ?? 0);
     wrap.rotation.y = (u.rotation ?? 0) * (Math.PI / 180);
     this.underlayGroup.add(wrap);
   }

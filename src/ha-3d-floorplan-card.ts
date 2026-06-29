@@ -1274,11 +1274,18 @@ export class Ha3dFloorplanCard extends LitElement {
       overflow-y: auto;
       overflow-x: hidden;
       padding: 10px;
+      scrollbar-width: thin;
       border-radius: 12px;
       background: rgba(22, 24, 28, 0.86);
       border: 1px solid rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(6px);
       -webkit-overflow-scrolling: touch;
+    }
+    /* The toolbar is a scrolling column — its children must keep their natural
+       height (never shrink), or long content like the palette collapses to a
+       thin unusable strip. */
+    .toolbar > * {
+      flex: 0 0 auto;
     }
     .panel-section {
       display: flex;
@@ -1392,10 +1399,12 @@ export class Ha3dFloorplanCard extends LitElement {
       border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 12px;
       padding: 8px 10px;
-      max-height: 60vh;
-      overflow: auto;
+      max-height: 50vh;
+      overflow-y: auto;
+      overflow-x: hidden;
       backdrop-filter: blur(6px);
       max-width: 340px;
+      flex: 0 0 auto; /* never let the flex column squish it to a thin strip */
     }
     .palette-group,
     .panel-group {
@@ -1408,6 +1417,7 @@ export class Ha3dFloorplanCard extends LitElement {
       display: grid;
       grid-template-columns: repeat(auto-fill, 76px);
       gap: 6px;
+      justify-content: start;
     }
     .palette-cell {
       display: flex;

@@ -21543,28 +21543,28 @@ class gM {
   }
   /** Show (or clear, when null) a flat reference image on the floor plane that
    *  walls can be traced over. Editor-only; not part of the rendered plan. */
-  setUnderlay(t) {
-    for (const c of [...this.underlayGroup.children])
-      c.traverse((h) => {
-        const u = h;
-        u.geometry && u.geometry.dispose();
-        const d = u.material;
-        d && (d.map?.dispose(), d.dispose());
+  setUnderlay(t, e = 0) {
+    for (const h of [...this.underlayGroup.children])
+      h.traverse((u) => {
+        const d = u;
+        d.geometry && d.geometry.dispose();
+        const f = d.material;
+        f && (f.map?.dispose(), f.dispose());
       });
     if (this.underlayGroup.clear(), !t || !t.image) return;
-    const e = t.aspect > 0 ? t.aspect : 1, n = Math.max(0.1, t.widthM || 10), s = n * e, r = new Md().load(t.image);
-    r.colorSpace = ke;
-    const o = new en({
-      map: r,
+    const n = t.aspect > 0 ? t.aspect : 1, s = Math.max(0.1, t.widthM || 10), r = s * n, o = new Md().load(t.image);
+    o.colorSpace = ke;
+    const a = new en({
+      map: o,
       transparent: !0,
       opacity: t.opacity ?? 0.6,
       depthWrite: !1,
       // walls/floor draw over it cleanly
       side: on
-    }), a = new ge(new ar(n, s), o);
-    a.rotation.x = -Math.PI / 2, a.renderOrder = -1;
-    const l = new J();
-    l.add(a), l.position.set(t.x ?? 0, 0.012, t.z ?? 0), l.rotation.y = (t.rotation ?? 0) * (Math.PI / 180), this.underlayGroup.add(l);
+    }), l = new ge(new ar(s, r), a);
+    l.rotation.x = -Math.PI / 2, l.renderOrder = -1;
+    const c = new J();
+    c.add(l), c.position.set(t.x ?? 0, e + 0.012, t.z ?? 0), c.rotation.y = (t.rotation ?? 0) * (Math.PI / 180), this.underlayGroup.add(c);
   }
   handlePick(t) {
     if (!this.onPick) return;
@@ -21618,7 +21618,7 @@ function _M(i) {
     e.geometry && e.geometry.dispose(), e.material && (Array.isArray(e.material) ? e.material : [e.material]).forEach((s) => s.dispose());
   });
 }
-const vM = "0.13.0", _o = "ha-3d-floorplan-sidebar-item", ru = "ha-3d-floorplan-overlay";
+const vM = "0.13.1", _o = "ha-3d-floorplan-sidebar-item", ru = "ha-3d-floorplan-overlay";
 function xM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -22517,7 +22517,7 @@ class LM {
   // -- Reference image underlay (tracing guide) -------------------------------
   /** Push the current floor's underlay into the scene (or clear it). */
   applyUnderlay() {
-    this.sm.setUnderlay(this.floor().underlay ?? null);
+    this.sm.setUnderlay(this.floor().underlay ?? null, this.elevation());
   }
   get underlay() {
     return this.floor().underlay ?? null;
@@ -23795,11 +23795,18 @@ Vt.styles = _u`
       overflow-y: auto;
       overflow-x: hidden;
       padding: 10px;
+      scrollbar-width: thin;
       border-radius: 12px;
       background: rgba(22, 24, 28, 0.86);
       border: 1px solid rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(6px);
       -webkit-overflow-scrolling: touch;
+    }
+    /* The toolbar is a scrolling column — its children must keep their natural
+       height (never shrink), or long content like the palette collapses to a
+       thin unusable strip. */
+    .toolbar > * {
+      flex: 0 0 auto;
     }
     .panel-section {
       display: flex;
@@ -23913,10 +23920,12 @@ Vt.styles = _u`
       border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 12px;
       padding: 8px 10px;
-      max-height: 60vh;
-      overflow: auto;
+      max-height: 50vh;
+      overflow-y: auto;
+      overflow-x: hidden;
       backdrop-filter: blur(6px);
       max-width: 340px;
+      flex: 0 0 auto; /* never let the flex column squish it to a thin strip */
     }
     .palette-group,
     .panel-group {
@@ -23929,6 +23938,7 @@ Vt.styles = _u`
       display: grid;
       grid-template-columns: repeat(auto-fill, 76px);
       gap: 6px;
+      justify-content: start;
     }
     .palette-cell {
       display: flex;
