@@ -11,13 +11,13 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape } from '../types';
+import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
 import { defaultY, isWallMount, isSurfaceMount } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
-export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window';
+export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening';
 
 const SNAP = 0.1; // grid snap, meters
 const CLOSE_DIST = 0.4; // distance to first point that closes a room
@@ -994,7 +994,7 @@ export class EditorController {
       this.placeFurniture(p);
       return;
     }
-    if (this.tool === 'door' || this.tool === 'window') {
+    if (this.tool === 'door' || this.tool === 'window' || this.tool === 'opening') {
       this.addOpening(p, this.tool);
       return;
     }
@@ -1180,10 +1180,12 @@ export class EditorController {
   }
 
   /** Add a door/window opening to the wall nearest the tapped point. */
-  private addOpening(p: THREE.Vector3, kind: 'door' | 'window'): void {
+  private addOpening(p: THREE.Vector3, kind: OpeningKind): void {
     const fl = this.floor();
     this.pushUndo();
-    const width = kind === 'door' ? 0.9 : 1.0;
+    const width = kind === 'door' ? 0.9 : kind === 'opening' ? 1.4 : 1.0;
+    // A plain "opening" (passage) is a bare hole with a header — no leaf/glass.
+    const bare = kind === 'opening';
     // Nearest segment among BOTH explicit walls and shape-room perimeter edges.
     let bd = 0.6;
     type Hit =
@@ -1237,11 +1239,11 @@ export class EditorController {
     let seg: [number, number, number, number];
     if (hit.type === 'wall') {
       if (!hit.wall.openings) hit.wall.openings = [];
-      hit.wall.openings.push({ kind, position, width });
+      hit.wall.openings.push({ kind, position, width, ...(bare ? { bare } : {}) });
       seg = [hit.wall.start[0], hit.wall.start[1], hit.wall.end[0], hit.wall.end[1]];
     } else {
       if (!hit.room.openings) hit.room.openings = [];
-      hit.room.openings.push({ kind, edge: hit.edge, position, width });
+      hit.room.openings.push({ kind, edge: hit.edge, position, width, ...(bare ? { bare } : {}) });
       const poly = roomPolygon(hit.room);
       const a = poly[hit.edge];
       const b = poly[(hit.edge + 1) % poly.length];
@@ -1276,7 +1278,7 @@ export class EditorController {
     for (const w of fl.walls ?? []) {
       if (hit.type === 'wall' && w === hit.wall) continue;
       const pos = cutSeg(w.start[0], w.start[1], w.end[0], w.end[1]);
-      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width });
+      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width, ...(bare ? { bare } : {}) });
     }
     for (const room of fl.rooms ?? []) {
       if (!isShapeRoom(room)) continue;
@@ -1285,12 +1287,13 @@ export class EditorController {
         if (hit.type === 'room' && room === hit.room && e === hit.edge) continue;
         const a = poly[e], b = poly[(e + 1) % poly.length];
         const pos = cutSeg(a[0], a[1], b[0], b[1]);
-        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width });
+        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width, ...(bare ? { bare } : {}) });
       }
     }
     this.rebuild();
     this.onChange?.();
-    this.onMessage?.(`${kind === 'door' ? 'Door' : 'Window'} added — select the wall to edit/delete it`);
+    const word = kind === 'door' ? 'Door' : kind === 'window' ? 'Window' : 'Opening';
+    this.onMessage?.(`${word} added — select the wall to edit/delete it`);
   }
 
   /** Undo: remove the last committed wall of the current run (and its point). */

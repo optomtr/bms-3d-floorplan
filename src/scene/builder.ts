@@ -113,9 +113,10 @@ function buildWall(
     if (opEnd <= cursor) continue; // fully engulfed by a previous opening — skip
     // Solid wall before the opening.
     addWallSpan(group, start, dir, normalAngle, cursor, opStart, 0, height, thickness, material);
-    // Sill below (windows) and header above the opening.
+    // Sill below (windows) and header above the opening. A bare "opening" is a
+    // cased passage (no leaf), taller than a door so corridors read as open.
     const sill = op.sill ?? (op.kind === 'window' ? 0.9 : 0);
-    const top = op.top ?? (op.kind === 'window' ? 2.1 : 2.05);
+    const top = op.top ?? (op.kind === 'window' ? 2.1 : op.kind === 'opening' ? 2.4 : 2.05);
     if (sill > 0) {
       addWallSpan(group, start, dir, normalAngle, opStart, opEnd, 0, sill, thickness, material);
     }

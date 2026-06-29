@@ -807,6 +807,8 @@ export class Ha3dFloorplanCard extends LitElement {
             @click=${() => this.onEditTool('door')}>🚪 Door</button>
           <button class="btn ${tool === 'window' ? 'active' : ''}" title="Add a window — tap a wall"
             @click=${() => this.onEditTool('window')}>🪟 Window</button>
+          <button class="btn ${tool === 'opening' ? 'active' : ''}" title="Add an open passage (no door) — tap a wall"
+            @click=${() => this.onEditTool('opening')}>⬚ Opening</button>
           <button class="btn ${tool === 'furniture' ? 'active' : ''}" title="Place furniture"
             @click=${() => this.onEditTool('furniture')}>🛋 Furniture</button>
           <button class="btn ${tool === 'select' ? 'active' : ''}" title="Select / move / bind (camera always works: drag empty = orbit)"

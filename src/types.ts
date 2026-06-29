@@ -27,7 +27,7 @@ export interface WallDef {
   openings?: OpeningDef[];
 }
 
-export type OpeningKind = 'door' | 'window';
+export type OpeningKind = 'door' | 'window' | 'opening';
 
 export interface OpeningDef {
   kind: OpeningKind;
