@@ -16,6 +16,8 @@ import { BindingManager } from './bindings';
 export interface ClickResult {
   entity_id: string;
   behavior: string;
+  /** World-space hit point, for finding other entities near the tap. */
+  point?: [number, number, number];
 }
 
 export class SceneManager {
@@ -628,8 +630,19 @@ export class SceneManager {
       this.onPick(null);
       return;
     }
-    const result = bm.resolveClick(hits[0].object);
+    const result = bm.resolveClick(hits[0].object) as ClickResult | null;
+    if (result) {
+      const p = hits[0].point;
+      result.point = [p.x, p.y, p.z];
+    }
     this.onPick(result);
+  }
+
+  /** Bound entities near a world point (for the control popup). */
+  entitiesNear(point: [number, number, number], radius: number): { entity_id: string; behavior: string }[] {
+    const bm = this.bindingManagers[this.activeFloor];
+    if (!bm) return [];
+    return bm.near(new THREE.Vector3(point[0], point[1], point[2]), radius);
   }
 
   /** Targeted live update for a single entity. */

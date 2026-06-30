@@ -13,7 +13,6 @@ import type {
   RoomShape,
 } from './types';
 import { SceneManager, ClickResult } from './scene/scene-manager';
-import { clickToService } from './scene/bindings';
 import { CARD_VERSION } from './version';
 import { installSidebar } from './sidebar';
 import { DEMO_PLAN } from './scene/demo-plan';
@@ -67,6 +66,10 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editCameraDistance = 1;
   @state() private editIsLight = false;
   @state() private editBrightness = 0;
+  // View-mode control popup (tap a bound object → controls/remote).
+  @state() private controlOpen = false;
+  @state() private controlEntities: string[] = [];
+  @state() private editEntitySearch = '';
   @state() private importOpen = false;
   @state() private importText = '';
   @state() private projectList: ProjectInfo[] = [];
@@ -263,22 +266,32 @@ export class Ha3dFloorplanCard extends LitElement {
   // -- Interaction ------------------------------------------------------------
 
   private handlePick(r: ClickResult | null): void {
-    if (!r || !this.hass) return;
-    const ent = this.hass.states[r.entity_id];
-
-    // Lock toggles need current state.
-    if (r.behavior === 'lock' && ent) {
-      const service = ent.state === 'locked' ? 'unlock' : 'lock';
-      this.hass.callService('lock', service, { entity_id: r.entity_id });
+    if (!r || !this.hass) {
+      this.controlOpen = false;
       return;
     }
+    // Surface the tapped entity plus any others stacked at the same spot (e.g.
+    // 2-3 curtains on one window), so each can be controlled from a list.
+    const near = r.point ? this.sceneManager!.entitiesNear(r.point, 1.6) : [];
+    const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
+    // Tapped entity first, de-duplicated.
+    const seen = new Set<string>();
+    const ordered = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
+      (id) => !seen.has(id) && seen.add(id),
+    );
+    this.controlEntities = ordered;
+    this.controlOpen = true;
+    this.requestUpdate();
+  }
 
-    const call = clickToService(r.entity_id, r.behavior as any);
-    if (call) {
-      this.hass.callService(call.domain, call.service, call.data);
-    } else {
-      this.fireMoreInfo(r.entity_id);
-    }
+  private closeControl = (): void => {
+    this.controlOpen = false;
+  };
+
+  /** Call a HA service for an entity in the control popup. */
+  private svc(domain: string, service: string, data: Record<string, any> = {}, entityId?: string): void {
+    if (!this.hass) return;
+    this.hass.callService(domain, service, { ...(entityId ? { entity_id: entityId } : {}), ...data });
   }
 
   private fireMoreInfo(entityId: string): void {
@@ -1111,12 +1124,21 @@ export class Ha3dFloorplanCard extends LitElement {
                       ? []
                       : entityDomainsFor(this.editSelectedObjModel);
                   const { ids, fellBack } = this.candidateEntities(domains);
+                  const q = this.editEntitySearch.trim().toLowerCase();
+                  const fids = q
+                    ? ids.filter((id) => this.entityOptionText(id).toLowerCase().includes(q))
+                    : ids;
                   return html`<div class="toolrow">
-                      <select class="select wide" @change=${this.onPickEntity}>
+                      <input class="select wide" type="search" placeholder="🔍 search entity / room…"
+                        .value=${this.editEntitySearch}
+                        @input=${(e: Event) => (this.editEntitySearch = (e.target as HTMLInputElement).value)} />
+                    </div>
+                    <div class="toolrow">
+                      <select class="select wide" size="6" @change=${this.onPickEntity}>
                         <option value="" ?selected=${!this.editSelectedEntity}>
                           — bind entity —
                         </option>
-                        ${ids.map(
+                        ${fids.map(
                           (id) => html`<option value=${id} ?selected=${id === this.editSelectedEntity}
                             title=${id}>
                             ${this.entityOptionText(id)}
@@ -1191,6 +1213,82 @@ export class Ha3dFloorplanCard extends LitElement {
     `;
   }
 
+  /** View-mode control popup: a list of the tapped (+ nearby) entities, each
+   *  with domain-appropriate controls / a mini remote. */
+  private renderControlPopup() {
+    const hass = this.hass;
+    const ids = this.controlEntities.filter((id) => hass?.states[id]);
+    if (!hass || !ids.length) return nothing;
+    return html`
+      <div class="control-backdrop" @click=${this.closeControl}></div>
+      <div class="control-popup" @click=${(e: Event) => e.stopPropagation()}>
+        <div class="control-head">
+          <span>${ids.length > 1 ? `${ids.length} devices` : 'Control'}</span>
+          <button class="btn" @click=${this.closeControl}>✕</button>
+        </div>
+        ${ids.map((id) => this.renderEntityControl(id))}
+      </div>
+    `;
+  }
+
+  private renderEntityControl(id: string) {
+    const hass = this.hass!;
+    const ent = hass.states[id];
+    const domain = id.split('.')[0];
+    const state = ent?.state ?? 'unknown';
+    const name = ent?.attributes?.friendly_name ?? id;
+    const on = state === 'on' || state === 'open' || state === 'playing' || state === 'home' || state === 'unlocked';
+    let controls;
+    if (domain === 'light') {
+      const bri = Math.round(((ent?.attributes?.brightness ?? (on ? 255 : 0)) / 255) * 100);
+      controls = html`
+        <button class="ctl ${on ? 'on' : ''}" @click=${() => this.svc('light', 'toggle', {}, id)}>⏻</button>
+        <input class="ctl-range" type="range" min="0" max="100" .value=${String(bri)}
+          @change=${(e: Event) => this.svc('light', 'turn_on', { brightness_pct: Number((e.target as HTMLInputElement).value) }, id)} />`;
+    } else if (domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
+      controls = html`<button class="ctl ${on ? 'on' : ''}" @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻ ${on ? 'On' : 'Off'}</button>`;
+    } else if (domain === 'cover') {
+      controls = html`
+        <button class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>▲</button>
+        <button class="ctl" title="Stop" @click=${() => this.svc('cover', 'stop_cover', {}, id)}>■</button>
+        <button class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>▼</button>`;
+    } else if (domain === 'lock') {
+      controls = html`<button class="ctl ${on ? '' : 'on'}"
+        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${on ? '🔓 Lock' : '🔒 Unlock'}</button>`;
+    } else if (domain === 'climate') {
+      const cur = ent?.attributes?.current_temperature;
+      const tgt = ent?.attributes?.temperature;
+      const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'cool', 'heat', 'auto'];
+      controls = html`
+        <div class="ctl-col">
+          <div class="ctl-row">
+            <button class="ctl" @click=${() => tgt != null && this.svc('climate', 'set_temperature', { temperature: tgt - 0.5 }, id)}>−</button>
+            <span class="ctl-temp">${tgt != null ? `${tgt}°` : state}${cur != null ? ` (${cur}°)` : ''}</span>
+            <button class="ctl" @click=${() => tgt != null && this.svc('climate', 'set_temperature', { temperature: tgt + 0.5 }, id)}>＋</button>
+          </div>
+          <div class="ctl-row wrap">
+            ${modes.map((m) => html`<button class="ctl ${state === m ? 'on' : ''}"
+              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id)}>${m}</button>`)}
+          </div>
+        </div>`;
+    } else if (domain === 'media_player') {
+      controls = html`
+        <button class="ctl ${on ? 'on' : ''}" @click=${() => this.svc('media_player', 'toggle', {}, id)}>⏻</button>
+        <button class="ctl" @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>⏮</button>
+        <button class="ctl" @click=${() => this.svc('media_player', 'media_play_pause', {}, id)}>⏯</button>
+        <button class="ctl" @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>⏭</button>
+        <button class="ctl" @click=${() => this.svc('media_player', 'volume_down', {}, id)}>🔉</button>
+        <button class="ctl" @click=${() => this.svc('media_player', 'volume_up', {}, id)}>🔊</button>`;
+    } else {
+      controls = html`<span class="ctl-state">${state}${ent?.attributes?.unit_of_measurement ?? ''}</span>
+        <button class="ctl" @click=${() => this.fireMoreInfo(id)}>ℹ</button>`;
+    }
+    return html`<div class="control-row">
+      <span class="control-name" title=${id}>${name}</span>
+      <div class="control-ctls">${controls}</div>
+    </div>`;
+  }
+
   // -- Render -----------------------------------------------------------------
 
   protected override render() {
@@ -1239,6 +1337,8 @@ export class Ha3dFloorplanCard extends LitElement {
               </div>
             </div>`
           : nothing}
+
+        ${this.controlOpen && !this.editing ? this.renderControlPopup() : nothing}
 
         ${this.toast ? html`<div class="toast">${this.toast}</div>` : nothing}
 
@@ -1551,6 +1651,100 @@ export class Ha3dFloorplanCard extends LitElement {
       max-width: 86%;
       text-align: center;
       backdrop-filter: blur(4px);
+    }
+    .control-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+    }
+    .control-popup {
+      position: absolute;
+      z-index: 6;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      width: min(420px, 92%);
+      max-height: 60%;
+      overflow-y: auto;
+      background: rgba(20, 22, 26, 0.97);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 14px;
+      padding: 8px 10px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+    .control-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      color: #cfe0ff;
+      padding: 2px 2px 8px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .control-name {
+      color: #eee;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .control-ctls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+    .ctl {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #eee;
+      border-radius: 8px;
+      padding: 6px 9px;
+      font-size: 13px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .ctl.on {
+      background: rgba(3, 169, 244, 0.35);
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .ctl-range {
+      width: 92px;
+    }
+    .ctl-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+    }
+    .ctl-row {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .ctl-row.wrap {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .ctl-temp {
+      min-width: 70px;
+      text-align: center;
+      color: #9ad0ff;
+      font-size: 13px;
+    }
+    .ctl-state {
+      color: #ffe7a0;
+      font-size: 13px;
     }
     .error {
       position: absolute;

@@ -286,6 +286,23 @@ export class BindingManager {
     return this.bindings.map((b) => b.anchor).filter((a): a is THREE.Object3D => !!a);
   }
 
+  /** Bound entities whose anchor is within `radius` of a world point — so a tap
+   *  near several stacked curtains/lights surfaces all of them. */
+  near(point: THREE.Vector3, radius: number): { entity_id: string; behavior: BindingBehavior }[] {
+    const out: { entity_id: string; behavior: BindingBehavior }[] = [];
+    const seen = new Set<string>();
+    const p = new THREE.Vector3();
+    for (const ab of this.bindings) {
+      if (!ab.anchor || seen.has(ab.def.entity_id)) continue;
+      ab.anchor.getWorldPosition(p);
+      if (p.distanceTo(point) <= radius) {
+        seen.add(ab.def.entity_id);
+        out.push({ entity_id: ab.def.entity_id, behavior: ab.behavior });
+      }
+    }
+    return out;
+  }
+
   dispose(): void {
     for (const ab of this.bindings) {
       if (ab.pointLight) this.root.remove(ab.pointLight);
