@@ -18,6 +18,8 @@ export interface ClickResult {
   behavior: string;
   /** World-space hit point, for finding other entities near the tap. */
   point?: [number, number, number];
+  /** Screen position (px, relative to the canvas) of the tap, for popup anchoring. */
+  screen?: [number, number];
 }
 
 export class SceneManager {
@@ -634,6 +636,7 @@ export class SceneManager {
     if (result) {
       const p = hits[0].point;
       result.point = [p.x, p.y, p.z];
+      result.screen = [e.clientX - rect.left, e.clientY - rect.top];
     }
     this.onPick(result);
   }

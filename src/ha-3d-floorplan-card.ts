@@ -69,6 +69,7 @@ export class Ha3dFloorplanCard extends LitElement {
   // View-mode control popup (tap a bound object → controls/remote).
   @state() private controlOpen = false;
   @state() private controlEntities: string[] = [];
+  @state() private controlPos: [number, number] = [0, 0];
   @state() private editEntitySearch = '';
   @state() private importOpen = false;
   @state() private importText = '';
@@ -271,14 +272,26 @@ export class Ha3dFloorplanCard extends LitElement {
       return;
     }
     // Surface the tapped entity plus any others stacked at the same spot (e.g.
-    // 2-3 curtains on one window), so each can be controlled from a list.
+    // 2-3 curtains/lights together), so each can be controlled from a list.
     const near = r.point ? this.sceneManager!.entitiesNear(r.point, 1.6) : [];
     const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
-    // Tapped entity first, de-duplicated.
     const seen = new Set<string>();
     const ordered = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
       (id) => !seen.has(id) && seen.add(id),
     );
+    // A single AC / TV opens HA's native full remote dialog directly.
+    if (ordered.length === 1) {
+      const dom = ordered[0].split('.')[0];
+      if (dom === 'climate' || dom === 'media_player') {
+        this.fireMoreInfo(ordered[0]);
+        return;
+      }
+    }
+    // Otherwise a small popup near the tapped object with quick controls.
+    const vw = this.viewport?.clientWidth ?? 360;
+    const x = r.screen ? Math.max(150, Math.min(vw - 150, r.screen[0])) : vw / 2;
+    const y = r.screen ? Math.max(120, r.screen[1]) : 200;
+    this.controlPos = [x, y];
     this.controlEntities = ordered;
     this.controlOpen = true;
     this.requestUpdate();
@@ -1219,12 +1232,14 @@ export class Ha3dFloorplanCard extends LitElement {
     const hass = this.hass;
     const ids = this.controlEntities.filter((id) => hass?.states[id]);
     if (!hass || !ids.length) return nothing;
+    const [x, y] = this.controlPos;
     return html`
       <div class="control-backdrop" @click=${this.closeControl}></div>
-      <div class="control-popup" @click=${(e: Event) => e.stopPropagation()}>
+      <div class="control-popup" style="left:${x}px; top:${y}px"
+        @click=${(e: Event) => e.stopPropagation()}>
         <div class="control-head">
-          <span>${ids.length > 1 ? `${ids.length} devices` : 'Control'}</span>
-          <button class="btn" @click=${this.closeControl}>✕</button>
+          <span>${ids.length > 1 ? `${ids.length} devices` : ''}</span>
+          <button class="ctl" @click=${this.closeControl}>✕</button>
         </div>
         ${ids.map((id) => this.renderEntityControl(id))}
       </div>
@@ -1239,14 +1254,9 @@ export class Ha3dFloorplanCard extends LitElement {
     const name = ent?.attributes?.friendly_name ?? id;
     const on = state === 'on' || state === 'open' || state === 'playing' || state === 'home' || state === 'unlocked';
     let controls;
-    if (domain === 'light') {
-      const bri = Math.round(((ent?.attributes?.brightness ?? (on ? 255 : 0)) / 255) * 100);
-      controls = html`
-        <button class="ctl ${on ? 'on' : ''}" @click=${() => this.svc('light', 'toggle', {}, id)}>⏻</button>
-        <input class="ctl-range" type="range" min="0" max="100" .value=${String(bri)}
-          @change=${(e: Event) => this.svc('light', 'turn_on', { brightness_pct: Number((e.target as HTMLInputElement).value) }, id)} />`;
-    } else if (domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
-      controls = html`<button class="ctl ${on ? 'on' : ''}" @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻ ${on ? 'On' : 'Off'}</button>`;
+    if (domain === 'light' || domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
+      controls = html`<button class="ctl big ${on ? 'on' : ''}" title="Toggle"
+        @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻</button>`;
     } else if (domain === 'cover') {
       controls = html`
         <button class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>▲</button>
@@ -1254,31 +1264,12 @@ export class Ha3dFloorplanCard extends LitElement {
         <button class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>▼</button>`;
     } else if (domain === 'lock') {
       controls = html`<button class="ctl ${on ? '' : 'on'}"
-        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${on ? '🔓 Lock' : '🔒 Unlock'}</button>`;
-    } else if (domain === 'climate') {
-      const cur = ent?.attributes?.current_temperature;
-      const tgt = ent?.attributes?.temperature;
-      const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'cool', 'heat', 'auto'];
+        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${on ? '🔓' : '🔒'}</button>`;
+    } else if (domain === 'climate' || domain === 'media_player') {
+      // Full remote = HA's native more-info dialog; quick power toggle inline.
       controls = html`
-        <div class="ctl-col">
-          <div class="ctl-row">
-            <button class="ctl" @click=${() => tgt != null && this.svc('climate', 'set_temperature', { temperature: tgt - 0.5 }, id)}>−</button>
-            <span class="ctl-temp">${tgt != null ? `${tgt}°` : state}${cur != null ? ` (${cur}°)` : ''}</span>
-            <button class="ctl" @click=${() => tgt != null && this.svc('climate', 'set_temperature', { temperature: tgt + 0.5 }, id)}>＋</button>
-          </div>
-          <div class="ctl-row wrap">
-            ${modes.map((m) => html`<button class="ctl ${state === m ? 'on' : ''}"
-              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id)}>${m}</button>`)}
-          </div>
-        </div>`;
-    } else if (domain === 'media_player') {
-      controls = html`
-        <button class="ctl ${on ? 'on' : ''}" @click=${() => this.svc('media_player', 'toggle', {}, id)}>⏻</button>
-        <button class="ctl" @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>⏮</button>
-        <button class="ctl" @click=${() => this.svc('media_player', 'media_play_pause', {}, id)}>⏯</button>
-        <button class="ctl" @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>⏭</button>
-        <button class="ctl" @click=${() => this.svc('media_player', 'volume_down', {}, id)}>🔉</button>
-        <button class="ctl" @click=${() => this.svc('media_player', 'volume_up', {}, id)}>🔊</button>`;
+        <button class="ctl ${on ? 'on' : ''}" title="Power" @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻</button>
+        <button class="ctl" title="Open remote" @click=${() => this.fireMoreInfo(id)}>🎛 Pult</button>`;
     } else {
       controls = html`<span class="ctl-state">${state}${ent?.attributes?.unit_of_measurement ?? ''}</span>
         <button class="ctl" @click=${() => this.fireMoreInfo(id)}>ℹ</button>`;
@@ -1660,34 +1651,40 @@ export class Ha3dFloorplanCard extends LitElement {
     .control-popup {
       position: absolute;
       z-index: 6;
-      left: 50%;
-      bottom: 16px;
-      transform: translateX(-50%);
-      width: min(420px, 92%);
-      max-height: 60%;
+      transform: translate(-50%, -112%);
+      width: max-content;
+      min-width: 180px;
+      max-width: min(300px, 80%);
+      max-height: 55%;
       overflow-y: auto;
-      background: rgba(20, 22, 26, 0.97);
+      background: rgba(20, 22, 26, 0.62);
       border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 14px;
-      padding: 8px 10px;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      border-radius: 12px;
+      padding: 5px 8px;
+      backdrop-filter: blur(7px);
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
     }
     .control-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: 600;
+      font-size: 12px;
       color: #cfe0ff;
-      padding: 2px 2px 8px;
+      padding: 1px 1px 4px;
+      gap: 8px;
     }
     .control-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 7px 4px;
+      gap: 10px;
+      padding: 5px 2px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ctl.big {
+      padding: 6px 12px;
+      font-size: 15px;
     }
     .control-name {
       color: #eee;
