@@ -79,6 +79,41 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(box(0.2, 0.45, 0.85, fabric, 0.85, 0.5, 0), c)); // right arm
     return g;
   },
+  sofa_round: (c) => {
+    // Curved (semi-circular) sofa — a conversation-pit lounge. Built from three
+    // torus arcs that share the SAME orientation so their open gaps line up.
+    // NOTE: the torus lies in its local XY plane with the tube along local Z;
+    // after rotation.x the tube becomes the WORLD-VERTICAL axis, so the cushion
+    // is flattened via scale.z (NOT scale.y) and lifted so nothing dips below 0.
+    const g = new THREE.Group();
+    const fabric = mat(FABRIC);
+    const R = 1.0;
+    const arc = Math.PI * 1.15; // a bit more than a half-ring
+    const start = Math.PI / 2 - arc / 2;
+    const orient = (m: THREE.Mesh) => {
+      m.rotation.x = Math.PI / 2;
+      m.rotation.z = -start;
+    };
+    // Seat cushion: flattened tube, sitting on the base.
+    const seat = new THREE.Mesh(new THREE.TorusGeometry(R, 0.42, 12, 48, arc), fabric);
+    orient(seat);
+    seat.scale.z = 0.45; // flatten vertically → a low cushion
+    seat.position.y = 0.31;
+    g.add(tint(seat, c));
+    // Backrest: taller (scale up the vertical tube), set further out.
+    const back = new THREE.Mesh(new THREE.TorusGeometry(R + 0.34, 0.2, 12, 48, arc), fabric);
+    orient(back);
+    back.scale.z = 1.5;
+    back.position.y = 0.62;
+    g.add(tint(back, c));
+    // Base trim ring at the floor — same arc/orientation, so it can't misalign.
+    const base = new THREE.Mesh(new THREE.TorusGeometry(R, 0.46, 10, 48, arc), mat(0x4a4f57));
+    orient(base);
+    base.scale.z = 0.18;
+    base.position.y = 0.1;
+    g.add(base);
+    return g;
+  },
   bed: (c) => {
     const g = new THREE.Group();
     g.add(box(1.6, 0.3, 2.0, mat(WOOD), 0, 0.15, 0)); // frame

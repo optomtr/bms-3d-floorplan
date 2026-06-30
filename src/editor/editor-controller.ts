@@ -158,6 +158,16 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Rename a floor (editable any time, not only at creation). Commits live on
+   *  each keystroke, so it deliberately skips the undo stack (a rename isn't
+   *  worth an undo step, and per-keystroke snapshots would spam it). */
+  setFloorName(index: number, name: string): void {
+    const f = this.plan.floors[index];
+    if (!f) return;
+    f.name = name;
+    this.onChange?.();
+  }
+
   addFloor(): void {
     const wh = this.plan.floors[0]?.wallHeight ?? this.plan.wallHeight ?? 2.6;
     this.pushUndo();

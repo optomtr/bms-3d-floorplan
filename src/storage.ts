@@ -19,6 +19,17 @@ const LS_LEGACY = 'ha3d-floorplan-default'; // older single-plan key (migration)
 export interface StoredProjects {
   active?: string;
   projects: Record<string, FloorPlan>;
+  /** Hashed PIN that gates Edit mode (casual tamper-protection on a kiosk).
+   *  Not cryptographically strong — just stops a passer-by from editing. */
+  editPin?: string;
+}
+
+/** Small non-cryptographic hash so the edit PIN isn't stored in plain text.
+ *  (Casual protection only — clearing browser/HA storage resets it.) */
+export function hashPin(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return 'h' + h.toString(36);
 }
 
 export interface ProjectInfo {

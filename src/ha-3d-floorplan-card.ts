@@ -23,6 +23,7 @@ import {
   listProjects,
   newProjectId,
   blankPlan,
+  hashPin,
   ProjectInfo,
   StoredProjects,
 } from './storage';
@@ -77,6 +78,11 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editEntitySearch = '';
   @state() private importOpen = false;
   @state() private importText = '';
+  // Edit-mode PIN lock (casual tamper-protection on a kiosk/tablet).
+  @state() private editUnlocked = false;
+  @state() private pinPromptOpen = false;
+  @state() private pinError = '';
+  @state() private editPinInput = '';
   @state() private projectList: ProjectInfo[] = [];
   @state() private currentProjectId: string | null = null;
   /** Id of the project open in the editor this session (null = unsaved new). */
@@ -180,6 +186,10 @@ export class Ha3dFloorplanCard extends LitElement {
     // Anchor the control popup once its real height is known so it can never be
     // clipped by the card's overflow:hidden top/bottom edge.
     if (this.controlOpen) this.positionControlPopup();
+    if (this.pinPromptOpen && _changed.has('pinPromptOpen')) {
+      const input = this.renderRoot?.querySelector('.pin-input') as HTMLInputElement | null;
+      input?.focus();
+    }
   }
 
   /** Place the open control popup above the tap, or below (clamped) when there
@@ -254,6 +264,11 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private async resolvePlan(): Promise<FloorPlan> {
     const cfg = this.config!;
+    // Always load the stored set first — it carries the edit PIN (and any saved
+    // projects) regardless of how the plan itself is sourced. Without this, a
+    // card configured with plan/url/projects would never see the PIN and the
+    // edit lock would silently do nothing.
+    this.storedProjects = await loadProjects(this.hass);
     if (cfg.projects && cfg.projects.length) {
       const proj =
         cfg.projects.find((p) => p.id === this.activeProjectId) ?? cfg.projects[0];
@@ -262,7 +277,6 @@ export class Ha3dFloorplanCard extends LitElement {
     if (cfg.plan) return cfg.plan;
     if (cfg.url) return this.fetchPlan(cfg.url);
     // Nothing configured → named projects (HA shared / localStorage) or demo.
-    this.storedProjects = await loadProjects(this.hass);
     this.projectList = listProjects(this.storedProjects);
     const id =
       this.storedProjects.active && this.storedProjects.projects[this.storedProjects.active]
@@ -357,7 +371,75 @@ export class Ha3dFloorplanCard extends LitElement {
 
   // -- Editor -----------------------------------------------------------------
 
+  /** Edit button → enter edit, unless a PIN is set and we're still locked. */
   private enterEdit(): void {
+    if (this.hasEditPin() && !this.editUnlocked) {
+      this.pinError = '';
+      this.pinPromptOpen = true;
+      return;
+    }
+    this.doEnterEdit();
+  }
+
+  private hasEditPin(): boolean {
+    return !!this.storedProjects.editPin;
+  }
+
+  private checkEditPin(value: string): boolean {
+    return !!value && this.storedProjects.editPin === hashPin(value);
+  }
+
+  private submitPin(e?: Event): void {
+    e?.preventDefault();
+    const input = this.renderRoot?.querySelector('.pin-input') as HTMLInputElement | null;
+    const val = input?.value ?? '';
+    if (this.checkEditPin(val)) {
+      this.editUnlocked = true;
+      this.pinPromptOpen = false;
+      this.pinError = '';
+      this.doEnterEdit();
+    } else {
+      this.pinError = 'Wrong PIN — try again';
+      if (input) input.value = '';
+    }
+  }
+
+  private cancelPin = (): void => {
+    this.pinPromptOpen = false;
+    this.pinError = '';
+  };
+
+  /** Set or change the edit PIN (called from inside the editor). */
+  private async onSetEditPin(): Promise<void> {
+    const v = this.editPinInput.trim();
+    if (v.length < 3) {
+      this.showToast('PIN must be at least 3 characters');
+      return;
+    }
+    // Re-read the shared set first so we don't clobber projects (or a PIN) saved
+    // meanwhile on another device/tab — same guard as onSavePlan/onDeleteProject.
+    this.storedProjects = await loadProjects(this.hass);
+    this.storedProjects.editPin = hashPin(v);
+    this.editPinInput = '';
+    this.editUnlocked = true; // we're already editing
+    await saveProjects(this.storedProjects, this.hass);
+    this.showToast('Edit PIN set');
+    this.requestUpdate();
+  }
+
+  private async onRemoveEditPin(): Promise<void> {
+    this.storedProjects = await loadProjects(this.hass);
+    delete this.storedProjects.editPin;
+    await saveProjects(this.storedProjects, this.hass);
+    this.showToast('Edit PIN removed');
+    this.requestUpdate();
+  }
+
+  private onRenameFloor(e: Event): void {
+    this.editor?.setFloorName(this.editFloorIndex, (e.target as HTMLInputElement).value);
+  }
+
+  private doEnterEdit(): void {
     if (!this.sceneManager || !this.currentPlan) return;
     // Edit a deep copy so View mode keeps the last saved/loaded plan until save.
     const editable: FloorPlan = JSON.parse(JSON.stringify(this.currentPlan));
@@ -613,7 +695,7 @@ export class Ha3dFloorplanCard extends LitElement {
       this.showToast(`Import failed: ${err?.message ?? 'invalid JSON'}`);
       return;
     }
-    if (!this.editor) this.enterEdit();
+    if (!this.editor) this.doEnterEdit();
     if (!this.editor) return;
     this.editor.loadPlan(plan);
     this.editingProjectId = null; // imported = a new project until saved
@@ -876,17 +958,21 @@ export class Ha3dFloorplanCard extends LitElement {
 
     return html`
       <div class="overlay top-left toolbar">
-        <div class="toolrow">
+        <div class="ed-head"><span>✎ Editor</span></div>
+
+        <div class="grid2">
           <button class="btn" title="Undo (Ctrl+Z)" ?disabled=${!this.editCanUndo}
             @click=${this.onUndo}>↶ Undo</button>
           <button class="btn" title="Redo (Ctrl+Y)" ?disabled=${!this.editCanRedo}
             @click=${this.onRedo}>↷ Redo</button>
           <button class="btn" title="Merge duplicate / overlapping walls into one"
-            @click=${this.onMergeWalls}>🧹 Merge walls</button>
+            @click=${this.onMergeWalls}>🧹 Merge</button>
           <button class="btn" title="Fill every closed wall loop with a floor"
             @click=${this.onAutoFloors}>▦ Auto floors</button>
         </div>
-        <div class="toolrow">
+
+        <div class="panel-group">Tools</div>
+        <div class="grid2">
           <button class="btn ${tool === 'wall' ? 'active' : ''}" title="Draw walls"
             @click=${() => this.onEditTool('wall')}>▟ Wall</button>
           <button class="btn ${tool === 'door' ? 'active' : ''}" title="Add a door — tap a wall"
@@ -899,18 +985,18 @@ export class Ha3dFloorplanCard extends LitElement {
             @click=${() => this.onEditTool('floor')}>▱ Floor</button>
           <button class="btn ${tool === 'furniture' ? 'active' : ''}" title="Place furniture"
             @click=${() => this.onEditTool('furniture')}>🛋 Furniture</button>
-          <button class="btn ${tool === 'select' ? 'active' : ''}" title="Select / move / bind (camera always works: drag empty = orbit)"
+          <button class="btn span2 ${tool === 'select' ? 'active' : ''}" title="Select / move / bind (camera always works: drag empty = orbit)"
             @click=${() => this.onEditTool('select')}>☝ Select</button>
         </div>
         <span class="hint">Camera always on: drag empty space = orbit · two fingers = pan/zoom · tap = act</span>
 
-        <div class="panel-group">Building Parts — drop a room</div>
-        <div class="toolrow">
+        <div class="panel-group">Building parts — drop a room</div>
+        <div class="grid2">
           <button class="btn" title="Rectangle room" @click=${() => this.onAddRoomShape('rect')}>▭ Rect</button>
           <button class="btn" title="L-shaped room" @click=${() => this.onAddRoomShape('lshape')}>L L-shape</button>
-          <button class="btn" title="Bevelled room" @click=${() => this.onAddRoomShape('bevel')}>⬡ Bevel</button>
-          <span class="hint">then drag / rotate / resize it</span>
+          <button class="btn span2" title="Bevelled room" @click=${() => this.onAddRoomShape('bevel')}>⬡ Bevel</button>
         </div>
+        <span class="hint">then drag / rotate / resize it</span>
 
         <div class="panel-group">Reference image — trace a 2D plan</div>
         ${this.editUnderlay
@@ -951,8 +1037,9 @@ export class Ha3dFloorplanCard extends LitElement {
           // Derive the floor list from the LIVE edit plan (not View-mode state),
           // so it stays correct after New / project switch while editing.
           const efloors = this.editor?.plan.floors ?? [];
-          return html`<div class="toolrow">
-            <span class="hint">Floor:</span>
+          const curName = efloors[this.editFloorIndex]?.name ?? '';
+          return html`<div class="panel-group">Floors</div>
+          <div class="toolrow">
             ${efloors.length > 1
               ? html`<select class="select" @change=${this.onSelectEditFloor}>
                   ${efloors.map(
@@ -961,11 +1048,17 @@ export class Ha3dFloorplanCard extends LitElement {
                     </option>`,
                   )}
                 </select>`
-              : html`<span class="hint">${efloors[0]?.name || 'Ground'}</span>`}
+              : nothing}
             <button class="btn" title="Add a floor above" @click=${this.onAddFloor}>➕ Floor</button>
             ${efloors.length > 1
               ? html`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>`
               : nothing}
+          </div>
+          <div class="toolrow">
+            <input class="name-input" type="text" placeholder="Floor name"
+              .value=${curName}
+              title="Rename this floor"
+              @input=${this.onRenameFloor} />
           </div>
           <div class="toolrow">
             <span class="hint">View distance:</span>
@@ -1245,6 +1338,25 @@ export class Ha3dFloorplanCard extends LitElement {
             <button class="btn" title="Copy this plan as JSON" @click=${this.onExportPlan}>📤 Export</button>
           </div>
         </div>
+
+        <div class="panel-section">
+          <div class="panel-group">🔒 Security — lock editing</div>
+          <div class="toolrow">
+            <input class="name-input" type="password" inputmode="numeric" autocomplete="off"
+              placeholder=${this.hasEditPin() ? 'New PIN (replaces current)' : 'Set a PIN'}
+              .value=${this.editPinInput}
+              @input=${(e: Event) => (this.editPinInput = (e.target as HTMLInputElement).value)} />
+            <button class="btn primary" title="Save this PIN" @click=${this.onSetEditPin}>
+              ${this.hasEditPin() ? 'Update' : 'Set'}
+            </button>
+          </div>
+          ${this.hasEditPin()
+            ? html`<div class="toolrow">
+                <span class="hint">🔒 PIN required to enter Edit</span>
+                <button class="btn" title="Remove the edit PIN" @click=${this.onRemoveEditPin}>Remove</button>
+              </div>`
+            : html`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
+        </div>
       </div>
     `;
   }
@@ -1399,6 +1511,21 @@ export class Ha3dFloorplanCard extends LitElement {
             </div>`
           : nothing}
 
+        ${this.pinPromptOpen
+          ? html`<div class="import-modal" @click=${this.cancelPin}>
+              <form class="pin-box" @click=${(e: Event) => e.stopPropagation()} @submit=${this.submitPin}>
+                <div class="import-title">🔒 Enter edit PIN</div>
+                <input class="pin-input name-input" type="password" inputmode="numeric"
+                  autocomplete="off" placeholder="PIN" />
+                ${this.pinError ? html`<div class="pin-error">${this.pinError}</div>` : nothing}
+                <div class="toolrow">
+                  <button type="submit" class="btn primary">Unlock</button>
+                  <button type="button" class="btn" @click=${this.cancelPin}>Cancel</button>
+                </div>
+              </form>
+            </div>`
+          : nothing}
+
         ${this.controlOpen && !this.editing ? this.renderControlPopup() : nothing}
 
         ${this.toast ? html`<div class="toast">${this.toast}</div>` : nothing}
@@ -1533,6 +1660,46 @@ export class Ha3dFloorplanCard extends LitElement {
     .toolbar > * {
       flex: 0 0 auto;
     }
+    .ed-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      padding: 2px 2px 2px;
+    }
+    /* Uniform two-column button grid — buttons stretch so the panel reads tidy. */
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .grid2 .btn {
+      width: 100%;
+      text-align: center;
+      padding: 8px 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .span2 {
+      grid-column: 1 / -1;
+    }
+    .pin-box {
+      width: min(300px, 86%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(24, 26, 30, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+    .pin-error {
+      font-size: 12px;
+      color: #ff9a9a;
+    }
     .panel-section {
       display: flex;
       flex-direction: column;
@@ -1654,10 +1821,14 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .palette-group,
     .panel-group {
-      font-size: 12px;
-      font-weight: 600;
-      color: #9ab;
-      margin: 6px 2px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #8fa6c4;
+      margin: 8px 2px 2px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .palette-grid {
       display: grid;
