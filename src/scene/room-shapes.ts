@@ -95,6 +95,7 @@ export function roomWalls(
       height: room.height ?? defaultHeight,
       thickness: room.thickness ?? defaultThickness,
       color: room.wallColor,
+      material: room.wallMaterial,
       openings: openings.length ? openings : undefined,
     });
   }

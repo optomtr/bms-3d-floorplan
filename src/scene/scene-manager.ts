@@ -338,6 +338,10 @@ export class SceneManager {
       if (this.dragging && this.onDrag) {
         const p = this.groundIntersect(e);
         if (p) this.onDrag.move(p, e);
+        // A move handler may rebuild the scene, which re-applies edit state and
+        // can flip the camera controls back on. Re-assert that the camera stays
+        // suspended for the whole drag (invariant: no orbit while dragging).
+        this.controls.enabled = false;
         return;
       }
       if (this.editing && this.onGround?.move) {

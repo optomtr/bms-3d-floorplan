@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY, isWallMount, isSurfaceMount, LIGHT_KEYS } from '../furniture/library';
+import { defaultY, defaultColor, isWallMount, isSurfaceMount, LIGHT_KEYS } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
@@ -24,6 +24,12 @@ const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant
   window_frame: { kind: 'window', width: 1.2, variant: 'single' },
   terrace_window: { kind: 'window', width: 2.4, variant: 'picture' },
   patio_door: { kind: 'door', width: 2.4, variant: 'glass', sill: 0, top: 2.2 },
+  // Doors placed from the palette cut a real opening into the nearest wall (so
+  // they're flush in the wall, never floating/flickering) and are then
+  // selectable + draggable along the wall.
+  door: { kind: 'door', width: 0.9, variant: 'single' },
+  double_door: { kind: 'door', width: 1.6, variant: 'double' },
+  sliding_door: { kind: 'door', width: 1.7, variant: 'sliding' },
 };
 
 const SNAP = 0.1; // grid snap, meters
@@ -87,7 +93,7 @@ export class EditorController {
   snapEnabled = true;
   private snapInfo: SnapResult | null = null;
   private measureLabel?: TextLabel;
-  private dragMode: 'furniture' | 'endpoint' | 'gizmo' | 'wallmove' | null = null;
+  private dragMode: 'furniture' | 'endpoint' | 'gizmo' | 'wallmove' | 'opening' | null = null;
   private dragVertex: Vec2 | null = null;
   private wallDrag0: { s: Vec2; e: Vec2 } | null = null;
   private furnDrag0: Vec2 = [0, 0];
@@ -218,11 +224,12 @@ export class EditorController {
       this.selectFurniture(f.id);
       return this.beginFurnitureMove(e);
     }
-    // 2.5) A door/window leaf → select the opening (not the wall); no drag.
+    // 2.5) A door/window leaf → select the opening and drag it ALONG its wall.
     const opHit = this.sm.pickOpening(e);
     if (opHit) {
       this.selectOpening(opHit.wallIndex, opHit.openingIndex);
-      return false;
+      this.dragMode = 'opening';
+      return true;
     }
     // 3) Shape-room body → select + move.
     const r = this.sm.pickRoom(e);
@@ -310,6 +317,25 @@ export class EditorController {
         w.end = [this.wallDrag0.e[0] + dx, this.wallDrag0.e[1] + dz];
         this.rebuild();
         this.reselect();
+      }
+    } else if (this.dragMode === 'opening' && this.selectedOpeningWall >= 0) {
+      // Slide a door/window along its wall: project the pointer onto the wall
+      // line and clamp so the opening stays fully within the wall span.
+      const wall = this.floor().walls?.[this.selectedOpeningWall];
+      const op = this.selectedOpeningData;
+      if (wall && op) {
+        const ax = wall.start[0], az = wall.start[1];
+        const dx = wall.end[0] - ax, dz = wall.end[1] - az;
+        const len2 = dx * dx + dz * dz;
+        if (len2 > 1e-6) {
+          const len = Math.sqrt(len2);
+          const t = ((p.x - ax) * dx + (p.z - az) * dz) / len2; // 0..1 along wall
+          const w = op.width ?? 0.9;
+          const pos = Math.max(0, Math.min(len - w, t * len - w / 2));
+          op.position = snap(pos);
+          this.rebuild();
+          this.reselect();
+        }
       }
     }
   }
@@ -476,8 +502,10 @@ export class EditorController {
   /** Current color of the selected furniture / wall / room (for the color picker). */
   get selectedColor(): string | null {
     const fl = this.floor();
-    if (this.selectedKind === 'furniture')
-      return fl.furniture?.find((x) => x.id === this.selectedId)?.color ?? null;
+    if (this.selectedKind === 'furniture') {
+      const f = fl.furniture?.find((x) => x.id === this.selectedId);
+      return f?.color ?? (f ? defaultColor(f.model) : null);
+    }
     if (this.selectedKind === 'wall') return fl.walls?.[this.selectedWall]?.color ?? null;
     if (this.selectedKind === 'room') return fl.rooms?.[this.selectedRoom]?.color ?? null;
     return null;
@@ -487,9 +515,16 @@ export class EditorController {
 
   private placeFurniture(p: THREE.Vector3): void {
     const fl = this.floor();
-    // Glazing models (window / patio door) cut a real see-through opening in the
-    // nearest wall instead of sitting on its surface.
-    if (GLAZING_MODELS[this.selectedModel] && this.placeGlazing(p, this.selectedModel)) return;
+    // Glazing models (doors / windows) cut a real see-through opening into the
+    // nearest wall instead of sitting on its surface. They are wall-only: if no
+    // wall is close enough we tell the user rather than dropping a floating
+    // (flickering) model.
+    if (GLAZING_MODELS[this.selectedModel]) {
+      if (!this.placeGlazing(p, this.selectedModel)) {
+        this.onMessage?.('Tap on (or near) a wall to place this');
+      }
+      return;
+    }
     this.pushUndo();
     if (!fl.furniture) fl.furniture = [];
     const wh = fl.wallHeight ?? this.plan.wallHeight ?? 2.6;
@@ -497,8 +532,7 @@ export class EditorController {
     let x = snap(p.x);
     let z = snap(p.z);
     let rotation = 0;
-    // Wall-mount items (TV, painting, sconce, door/window models…) snap to the
-    // nearest wall and orient to it.
+    // Wall-mount items (TV, painting, sconce…) snap to the nearest wall + orient.
     if (isWallMount(this.selectedModel)) {
       const w = this.nearestWallPoint(p.x, p.z);
       if (w) {
@@ -512,6 +546,7 @@ export class EditorController {
       model: this.selectedModel,
       position: [x, defaultY(this.selectedModel, wh), z],
       rotation,
+      color: defaultColor(this.selectedModel),
       id,
     });
     this.rebuild();
@@ -1071,6 +1106,52 @@ export class EditorController {
     if (this.selectedKind === 'wall') return fl.walls?.[this.selectedWall]?.material ?? 'plain';
     if (this.selectedKind === 'room') return fl.rooms?.[this.selectedRoom]?.material ?? 'plain';
     return 'plain';
+  }
+
+  // -- Whole-floor surface appearance (apply to ALL walls / ALL floors) -------
+  // Saves tapping every wall/room one by one to set a colour or wallpaper.
+
+  setAllWallsColor(color: string): void {
+    const fl = this.floor();
+    const shapeRooms = (fl.rooms ?? []).filter((r) => isShapeRoom(r));
+    if (!fl.walls?.length && !shapeRooms.length) return;
+    this.pushUndo();
+    for (const w of fl.walls ?? []) w.color = color;
+    // Shape-room perimeter walls are generated from the room, so colour them via
+    // the room's wallColor.
+    for (const r of shapeRooms) r.wallColor = color;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+  setAllWallsMaterial(name: string): void {
+    const fl = this.floor();
+    const shapeRooms = (fl.rooms ?? []).filter((r) => isShapeRoom(r));
+    if (!fl.walls?.length && !shapeRooms.length) return;
+    this.pushUndo();
+    for (const w of fl.walls ?? []) w.material = name;
+    for (const r of shapeRooms) r.wallMaterial = name;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+  setAllFloorsColor(color: string): void {
+    const fl = this.floor();
+    if (!fl.rooms?.length) return;
+    this.pushUndo();
+    for (const r of fl.rooms) r.color = color;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+  setAllFloorsMaterial(name: string): void {
+    const fl = this.floor();
+    if (!fl.rooms?.length) return;
+    this.pushUndo();
+    for (const r of fl.rooms) r.material = name;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
   }
 
   /** Set the color of the selected furniture / wall / room. */

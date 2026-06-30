@@ -1196,9 +1196,65 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   return 0;
 }
 
+/**
+ * Realistic default tint per model, so a freshly-placed piece (and its palette
+ * thumbnail) looks natural instead of flat white. The builder tints its main
+ * surface with this; fixed materials (wood frames, metal legs, glass) keep their
+ * own look. The user can still override the color per placement.
+ */
+const DEFAULT_COLORS: Record<string, string> = {
+  // Upholstery / fabric
+  sofa: '#7d8a99', sofa_round: '#7d8a99', armchair: '#8a7c72', recliner: '#6b7682',
+  ottoman: '#8a7c72', bench: '#9a8c7c',
+  // Beds / soft
+  bed: '#e9e4da', bunk_bed: '#e3ded4', crib: '#e9e4da',
+  // Wood furniture
+  table: '#9c6b3f', dining_table: '#9c6b3f', coffee_table: '#9c6b3f',
+  console_table: '#9c6b3f', desk: '#9c6b3f', chair: '#9c6b3f', office_chair: '#3a3e44',
+  bar_stool: '#9c6b3f', stairs: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
+  double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
+  // Cabinetry (darker wood)
+  wardrobe: '#8a5a34', wardrobe_glass: '#7a4f2e', wardrobe_lit: '#7a4f2e',
+  display_cabinet: '#7a4f2e', shelving_unit: '#8a5a34', dresser: '#8a5a34',
+  nightstand: '#8a5a34', sideboard: '#8a5a34', bookshelf: '#8a5a34',
+  filing_cabinet: '#7a8088', shoe_rack: '#8a5a34', tv_stand: '#5b3f28',
+  vanity: '#cdbba8', wine_rack: '#7a4f2e', coat_rack: '#8a5a34', books: '#8a5a34',
+  // Kitchen
+  kitchen_counter: '#ececec', kitchen_island: '#ececec', wall_cabinet: '#eceae6',
+  bar_counter: '#caa37a', cooktop: '#2b2f36',
+  // Appliances (stainless / white goods)
+  fridge: '#c6cace', washing_machine: '#dfe3e6', dishwasher: '#c6cace',
+  oven: '#c6cace', microwave: '#cfd3d7', stove: '#c6cace', dryer: '#dfe3e6',
+  range_hood: '#c6cace', dish_rack: '#cfd3d7', kettle: '#cfd3d7', toaster: '#cfd3d7',
+  blender: '#cfd3d7', coffee_machine: '#3a3e44', water_heater: '#e8eaec',
+  // Bathroom (porcelain)
+  sink: '#f2f5f6', toilet: '#f2f5f6', bathtub: '#f2f5f6', shower: '#dfe7ea', bidet: '#f2f5f6',
+  // Decor / soft furnishings
+  plant: '#3f8f4f', rug: '#b5563a', floor_vase: '#b0764a', vase: '#b0764a',
+  painting: '#cfc2a8', mirror: '#bcc8cc', wall_clock: '#f0f0f0', whiteboard: '#f4f6f8',
+  curtain: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da',
+  towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
+  // Statement / misc
+  piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
+  radiator: '#eeeeee', tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
+  speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
+  wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8',
+  window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8',
+  // Lighting (warm shades)
+  floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
+  ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',
+  chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
+  track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
+};
+
+/** Realistic default color for a model (neutral grey when unspecified). */
+export function defaultColor(model: string): string {
+  return DEFAULT_COLORS[model] ?? '#c9cdd2';
+}
+
 export function buildFurniture(model: string, color?: string): THREE.Group {
   const builder = builders[model] ?? builders.marker;
-  const c = new THREE.Color(color ?? '#ffffff');
+  const c = new THREE.Color(color ?? defaultColor(model));
   const group = builder(c);
   group.userData.model = model;
   return group;

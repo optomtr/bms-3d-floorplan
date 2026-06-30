@@ -13,10 +13,14 @@ export type SurfaceMaterial =
   | 'wood'
   | 'plaster'
   | 'brick'
-  | 'panel';
+  | 'panel'
+  | 'concrete'
+  | 'marble'
+  | 'carpet'
+  | 'parquet';
 
-export const WALL_MATERIALS: SurfaceMaterial[] = ['plain', 'stripes', 'plaster', 'brick', 'panel'];
-export const FLOOR_MATERIALS: SurfaceMaterial[] = ['plain', 'wood', 'tile', 'plaster'];
+export const WALL_MATERIALS: SurfaceMaterial[] = ['plain', 'stripes', 'plaster', 'brick', 'panel', 'concrete', 'marble'];
+export const FLOOR_MATERIALS: SurfaceMaterial[] = ['plain', 'wood', 'parquet', 'tile', 'marble', 'carpet', 'concrete'];
 
 const cache = new Map<string, THREE.Texture | null>();
 
@@ -82,6 +86,49 @@ function build(name: SurfaceMaterial): THREE.Texture | null {
       ctx.moveTo(0, i);
       ctx.lineTo(256, i);
       ctx.stroke();
+    }
+  } else if (name === 'concrete') {
+    for (let i = 0; i < 14000; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.07})`;
+      ctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    for (let i = 0; i < 6; i++) ctx.fillRect(0, Math.random() * 256, 256, 1);
+  } else if (name === 'marble') {
+    // Soft veining: a few faint diagonal strokes.
+    ctx.strokeStyle = 'rgba(120,120,140,0.18)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 14; i++) {
+      ctx.beginPath();
+      let x = Math.random() * 256, y = 0;
+      ctx.moveTo(x, y);
+      while (y < 256) {
+        x += (Math.random() - 0.5) * 30;
+        y += 16 + Math.random() * 16;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else if (name === 'carpet') {
+    for (let i = 0; i < 22000; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.10})`;
+      ctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 2);
+    }
+  } else if (name === 'parquet') {
+    const s = 32;
+    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+    ctx.lineWidth = 1.5;
+    for (let by = 0; by < 256; by += s) {
+      for (let bx = 0; bx < 256; bx += s) {
+        const vertical = ((bx / s) + (by / s)) % 2 === 0;
+        ctx.strokeRect(bx, by, s, s);
+        for (let k = 4; k < s; k += 6) {
+          ctx.beginPath();
+          if (vertical) { ctx.moveTo(bx + k, by); ctx.lineTo(bx + k, by + s); }
+          else { ctx.moveTo(bx, by + k); ctx.lineTo(bx + s, by + k); }
+          ctx.stroke();
+        }
+      }
     }
   }
 

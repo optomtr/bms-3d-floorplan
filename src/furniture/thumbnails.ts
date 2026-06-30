@@ -34,7 +34,9 @@ export function getThumbnail(model: string): string {
   dir.position.set(3, 5, 4);
   scene.add(dir);
 
-  const group = buildFurniture(model, '#aab4c0');
+  // No explicit color → buildFurniture uses the model's realistic default, so
+  // the palette previews look like the placed pieces.
+  const group = buildFurniture(model);
   scene.add(group);
 
   const box = new THREE.Box3().setFromObject(group);

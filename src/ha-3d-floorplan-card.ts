@@ -76,6 +76,12 @@ export class Ha3dFloorplanCard extends LitElement {
    *  would otherwise close it the instant it appears on tablets. */
   private controlOpenedAt = 0;
   @state() private editEntitySearch = '';
+  @state() private editFurnSearch = '';
+  // Whole-floor surface appearance pickers (apply to all walls / all floors).
+  @state() private editAllWallColor = '#e8e6e1';
+  @state() private editAllWallMat = 'plain';
+  @state() private editAllFloorColor = '#cfc7ba';
+  @state() private editAllFloorMat = 'plain';
   @state() private importOpen = false;
   @state() private importText = '';
   // Edit-mode PIN lock (casual tamper-protection on a kiosk/tablet).
@@ -1033,6 +1039,45 @@ export class Ha3dFloorplanCard extends LitElement {
               <span class="hint">then set its width (m) and draw walls over it</span>
             </div>`}
 
+        <div class="panel-group">Surfaces — color &amp; wallpaper</div>
+        <div class="toolrow">
+          <span class="hint">Walls</span>
+          <input class="color" type="color" title="Color for ALL walls"
+            .value=${this.editAllWallColor}
+            @change=${(e: Event) => {
+              this.editAllWallColor = (e.target as HTMLInputElement).value;
+              this.editor?.setAllWallsColor(this.editAllWallColor);
+            }} />
+          <select class="select" title="Wallpaper for ALL walls"
+            @change=${(e: Event) => {
+              this.editAllWallMat = (e.target as HTMLSelectElement).value;
+              this.editor?.setAllWallsMaterial(this.editAllWallMat);
+            }}>
+            ${WALL_MATERIALS.map(
+              (m) => html`<option value=${m} ?selected=${m === this.editAllWallMat}>${m}</option>`,
+            )}
+          </select>
+        </div>
+        <div class="toolrow">
+          <span class="hint">Floor</span>
+          <input class="color" type="color" title="Color for ALL floors"
+            .value=${this.editAllFloorColor}
+            @change=${(e: Event) => {
+              this.editAllFloorColor = (e.target as HTMLInputElement).value;
+              this.editor?.setAllFloorsColor(this.editAllFloorColor);
+            }} />
+          <select class="select" title="Material for ALL floors"
+            @change=${(e: Event) => {
+              this.editAllFloorMat = (e.target as HTMLSelectElement).value;
+              this.editor?.setAllFloorsMaterial(this.editAllFloorMat);
+            }}>
+            ${FLOOR_MATERIALS.map(
+              (m) => html`<option value=${m} ?selected=${m === this.editAllFloorMat}>${m}</option>`,
+            )}
+          </select>
+        </div>
+        <span class="hint">applies to every wall / floor on this level (or select one to set it alone)</span>
+
         ${(() => {
           // Derive the floor list from the LIVE edit plan (not View-mode state),
           // so it stays correct after New / project switch while editing.
@@ -1091,16 +1136,32 @@ export class Ha3dFloorplanCard extends LitElement {
               <span class="hint">tap floor to place</span>
             </div>
             ${this.paletteOpen
-              ? html`<div class="palette">
-                  <div class="palette-group">Lighting</div>
-                  <div class="palette-grid">
-                    ${LIGHT_KEYS.map((k) => this.renderPaletteCell(k, label(k)))}
-                  </div>
-                  <div class="palette-group">Furniture</div>
-                  <div class="palette-grid">
-                    ${furnitureKeys.map((k) => this.renderPaletteCell(k, label(k)))}
-                  </div>
-                </div>`
+              ? (() => {
+                  const q = this.editFurnSearch.trim().toLowerCase();
+                  const match = (k: string) => !q || label(k).toLowerCase().includes(q) || k.includes(q);
+                  const lights = LIGHT_KEYS.filter(match);
+                  const furn = furnitureKeys.filter(match);
+                  return html`<div class="palette">
+                    <input class="select wide" type="search" placeholder="🔍 search models…"
+                      .value=${this.editFurnSearch}
+                      @input=${(e: Event) => (this.editFurnSearch = (e.target as HTMLInputElement).value)} />
+                    ${lights.length
+                      ? html`<div class="palette-group">Lighting</div>
+                          <div class="palette-grid">
+                            ${lights.map((k) => this.renderPaletteCell(k, label(k)))}
+                          </div>`
+                      : nothing}
+                    ${furn.length
+                      ? html`<div class="palette-group">Furniture</div>
+                          <div class="palette-grid">
+                            ${furn.map((k) => this.renderPaletteCell(k, label(k)))}
+                          </div>`
+                      : nothing}
+                    ${!lights.length && !furn.length
+                      ? html`<span class="hint">no models match "${this.editFurnSearch}"</span>`
+                      : nothing}
+                  </div>`;
+                })()
               : nothing}`
           : nothing}
 

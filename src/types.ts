@@ -79,6 +79,8 @@ export interface RoomDef {
   thickness?: number;
   /** Wall color for generated walls. */
   wallColor?: string;
+  /** Wall surface material preset for generated walls. */
+  wallMaterial?: string;
   /** Openings on this room's perimeter (shape rooms own their openings). */
   openings?: RoomOpening[];
   /** Parent room id (re-parenting / nesting). */
