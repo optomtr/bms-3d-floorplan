@@ -309,7 +309,12 @@ export class SceneManager {
       const moved = Math.hypot(dx, dy);
       const dt = performance.now() - this.downTime;
       // Treat as a tap only if it didn't move much and wasn't a long press.
-      if (moved >= 8 || dt >= 600) return;
+      // Fingers (and pens) jitter far more than a mouse, so only the mouse gets
+      // the tight slop — touch/pen/unknown get a generous one, otherwise a
+      // slightly-imperfect tablet tap is misread as a drag and the control
+      // popup never opens.
+      const slop = e.pointerType === 'mouse' ? 6 : 12;
+      if (moved >= slop || dt >= 600) return;
       if (this.editing && this.onGround?.click) {
         const p = this.groundIntersect(e);
         if (p) this.onGround.click(p, e);

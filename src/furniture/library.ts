@@ -509,20 +509,84 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(glow, c));
     return g;
   },
+  // Ornate two-tier candle chandelier. Origin sits at the ceiling mount; the
+  // fixture hangs DOWN (negative Y). Candle "flames" are the emissive meshes.
   chandelier: (c) => {
     const g = new THREE.Group();
-    g.add(cyl(0.01, 0.01, 0.3, mat(METAL), 0, 0.15, 0));
-    g.add(cyl(0.25, 0.3, 0.04, mat(METAL), 0, 0, 0));
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      const bulb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.06, 10, 10),
-        mat(0xfff4d6, { emissive: 0x000000 }),
-      );
-      bulb.name = 'emissive';
-      bulb.position.set(Math.cos(a) * 0.28, -0.05, Math.sin(a) * 0.28);
-      g.add(tint(bulb, c));
+    const gold = mat(0xd9b863, { metalness: 0.6, roughness: 0.35 });
+    const crystal = mat(0xcfe6f5, { transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.1 });
+    const wax = mat(0xf3ead2);
+    // Ceiling canopy + drop rod.
+    g.add(cyl(0.07, 0.09, 0.04, gold, 0, -0.02, 0));
+    g.add(cyl(0.012, 0.012, 0.34, gold, 0, -0.2, 0));
+    // Central body (urn) + bottom finial.
+    const bodyY = -0.42;
+    g.add(cyl(0.05, 0.09, 0.13, gold, 0, bodyY, 0));
+    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), gold);
+    finial.position.set(0, bodyY - 0.1, 0);
+    g.add(finial);
+    // Two tiers of curved arms, each ending in a candle + flame.
+    const tiers = [
+      { n: 6, r: 0.34, y: bodyY + 0.0, off: 0 },
+      { n: 5, r: 0.22, y: bodyY + 0.13, off: 0.4 },
+    ];
+    for (const t of tiers) {
+      for (let i = 0; i < t.n; i++) {
+        const a = (i / t.n) * Math.PI * 2 + t.off;
+        const cx = Math.cos(a) * t.r;
+        const cz = Math.sin(a) * t.r;
+        // Arm reaching out from the body.
+        const arm = cyl(0.012, 0.012, t.r, gold, cx / 2, t.y, cz / 2);
+        arm.rotation.z = Math.PI / 2;
+        arm.rotation.y = -a;
+        g.add(arm);
+        // Cup, candle, flame.
+        g.add(cyl(0.035, 0.05, 0.04, gold, cx, t.y - 0.02, cz));
+        g.add(cyl(0.02, 0.022, 0.1, wax, cx, t.y + 0.05, cz));
+        const flame = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 10), mat(0xfff1c0, { emissive: 0x000000 }));
+        flame.name = 'emissive';
+        flame.position.set(cx, t.y + 0.12, cz);
+        g.add(tint(flame, c));
+      }
     }
+    // Hanging crystal beads around the outer ring.
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + 0.3;
+      const bead = new THREE.Mesh(new THREE.OctahedronGeometry(0.03), crystal);
+      bead.position.set(Math.cos(a) * 0.33, bodyY - 0.05, Math.sin(a) * 0.33);
+      g.add(bead);
+    }
+    return g;
+  },
+  // Modern cascading-crystal chandelier: three descending rings dripping with
+  // crystals around a central warm glow column (the emissive part).
+  crystal_chandelier: (c) => {
+    const g = new THREE.Group();
+    const gold = mat(0xe6c66e, { metalness: 0.7, roughness: 0.3 });
+    const crystal = mat(0xdff0fb, { transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.2 });
+    g.add(cyl(0.06, 0.08, 0.03, gold, 0, -0.015, 0)); // canopy
+    g.add(cyl(0.01, 0.01, 0.25, gold, 0, -0.14, 0)); // rod
+    const rings = [
+      { r: 0.28, y: -0.3 },
+      { r: 0.2, y: -0.42 },
+      { r: 0.12, y: -0.54 },
+    ];
+    for (const ring of rings) {
+      const torus = new THREE.Mesh(new THREE.TorusGeometry(ring.r, 0.012, 8, 40), gold);
+      torus.rotation.x = Math.PI / 2;
+      torus.position.y = ring.y;
+      g.add(torus);
+      const n = Math.max(8, Math.round(ring.r * 36));
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const bead = new THREE.Mesh(new THREE.OctahedronGeometry(0.022), crystal);
+        bead.position.set(Math.cos(a) * ring.r, ring.y - 0.05, Math.sin(a) * ring.r);
+        g.add(bead);
+      }
+    }
+    const glow = cyl(0.05, 0.05, 0.42, mat(0xfff3d0, { emissive: 0x000000, transparent: true, opacity: 0.9 }), 0, -0.4, 0, 16);
+    glow.name = 'emissive';
+    g.add(tint(glow, c));
     return g;
   },
   spotlight: (c) => {
@@ -1012,6 +1076,7 @@ export const LIGHT_KEYS = [
   'table_lamp',
   'wall_light',
   'chandelier',
+  'crystal_chandelier',
   'spotlight',
   'pendant_light',
   'led_strip',
@@ -1073,7 +1138,12 @@ export function entityDomainsFor(model: string): string[] {
 /** Default vertical offset (meters) so a placed piece sits naturally. Lights
  *  default to near the ceiling; everything else on the floor. */
 export function defaultY(model: string, wallHeight = 2.6): number {
-  if (model === 'ceiling_light' || model === 'chandelier' || model === 'pendant_light')
+  if (
+    model === 'ceiling_light' ||
+    model === 'chandelier' ||
+    model === 'crystal_chandelier' ||
+    model === 'pendant_light'
+  )
     return wallHeight - 0.05;
   if (model === 'spotlight' || model === 'led_strip' || model === 'led_panel' || model === 'track_light')
     return wallHeight - 0.02;

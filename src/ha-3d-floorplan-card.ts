@@ -70,6 +70,9 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private controlOpen = false;
   @state() private controlEntities: string[] = [];
   @state() private controlPos: [number, number] = [0, 0];
+  /** Timestamp the popup opened — guards against the touch "ghost click" that
+   *  would otherwise close it the instant it appears on tablets. */
+  private controlOpenedAt = 0;
   @state() private editEntitySearch = '';
   @state() private importOpen = false;
   @state() private importText = '';
@@ -173,6 +176,29 @@ export class Ha3dFloorplanCard extends LitElement {
       this.applyHass(this.pendingHass);
       this.pendingHass = undefined;
     }
+    // Anchor the control popup once its real height is known so it can never be
+    // clipped by the card's overflow:hidden top/bottom edge.
+    if (this.controlOpen) this.positionControlPopup();
+  }
+
+  /** Place the open control popup above the tap, or below (clamped) when there
+   *  isn't room above — measured from the popup's actual height so a tall
+   *  multi-device popup is never cut off by the card edges. */
+  private positionControlPopup(): void {
+    const el = this.renderRoot?.querySelector?.('.control-popup') as HTMLElement | null;
+    if (!el) return;
+    const cardH = this.viewport?.clientHeight ?? el.parentElement?.clientHeight ?? 480;
+    const h = el.offsetHeight;
+    const gap = 14;
+    const margin = 8;
+    const anchorY = this.controlPos[1];
+    let top = anchorY - gap - h; // prefer sitting above the tapped object
+    if (top < margin) {
+      // Not enough room above → drop below, clamped to stay fully visible.
+      top = anchorY + gap;
+      if (top + h > cardH - margin) top = Math.max(margin, cardH - h - margin);
+    }
+    el.style.top = `${top}px`;
   }
 
   private applyHass(hass: HomeAssistant): void {
@@ -279,25 +305,30 @@ export class Ha3dFloorplanCard extends LitElement {
     const ordered = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
       (id) => !seen.has(id) && seen.add(id),
     );
-    // A single AC / TV opens HA's native full remote dialog directly.
-    if (ordered.length === 1) {
-      const dom = ordered[0].split('.')[0];
-      if (dom === 'climate' || dom === 'media_player') {
-        this.fireMoreInfo(ordered[0]);
-        return;
-      }
-    }
-    // Otherwise a small popup near the tapped object with quick controls.
+    // Always a small in-card popup anchored at the tapped object. AC/TV get a
+    // compact inline remote here — never HA's native more-info dialog, which
+    // covers the whole tablet screen and (inside a custom panel) reloads the
+    // page when its close button navigates history back.
     const vw = this.viewport?.clientWidth ?? 360;
-    const x = r.screen ? Math.max(150, Math.min(vw - 150, r.screen[0])) : vw / 2;
-    const y = r.screen ? Math.max(120, r.screen[1]) : 200;
-    this.controlPos = [x, y];
+    const vh = this.viewport?.clientHeight ?? 480;
+    const sx = r.screen ? r.screen[0] : vw / 2;
+    const sy = r.screen ? r.screen[1] : vh / 2;
+    const x = Math.max(150, Math.min(vw - 150, sx));
+    // Store the raw tap anchor; the final vertical placement (above/below the
+    // tap, clamped to stay fully inside the card) is computed after render in
+    // positionControlPopup(), once the popup's real height is known.
+    this.controlPos = [x, Math.max(0, Math.min(vh, sy))];
     this.controlEntities = ordered;
+    this.controlOpenedAt = performance.now();
     this.controlOpen = true;
     this.requestUpdate();
   }
 
   private closeControl = (): void => {
+    // A touch tap fires a synthesized "ghost" click ~300ms later that lands on
+    // the freshly-rendered backdrop; ignore closes within that window so the
+    // popup doesn't flash open and vanish on tablets.
+    if (performance.now() - this.controlOpenedAt < 400) return;
     this.controlOpen = false;
   };
 
@@ -305,15 +336,6 @@ export class Ha3dFloorplanCard extends LitElement {
   private svc(domain: string, service: string, data: Record<string, any> = {}, entityId?: string): void {
     if (!this.hass) return;
     this.hass.callService(domain, service, { ...(entityId ? { entity_id: entityId } : {}), ...data });
-  }
-
-  private fireMoreInfo(entityId: string): void {
-    const event = new CustomEvent('hass-more-info', {
-      detail: { entityId },
-      bubbles: true,
-      composed: true,
-    });
-    this.dispatchEvent(event);
   }
 
   private onSelectFloor(index: number): void {
@@ -1232,14 +1254,14 @@ export class Ha3dFloorplanCard extends LitElement {
     const hass = this.hass;
     const ids = this.controlEntities.filter((id) => hass?.states[id]);
     if (!hass || !ids.length) return nothing;
-    const [x, y] = this.controlPos;
+    const [x] = this.controlPos;
     return html`
       <div class="control-backdrop" @click=${this.closeControl}></div>
-      <div class="control-popup" style="left:${x}px; top:${y}px"
+      <div class="control-popup" style="left:${x}px"
         @click=${(e: Event) => e.stopPropagation()}>
         <div class="control-head">
           <span>${ids.length > 1 ? `${ids.length} devices` : ''}</span>
-          <button class="ctl" @click=${this.closeControl}>✕</button>
+          <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
         ${ids.map((id) => this.renderEntityControl(id))}
       </div>
@@ -1255,24 +1277,69 @@ export class Ha3dFloorplanCard extends LitElement {
     const on = state === 'on' || state === 'open' || state === 'playing' || state === 'home' || state === 'unlocked';
     let controls;
     if (domain === 'light' || domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
-      controls = html`<button class="ctl big ${on ? 'on' : ''}" title="Toggle"
+      controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" title="Toggle"
         @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻</button>`;
     } else if (domain === 'cover') {
       controls = html`
-        <button class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>▲</button>
-        <button class="ctl" title="Stop" @click=${() => this.svc('cover', 'stop_cover', {}, id)}>■</button>
-        <button class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>▼</button>`;
+        <button type="button" class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>▲</button>
+        <button type="button" class="ctl" title="Stop" @click=${() => this.svc('cover', 'stop_cover', {}, id)}>■</button>
+        <button type="button" class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>▼</button>`;
     } else if (domain === 'lock') {
-      controls = html`<button class="ctl ${on ? '' : 'on'}"
+      controls = html`<button type="button" class="ctl ${on ? '' : 'on'}"
         @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${on ? '🔓' : '🔒'}</button>`;
-    } else if (domain === 'climate' || domain === 'media_player') {
-      // Full remote = HA's native more-info dialog; quick power toggle inline.
-      controls = html`
-        <button class="ctl ${on ? 'on' : ''}" title="Power" @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻</button>
-        <button class="ctl" title="Open remote" @click=${() => this.fireMoreInfo(id)}>🎛 Pult</button>`;
+    } else if (domain === 'climate') {
+      // Compact AC remote: temperature ± and the HVAC mode chips, inline.
+      const target = ent?.attributes?.temperature as number | undefined;
+      const cur = ent?.attributes?.current_temperature as number | undefined;
+      const step = (ent?.attributes?.target_temp_step as number) || 0.5;
+      const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'cool', 'heat', 'auto'];
+      const modeIcon: Record<string, string> = {
+        off: '⏻', cool: '❄', heat: '🔥', auto: '⟳', dry: '💧', fan_only: '🌀', heat_cool: '♨',
+      };
+      const setTemp = (d: number) => {
+        if (typeof target === 'number') {
+          // Snap to the device's own step (1°, 0.5°, 0.1°, …) — not a fixed
+          // 0.5 grid, which would send off-grid values to 0.1°-step thermostats.
+          const inv = step > 0 ? 1 / step : 2;
+          this.svc('climate', 'set_temperature', { temperature: Math.round((target + d) * inv) / inv }, id);
+        }
+      };
+      controls = html`<div class="ctl-col">
+        <div class="ctl-row">
+          <button type="button" class="ctl" title="Cooler" @click=${() => setTemp(-step)}>−</button>
+          <span class="ctl-temp">${target != null ? `${target}°` : '—'}${cur != null
+            ? html`<small> · ${cur}°</small>`
+            : nothing}</span>
+          <button type="button" class="ctl" title="Warmer" @click=${() => setTemp(step)}>＋</button>
+        </div>
+        <div class="ctl-row wrap">
+          ${modes.map(
+            (m) => html`<button type="button" class="ctl ${state === m ? 'on' : ''}" title=${m}
+              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id)}>${modeIcon[m] ?? m}</button>`,
+          )}
+        </div>
+      </div>`;
+    } else if (domain === 'media_player') {
+      // Compact TV remote: power, transport and volume, inline.
+      const muted = !!ent?.attributes?.is_volume_muted;
+      // "On" for a media player = anything that isn't a clear off/unknown state
+      // (playing, paused, idle and buffering all mean the device is powered).
+      const mpOn = !['off', 'standby', 'unavailable', 'unknown'].includes(state);
+      controls = html`<div class="ctl-col">
+        <div class="ctl-row">
+          <button type="button" class="ctl ${mpOn ? 'on' : ''}" title="Power" @click=${() => this.svc('media_player', 'toggle', {}, id)}>⏻</button>
+          <button type="button" class="ctl" title="Previous" @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>⏮</button>
+          <button type="button" class="ctl" title="Play / Pause" @click=${() => this.svc('media_player', 'media_play_pause', {}, id)}>⏯</button>
+          <button type="button" class="ctl" title="Next" @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>⏭</button>
+        </div>
+        <div class="ctl-row">
+          <button type="button" class="ctl" title="Volume down" @click=${() => this.svc('media_player', 'volume_down', {}, id)}>🔉</button>
+          <button type="button" class="ctl ${muted ? 'on' : ''}" title="Mute" @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>🔇</button>
+          <button type="button" class="ctl" title="Volume up" @click=${() => this.svc('media_player', 'volume_up', {}, id)}>🔊</button>
+        </div>
+      </div>`;
     } else {
-      controls = html`<span class="ctl-state">${state}${ent?.attributes?.unit_of_measurement ?? ''}</span>
-        <button class="ctl" @click=${() => this.fireMoreInfo(id)}>ℹ</button>`;
+      controls = html`<span class="ctl-state">${state}${ent?.attributes?.unit_of_measurement ?? ''}</span>`;
     }
     return html`<div class="control-row">
       <span class="control-name" title=${id}>${name}</span>
@@ -1651,11 +1718,14 @@ export class Ha3dFloorplanCard extends LitElement {
     .control-popup {
       position: absolute;
       z-index: 6;
-      transform: translate(-50%, -112%);
+      /* Horizontal centering only; the vertical "top" is set in JS
+       * (positionControlPopup) from the popup's measured height so it can never
+       * be clipped by the card's overflow:hidden edges. */
+      transform: translateX(-50%);
       width: max-content;
       min-width: 180px;
-      max-width: min(300px, 80%);
-      max-height: 55%;
+      max-width: min(320px, 84%);
+      max-height: 90%;
       overflow-y: auto;
       background: rgba(20, 22, 26, 0.62);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -1707,9 +1777,25 @@ export class Ha3dFloorplanCard extends LitElement {
       color: #eee;
       border-radius: 8px;
       padding: 6px 9px;
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
       line-height: 1;
+      /* Reliable finger tap targets on tablets. */
+      min-width: 36px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ctl:active {
+      background: rgba(255, 255, 255, 0.18);
+    }
+    .ctl.close {
+      min-width: 30px;
+      min-height: 28px;
+      padding: 3px 7px;
     }
     .ctl.on {
       background: rgba(3, 169, 244, 0.35);
