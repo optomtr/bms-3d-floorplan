@@ -2,7 +2,7 @@
 // <ha-3d-floorplan-card> — the custom Lovelace card entry point.
 // ---------------------------------------------------------------------------
 
-import { LitElement, html, css, PropertyValues, nothing } from 'lit';
+import { LitElement, html, css, PropertyValues, nothing, svg } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import type {
   CardConfig,
@@ -31,6 +31,7 @@ import { getThumbnail } from './furniture/thumbnails';
 import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
 import { isZirconPlan, convertZircon } from './import/zircon';
 import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
+import { ICON_PATHS, climateModeIconName } from './scene/icons';
 
 @customElement('ha-3d-floorplan-card')
 export class Ha3dFloorplanCard extends LitElement {
@@ -1268,6 +1269,15 @@ export class Ha3dFloorplanCard extends LitElement {
     `;
   }
 
+  /** Inline SVG icon (shared path set) — never an emoji, so it renders the same
+   *  on every tablet/browser instead of a tofu box. */
+  private ic(name: string) {
+    const paths = ICON_PATHS[name] ?? ICON_PATHS.dot;
+    return html`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+    >${paths.map((d) => svg`<path d=${d}></path>`)}</svg>`;
+  }
+
   private renderEntityControl(id: string) {
     const hass = this.hass!;
     const ent = hass.states[id];
@@ -1278,24 +1288,21 @@ export class Ha3dFloorplanCard extends LitElement {
     let controls;
     if (domain === 'light' || domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
       controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" title="Toggle"
-        @click=${() => this.svc(domain, 'toggle', {}, id)}>⏻</button>`;
+        @click=${() => this.svc(domain, 'toggle', {}, id)}>${this.ic('power')}</button>`;
     } else if (domain === 'cover') {
       controls = html`
-        <button type="button" class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>▲</button>
-        <button type="button" class="ctl" title="Stop" @click=${() => this.svc('cover', 'stop_cover', {}, id)}>■</button>
-        <button type="button" class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>▼</button>`;
+        <button type="button" class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>${this.ic('chevUp')}</button>
+        <button type="button" class="ctl" title="Stop" @click=${() => this.svc('cover', 'stop_cover', {}, id)}>${this.ic('stop')}</button>
+        <button type="button" class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>${this.ic('chevDown')}</button>`;
     } else if (domain === 'lock') {
-      controls = html`<button type="button" class="ctl ${on ? '' : 'on'}"
-        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${on ? '🔓' : '🔒'}</button>`;
+      controls = html`<button type="button" class="ctl ${on ? '' : 'on'}" title=${on ? 'Lock' : 'Unlock'}
+        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${this.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
     } else if (domain === 'climate') {
       // Compact AC remote: temperature ± and the HVAC mode chips, inline.
       const target = ent?.attributes?.temperature as number | undefined;
       const cur = ent?.attributes?.current_temperature as number | undefined;
       const step = (ent?.attributes?.target_temp_step as number) || 0.5;
       const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'cool', 'heat', 'auto'];
-      const modeIcon: Record<string, string> = {
-        off: '⏻', cool: '❄', heat: '🔥', auto: '⟳', dry: '💧', fan_only: '🌀', heat_cool: '♨',
-      };
       const setTemp = (d: number) => {
         if (typeof target === 'number') {
           // Snap to the device's own step (1°, 0.5°, 0.1°, …) — not a fixed
@@ -1306,37 +1313,33 @@ export class Ha3dFloorplanCard extends LitElement {
       };
       controls = html`<div class="ctl-col">
         <div class="ctl-row">
-          <button type="button" class="ctl" title="Cooler" @click=${() => setTemp(-step)}>−</button>
+          <button type="button" class="ctl" title="Cooler" @click=${() => setTemp(-step)}>${this.ic('minus')}</button>
           <span class="ctl-temp">${target != null ? `${target}°` : '—'}${cur != null
             ? html`<small> · ${cur}°</small>`
             : nothing}</span>
-          <button type="button" class="ctl" title="Warmer" @click=${() => setTemp(step)}>＋</button>
+          <button type="button" class="ctl" title="Warmer" @click=${() => setTemp(step)}>${this.ic('plus')}</button>
         </div>
         <div class="ctl-row wrap">
-          ${modes.map(
-            (m) => html`<button type="button" class="ctl ${state === m ? 'on' : ''}" title=${m}
-              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id)}>${modeIcon[m] ?? m}</button>`,
-          )}
+          ${modes.map((m) => {
+            const icon = climateModeIconName(m);
+            return html`<button type="button" class="ctl ${state === m ? 'on' : ''}" title=${m}
+              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id)}>${icon
+              ? this.ic(icon)
+              : m}</button>`;
+          })}
         </div>
       </div>`;
     } else if (domain === 'media_player') {
-      // Compact TV remote: power, transport and volume, inline.
+      // Compact TV remote: power + volume only (no transport — per request).
       const muted = !!ent?.attributes?.is_volume_muted;
       // "On" for a media player = anything that isn't a clear off/unknown state
       // (playing, paused, idle and buffering all mean the device is powered).
       const mpOn = !['off', 'standby', 'unavailable', 'unknown'].includes(state);
-      controls = html`<div class="ctl-col">
-        <div class="ctl-row">
-          <button type="button" class="ctl ${mpOn ? 'on' : ''}" title="Power" @click=${() => this.svc('media_player', 'toggle', {}, id)}>⏻</button>
-          <button type="button" class="ctl" title="Previous" @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>⏮</button>
-          <button type="button" class="ctl" title="Play / Pause" @click=${() => this.svc('media_player', 'media_play_pause', {}, id)}>⏯</button>
-          <button type="button" class="ctl" title="Next" @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>⏭</button>
-        </div>
-        <div class="ctl-row">
-          <button type="button" class="ctl" title="Volume down" @click=${() => this.svc('media_player', 'volume_down', {}, id)}>🔉</button>
-          <button type="button" class="ctl ${muted ? 'on' : ''}" title="Mute" @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>🔇</button>
-          <button type="button" class="ctl" title="Volume up" @click=${() => this.svc('media_player', 'volume_up', {}, id)}>🔊</button>
-        </div>
+      controls = html`<div class="ctl-row">
+        <button type="button" class="ctl ${mpOn ? 'on' : ''}" title="Power" @click=${() => this.svc('media_player', 'toggle', {}, id)}>${this.ic('power')}</button>
+        <button type="button" class="ctl" title="Volume down" @click=${() => this.svc('media_player', 'volume_down', {}, id)}>${this.ic('volDown')}</button>
+        <button type="button" class="ctl ${muted ? 'on' : ''}" title="Mute" @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${this.ic('mute')}</button>
+        <button type="button" class="ctl" title="Volume up" @click=${() => this.svc('media_player', 'volume_up', {}, id)}>${this.ic('volUp')}</button>
       </div>`;
     } else {
       controls = html`<span class="ctl-state">${state}${ent?.attributes?.unit_of_measurement ?? ''}</span>`;
@@ -1800,6 +1803,15 @@ export class Ha3dFloorplanCard extends LitElement {
     .ctl.on {
       background: rgba(3, 169, 244, 0.35);
       border-color: var(--primary-color, #03a9f4);
+    }
+    .icn {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+    .ctl.big .icn {
+      width: 20px;
+      height: 20px;
     }
     .ctl-range {
       width: 92px;

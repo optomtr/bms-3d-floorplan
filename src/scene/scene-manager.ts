@@ -12,6 +12,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { FloorPlan, Underlay } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
+import { drawMarkerCanvas } from './icons';
 
 export interface ClickResult {
   entity_id: string;
@@ -57,6 +58,8 @@ export class SceneManager {
   readonly gizmoGroup = new THREE.Group();
   /** Reference-image underlay (tracing guide) lives here. */
   readonly underlayGroup = new THREE.Group();
+  /** Floating, always-on-top device icons (Zircon-style tap targets). */
+  readonly markerGroup = new THREE.Group();
   private editing = false;
   private gridHelper?: THREE.GridHelper;
   private selectionHelper?: THREE.BoxHelper;
@@ -90,6 +93,7 @@ export class SceneManager {
     this.scene.add(this.previewGroup);
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
+    this.scene.add(this.markerGroup);
 
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
     this.camera.position.set(8, 8, 8);
@@ -185,6 +189,7 @@ export class SceneManager {
     } else {
       this.resetView();
     }
+    this.buildMarkers();
   }
 
   private clearPlan(): void {
@@ -197,6 +202,12 @@ export class SceneManager {
       this.scene.remove(g);
       disposeGroup(g);
     }
+    for (const child of [...this.markerGroup.children]) {
+      const mat = (child as THREE.Sprite).material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.markerGroup.clear();
     this.floors = [];
     this.floorGroups = [];
     this.bindingManagers = [];
@@ -214,6 +225,7 @@ export class SceneManager {
       g.visible = i === index;
     });
     this.resetView();
+    this.buildMarkers();
   }
 
   get currentFloor(): number {
@@ -366,6 +378,57 @@ export class SceneManager {
       if (this.gridHelper) this.gridHelper.visible = false;
       this.clearPreview();
       this.setSelection(null);
+    }
+    // Markers are a view-mode affordance — hide them while editing so they
+    // don't sit on top of the editor's gizmos and previews.
+    this.buildMarkers();
+  }
+
+  /** (Re)build the floating device markers for the active floor. Cleared while
+   *  editing or when there are no bindings. */
+  private buildMarkers(): void {
+    for (const child of [...this.markerGroup.children]) {
+      const sp = child as THREE.Sprite;
+      const mat = sp.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.markerGroup.clear();
+    if (this.editing) return;
+    const bm = this.bindingManagers[this.activeFloor];
+    if (!bm) return;
+    for (const m of bm.markerData()) {
+      const tex = new THREE.CanvasTexture(drawMarkerCanvas(m.behavior));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        depthTest: false, // always visible, even through walls (Zircon-style)
+        depthWrite: false,
+        transparent: true,
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.position.set(m.pos[0], m.pos[1] + 0.35, m.pos[2]);
+      sp.renderOrder = 999;
+      sp.userData = {
+        markerEntity: m.entity_id,
+        markerBehavior: m.behavior,
+        wx: m.pos[0],
+        wy: m.pos[1],
+        wz: m.pos[2],
+      };
+      this.markerGroup.add(sp);
+    }
+  }
+
+  /** Keep markers a roughly constant on-screen size as the camera dollies. */
+  private updateMarkerScales(): void {
+    const children = this.markerGroup.children;
+    if (!children.length) return;
+    const cam = this.camera.position;
+    for (const c of children) {
+      const d = cam.distanceTo(c.position);
+      const s = THREE.MathUtils.clamp(d * 0.05, 0.3, 1.2);
+      c.scale.set(s, s, 1);
     }
   }
 
@@ -627,6 +690,22 @@ export class SceneManager {
     this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
+    // Floating markers are larger, always-on-top tap targets — check them first
+    // so they're the easy way to hit a bound device.
+    if (this.markerGroup.children.length) {
+      const mHits = this.raycaster.intersectObjects(this.markerGroup.children, false);
+      if (mHits.length) {
+        const ud = mHits[0].object.userData;
+        this.onPick({
+          entity_id: ud.markerEntity as string,
+          behavior: ud.markerBehavior as string,
+          point: [ud.wx as number, ud.wy as number, ud.wz as number],
+          screen: [e.clientX - rect.left, e.clientY - rect.top],
+        });
+        return;
+      }
+    }
+
     const bm = this.bindingManagers[this.activeFloor];
     if (!bm) {
       this.onPick(null);
@@ -679,6 +758,7 @@ export class SceneManager {
       const delta = this.clock.getDelta();
       this.controls.update();
       this.bindingManagers[this.activeFloor]?.animate(delta);
+      this.updateMarkerScales();
       this.renderer.render(this.scene, this.camera);
     };
     loop();

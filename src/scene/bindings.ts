@@ -286,6 +286,31 @@ export class BindingManager {
     return this.bindings.map((b) => b.anchor).filter((a): a is THREE.Object3D => !!a);
   }
 
+  /** One floating-marker descriptor per bound entity (live anchor position).
+   *  Covers (curtains) that sit close together collapse to a single marker so
+   *  2-3 stacked curtains don't spawn an overlapping pile of icons. */
+  markerData(): { entity_id: string; behavior: BindingBehavior; pos: [number, number, number] }[] {
+    const out: { entity_id: string; behavior: BindingBehavior; pos: [number, number, number] }[] = [];
+    const seen = new Set<string>();
+    const coverPts: THREE.Vector3[] = [];
+    const p = new THREE.Vector3();
+    for (const ab of this.bindings) {
+      if (seen.has(ab.def.entity_id)) continue;
+      if (ab.anchor) ab.anchor.getWorldPosition(p);
+      else p.copy(ab.worldPos);
+      if (ab.behavior === 'cover') {
+        if (coverPts.some((c) => c.distanceTo(p) <= 1.6)) {
+          seen.add(ab.def.entity_id);
+          continue;
+        }
+        coverPts.push(p.clone());
+      }
+      seen.add(ab.def.entity_id);
+      out.push({ entity_id: ab.def.entity_id, behavior: ab.behavior, pos: [p.x, p.y, p.z] });
+    }
+    return out;
+  }
+
   /** Bound entities whose anchor is within `radius` of a world point — so a tap
    *  near several stacked curtains/lights surfaces all of them. */
   near(point: THREE.Vector3, radius: number): { entity_id: string; behavior: BindingBehavior }[] {
