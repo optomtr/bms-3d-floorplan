@@ -14,6 +14,74 @@ import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
 import { drawMarkerCanvas } from './icons';
 
+// ---------------------------------------------------------------------------
+// Render quality tiers. Weak mobile GPUs (e.g. Adreno 610 in a Redmi Pad SE)
+// choke on the per-frame shadow pass and 2x pixel ratio when a large plan has
+// hundreds of meshes. We auto-detect the device tier and let the user override
+// it at runtime; the choice is saved per-device (localStorage), so a kiosk
+// tablet keeps "low" while a desktop dashboard keeps "high".
+// ---------------------------------------------------------------------------
+
+export type QualityChoice = 'auto' | 'high' | 'medium' | 'low';
+export const QUALITY_CHOICES: QualityChoice[] = ['auto', 'high', 'medium', 'low'];
+type QualityTier = 'high' | 'medium' | 'low';
+
+interface QualityPreset {
+  shadows: boolean;
+  shadowType: THREE.ShadowMapType;
+  shadowMap: number;
+  pixelRatio: number;
+  aa: boolean;
+}
+
+const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
+  // "high" is intentionally identical to the original hard-coded settings, so
+  // capable devices see zero change.
+  high: { shadows: true, shadowType: THREE.PCFSoftShadowMap, shadowMap: 1024, pixelRatio: 2, aa: true },
+  medium: { shadows: true, shadowType: THREE.PCFShadowMap, shadowMap: 1024, pixelRatio: 1.5, aa: true },
+  // The big win for weak GPUs: no shadow pass at all + native resolution.
+  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1, aa: false },
+};
+
+const QUALITY_KEY = 'ha3dFloorplanQuality';
+
+function readStoredQuality(): QualityChoice {
+  try {
+    const v = localStorage.getItem(QUALITY_KEY);
+    if (v === 'high' || v === 'medium' || v === 'low' || v === 'auto') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'auto';
+}
+
+/** Best-effort device tier from the GPU string + CPU/memory hints. */
+function detectTier(): QualityTier {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    let renderer = '';
+    if (gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) renderer = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+    }
+    // Known weak / low-end mobile GPUs → low.
+    if (/adreno \(tm\) (?:[1-5]\d\d|6[0-4]\d)\b|adreno (?:[1-5]\d\d|6[0-4]\d)\b|mali-g5|mali-g3|mali-4|mali-t|powervr|videocore|apple a[789]\b/.test(renderer)) {
+      return 'low';
+    }
+    const mem = (navigator as any).deviceMemory ?? 4;
+    const cores = navigator.hardwareConcurrency ?? 4;
+    const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // A touch device whose GPU string is hidden (privacy) is conservatively
+    // treated as a tablet: never auto-select "high" (the user can still opt in).
+    if (touch) return mem <= 3 || cores <= 4 ? 'low' : 'medium';
+    if (mem <= 4 || cores <= 4) return 'medium';
+    return 'high';
+  } catch {
+    return 'medium';
+  }
+}
+
 export interface ClickResult {
   entity_id: string;
   behavior: string;
@@ -42,6 +110,13 @@ export class SceneManager {
   private fullBBox = new THREE.Box3();
   /** Framing-distance multiplier for resetView (config: cameraDistance). */
   private cameraDistance = 1;
+
+  /** Render-quality (device-adaptive; user-overridable at runtime). */
+  private qualityChoice: QualityChoice = 'auto';
+  private qualityTier: QualityTier = 'high';
+  private sun?: THREE.DirectionalLight;
+  /** Last-loaded plan, so a quality change can recompile in place. */
+  private lastPlan?: FloorPlan;
 
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -78,10 +153,14 @@ export class SceneManager {
   constructor(container: HTMLElement, background = '#1b1d22') {
     this.container = container;
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.qualityChoice = readStoredQuality();
+    this.qualityTier = this.qualityChoice === 'auto' ? detectTier() : this.qualityChoice;
+    const preset = QUALITY_PRESETS[this.qualityTier];
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: preset.aa, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
+    this.renderer.shadowMap.enabled = preset.shadows;
+    this.renderer.shadowMap.type = preset.shadowType;
     this.renderer.domElement.style.touchAction = 'none';
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.width = '100%';
@@ -124,10 +203,11 @@ export class SceneManager {
     const ambient = new THREE.AmbientLight(0xffffff, 0.55);
     this.scene.add(ambient);
 
+    const preset = QUALITY_PRESETS[this.qualityTier];
     const dir = new THREE.DirectionalLight(0xffffff, 0.9);
     dir.position.set(10, 18, 8);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(1024, 1024);
+    dir.castShadow = preset.shadows;
+    dir.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
     dir.shadow.camera.near = 1;
     dir.shadow.camera.far = 60;
     const d = 20;
@@ -136,6 +216,7 @@ export class SceneManager {
     dir.shadow.camera.top = d;
     dir.shadow.camera.bottom = -d;
     this.scene.add(dir);
+    this.sun = dir;
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x444455, 0.4);
     this.scene.add(hemi);
@@ -158,6 +239,7 @@ export class SceneManager {
   // -- Floor plan loading -----------------------------------------------------
 
   loadPlan(plan: FloorPlan, keepView = false): void {
+    this.lastPlan = plan;
     const prevTarget = this.controls.target.clone();
     const prevPos = this.camera.position.clone();
     const prevFloor = this.activeFloor;
@@ -263,6 +345,52 @@ export class SceneManager {
   /** Multiplier on the reset-view framing distance (from card config). */
   setCameraDistance(f: number): void {
     if (f > 0) this.cameraDistance = f;
+  }
+
+  /** The user's quality choice (auto/high/medium/low) for the picker UI. */
+  getQualityChoice(): QualityChoice {
+    return this.qualityChoice;
+  }
+
+  /** The tier actually in effect (what "auto" resolved to). */
+  getQualityTier(): QualityTier {
+    return this.qualityTier;
+  }
+
+  /**
+   * Switch render quality at runtime. Shadows and pixel ratio apply instantly;
+   * anti-aliasing is fixed when the WebGL context is created, so a change to AA
+   * only takes full effect after the card reloads. Returns true if a reload is
+   * needed for the AA change to show.
+   */
+  setQuality(choice: QualityChoice): boolean {
+    const prevAA = QUALITY_PRESETS[this.qualityTier].aa;
+    this.qualityChoice = choice;
+    try {
+      localStorage.setItem(QUALITY_KEY, choice);
+    } catch {
+      /* ignore */
+    }
+    this.qualityTier = choice === 'auto' ? detectTier() : choice;
+    const p = QUALITY_PRESETS[this.qualityTier];
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, p.pixelRatio));
+    this.renderer.shadowMap.enabled = p.shadows;
+    this.renderer.shadowMap.type = p.shadowType;
+    if (this.sun) {
+      this.sun.castShadow = p.shadows;
+      this.sun.shadow.mapSize.set(p.shadowMap, p.shadowMap);
+      // Drop the old shadow map so it's re-created at the new size.
+      this.sun.shadow.map?.dispose();
+      (this.sun.shadow as any).map = null;
+    }
+    // Force every material to recompile so shadow support is added/removed.
+    this.scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material;
+      if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
+    });
+    this.resize();
+    return prevAA !== p.aa;
   }
 
   /** Keep the orbit target from drifting outside the floor bbox + margin. */

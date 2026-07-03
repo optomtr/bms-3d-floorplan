@@ -12,7 +12,7 @@ import type {
   RoomDef,
   RoomShape,
 } from './types';
-import { SceneManager, ClickResult } from './scene/scene-manager';
+import { SceneManager, ClickResult, QualityChoice, QUALITY_CHOICES } from './scene/scene-manager';
 import { CARD_VERSION } from './version';
 import { installSidebar } from './sidebar';
 import { DEMO_PLAN } from './scene/demo-plan';
@@ -84,6 +84,9 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editAllFloorMat = 'plain';
   @state() private importOpen = false;
   @state() private importText = '';
+  // Render-quality picker (view mode).
+  @state() private qualityMenuOpen = false;
+  @state() private qualityChoice: QualityChoice = 'auto';
   // Edit-mode PIN lock (casual tamper-protection on a kiosk/tablet).
   @state() private editUnlocked = false;
   @state() private pinPromptOpen = false;
@@ -240,6 +243,7 @@ export class Ha3dFloorplanCard extends LitElement {
     if (!this.viewport) return;
     const bg = this.config?.background ?? '#1b1d22';
     this.sceneManager = new SceneManager(this.viewport, bg);
+    this.qualityChoice = this.sceneManager.getQualityChoice();
     if (this.config?.cameraDistance) this.sceneManager.setCameraDistance(this.config.cameraDistance);
     this.sceneManager.setPickHandler((r) => this.handlePick(r));
     this.sceneManager.start();
@@ -375,6 +379,22 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager?.resetView();
   }
 
+  private qualityLabel(q: QualityChoice): string {
+    return { auto: 'Auto', high: 'High', medium: 'Medium', low: 'Low' }[q];
+  }
+
+  private onPickQuality(q: QualityChoice): void {
+    this.qualityMenuOpen = false;
+    if (!this.sceneManager) return;
+    const needsReload = this.sceneManager.setQuality(q);
+    this.qualityChoice = q;
+    const tier = this.sceneManager.getQualityTier();
+    this.showToast(
+      `Quality: ${this.qualityLabel(q)}${q === 'auto' ? ` (${tier})` : ''}` +
+        (needsReload ? ' — reload to finish applying' : ''),
+    );
+  }
+
   // -- Editor -----------------------------------------------------------------
 
   /** Edit button → enter edit, unless a PIN is set and we're still locked. */
@@ -447,6 +467,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private doEnterEdit(): void {
     if (!this.sceneManager || !this.currentPlan) return;
+    this.qualityMenuOpen = false; // don't let the view-mode menu outlive its DOM
     // Edit a deep copy so View mode keeps the last saved/loaded plan until save.
     const editable: FloorPlan = JSON.parse(JSON.stringify(this.currentPlan));
     this.editor = new EditorController(this.sceneManager, editable);
@@ -1542,6 +1563,23 @@ export class Ha3dFloorplanCard extends LitElement {
           <button class="btn" title="Reset view" @click=${this.onResetView}>
             ⌂ Reset
           </button>
+          ${!this.editing
+            ? html`<div class="quality-wrap">
+                <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
+                  @click=${() => (this.qualityMenuOpen = !this.qualityMenuOpen)}>
+                  ⚙ ${this.qualityLabel(this.qualityChoice)}
+                </button>
+                ${this.qualityMenuOpen
+                  ? html`<div class="quality-menu">
+                      ${QUALITY_CHOICES.map(
+                        (q) => html`<button
+                          class="qopt ${q === this.qualityChoice ? 'on' : ''}"
+                          @click=${() => this.onPickQuality(q)}>${this.qualityLabel(q)}</button>`,
+                      )}
+                    </div>`
+                  : nothing}
+              </div>`
+            : nothing}
           ${this.editing
             ? html`<button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
                 ✓ Done &amp; Save
@@ -1550,6 +1588,10 @@ export class Ha3dFloorplanCard extends LitElement {
                 ✎ Edit
               </button>`}
         </div>
+
+        ${this.qualityMenuOpen && !this.editing
+          ? html`<div class="menu-backdrop" @click=${() => (this.qualityMenuOpen = false)}></div>`
+          : nothing}
 
         ${this.editing ? this.renderEditor() : nothing}
 
@@ -1651,6 +1693,49 @@ export class Ha3dFloorplanCard extends LitElement {
     .top-right {
       top: 10px;
       right: 10px;
+    }
+    .quality-wrap {
+      position: relative;
+    }
+    /* Tap anywhere outside the open quality menu to dismiss it. Sits above the
+       canvas but below the overlay that holds the menu itself. */
+    .menu-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+    .quality-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 5px;
+      border-radius: 10px;
+      background: rgba(20, 22, 26, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(6px);
+      z-index: 4;
+    }
+    .qopt {
+      font: inherit;
+      font-size: 13px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 7px;
+      padding: 7px 14px;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .qopt:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .qopt.on {
+      background: var(--primary-color, #03a9f4);
+      border-color: var(--primary-color, #03a9f4);
     }
     .top-left {
       top: 10px;

@@ -11,6 +11,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type FurnitureBuilder = (color: THREE.Color) => THREE.Group;
 
@@ -486,6 +487,68 @@ const builders: Record<string, FurnitureBuilder> = {
     const panel = box(0.56, 0.02, 0.56, mat(0xf7faff, { emissive: 0x000000 }), 0, -0.02, 0);
     panel.name = 'emissive';
     g.add(panel);
+    return g;
+  },
+
+  // ---- Consolidated fixtures: ONE model + ONE bound entity in place of many
+  //      stacked spots/strips. Fewer meshes, one marker, one point light → much
+  //      lighter on weak GPUs than 6-8 separate placements. ----
+  // A 2x3 recessed-spot bar. The 6 lenses are merged into a SINGLE emissive mesh
+  // so the whole fixture is just 2 draw calls regardless of spot count.
+  spotlight_bar: (c) => {
+    const g = new THREE.Group();
+    g.add(box(0.94, 0.06, 0.5, mat(DARK), 0, 0, 0)); // housing (fixed dark)
+    const lensGeos: THREE.BufferGeometry[] = [];
+    for (const z of [-0.13, 0.13]) {
+      for (const x of [-0.31, 0, 0.31]) {
+        const geo = new THREE.CylinderGeometry(0.06, 0.07, 0.03, 14);
+        geo.translate(x, -0.045, z);
+        lensGeos.push(geo);
+      }
+    }
+    const lenses = new THREE.Mesh(
+      mergeGeometries(lensGeos, false),
+      mat(0xfff4d6, { emissive: 0x000000 }),
+    );
+    lenses.name = 'emissive';
+    lenses.castShadow = false;
+    lensGeos.forEach((gg) => gg.dispose());
+    g.add(tint(lenses, c));
+    return g;
+  },
+  // Rectangular LED backlight — one emissive panel instead of 4 separate strips.
+  led_backlight: (c) => {
+    const g = new THREE.Group();
+    g.add(box(1.2, 0.05, 0.18, mat(METAL), 0, 0, 0)); // slim frame (fixed)
+    const panel = box(1.14, 0.02, 0.14, mat(0xf7faff, { emissive: 0x000000 }), 0, -0.02, 0);
+    panel.name = 'emissive';
+    g.add(tint(panel, c));
+    return g;
+  },
+  // Track light as a single luminous line (one emissive strip on a rail).
+  track_bar: (c) => {
+    const g = new THREE.Group();
+    g.add(box(1.4, 0.05, 0.06, mat(DARK), 0, 0, 0)); // rail (fixed)
+    const line = box(1.34, 0.02, 0.03, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.03, 0);
+    line.name = 'emissive';
+    g.add(tint(line, c));
+    return g;
+  },
+  // Rectangular wall sconce ("bra") — a slim vertical luminous bar on the wall.
+  wall_sconce: (c) => {
+    const g = new THREE.Group();
+    g.add(box(0.1, 0.5, 0.1, mat(METAL), 0, 0, 0)); // backplate/body (fixed)
+    const glow = box(
+      0.06,
+      0.44,
+      0.05,
+      mat(0xfff4d6, { emissive: 0x000000, transparent: true, opacity: 0.92 }),
+      0,
+      0,
+      0.06,
+    );
+    glow.name = 'emissive';
+    g.add(tint(glow, c));
     return g;
   },
 
@@ -1086,7 +1149,7 @@ export const WALL_MOUNT_KEYS = [
   'terrace_window', 'tv', 'painting', 'mirror', 'wall_light', 'wall_clock',
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
-  'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet',
+  'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -1098,7 +1161,7 @@ export const SURFACE_MOUNT_KEYS = [
   'tv', 'painting', 'mirror', 'wall_light', 'wall_clock', 'ac_unit',
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
-  'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind',
+  'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -1118,6 +1181,10 @@ export const LIGHT_KEYS = [
   'track_light',
   'lantern',
   'led_panel',
+  'spotlight_bar',
+  'led_backlight',
+  'track_bar',
+  'wall_sconce',
 ];
 
 /**
@@ -1180,8 +1247,17 @@ export function defaultY(model: string, wallHeight = 2.6): number {
     model === 'pendant_light'
   )
     return wallHeight - 0.05;
-  if (model === 'spotlight' || model === 'led_strip' || model === 'led_panel' || model === 'track_light')
+  if (
+    model === 'spotlight' ||
+    model === 'led_strip' ||
+    model === 'led_panel' ||
+    model === 'track_light' ||
+    model === 'spotlight_bar' ||
+    model === 'led_backlight' ||
+    model === 'track_bar'
+  )
     return wallHeight - 0.02;
+  if (model === 'wall_sconce') return 1.6;
   if (model === 'ceiling_fan') return wallHeight - 0.25;
   if (model === 'wall_cabinet') return 1.55;
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
@@ -1245,6 +1321,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',
   chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
+  spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
 };
 
 /** Realistic default color for a model (neutral grey when unspecified). */
