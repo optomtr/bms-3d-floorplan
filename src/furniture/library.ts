@@ -13,7 +13,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-export type FurnitureBuilder = (color: THREE.Color) => THREE.Group;
+/** Optional per-placement build options. `spread` widens the SPACING of a light
+ *  set (keeping each element's size); `count` sets how many elements. */
+export interface BuildOpts {
+  spread?: number;
+  count?: number;
+}
+export type FurnitureBuilder = (color: THREE.Color, opts?: BuildOpts) => THREE.Group;
 
 const WOOD = 0x9c6b3f;
 const FABRIC = 0x6f7d8c;
@@ -518,16 +524,24 @@ const builders: Record<string, FurnitureBuilder> = {
   // ---- Consolidated fixtures: ONE model + ONE bound entity in place of many
   //      stacked spots/strips. Fewer meshes, one marker, one point light → much
   //      lighter on weak GPUs than 6-8 separate placements. ----
-  // A 2x3 recessed-spot bar — slim + nearly flush with the ceiling. The 6 lenses
-  // are merged into a SINGLE emissive mesh, so it's just 2 draw calls total.
-  spotlight_bar: (c) => {
-    // 6 discrete recessed downlights (no solid bar) — a merged ring of trims +
-    // a merged mesh of bright lenses. Reads as clean spots, still 2 draw calls.
+  // A recessed-spot SET (white trims). `count` spots, `spread` widens the
+  // spacing WITHOUT resizing each spot. Trims + lenses each merge into one mesh
+  // (2 draw calls) — far lighter than placing N separate spots by hand.
+  spotlight_bar: (c, opts) => {
     const g = new THREE.Group();
+    const count = Math.max(1, Math.min(12, Math.round(opts?.count ?? 6)));
+    const spread = opts?.spread ?? 1;
+    const rows = count <= 3 ? 1 : 2;
+    const cols = Math.ceil(count / rows);
+    const dx = 0.32 * spread;
+    const dz = 0.26 * spread;
     const trimGeos: THREE.BufferGeometry[] = [];
     const lensGeos: THREE.BufferGeometry[] = [];
-    for (const z of [-0.1, 0.1]) {
-      for (const x of [-0.3, 0, 0.3]) {
+    let n = 0;
+    for (let r = 0; r < rows && n < count; r++) {
+      for (let col = 0; col < cols && n < count; col++, n++) {
+        const x = (col - (cols - 1) / 2) * dx;
+        const z = rows === 1 ? 0 : (r - (rows - 1) / 2) * dz;
         const t = new THREE.CylinderGeometry(0.07, 0.078, 0.028, 16);
         t.translate(x, 0, z);
         trimGeos.push(t);
@@ -536,31 +550,30 @@ const builders: Record<string, FurnitureBuilder> = {
         lensGeos.push(l);
       }
     }
-    const trim = new THREE.Mesh(mergeGeometries(trimGeos, false), mat(0x2a2e34, { metalness: 0.4, roughness: 0.5 }));
+    const trim = new THREE.Mesh(mergeGeometries(trimGeos, false), mat(0xededed, { metalness: 0.15, roughness: 0.6 }));
     trim.castShadow = false;
     trimGeos.forEach((gg) => gg.dispose());
     g.add(trim);
-    const lenses = new THREE.Mesh(
-      mergeGeometries(lensGeos, false),
-      mat(0xfff4d6, { emissive: 0x000000 }),
-    );
+    const lenses = new THREE.Mesh(mergeGeometries(lensGeos, false), mat(0xfff4d6, { emissive: 0x000000 }));
     lenses.name = 'emissive';
     lenses.castShadow = false;
     lensGeos.forEach((gg) => gg.dispose());
     g.add(tint(lenses, c));
     return g;
   },
-  // Hollow rectangular LED backlight — a glowing frame (middle open), like 4 LED
-  // strips joined, but merged into ONE emissive mesh (2 draw calls total).
-  led_backlight: (c) => {
+  // Hollow rectangular LED backlight. `spread` grows the frame (keeps the strip
+  // thickness), so the rectangle gets bigger without the border thickening.
+  led_backlight: (c, opts) => {
+    const s = opts?.spread ?? 1;
     const g = new THREE.Group();
-    g.add(tint(ledFrame(1.0, 0.6, 0.06, 0xf2f7ff), c));
+    g.add(tint(ledFrame(1.0 * s, 0.6 * s, 0.06, 0xf2f7ff), c));
     return g;
   },
-  // Track light ("rels svet") — the same hollow-rectangle style, long + thin.
-  track_bar: (c) => {
+  // Track light ("rels svet") — long thin frame; `spread` extends its length.
+  track_bar: (c, opts) => {
+    const s = opts?.spread ?? 1;
     const g = new THREE.Group();
-    g.add(tint(ledFrame(1.5, 0.22, 0.045, 0xfff4d6), c));
+    g.add(tint(ledFrame(1.5 * s, 0.22, 0.045, 0xfff4d6), c));
     return g;
   },
   // Rectangular wall sconce ("bra") — a slim vertical luminous bar on the wall.
@@ -1358,10 +1371,16 @@ export function defaultColor(model: string): string {
   return DEFAULT_COLORS[model] ?? '#c9cdd2';
 }
 
-export function buildFurniture(model: string, color?: string): THREE.Group {
+/** Light "set" models whose Spread/Count are adjustable (spacing, not stretch). */
+export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar'];
+export function isLightSet(model: string): boolean {
+  return SET_LIGHT_KEYS.includes(model);
+}
+
+export function buildFurniture(model: string, color?: string, opts?: BuildOpts): THREE.Group {
   const builder = builders[model] ?? builders.marker;
   const c = new THREE.Color(color ?? defaultColor(model));
-  const group = builder(c);
+  const group = builder(c, opts);
   group.userData.model = model;
   return group;
 }

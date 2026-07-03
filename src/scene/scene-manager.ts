@@ -587,12 +587,16 @@ export class SceneManager {
     // room-with-devices ("one icon per room"); devices in no room keep their own.
     const perRoom = new Map<number, typeof devices>();
     const loose: typeof devices = [];
+    const roomAreas = rooms.map((r) => polyArea(r.poly)); // constant across devices
     for (const d of devices) {
+      // If several room polygons contain the device (overlapping/auto-floor
+      // rooms), pick the SMALLEST — the most specific room it belongs to.
       let ri = -1;
+      let bestArea = Infinity;
       for (let i = 0; i < rooms.length; i++) {
-        if (pointInPoly(d.pos[0], d.pos[2], rooms[i].poly)) {
+        if (pointInPoly(d.pos[0], d.pos[2], rooms[i].poly) && roomAreas[i] < bestArea) {
+          bestArea = roomAreas[i];
           ri = i;
-          break;
         }
       }
       if (ri >= 0) {
@@ -1054,4 +1058,13 @@ function polyCentroid(poly: [number, number][]): [number, number] {
     z += p[1];
   }
   return [x / poly.length, z / poly.length];
+}
+
+/** Absolute polygon area (shoelace), for picking the most specific room. */
+function polyArea(poly: [number, number][]): number {
+  let a = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    a += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]);
+  }
+  return Math.abs(a) / 2;
 }

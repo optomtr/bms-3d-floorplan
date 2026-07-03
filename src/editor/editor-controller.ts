@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY, defaultColor, isWallMount, isSurfaceMount, LIGHT_KEYS } from '../furniture/library';
+import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
@@ -1080,6 +1080,45 @@ export class EditorController {
     if (!f) return;
     this.pushUndo();
     f.brightness = Math.max(0, Math.min(1, v));
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  private selectedFurniture() {
+    if (this.selectedKind !== 'furniture' || !this.selectedId) return null;
+    return this.floor().furniture?.find((x) => x.id === this.selectedId) ?? null;
+  }
+
+  /** Whether the selection is a light SET (spotlight_bar / led_backlight / …). */
+  get selectedIsLightSet(): boolean {
+    const f = this.selectedFurniture();
+    return !!f && isLightSet(f.model);
+  }
+  get selectedSpread(): number {
+    return this.selectedFurniture()?.spread ?? 1;
+  }
+  get selectedCount(): number {
+    return this.selectedFurniture()?.count ?? 6;
+  }
+
+  /** Widen a light set's spacing (each element keeps its size). */
+  setSpread(v: number): void {
+    const f = this.selectedFurniture();
+    if (!f) return;
+    this.pushUndo();
+    f.spread = Math.max(0.4, Math.min(5, Math.round(v * 100) / 100));
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  /** How many elements a light set has (e.g. spotlight count). */
+  setCount(v: number): void {
+    const f = this.selectedFurniture();
+    if (!f) return;
+    this.pushUndo();
+    f.count = Math.max(1, Math.min(12, Math.round(v)));
     this.rebuild();
     this.reselect();
     this.onChange?.();

@@ -78,6 +78,9 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editCameraDistance = 1;
   @state() private editIsLight = false;
   @state() private editBrightness = 0;
+  @state() private editIsLightSet = false;
+  @state() private editSpread = 1;
+  @state() private editCount = 6;
   // View-mode control popup (tap a bound object → controls/remote).
   @state() private controlOpen = false;
   @state() private controlEntities: string[] = [];
@@ -477,6 +480,27 @@ export class Ha3dFloorplanCard extends LitElement {
     return this.optimistic.get(id)?.state ?? this.hass?.states[id]?.state ?? 'unknown';
   }
 
+  /** Toggle every device in a category at once: if any is on → all off, else all
+   *  on (optimistic + revert-on-fail, like the individual controls). */
+  private onToggleAll(ents: { entity_id: string; behavior: string }[]): void {
+    if (!this.hass || !ents.length) return;
+    const anyOn = ents.some((e) => this.effState(e.entity_id) === 'on');
+    const service = anyOn ? 'turn_off' : 'turn_on';
+    const optState = anyOn ? 'off' : 'on';
+    const ids = ents.map((e) => e.entity_id);
+    const gens = ids.map((id) => this.setOptimistic(id, optState));
+    const revert = () =>
+      ids.forEach((id, i) => {
+        if (this.optimistic.get(id)?.gen === gens[i]) this.clearOptimistic(id);
+      });
+    try {
+      const p: any = this.hass.callService('homeassistant', service, { entity_id: ids });
+      if (p && typeof p.catch === 'function') p.catch(revert);
+    } catch {
+      revert();
+    }
+  }
+
   private onSelectFloor(index: number): void {
     this.activeFloorIndex = index;
     this.sceneManager?.setActiveFloor(index);
@@ -608,6 +632,9 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editCameraDistance = ed.cameraDistance;
       this.editIsLight = ed.selectedIsLight;
       this.editBrightness = ed.selectedBrightness;
+      this.editIsLightSet = ed.selectedIsLightSet;
+      this.editSpread = ed.selectedSpread;
+      this.editCount = ed.selectedCount;
       this.requestUpdate();
     };
     this.editor.onMessage = (m) => this.showToast(m);
@@ -690,6 +717,16 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSetBrightness(e: Event): void {
     const v = parseFloat((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v)) this.editor?.setBrightness(v);
+  }
+
+  private onSetSpread(e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v)) this.editor?.setSpread(v);
+  }
+
+  private onSetCount(e: Event): void {
+    const v = parseInt((e.target as HTMLInputElement).value, 10);
+    if (!Number.isNaN(v)) this.editor?.setCount(v);
   }
 
   private onSetOpeningVariant(e: Event): void {
@@ -1323,6 +1360,23 @@ export class Ha3dFloorplanCard extends LitElement {
                     @input=${this.onSetBrightness} />
                 </div>`
               : nothing}
+            ${isFurniture && this.editIsLightSet
+              ? html`<div class="toolrow">
+                    <span class="hint">Spread:</span>
+                    <input type="range" min="0.6" max="4" step="0.1"
+                      .value=${String(this.editSpread)}
+                      title="Spacing between elements (each keeps its size)"
+                      @input=${this.onSetSpread} />
+                  </div>
+                  ${this.editSelectedObjModel === 'spotlight_bar'
+                    ? html`<div class="toolrow">
+                        <span class="hint">Spots:</span>
+                        <input class="num-input" type="number" min="1" max="12" step="1"
+                          .value=${String(this.editCount)}
+                          @change=${this.onSetCount} />
+                      </div>`
+                    : nothing}`
+              : nothing}
             ${kind === 'opening'
               ? html`<div class="toolrow">
                     <span class="hint">Type:</span>
@@ -1368,7 +1422,7 @@ export class Ha3dFloorplanCard extends LitElement {
                     : nothing}
                 </div>`
               : nothing}
-            ${isFurniture && this.editFurnScale
+            ${isFurniture && this.editFurnScale && !this.editIsLightSet
               ? html`<div class="toolrow">
                   <span class="hint">Size</span>
                   <input class="num-input" type="number" min="0.1" step="0.1" title="Width"
@@ -1609,7 +1663,19 @@ export class Ha3dFloorplanCard extends LitElement {
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
         ${active
-          ? active.ents.map((e) => this.renderEntityControl(e.entity_id))
+          ? html`${active.key === 'lights'
+                ? (() => {
+                    const anyOn = active.ents.some((e) => this.effState(e.entity_id) === 'on');
+                    return html`<div class="control-row">
+                      <span class="control-name">${anyOn ? 'All off' : 'All on'}</span>
+                      <div class="control-ctls">
+                        <button type="button" class="ctl big ${anyOn ? 'on' : ''}" title="Toggle all"
+                          @click=${() => this.onToggleAll(active.ents)}>${this.ic('power')}</button>
+                      </div>
+                    </div>`;
+                  })()
+                : nothing}
+              ${active.ents.map((e) => this.renderEntityControl(e.entity_id))}`
           : cats.length
             ? html`<div class="cat-grid">
                 ${cats.map(

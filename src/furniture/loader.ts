@@ -97,7 +97,7 @@ export function resolveFurniture(def: FurnitureDef): THREE.Object3D {
     return container;
   }
 
-  const group = buildFurniture(def.model, def.color);
+  const group = buildFurniture(def.model, def.color, { spread: def.spread, count: def.count });
   applyTransform(group, def);
   group.userData.furnitureId = def.id;
   return group;

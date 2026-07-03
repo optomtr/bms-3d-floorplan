@@ -119,6 +119,10 @@ export interface FurnitureDef {
   color?: string;
   /** Manual glow level 0..1 for light models (emissive intensity when unbound). */
   brightness?: number;
+  /** Light-set spacing multiplier (spreads elements apart without resizing them). */
+  spread?: number;
+  /** Number of elements in a light set (e.g. spotlight_bar spot count). */
+  count?: number;
   /** Unique id so entity bindings can anchor to this placement. */
   id?: string;
   /** Link to an opening this piece fills (door/window placed by the tool), so
