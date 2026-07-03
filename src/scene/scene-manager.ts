@@ -12,7 +12,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { FloorPlan, Underlay } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
-import { drawMarkerCanvas } from './icons';
+import { drawMarkerCanvas, markerIconName } from './icons';
 
 // ---------------------------------------------------------------------------
 // Render quality tiers. Weak mobile GPUs (e.g. Adreno 610 in a Redmi Pad SE)
@@ -39,8 +39,9 @@ const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
   // capable devices see zero change.
   high: { shadows: true, shadowType: THREE.PCFSoftShadowMap, shadowMap: 1024, pixelRatio: 2, aa: true },
   medium: { shadows: true, shadowType: THREE.PCFShadowMap, shadowMap: 1024, pixelRatio: 1.5, aa: true },
-  // The big win for weak GPUs: no shadow pass at all + native resolution.
-  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1, aa: false },
+  // The big win for weak GPUs is dropping the shadow pass entirely; the pixel
+  // ratio only comes down to 1.5 (not 1) so it doesn't look soft on a tablet.
+  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1.5, aa: false },
 };
 
 const QUALITY_KEY = 'ha3dFloorplanQuality';
@@ -135,6 +136,9 @@ export class SceneManager {
   readonly underlayGroup = new THREE.Group();
   /** Floating, always-on-top device icons (Zircon-style tap targets). */
   readonly markerGroup = new THREE.Group();
+  /** One texture per icon, SHARED across markers — so a plan with 150 bound
+   *  entities uses ~6 marker textures, not 150. */
+  private markerTexCache = new Map<string, THREE.Texture>();
   private editing = false;
   private gridHelper?: THREE.GridHelper;
   private selectionHelper?: THREE.BoxHelper;
@@ -285,9 +289,8 @@ export class SceneManager {
       disposeGroup(g);
     }
     for (const child of [...this.markerGroup.children]) {
-      const mat = (child as THREE.Sprite).material as THREE.SpriteMaterial;
-      mat.map?.dispose();
-      mat.dispose();
+      // Textures are cached/shared — free only the per-sprite material.
+      (child as THREE.Sprite).material.dispose();
     }
     this.markerGroup.clear();
     this.floors = [];
@@ -518,22 +521,30 @@ export class SceneManager {
 
   /** (Re)build the floating device markers for the active floor. Cleared while
    *  editing or when there are no bindings. */
+  /** A shared (cached) marker texture for a behavior's icon. */
+  private markerTexture(behavior: string): THREE.Texture {
+    const key = markerIconName(behavior);
+    let tex = this.markerTexCache.get(key);
+    if (!tex) {
+      tex = new THREE.CanvasTexture(drawMarkerCanvas(behavior));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.markerTexCache.set(key, tex);
+    }
+    return tex;
+  }
+
   private buildMarkers(): void {
+    // Sprites share cached textures, so only dispose the materials here.
     for (const child of [...this.markerGroup.children]) {
-      const sp = child as THREE.Sprite;
-      const mat = sp.material as THREE.SpriteMaterial;
-      mat.map?.dispose();
-      mat.dispose();
+      (child as THREE.Sprite).material.dispose();
     }
     this.markerGroup.clear();
     if (this.editing) return;
     const bm = this.bindingManagers[this.activeFloor];
     if (!bm) return;
     for (const m of bm.markerData()) {
-      const tex = new THREE.CanvasTexture(drawMarkerCanvas(m.behavior));
-      tex.colorSpace = THREE.SRGBColorSpace;
       const mat = new THREE.SpriteMaterial({
-        map: tex,
+        map: this.markerTexture(m.behavior),
         depthTest: false, // always visible, even through walls (Zircon-style)
         depthWrite: false,
         transparent: true,
@@ -905,6 +916,8 @@ export class SceneManager {
     this.stop();
     this.resizeObserver?.disconnect();
     this.clearPlan();
+    for (const t of this.markerTexCache.values()) t.dispose();
+    this.markerTexCache.clear();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

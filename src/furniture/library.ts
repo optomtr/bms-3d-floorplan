@@ -70,6 +70,31 @@ function tint(mesh: THREE.Mesh, color: THREE.Color): THREE.Mesh {
   return mesh;
 }
 
+/**
+ * A hollow rectangle of light (glowing frame, open centre) built from 4 thin
+ * bars MERGED into a single emissive mesh — one draw call regardless of size.
+ * W×D = outer footprint, t = bar thickness. Named 'emissive' so it binds.
+ */
+function ledFrame(W: number, D: number, t: number, colorHex: number): THREE.Mesh {
+  const hW = W / 2;
+  const hD = D / 2;
+  const parts: THREE.BufferGeometry[] = [];
+  const bar = (w: number, d: number, x: number, z: number) => {
+    const geo = new THREE.BoxGeometry(w, 0.03, d);
+    geo.translate(x, 0, z);
+    parts.push(geo);
+  };
+  bar(W, t, 0, -(hD - t / 2)); // near edge
+  bar(W, t, 0, hD - t / 2); // far edge
+  bar(t, D - 2 * t, -(hW - t / 2), 0); // left edge
+  bar(t, D - 2 * t, hW - t / 2, 0); // right edge
+  const mesh = new THREE.Mesh(mergeGeometries(parts, false), mat(colorHex, { emissive: 0x000000 }));
+  mesh.name = 'emissive';
+  mesh.castShadow = false;
+  parts.forEach((p) => p.dispose());
+  return mesh;
+}
+
 const builders: Record<string, FurnitureBuilder> = {
   sofa: (c) => {
     const g = new THREE.Group();
@@ -493,16 +518,16 @@ const builders: Record<string, FurnitureBuilder> = {
   // ---- Consolidated fixtures: ONE model + ONE bound entity in place of many
   //      stacked spots/strips. Fewer meshes, one marker, one point light → much
   //      lighter on weak GPUs than 6-8 separate placements. ----
-  // A 2x3 recessed-spot bar. The 6 lenses are merged into a SINGLE emissive mesh
-  // so the whole fixture is just 2 draw calls regardless of spot count.
+  // A 2x3 recessed-spot bar — slim + nearly flush with the ceiling. The 6 lenses
+  // are merged into a SINGLE emissive mesh, so it's just 2 draw calls total.
   spotlight_bar: (c) => {
     const g = new THREE.Group();
-    g.add(box(0.94, 0.06, 0.5, mat(DARK), 0, 0, 0)); // housing (fixed dark)
+    g.add(box(0.9, 0.03, 0.34, mat(0x2a2e34), 0, 0, 0)); // slim recessed trim
     const lensGeos: THREE.BufferGeometry[] = [];
-    for (const z of [-0.13, 0.13]) {
-      for (const x of [-0.31, 0, 0.31]) {
-        const geo = new THREE.CylinderGeometry(0.06, 0.07, 0.03, 14);
-        geo.translate(x, -0.045, z);
+    for (const z of [-0.1, 0.1]) {
+      for (const x of [-0.3, 0, 0.3]) {
+        const geo = new THREE.CylinderGeometry(0.055, 0.06, 0.02, 16);
+        geo.translate(x, -0.02, z);
         lensGeos.push(geo);
       }
     }
@@ -516,22 +541,17 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(lenses, c));
     return g;
   },
-  // Rectangular LED backlight — one emissive panel instead of 4 separate strips.
+  // Hollow rectangular LED backlight — a glowing frame (middle open), like 4 LED
+  // strips joined, but merged into ONE emissive mesh (2 draw calls total).
   led_backlight: (c) => {
     const g = new THREE.Group();
-    g.add(box(1.2, 0.05, 0.18, mat(METAL), 0, 0, 0)); // slim frame (fixed)
-    const panel = box(1.14, 0.02, 0.14, mat(0xf7faff, { emissive: 0x000000 }), 0, -0.02, 0);
-    panel.name = 'emissive';
-    g.add(tint(panel, c));
+    g.add(tint(ledFrame(1.0, 0.6, 0.06, 0xf2f7ff), c));
     return g;
   },
-  // Track light as a single luminous line (one emissive strip on a rail).
+  // Track light ("rels svet") — the same hollow-rectangle style, long + thin.
   track_bar: (c) => {
     const g = new THREE.Group();
-    g.add(box(1.4, 0.05, 0.06, mat(DARK), 0, 0, 0)); // rail (fixed)
-    const line = box(1.34, 0.02, 0.03, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.03, 0);
-    line.name = 'emissive';
-    g.add(tint(line, c));
+    g.add(tint(ledFrame(1.5, 0.22, 0.045, 0xfff4d6), c));
     return g;
   },
   // Rectangular wall sconce ("bra") — a slim vertical luminous bar on the wall.
