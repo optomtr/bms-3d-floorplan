@@ -13,6 +13,7 @@ import type { FloorPlan, Underlay } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
 import { drawMarkerCanvas, markerIconName } from './icons';
+import { isShapeRoom, roomPolygon } from './room-shapes';
 
 // ---------------------------------------------------------------------------
 // Render quality tiers. Weak mobile GPUs (e.g. Adreno 610 in a Redmi Pad SE)
@@ -90,6 +91,9 @@ export interface ClickResult {
   point?: [number, number, number];
   /** Screen position (px, relative to the canvas) of the tap, for popup anchoring. */
   screen?: [number, number];
+  /** Set when a ROOM marker was tapped: all bound devices in that room. */
+  roomEntities?: { entity_id: string; behavior: string }[];
+  roomName?: string;
 }
 
 export class SceneManager {
@@ -143,6 +147,9 @@ export class SceneManager {
   private markerByEntity = new Map<string, THREE.Sprite>();
   /** Last hass seen, so markers can colour themselves right after a rebuild. */
   private lastHass?: any;
+  /** Per-floor room outlines (world XZ) + name + elevation, for grouping the
+   *  floating markers by room ("one icon per room"). */
+  private floorRooms: { name?: string; poly: [number, number][]; elev: number }[][] = [];
   private editing = false;
   private gridHelper?: THREE.GridHelper;
   private selectionHelper?: THREE.BoxHelper;
@@ -254,6 +261,7 @@ export class SceneManager {
 
     this.clearPlan();
     this.fullBBox.makeEmpty();
+    this.floorRooms = [];
 
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
@@ -264,6 +272,16 @@ export class SceneManager {
       this.floorGroups.push(built.group);
       this.bindingManagers.push(bm);
       this.fullBBox.union(built.bbox);
+      // Room outlines (world XZ) for grouping markers by room.
+      const elev = floorDef.elevation ?? 0;
+      this.floorRooms.push(
+        (floorDef.rooms ?? [])
+          .map((room) => {
+            const poly = (isShapeRoom(room) ? roomPolygon(room) : room.polygon) ?? [];
+            return { name: room.name, poly: poly as [number, number][], elev };
+          })
+          .filter((r) => r.poly.length >= 3),
+      );
     });
 
     if (plan.cameraDistance) this.cameraDistance = plan.cameraDistance;
@@ -538,6 +556,20 @@ export class SceneManager {
     return tex;
   }
 
+  private makeMarkerSprite(iconBehavior: string, x: number, y: number, z: number): THREE.Sprite {
+    const mat = new THREE.SpriteMaterial({
+      map: this.markerTexture(iconBehavior),
+      depthTest: false, // always visible, even through walls (Zircon-style)
+      depthWrite: false,
+      transparent: true,
+    });
+    const sp = new THREE.Sprite(mat);
+    sp.position.set(x, y, z);
+    sp.renderOrder = 999;
+    this.markerGroup.add(sp);
+    return sp;
+  }
+
   private buildMarkers(): void {
     // Sprites share cached textures, so only dispose the materials here.
     for (const child of [...this.markerGroup.children]) {
@@ -548,51 +580,82 @@ export class SceneManager {
     if (this.editing) return;
     const bm = this.bindingManagers[this.activeFloor];
     if (!bm) return;
-    for (const m of bm.markerData()) {
-      const mat = new THREE.SpriteMaterial({
-        map: this.markerTexture(m.behavior),
-        depthTest: false, // always visible, even through walls (Zircon-style)
-        depthWrite: false,
-        transparent: true,
-      });
-      const sp = new THREE.Sprite(mat);
-      sp.position.set(m.pos[0], m.pos[1] + 0.35, m.pos[2]);
-      sp.renderOrder = 999;
+    const devices = bm.markerData();
+    const rooms = this.floorRooms[this.activeFloor] ?? [];
+
+    // Group each device into the room whose polygon contains it. One marker per
+    // room-with-devices ("one icon per room"); devices in no room keep their own.
+    const perRoom = new Map<number, typeof devices>();
+    const loose: typeof devices = [];
+    for (const d of devices) {
+      let ri = -1;
+      for (let i = 0; i < rooms.length; i++) {
+        if (pointInPoly(d.pos[0], d.pos[2], rooms[i].poly)) {
+          ri = i;
+          break;
+        }
+      }
+      if (ri >= 0) {
+        (perRoom.get(ri) ?? perRoom.set(ri, []).get(ri)!).push(d);
+      } else {
+        loose.push(d);
+      }
+    }
+
+    for (const [ri, ds] of perRoom) {
+      const room = rooms[ri];
+      const [cx, cz] = polyCentroid(room.poly);
+      const sp = this.makeMarkerSprite('room', cx, room.elev + 1.6, cz);
       sp.userData = {
-        markerEntity: m.entity_id,
-        markerBehavior: m.behavior,
-        wx: m.pos[0],
-        wy: m.pos[1],
-        wz: m.pos[2],
+        roomMarker: true,
+        roomName: room.name,
+        roomEntities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior })),
+        wx: cx,
+        wy: room.elev + 1.6,
+        wz: cz,
       };
-      this.markerGroup.add(sp);
-      this.markerByEntity.set(m.entity_id, sp);
+      for (const d of ds) this.markerByEntity.set(d.entity_id, sp);
+    }
+    for (const d of loose) {
+      const sp = this.makeMarkerSprite(d.behavior, d.pos[0], d.pos[1] + 0.35, d.pos[2]);
+      sp.userData = {
+        markerEntity: d.entity_id,
+        markerBehavior: d.behavior,
+        wx: d.pos[0],
+        wy: d.pos[1],
+        wz: d.pos[2],
+      };
+      this.markerByEntity.set(d.entity_id, sp);
     }
     // Colour freshly-built markers from the last known state (on = blue).
     if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
   }
 
-  /** Marker tint for a bound entity: blue when a toggle device is ON. */
-  private markerColorFor(behavior: string, state?: string): number {
-    const on =
+  /** Whether a toggle device counts as "on" (drives the blue marker tint). */
+  private isOnLight(behavior?: string, state?: string): boolean {
+    return (
       (behavior === 'light' || behavior === 'switch' || behavior === 'fan' || behavior === 'input_boolean') &&
-      state === 'on';
-    return on ? 0x4da3ff : 0xffffff;
+      state === 'on'
+    );
+  }
+
+  /** Tint a marker blue when it (or, for a room marker, any of its lights) is on. */
+  private colorMarker(sp: THREE.Sprite, hass: any): void {
+    const ud = sp.userData;
+    const on = ud.roomMarker
+      ? (ud.roomEntities || []).some((e: any) => this.isOnLight(e.behavior, hass?.states?.[e.entity_id]?.state))
+      : this.isOnLight(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
+    (sp.material as THREE.SpriteMaterial).color.setHex(on ? 0x4da3ff : 0xffffff);
   }
 
   private refreshAllMarkerColors(hass: any): void {
     if (!hass?.states) return;
-    for (const [id, sp] of this.markerByEntity) {
-      const st = hass.states[id]?.state;
-      (sp.material as THREE.SpriteMaterial).color.setHex(this.markerColorFor(sp.userData.markerBehavior, st));
-    }
+    for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, hass);
   }
 
   private updateMarkerColor(entityId: string, hass: any): void {
     const sp = this.markerByEntity.get(entityId);
-    if (!sp) return;
-    const st = hass?.states?.[entityId]?.state;
-    (sp.material as THREE.SpriteMaterial).color.setHex(this.markerColorFor(sp.userData.markerBehavior, st));
+    if (sp) this.colorMarker(sp, hass);
   }
 
   /** Keep markers a roughly constant on-screen size as the camera dollies. */
@@ -871,12 +934,13 @@ export class SceneManager {
       const mHits = this.raycaster.intersectObjects(this.markerGroup.children, false);
       if (mHits.length) {
         const ud = mHits[0].object.userData;
-        this.onPick({
-          entity_id: ud.markerEntity as string,
-          behavior: ud.markerBehavior as string,
-          point: [ud.wx as number, ud.wy as number, ud.wz as number],
-          screen: [e.clientX - rect.left, e.clientY - rect.top],
-        });
+        const screen: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
+        const point: [number, number, number] = [ud.wx, ud.wy, ud.wz];
+        if (ud.roomMarker) {
+          this.onPick({ entity_id: '', behavior: 'room', roomEntities: ud.roomEntities, roomName: ud.roomName, point, screen });
+        } else {
+          this.onPick({ entity_id: ud.markerEntity as string, behavior: ud.markerBehavior as string, point, screen });
+        }
         return;
       }
     }
@@ -969,4 +1033,25 @@ function disposeGroup(group: THREE.Object3D): void {
       mats.forEach((m) => m.dispose());
     }
   });
+}
+
+/** Ray-casting point-in-polygon test (polygon points are world [x, z]). */
+function pointInPoly(x: number, z: number, poly: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], zi = poly[i][1];
+    const xj = poly[j][0], zj = poly[j][1];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function polyCentroid(poly: [number, number][]): [number, number] {
+  let x = 0;
+  let z = 0;
+  for (const p of poly) {
+    x += p[0];
+    z += p[1];
+  }
+  return [x / poly.length, z / poly.length];
 }

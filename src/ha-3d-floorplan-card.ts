@@ -34,6 +34,16 @@ import { isZirconPlan, convertZircon } from './import/zircon';
 import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
 import { ICON_PATHS, climateModeIconName } from './scene/icons';
 
+/** Device categories shown when a room marker is tapped (only present ones). */
+const DEVICE_CATEGORIES: { key: string; label: string; icon: string; behaviors: string[] }[] = [
+  { key: 'lights', label: 'Lights', icon: 'bulb', behaviors: ['light', 'switch', 'fan', 'input_boolean'] },
+  { key: 'climate', label: 'Climate', icon: 'snow', behaviors: ['climate'] },
+  { key: 'curtains', label: 'Curtains', icon: 'curtain', behaviors: ['cover'] },
+  { key: 'media', label: 'Media', icon: 'tv', behaviors: ['media_player'] },
+  { key: 'locks', label: 'Locks', icon: 'lockClosed', behaviors: ['lock'] },
+  { key: 'sensors', label: 'Sensors', icon: 'gauge', behaviors: ['sensor', 'binary_sensor'] },
+];
+
 @customElement('ha-3d-floorplan-card')
 export class Ha3dFloorplanCard extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
@@ -71,6 +81,9 @@ export class Ha3dFloorplanCard extends LitElement {
   // View-mode control popup (tap a bound object → controls/remote).
   @state() private controlOpen = false;
   @state() private controlEntities: string[] = [];
+  /** When a ROOM marker is tapped: its devices + which category is expanded. */
+  @state() private controlRoom: { name?: string; entities: { entity_id: string; behavior: string }[] } | null = null;
+  @state() private controlCategory: string | null = null;
   @state() private controlPos: [number, number] = [0, 0];
   /** Timestamp the popup opened — guards against the touch "ghost click" that
    *  would otherwise close it the instant it appears on tablets. */
@@ -107,6 +120,14 @@ export class Ha3dFloorplanCard extends LitElement {
   private planLoaded = false;
   private lastHass?: HomeAssistant;
   private pendingHass?: HomeAssistant;
+  /** Effective (real + optimistic) state map last pushed to the 3D scene. */
+  private lastPushed?: HomeAssistant;
+  /** Optimistic overrides: entity_id -> the state we assume until HA confirms
+   *  (or a timeout reverts it). Makes controls feel instant. `gen` tags each
+   *  override so a stale revert (late reject / old timer) can't clobber a newer
+   *  optimistic state chosen by a rapid re-tap. */
+  private optimistic = new Map<string, { state: string; timer: ReturnType<typeof setTimeout>; gen: number }>();
+  private optGen = 0;
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -223,18 +244,79 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private applyHass(hass: HomeAssistant): void {
     if (!this.sceneManager) return;
-    if (!this.lastHass) {
-      // First sync: push everything.
-      this.sceneManager.syncAll(hass);
-    } else {
-      // Targeted: only update entities whose state object reference changed.
-      for (const id in hass.states) {
+    // Reconcile optimistic overrides: once HA re-reports an entity (its state
+    // object reference changed), the real value is authoritative — drop the
+    // override so we don't fight it.
+    if (this.optimistic.size && this.lastHass) {
+      for (const [id, ov] of [...this.optimistic]) {
         if (hass.states[id] !== this.lastHass.states[id]) {
-          this.sceneManager.updateEntity(id, hass);
+          clearTimeout(ov.timer);
+          this.optimistic.delete(id);
         }
       }
     }
     this.lastHass = hass;
+    this.pushEffective(hass);
+    if (this.controlOpen) this.requestUpdate();
+  }
+
+  /** hass with optimistic overrides layered on top (fresh objects for overridden
+   *  entities so the scene-diff and Lit both see the change). */
+  private effectiveHass(base: HomeAssistant): HomeAssistant {
+    if (!this.optimistic.size) return base;
+    const states: Record<string, any> = { ...base.states };
+    for (const [id, ov] of this.optimistic) {
+      const b = states[id];
+      if (!b) continue;
+      let ent: any = { ...b, state: ov.state };
+      // Position-based covers (curtains) animate from current_position, not the
+      // state string — override that too so they slide instantly.
+      if (id.startsWith('cover.') && b.attributes && 'current_position' in b.attributes) {
+        const pos = ov.state === 'open' ? 100 : ov.state === 'closed' ? 0 : b.attributes.current_position;
+        ent = { ...ent, attributes: { ...b.attributes, current_position: pos } };
+      }
+      states[id] = ent;
+    }
+    return { ...base, states } as HomeAssistant;
+  }
+
+  /** Push the effective state to the 3D scene, updating only what changed. */
+  private pushEffective(base: HomeAssistant): void {
+    if (!this.sceneManager) return;
+    const eff = this.effectiveHass(base);
+    if (!this.lastPushed) {
+      this.sceneManager.syncAll(eff);
+    } else {
+      for (const id in eff.states) {
+        if (eff.states[id] !== this.lastPushed.states[id]) this.sceneManager.updateEntity(id, eff);
+      }
+    }
+    this.lastPushed = eff;
+  }
+
+  /** Optimistically assume `state` for an entity until HA confirms (or reverts
+   *  after a timeout). Reflects in the popup and the 3D scene immediately. */
+  private setOptimistic(id: string, state: string): number {
+    const prev = this.optimistic.get(id);
+    if (prev) clearTimeout(prev.timer);
+    const gen = ++this.optGen;
+    const timer = setTimeout(() => {
+      // Only revert if this generation is still the current one.
+      if (this.optimistic.get(id)?.gen === gen) this.clearOptimistic(id);
+    }, 5000);
+    this.optimistic.set(id, { state, timer, gen });
+    if (this.hass) this.pushEffective(this.hass);
+    this.requestUpdate();
+    return gen;
+  }
+
+  private clearOptimistic(id: string): void {
+    const ov = this.optimistic.get(id);
+    if (!ov) return;
+    clearTimeout(ov.timer);
+    this.optimistic.delete(id);
+    if (this.hass) this.pushEffective(this.hass);
+    this.requestUpdate();
   }
 
   // -- Scene setup ------------------------------------------------------------
@@ -264,6 +346,7 @@ export class Ha3dFloorplanCard extends LitElement {
       // Push current state into the freshly built scene.
       if (this.hass) {
         this.lastHass = undefined;
+        this.lastPushed = undefined;
         this.applyHass(this.hass);
       }
     } catch (err: any) {
@@ -322,28 +405,31 @@ export class Ha3dFloorplanCard extends LitElement {
       this.controlOpen = false;
       return;
     }
-    // Surface the tapped entity plus any others stacked at the same spot (e.g.
-    // 2-3 curtains/lights together), so each can be controlled from a list.
-    const near = r.point ? this.sceneManager!.entitiesNear(r.point, 1.6) : [];
-    const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
-    const seen = new Set<string>();
-    const ordered = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
-      (id) => !seen.has(id) && seen.add(id),
-    );
-    // Always a small in-card popup anchored at the tapped object. AC/TV get a
-    // compact inline remote here — never HA's native more-info dialog, which
-    // covers the whole tablet screen and (inside a custom panel) reloads the
-    // page when its close button navigates history back.
+    // Anchor the popup near the tap (final vertical placement is clamped in
+    // positionControlPopup once its real height is known).
     const vw = this.viewport?.clientWidth ?? 360;
     const vh = this.viewport?.clientHeight ?? 480;
     const sx = r.screen ? r.screen[0] : vw / 2;
     const sy = r.screen ? r.screen[1] : vh / 2;
     const x = Math.max(150, Math.min(vw - 150, sx));
-    // Store the raw tap anchor; the final vertical placement (above/below the
-    // tap, clamped to stay fully inside the card) is computed after render in
-    // positionControlPopup(), once the popup's real height is known.
     this.controlPos = [x, Math.max(0, Math.min(vh, sy))];
-    this.controlEntities = ordered;
+
+    if (r.roomEntities && r.roomEntities.length) {
+      // A room marker → category chooser (Lights / Climate / Curtains …).
+      this.controlRoom = { name: r.roomName, entities: r.roomEntities };
+      this.controlCategory = null;
+      this.controlEntities = [];
+    } else {
+      // A device tap → the tapped entity + any others stacked at the same spot.
+      const near = r.point ? this.sceneManager!.entitiesNear(r.point, 1.6) : [];
+      const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
+      const seen = new Set<string>();
+      this.controlEntities = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
+        (id) => id && !seen.has(id) && seen.add(id),
+      );
+      this.controlRoom = null;
+      this.controlCategory = null;
+    }
     this.controlOpenedAt = performance.now();
     this.controlOpen = true;
     this.requestUpdate();
@@ -355,12 +441,40 @@ export class Ha3dFloorplanCard extends LitElement {
     // popup doesn't flash open and vanish on tablets.
     if (performance.now() - this.controlOpenedAt < 400) return;
     this.controlOpen = false;
+    this.controlRoom = null;
+    this.controlCategory = null;
   };
 
-  /** Call a HA service for an entity in the control popup. */
-  private svc(domain: string, service: string, data: Record<string, any> = {}, entityId?: string): void {
+  /** Call a HA service for an entity in the control popup. When `optimisticState`
+   *  is given we assume that result immediately (fast UI) and revert if the call
+   *  rejects or HA never confirms. */
+  private svc(
+    domain: string,
+    service: string,
+    data: Record<string, any> = {},
+    entityId?: string,
+    optimisticState?: string,
+  ): void {
     if (!this.hass) return;
-    this.hass.callService(domain, service, { ...(entityId ? { entity_id: entityId } : {}), ...data });
+    const gen = entityId && optimisticState !== undefined ? this.setOptimistic(entityId, optimisticState) : -1;
+    // Revert only if OUR override is still the current one (a newer re-tap wins).
+    const revertIfCurrent = () => {
+      if (entityId && gen >= 0 && this.optimistic.get(entityId)?.gen === gen) this.clearOptimistic(entityId);
+    };
+    try {
+      const p: any = this.hass.callService(domain, service, {
+        ...(entityId ? { entity_id: entityId } : {}),
+        ...data,
+      });
+      if (gen >= 0 && p && typeof p.catch === 'function') p.catch(revertIfCurrent);
+    } catch {
+      revertIfCurrent();
+    }
+  }
+
+  /** Effective (optimistic-aware) state of an entity, for rendering controls. */
+  private effState(id: string): string {
+    return this.optimistic.get(id)?.state ?? this.hass?.states[id]?.state ?? 'unknown';
   }
 
   private onSelectFloor(index: number): void {
@@ -530,6 +644,7 @@ export class Ha3dFloorplanCard extends LitElement {
       this.sceneManager.loadPlan(this.currentPlan);
       if (this.hass) {
         this.lastHass = undefined;
+        this.lastPushed = undefined;
         this.applyHass(this.hass);
       }
     }
@@ -644,6 +759,7 @@ export class Ha3dFloorplanCard extends LitElement {
       this.sceneManager.loadPlan(viewCopy);
       if (this.hass) {
         this.lastHass = undefined;
+        this.lastPushed = undefined;
         this.applyHass(this.hass);
       }
     }
@@ -1446,6 +1562,7 @@ export class Ha3dFloorplanCard extends LitElement {
   /** View-mode control popup: a list of the tapped (+ nearby) entities, each
    *  with domain-appropriate controls / a mini remote. */
   private renderControlPopup() {
+    if (this.controlRoom) return this.renderRoomPopup();
     const hass = this.hass;
     const ids = this.controlEntities.filter((id) => hass?.states[id]);
     if (!hass || !ids.length) return nothing;
@@ -1463,6 +1580,49 @@ export class Ha3dFloorplanCard extends LitElement {
     `;
   }
 
+  /** Room marker popup: pick a category (Lights/Climate/Curtains…), then control
+   *  every device of that kind in the room — like the AC remote, per room. */
+  private renderRoomPopup() {
+    const room = this.controlRoom;
+    const hass = this.hass;
+    if (!room || !hass) return nothing;
+    const present = room.entities.filter((e) => hass.states[e.entity_id]);
+    const cats = DEVICE_CATEGORIES.map((c) => ({
+      ...c,
+      ents: present.filter((e) => c.behaviors.includes(e.behavior)),
+    })).filter((c) => c.ents.length);
+    // Any device whose behavior matches no category still needs to be reachable.
+    const categorized = new Set(DEVICE_CATEGORIES.flatMap((c) => c.behaviors));
+    const otherEnts = present.filter((e) => !categorized.has(e.behavior));
+    if (otherEnts.length) cats.push({ key: 'other', label: 'Other', icon: 'dot', behaviors: [], ents: otherEnts });
+    const [x] = this.controlPos;
+    const active = this.controlCategory ? cats.find((c) => c.key === this.controlCategory) : null;
+    return html`
+      <div class="control-backdrop" @click=${this.closeControl}></div>
+      <div class="control-popup" style="left:${x}px"
+        @click=${(e: Event) => e.stopPropagation()}>
+        <div class="control-head">
+          <span>${active
+            ? html`<button type="button" class="ctl back" title="Back"
+                @click=${() => (this.controlCategory = null)}>${this.ic('chevUp')}</button> ${active.label}`
+            : room.name || 'Room'}</span>
+          <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
+        </div>
+        ${active
+          ? active.ents.map((e) => this.renderEntityControl(e.entity_id))
+          : cats.length
+            ? html`<div class="cat-grid">
+                ${cats.map(
+                  (c) => html`<button type="button" class="cat-btn" @click=${() => (this.controlCategory = c.key)}>
+                    ${this.ic(c.icon)}<span>${c.label}</span><small>${c.ents.length}</small>
+                  </button>`,
+                )}
+              </div>`
+            : html`<span class="hint">No controllable devices</span>`}
+      </div>
+    `;
+  }
+
   /** Inline SVG icon (shared path set) — never an emoji, so it renders the same
    *  on every tablet/browser instead of a tofu box. */
   private ic(name: string) {
@@ -1476,21 +1636,21 @@ export class Ha3dFloorplanCard extends LitElement {
     const hass = this.hass!;
     const ent = hass.states[id];
     const domain = id.split('.')[0];
-    const state = ent?.state ?? 'unknown';
+    const state = this.effState(id); // optimistic-aware
     const name = ent?.attributes?.friendly_name ?? id;
     const on = state === 'on' || state === 'open' || state === 'playing' || state === 'home' || state === 'unlocked';
     let controls;
     if (domain === 'light' || domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
       controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" title="Toggle"
-        @click=${() => this.svc(domain, 'toggle', {}, id)}>${this.ic('power')}</button>`;
+        @click=${() => this.svc(domain, 'toggle', {}, id, on ? 'off' : 'on')}>${this.ic('power')}</button>`;
     } else if (domain === 'cover') {
       controls = html`
-        <button type="button" class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id)}>${this.ic('chevUp')}</button>
+        <button type="button" class="ctl" title="Open" @click=${() => this.svc('cover', 'open_cover', {}, id, 'open')}>${this.ic('chevUp')}</button>
         <button type="button" class="ctl" title="Stop" @click=${() => this.svc('cover', 'stop_cover', {}, id)}>${this.ic('stop')}</button>
-        <button type="button" class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id)}>${this.ic('chevDown')}</button>`;
+        <button type="button" class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.ic('chevDown')}</button>`;
     } else if (domain === 'lock') {
       controls = html`<button type="button" class="ctl ${on ? '' : 'on'}" title=${on ? 'Lock' : 'Unlock'}
-        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id)}>${this.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
+        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id, on ? 'locked' : 'unlocked')}>${this.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
     } else if (domain === 'climate') {
       // Compact AC remote: temperature ± and the HVAC mode chips, inline.
       const target = ent?.attributes?.temperature as number | undefined;
@@ -1517,7 +1677,7 @@ export class Ha3dFloorplanCard extends LitElement {
           ${modes.map((m) => {
             const icon = climateModeIconName(m);
             return html`<button type="button" class="ctl ${state === m ? 'on' : ''}" title=${m}
-              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id)}>${icon
+              @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id, m)}>${icon
               ? this.ic(icon)
               : m}</button>`;
           })}
@@ -1530,7 +1690,7 @@ export class Ha3dFloorplanCard extends LitElement {
       // (playing, paused, idle and buffering all mean the device is powered).
       const mpOn = !['off', 'standby', 'unavailable', 'unknown'].includes(state);
       controls = html`<div class="ctl-row">
-        <button type="button" class="ctl ${mpOn ? 'on' : ''}" title="Power" @click=${() => this.svc('media_player', 'toggle', {}, id)}>${this.ic('power')}</button>
+        <button type="button" class="ctl ${mpOn ? 'on' : ''}" title="Power" @click=${() => this.svc('media_player', 'toggle', {}, id, mpOn ? 'off' : 'playing')}>${this.ic('power')}</button>
         <button type="button" class="ctl" title="Volume down" @click=${() => this.svc('media_player', 'volume_down', {}, id)}>${this.ic('volDown')}</button>
         <button type="button" class="ctl ${muted ? 'on' : ''}" title="Mute" @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${this.ic('mute')}</button>
         <button type="button" class="ctl" title="Volume up" @click=${() => this.svc('media_player', 'volume_up', {}, id)}>${this.ic('volUp')}</button>
@@ -2063,6 +2223,57 @@ export class Ha3dFloorplanCard extends LitElement {
       color: #cfe0ff;
       padding: 1px 1px 4px;
       gap: 8px;
+    }
+    .control-head span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ctl.back {
+      min-width: 26px;
+      min-height: 24px;
+      padding: 2px 5px;
+    }
+    .ctl.back .icn {
+      width: 15px;
+      height: 15px;
+      transform: rotate(-90deg);
+    }
+    /* Room category chooser (Lights / Climate / Curtains …). */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 4px 0 2px;
+    }
+    .cat-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font: inherit;
+      font-size: 13px;
+      color: #eee;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 9px;
+      padding: 10px 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn:active {
+      background: rgba(255, 255, 255, 0.18);
+    }
+    .cat-btn .icn {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }
+    .cat-btn span {
+      flex: 1 1 auto;
+    }
+    .cat-btn small {
+      color: #9fb3cc;
+      font-size: 11px;
     }
     .control-row {
       display: flex;

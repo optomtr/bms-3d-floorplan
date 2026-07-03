@@ -41,6 +41,8 @@ export const ICON_PATHS: Record<string, string[]> = {
   gauge: ['M4.5 17.5a8 8 0 1 1 15 0', 'M12 15l4.5-3.2'],
   camera: ['M3 8h3.5l1.5-2h6l1.5 2H21v10H3z', 'M12 16.5a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z'],
   dot: ['M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0'],
+  // Room / house (used by the per-room grouped marker).
+  room: ['M4 11l8-6 8 6', 'M6 10v9h12v-9', 'M10.5 19v-5h3v5'],
 };
 
 /** Icon for a climate HVAC mode chip (undefined → fall back to the text label). */
@@ -72,6 +74,7 @@ export function markerIconName(behavior: string): string {
       sensor: 'gauge',
       binary_sensor: 'gauge',
       camera: 'camera',
+      room: 'room',
     } as Record<string, string>
   )[behavior] ?? 'dot';
 }
