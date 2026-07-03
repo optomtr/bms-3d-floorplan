@@ -521,16 +521,25 @@ const builders: Record<string, FurnitureBuilder> = {
   // A 2x3 recessed-spot bar — slim + nearly flush with the ceiling. The 6 lenses
   // are merged into a SINGLE emissive mesh, so it's just 2 draw calls total.
   spotlight_bar: (c) => {
+    // 6 discrete recessed downlights (no solid bar) — a merged ring of trims +
+    // a merged mesh of bright lenses. Reads as clean spots, still 2 draw calls.
     const g = new THREE.Group();
-    g.add(box(0.9, 0.03, 0.34, mat(0x2a2e34), 0, 0, 0)); // slim recessed trim
+    const trimGeos: THREE.BufferGeometry[] = [];
     const lensGeos: THREE.BufferGeometry[] = [];
     for (const z of [-0.1, 0.1]) {
       for (const x of [-0.3, 0, 0.3]) {
-        const geo = new THREE.CylinderGeometry(0.055, 0.06, 0.02, 16);
-        geo.translate(x, -0.02, z);
-        lensGeos.push(geo);
+        const t = new THREE.CylinderGeometry(0.07, 0.078, 0.028, 16);
+        t.translate(x, 0, z);
+        trimGeos.push(t);
+        const l = new THREE.CylinderGeometry(0.05, 0.055, 0.02, 16);
+        l.translate(x, -0.018, z);
+        lensGeos.push(l);
       }
     }
+    const trim = new THREE.Mesh(mergeGeometries(trimGeos, false), mat(0x2a2e34, { metalness: 0.4, roughness: 0.5 }));
+    trim.castShadow = false;
+    trimGeos.forEach((gg) => gg.dispose());
+    g.add(trim);
     const lenses = new THREE.Mesh(
       mergeGeometries(lensGeos, false),
       mat(0xfff4d6, { emissive: 0x000000 }),

@@ -139,6 +139,10 @@ export class SceneManager {
   /** One texture per icon, SHARED across markers — so a plan with 150 bound
    *  entities uses ~6 marker textures, not 150. */
   private markerTexCache = new Map<string, THREE.Texture>();
+  /** entity_id -> its marker sprite, for O(1) on/off recolor. */
+  private markerByEntity = new Map<string, THREE.Sprite>();
+  /** Last hass seen, so markers can colour themselves right after a rebuild. */
+  private lastHass?: any;
   private editing = false;
   private gridHelper?: THREE.GridHelper;
   private selectionHelper?: THREE.BoxHelper;
@@ -293,6 +297,7 @@ export class SceneManager {
       (child as THREE.Sprite).material.dispose();
     }
     this.markerGroup.clear();
+    this.markerByEntity.clear();
     this.floors = [];
     this.floorGroups = [];
     this.bindingManagers = [];
@@ -539,6 +544,7 @@ export class SceneManager {
       (child as THREE.Sprite).material.dispose();
     }
     this.markerGroup.clear();
+    this.markerByEntity.clear();
     if (this.editing) return;
     const bm = this.bindingManagers[this.activeFloor];
     if (!bm) return;
@@ -560,7 +566,33 @@ export class SceneManager {
         wz: m.pos[2],
       };
       this.markerGroup.add(sp);
+      this.markerByEntity.set(m.entity_id, sp);
     }
+    // Colour freshly-built markers from the last known state (on = blue).
+    if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
+  }
+
+  /** Marker tint for a bound entity: blue when a toggle device is ON. */
+  private markerColorFor(behavior: string, state?: string): number {
+    const on =
+      (behavior === 'light' || behavior === 'switch' || behavior === 'fan' || behavior === 'input_boolean') &&
+      state === 'on';
+    return on ? 0x4da3ff : 0xffffff;
+  }
+
+  private refreshAllMarkerColors(hass: any): void {
+    if (!hass?.states) return;
+    for (const [id, sp] of this.markerByEntity) {
+      const st = hass.states[id]?.state;
+      (sp.material as THREE.SpriteMaterial).color.setHex(this.markerColorFor(sp.userData.markerBehavior, st));
+    }
+  }
+
+  private updateMarkerColor(entityId: string, hass: any): void {
+    const sp = this.markerByEntity.get(entityId);
+    if (!sp) return;
+    const st = hass?.states?.[entityId]?.state;
+    (sp.material as THREE.SpriteMaterial).color.setHex(this.markerColorFor(sp.userData.markerBehavior, st));
   }
 
   /** Keep markers a roughly constant on-screen size as the camera dollies. */
@@ -877,17 +909,21 @@ export class SceneManager {
 
   /** Targeted live update for a single entity. */
   updateEntity(entityId: string, hass: any): void {
+    this.lastHass = hass;
     const bm = this.bindingManagers[this.activeFloor];
     bm?.updateEntity(entityId, hass);
     // Other floors may bind the same entity; update them too (cheap).
     this.bindingManagers.forEach((m, i) => {
       if (i !== this.activeFloor) m.updateEntity(entityId, hass);
     });
+    this.updateMarkerColor(entityId, hass);
   }
 
   /** Full state sync (called on each hass update from the card). */
   syncAll(hass: any): void {
+    this.lastHass = hass;
     for (const bm of this.bindingManagers) bm.update(hass);
+    this.refreshAllMarkerColors(hass);
   }
 
   // -- Render loop ------------------------------------------------------------
