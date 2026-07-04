@@ -81,6 +81,10 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editIsLightSet = false;
   @state() private editSpread = 1;
   @state() private editCount = 6;
+  // Manual room zones (Rooms panel).
+  @state() private editZones: import('./types').ZoneDef[] = [];
+  @state() private editSelectedZoneId: string | null = null;
+  @state() private editZonePlacing = false;
   // View-mode control popup (tap a bound object → controls/remote).
   @state() private controlOpen = false;
   @state() private controlEntities: string[] = [];
@@ -635,6 +639,9 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editIsLightSet = ed.selectedIsLightSet;
       this.editSpread = ed.selectedSpread;
       this.editCount = ed.selectedCount;
+      this.editZones = [...ed.zones];
+      this.editSelectedZoneId = ed.selectedZoneId;
+      this.editZonePlacing = ed.zonePlacing;
       this.requestUpdate();
     };
     this.editor.onMessage = (m) => this.showToast(m);
@@ -727,6 +734,26 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSetCount(e: Event): void {
     const v = parseInt((e.target as HTMLInputElement).value, 10);
     if (!Number.isNaN(v)) this.editor?.setCount(v);
+  }
+
+  // -- Manual room zones --
+  private onAddZone(): void {
+    this.editor?.addZone();
+  }
+  private onSelectZone(id: string | null): void {
+    this.editor?.selectZone(id);
+  }
+  private onSetZoneName(id: string, e: Event): void {
+    this.editor?.setZoneName(id, (e.target as HTMLInputElement).value);
+  }
+  private onZonePlace(): void {
+    this.editor?.beginZonePlace();
+  }
+  private onToggleZoneDevice(id: string, entityId: string): void {
+    this.editor?.toggleZoneDevice(id, entityId);
+  }
+  private onDeleteZone(id: string): void {
+    this.editor?.deleteZone(id);
   }
 
   private onSetOpeningVariant(e: Event): void {
@@ -1286,6 +1313,49 @@ export class Ha3dFloorplanCard extends LitElement {
               title="Default camera distance on Reset (saved with the project)"
               @input=${this.onSetCameraDistance} />
           </div>`;
+        })()}
+
+        <div class="panel-group">Rooms — manual icon &amp; devices</div>
+        <div class="toolrow">
+          <button class="btn" title="Add a room control icon you place by hand"
+            @click=${this.onAddZone}>➕ Add room</button>
+          ${this.editZones.length
+            ? html`<select class="select" @change=${(e: Event) =>
+                this.onSelectZone((e.target as HTMLSelectElement).value || null)}>
+                <option value="">— select —</option>
+                ${this.editZones.map(
+                  (z) => html`<option value=${z.id} ?selected=${z.id === this.editSelectedZoneId}>${z.name || 'Room'}</option>`,
+                )}
+              </select>`
+            : nothing}
+        </div>
+        ${(() => {
+          const z = this.editZones.find((x) => x.id === this.editSelectedZoneId);
+          if (!z) return this.editZones.length
+            ? html`<span class="hint">select a room to place its icon &amp; pick devices</span>`
+            : html`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
+          const ents = this.editor?.floorEntities ?? [];
+          return html`<div class="toolrow">
+              <input class="name-input" type="text" placeholder="Room name"
+                .value=${z.name ?? ''} @input=${(e: Event) => this.onSetZoneName(z.id, e)} />
+            </div>
+            <div class="toolrow">
+              <button class="btn ${this.editZonePlacing ? 'active' : ''}" title="Then tap the floor"
+                @click=${this.onZonePlace}>📍 ${this.editZonePlacing ? 'Tap the floor…' : 'Place icon'}</button>
+              <button class="btn" title="Delete this room" @click=${() => this.onDeleteZone(z.id)}>🗑 Delete</button>
+            </div>
+            ${ents.length
+              ? html`<span class="hint">Devices in this room (${z.entities.length}):</span>
+                  <div class="zone-devs">
+                    ${ents.map(
+                      (en) => html`<label class="zone-dev">
+                        <input type="checkbox" ?checked=${z.entities.includes(en.entity_id)}
+                          @change=${() => this.onToggleZoneDevice(z.id, en.entity_id)} />
+                        <span>${en.name}</span>
+                      </label>`,
+                    )}
+                  </div>`
+              : html`<span class="hint">bind entities to furniture first, then tick them here</span>`}`;
         })()}
 
         ${tool === 'wall' || tool === 'floor'
@@ -2190,6 +2260,29 @@ export class Ha3dFloorplanCard extends LitElement {
       backdrop-filter: blur(6px);
       max-width: 340px;
       flex: 0 0 auto; /* never let the flex column squish it to a thin strip */
+    }
+    .zone-devs {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 34vh;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 5px 7px;
+    }
+    .zone-dev {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #ddd;
+      cursor: pointer;
+    }
+    .zone-dev span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .palette-group,
     .panel-group {

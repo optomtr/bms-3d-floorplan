@@ -188,6 +188,21 @@ export interface FloorDef {
   bindings?: BindingDef[];
   /** Optional reference image traced over while drawing this floor. */
   underlay?: Underlay;
+  /** Manual room "zones": a named control icon the user places by hand, holding
+   *  an explicit list of entities — overrides the automatic room grouping so a
+   *  mis-detected device can be assigned to the right room. */
+  zones?: ZoneDef[];
+}
+
+/** A hand-placed room control icon + its explicit device membership. */
+export interface ZoneDef {
+  id: string;
+  name?: string;
+  /** Icon position on the floor plane (meters). */
+  x: number;
+  z: number;
+  /** entity_ids controlled from this room icon. */
+  entities: string[];
 }
 
 /** A building groups floors. Optional — a plan with top-level `floors` is

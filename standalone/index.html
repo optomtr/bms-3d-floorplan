@@ -11,8 +11,8 @@
         height: 100%;
         background: #1b1d22;
         overflow: hidden;
+        font-family: system-ui, sans-serif;
       }
-      /* HA provides <ha-card>; here we shim it so the card renders standalone. */
       ha-card {
         display: block;
         height: 100%;
@@ -25,54 +25,292 @@
         display: block;
         height: 100%;
       }
-      #err {
-        color: #ffb3b3;
-        font: 14px system-ui, sans-serif;
-        padding: 20px;
+      #status {
+        position: fixed;
+        left: 10px;
+        bottom: 10px;
+        z-index: 20;
+        font-size: 12px;
+        color: #cfe0ff;
+        background: rgba(20, 22, 26, 0.7);
+        padding: 5px 10px;
+        border-radius: 8px;
+        pointer-events: none;
+      }
+      #gear {
+        position: fixed;
+        right: 10px;
+        bottom: 10px;
+        z-index: 20;
+        font-size: 18px;
+        line-height: 1;
+        color: #fff;
+        background: rgba(20, 22, 26, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 10px;
+        padding: 8px 11px;
+        cursor: pointer;
+      }
+      #setup {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+      }
+      #setup.open {
+        display: flex;
+      }
+      .box {
+        width: min(420px, 90%);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 18px;
+        border-radius: 12px;
+        background: #24262a;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #eee;
+      }
+      .box h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .box p {
+        margin: 0;
+        font-size: 12px;
+        color: #9fb3cc;
+      }
+      .box input {
+        font: inherit;
+        padding: 9px 11px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: #15171a;
+        color: #fff;
+      }
+      .box .row {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .box button {
+        font: inherit;
+        padding: 9px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: #2e2f34;
+        color: #fff;
+        cursor: pointer;
+      }
+      .box button.primary {
+        background: #03a9f4;
+        border-color: #03a9f4;
       }
     </style>
   </head>
   <body>
     <!--
-      Standalone, VIEW-ONLY 3D floor plan — runs on its OWN port, completely
-      separate from Home Assistant, so it can't reach any HA settings.
+      Standalone 3D floor plan — runs on its OWN port, separate from Home
+      Assistant, so the page can't reach any HA admin/settings. Serve this folder
+      over HTTP(S) on any free port (behind an HTTPS reverse proxy for TLS).
 
-      How to run (any static server, any port; put it behind HTTPS with a proxy):
+      Two modes:
+        • VIEW-ONLY  — no HA credentials: just renders the 3D reference.
+        • LIVE       — connect to HA over its WebSocket API with a long-lived
+                       token (tap ⚙): shows live states + full 3D control.
+
+      Setup:
         1. Copy the built card next to this file:  ha-3d-floorplan-card.js
-           (from custom_components/ha_3d_floorplan/frontend/ or dist/)
-        2. Put your exported plan next to it:       plan.json   (Editor → Export)
-        3. Serve this folder, e.g.:                 python -m http.server 8099
-        4. Open  http://<host>:8099/   (or your HTTPS URL)
+        2. Put your exported plan next to it:       plan.json  (Editor → Export)
+        3. Serve, e.g.:  python -m http.server 8099   (then open the URL)
+        4. For LIVE control, tap ⚙ and enter your HA URL + a long-lived token
+           (HA → your profile → Long-lived access tokens). It's saved on THIS
+           device only (localStorage). The token is powerful — keep it private.
 
-      Overrides via query string:
-        ?card=<url-to-card-js>   ?plan=<url-to-plan-json>
-
-      NOTE: this is view-only (shows the 3D reference, no live entity control).
-      Live control from a separate port would need a Home Assistant WebSocket
-      token — ask to have that added.
+      Query overrides: ?card=<js> ?plan=<json> ?ha=<http(s)://host:8123> ?token=<t>
     -->
-    <div id="err"></div>
-    <script>
-      if (!customElements.get('ha-card')) {
-        customElements.define('ha-card', class extends HTMLElement {});
-      }
-      const params = new URLSearchParams(location.search);
-      const cardUrl = params.get('card') || './ha-3d-floorplan-card.js';
-      const planUrl = params.get('plan') || './plan.json';
+    <div id="status">starting…</div>
+    <button id="gear" title="Connect to Home Assistant">⚙</button>
+    <div id="setup">
+      <form class="box" id="setup-form">
+        <h2>Connect to Home Assistant</h2>
+        <p>Enter your HA base URL and a long-lived access token to control devices
+          live. Leave blank for a view-only 3D reference.</p>
+        <input id="ha-url" type="url" placeholder="https://homeassistant.local:8123" />
+        <input id="ha-token" type="password" placeholder="Long-lived access token" />
+        <div class="row">
+          <button type="button" id="setup-clear">View-only</button>
+          <button type="submit" class="primary">Connect</button>
+        </div>
+      </form>
+    </div>
 
+    <script>
+      if (!customElements.get('ha-card')) customElements.define('ha-card', class extends HTMLElement {});
+    </script>
+    <script type="module">
+      const $ = (s) => document.querySelector(s);
+      const statusEl = $('#status');
+      const setStatus = (t) => (statusEl.textContent = t);
+
+      const params = new URLSearchParams(location.search);
+      // Only allow SAME-ORIGIN relative paths for card/plan — never a remote
+      // script URL, which could exfiltrate the HA token.
+      const sameOrigin = (u) => (u && !/^([a-z]+:)?\/\//i.test(u) ? u : null);
+      const cardUrl = sameOrigin(params.get('card')) || './ha-3d-floorplan-card.js';
+      const planUrl = sameOrigin(params.get('plan')) || './plan.json';
+
+      // Credentials: URL params (first-time setup) override, else localStorage.
+      if (params.get('ha') !== null) localStorage.setItem('ha3d_ha_url', params.get('ha') || '');
+      if (params.get('token') !== null) localStorage.setItem('ha3d_token', params.get('token') || '');
+      let haUrl = (localStorage.getItem('ha3d_ha_url') || '').trim();
+      const token = (localStorage.getItem('ha3d_token') || '').trim();
+      if (haUrl && !/^https?:\/\//i.test(haUrl)) haUrl = 'https://' + haUrl; // default scheme
+
+      // --- Setup dialog -----------------------------------------------------
+      const setup = $('#setup');
+      $('#gear').onclick = () => {
+        $('#ha-url').value = haUrl;
+        $('#ha-token').value = token;
+        setup.classList.add('open');
+      };
+      $('#setup-form').onsubmit = (e) => {
+        e.preventDefault();
+        localStorage.setItem('ha3d_ha_url', $('#ha-url').value.trim());
+        localStorage.setItem('ha3d_token', $('#ha-token').value.trim());
+        location.reload();
+      };
+      $('#setup-clear').onclick = () => {
+        localStorage.removeItem('ha3d_ha_url');
+        localStorage.removeItem('ha3d_token');
+        location.reload();
+      };
+
+      // --- Boot -------------------------------------------------------------
+      let card;
       async function boot() {
         try {
           await import(cardUrl);
           const plan = await (await fetch(planUrl, { cache: 'no-cache' })).json();
-          const card = document.createElement('ha-3d-floorplan-card');
+          card = document.createElement('ha-3d-floorplan-card');
           card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
           document.body.appendChild(card);
-        } catch (e) {
-          document.getElementById('err').textContent =
-            'Failed to load: ' + (e && e.message ? e.message : e) +
-            ' — check that ' + cardUrl + ' and ' + planUrl + ' are reachable.';
+        } catch (err) {
+          setStatus('load failed: ' + (err && err.message ? err.message : err));
+          return;
         }
+        if (haUrl && token) connectLive();
+        else setStatus('view-only · tap ⚙ to connect');
       }
+
+      // --- Live Home Assistant WebSocket client -----------------------------
+      function connectLive() {
+        let states = {};
+        const pending = new Map();
+        let ws;
+        let reqId = 10;
+        let pushQueued = false;
+        let authFailed = false; // a bad token must NOT trigger an endless retry loop
+        const wsUrl = haUrl.replace(/^http/, 'ws').replace(/\/+$/, '') + '/api/websocket';
+
+        // Returns a promise the card can .catch() for optimistic revert; also has
+        // a terminal catch so a failed call never becomes an unhandled rejection.
+        const callService = (domain, service, data) => {
+          const p = request({ type: 'call_service', domain, service, service_data: data || {} });
+          p.catch(() => {});
+          return p;
+        };
+
+        function pushHass() {
+          if (pushQueued || !card) return;
+          pushQueued = true;
+          requestAnimationFrame(() => {
+            pushQueued = false;
+            card.hass = { states: { ...states }, callService };
+          });
+        }
+        function request(msg) {
+          const id = ++reqId;
+          msg.id = id;
+          return new Promise((res, rej) => {
+            pending.set(id, { res, rej });
+            try {
+              ws.send(JSON.stringify(msg));
+            } catch (e) {
+              pending.delete(id);
+              rej(e);
+            }
+          });
+        }
+        function open() {
+          setStatus('connecting…');
+          try {
+            ws = new WebSocket(wsUrl);
+          } catch (e) {
+            setStatus('bad HA URL — fix it (⚙)');
+            return;
+          }
+          ws.onmessage = async (ev) => {
+            let m;
+            try {
+              m = JSON.parse(ev.data);
+            } catch {
+              return;
+            }
+            if (m.type === 'auth_required') {
+              ws.send(JSON.stringify({ type: 'auth', access_token: token }));
+            } else if (m.type === 'auth_invalid') {
+              authFailed = true;
+              setStatus('auth failed — check the token (⚙)');
+              try { ws.close(); } catch {}
+            } else if (m.type === 'auth_ok') {
+              setStatus('connected');
+              try {
+                const res = await request({ type: 'get_states' });
+                const next = {};
+                for (const s of res || []) next[s.entity_id] = s;
+                states = next; // rebuild → prunes entities removed since last connect
+                pushHass();
+                await request({ type: 'subscribe_events', event_type: 'state_changed' });
+              } catch (e) {
+                setStatus('live sync failed — retrying…');
+                try { ws.close(); } catch {}
+              }
+            } else if (m.type === 'result') {
+              const p = pending.get(m.id);
+              if (p) {
+                pending.delete(m.id);
+                m.success ? p.res(m.result) : p.rej(m.error || new Error('call failed'));
+              }
+            } else if (m.type === 'event' && m.event && m.event.event_type === 'state_changed') {
+              const d = m.event.data;
+              if (d.new_state) states[d.entity_id] = d.new_state;
+              else delete states[d.entity_id];
+              pushHass();
+            }
+          };
+          ws.onclose = () => {
+            pending.forEach((p) => p.rej(new Error('socket closed')));
+            pending.clear();
+            if (authFailed) {
+              setStatus('auth failed — check the token (⚙)');
+              return; // don't hammer HA with a wrong token
+            }
+            setStatus('disconnected — retrying…');
+            setTimeout(open, 2500);
+          };
+          ws.onerror = () => {
+            try {
+              ws.close();
+            } catch {}
+          };
+        }
+        open();
+      }
+
       boot();
     </script>
   </body>

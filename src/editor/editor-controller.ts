@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef } from '../types';
+import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
 import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
@@ -80,6 +80,9 @@ export class EditorController {
   selectedRoom = -1; // room array index
   selectedOpeningWall = -1; // wall index owning the selected opening
   selectedOpeningIndex = -1; // opening index within that wall
+  /** Manual room-zone being edited (Rooms panel). */
+  selectedZoneId: string | null = null;
+  private zonePlaceMode = false;
 
   private sm: SceneManager;
   /** Points of the wall run being drawn; each new click commits a wall. */
@@ -144,6 +147,7 @@ export class EditorController {
     }
     this.sm.setGroundHandler(undefined);
     this.sm.setDragHandler(undefined);
+    this.sm.drawZoneDots([], 0); // clear edit-mode zone dots
     this.sm.setEditMode(false);
     this.sm.setDrawMode(false);
   }
@@ -1126,6 +1130,91 @@ export class EditorController {
     this.onChange?.();
   }
 
+  // -- Manual room "zones" ----------------------------------------------------
+
+  get zones(): ZoneDef[] {
+    return this.floor().zones ?? [];
+  }
+  get selectedZone(): ZoneDef | null {
+    return this.zones.find((z) => z.id === this.selectedZoneId) ?? null;
+  }
+  get zonePlacing(): boolean {
+    return this.zonePlaceMode;
+  }
+  /** All entities bound on this floor, for the zone membership checklist. */
+  get floorEntities(): { entity_id: string; name: string }[] {
+    const seen = new Set<string>();
+    const out: { entity_id: string; name: string }[] = [];
+    for (const b of this.floor().bindings ?? []) {
+      if (b.entity_id && !seen.has(b.entity_id)) {
+        seen.add(b.entity_id);
+        out.push({ entity_id: b.entity_id, name: b.entity_id });
+      }
+    }
+    return out;
+  }
+
+  /** Refresh the edit-mode zone dots (so the user sees where icons sit). */
+  private refreshZones(): void {
+    this.sm.drawZoneDots(this.zones, this.elevation(), this.selectedZoneId);
+  }
+
+  addZone(): void {
+    const fl = this.floor();
+    if (!fl.zones) fl.zones = [];
+    this.pushUndo();
+    // Default the icon to the camera focus (already clamped to the active floor)
+    // rather than the whole-scene centre, which the origin grid would dominate.
+    const t = this.sm.controls.target;
+    const id = `z${fl.zones.length}_${Math.floor(performance.now() % 100000)}`;
+    fl.zones.push({ id, name: `Room ${fl.zones.length + 1}`, x: Math.round(t.x), z: Math.round(t.z), entities: [] });
+    this.selectedZoneId = id;
+    this.refreshZones();
+    this.onChange?.();
+  }
+
+  selectZone(id: string | null): void {
+    this.selectedZoneId = id;
+    this.zonePlaceMode = false;
+    this.refreshZones();
+    this.onChange?.();
+  }
+
+  setZoneName(id: string, name: string): void {
+    const z = this.zones.find((x) => x.id === id);
+    if (!z) return;
+    z.name = name;
+    this.onChange?.();
+  }
+
+  deleteZone(id: string): void {
+    const fl = this.floor();
+    if (!fl.zones) return;
+    this.pushUndo();
+    fl.zones = fl.zones.filter((z) => z.id !== id);
+    if (this.selectedZoneId === id) this.selectedZoneId = null;
+    this.refreshZones();
+    this.onChange?.();
+  }
+
+  toggleZoneDevice(id: string, entityId: string): void {
+    const z = this.zones.find((x) => x.id === id);
+    if (!z) return;
+    this.pushUndo();
+    z.entities = z.entities.includes(entityId)
+      ? z.entities.filter((e) => e !== entityId)
+      : [...z.entities, entityId];
+    this.onChange?.();
+  }
+
+  /** Arm "place" mode — the next floor tap sets the selected zone's icon spot. */
+  beginZonePlace(): void {
+    if (!this.selectedZoneId) return;
+    this.zonePlaceMode = true;
+    this.onMessage?.('Tap the floor to place the room icon');
+    this.onChange?.();
+  }
+
   /** Surface material preset for the selected wall (or floor of a room). */
   setSurfaceMaterial(name: string): void {
     const fl = this.floor();
@@ -1273,6 +1362,7 @@ export class EditorController {
       move: (p) => this.onMove(p),
     });
     this.applyReserve(); // camera on, unless a movable object is selected
+    this.refreshZones(); // show hand-placed room icons for this floor
   }
 
   private onClick(p: THREE.Vector3, e?: PointerEvent): void {
@@ -1289,6 +1379,19 @@ export class EditorController {
         this.onCalibrate?.(d);
       } else {
         this.onMessage?.('Now tap the second point');
+      }
+      return;
+    }
+    // Placing a manual room icon: the next tap sets its position.
+    if (this.zonePlaceMode) {
+      const z = this.selectedZone;
+      if (z) {
+        this.pushUndo();
+        z.x = Math.round(p.x * 10) / 10;
+        z.z = Math.round(p.z * 10) / 10;
+        this.zonePlaceMode = false;
+        this.refreshZones();
+        this.onChange?.();
       }
       return;
     }

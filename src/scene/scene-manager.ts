@@ -9,7 +9,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { FloorPlan, Underlay } from '../types';
+import type { FloorPlan, Underlay, ZoneDef } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
 import { drawMarkerCanvas, markerIconName } from './icons';
@@ -150,6 +150,11 @@ export class SceneManager {
   /** Per-floor room outlines (world XZ) + name + elevation, for grouping the
    *  floating markers by room ("one icon per room"). */
   private floorRooms: { name?: string; poly: [number, number][]; elev: number }[][] = [];
+  /** Per-floor manual zones (hand-placed room icons + explicit membership). */
+  private floorZones: ZoneDef[][] = [];
+  private floorElev: number[] = [];
+  /** Edit-mode dots showing where each zone's icon sits. */
+  readonly zoneGroup = new THREE.Group();
   private editing = false;
   private gridHelper?: THREE.GridHelper;
   private selectionHelper?: THREE.BoxHelper;
@@ -188,6 +193,7 @@ export class SceneManager {
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
     this.scene.add(this.markerGroup);
+    this.scene.add(this.zoneGroup);
 
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
     this.camera.position.set(8, 8, 8);
@@ -262,6 +268,8 @@ export class SceneManager {
     this.clearPlan();
     this.fullBBox.makeEmpty();
     this.floorRooms = [];
+    this.floorZones = [];
+    this.floorElev = [];
 
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
@@ -274,6 +282,8 @@ export class SceneManager {
       this.fullBBox.union(built.bbox);
       // Room outlines (world XZ) for grouping markers by room.
       const elev = floorDef.elevation ?? 0;
+      this.floorElev.push(elev);
+      this.floorZones.push(floorDef.zones ?? []);
       this.floorRooms.push(
         (floorDef.rooms ?? [])
           .map((room) => {
@@ -316,6 +326,8 @@ export class SceneManager {
     }
     this.markerGroup.clear();
     this.markerByEntity.clear();
+    for (const child of [...this.zoneGroup.children]) (child as THREE.Sprite).material.dispose();
+    this.zoneGroup.clear();
     this.floors = [];
     this.floorGroups = [];
     this.bindingManagers = [];
@@ -580,11 +592,33 @@ export class SceneManager {
     if (this.editing) return;
     const bm = this.bindingManagers[this.activeFloor];
     if (!bm) return;
-    const devices = bm.markerData();
+    const allDevices = bm.markerData();
     const rooms = this.floorRooms[this.activeFloor] ?? [];
+    const zones = this.floorZones[this.activeFloor] ?? [];
+    const elev = this.floorElev[this.activeFloor] ?? 0;
 
-    // Group each device into the room whose polygon contains it. One marker per
-    // room-with-devices ("one icon per room"); devices in no room keep their own.
+    // 1) Manual zones (hand-placed icons) come first and OWN their listed
+    //    entities, overriding the automatic grouping for those devices.
+    const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
+    const claimed = new Set<string>();
+    for (const z of zones) {
+      // First zone to list an entity wins it (no duplicate markers).
+      const ents = (z.entities ?? []).filter((id) => behaviorOf.has(id) && !claimed.has(id));
+      if (!ents.length) continue;
+      for (const id of ents) claimed.add(id);
+      const sp = this.makeMarkerSprite('room', z.x, elev + 1.6, z.z);
+      sp.userData = {
+        roomMarker: true,
+        roomName: z.name,
+        roomEntities: ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id)! })),
+        wx: z.x,
+        wy: elev + 1.6,
+        wz: z.z,
+      };
+      for (const id of ents) this.markerByEntity.set(id, sp);
+    }
+    // 2) Auto-group the remaining (unclaimed) devices by their room polygon.
+    const devices = allDevices.filter((d) => !claimed.has(d.entity_id));
     const perRoom = new Map<number, typeof devices>();
     const loose: typeof devices = [];
     const roomAreas = rooms.map((r) => polyArea(r.poly)); // constant across devices
@@ -664,13 +698,31 @@ export class SceneManager {
 
   /** Keep markers a roughly constant on-screen size as the camera dollies. */
   private updateMarkerScales(): void {
-    const children = this.markerGroup.children;
-    if (!children.length) return;
     const cam = this.camera.position;
-    for (const c of children) {
-      const d = cam.distanceTo(c.position);
-      const s = THREE.MathUtils.clamp(d * 0.05, 0.3, 1.2);
-      c.scale.set(s, s, 1);
+    for (const grp of [this.markerGroup, this.zoneGroup]) {
+      for (const c of grp.children) {
+        const d = cam.distanceTo(c.position);
+        c.scale.set(THREE.MathUtils.clamp(d * 0.05, 0.3, 1.2), THREE.MathUtils.clamp(d * 0.05, 0.3, 1.2), 1);
+      }
+    }
+  }
+
+  /** Show hand-placed zone icons while editing (so they can be positioned). */
+  drawZoneDots(zones: { id: string; x: number; z: number; name?: string }[], elev: number, selId?: string | null): void {
+    for (const c of [...this.zoneGroup.children]) (c as THREE.Sprite).material.dispose();
+    this.zoneGroup.clear();
+    for (const z of zones) {
+      const mat = new THREE.SpriteMaterial({
+        map: this.markerTexture('room'),
+        depthTest: false,
+        depthWrite: false,
+        transparent: true,
+      });
+      mat.color.setHex(z.id === selId ? 0x4da3ff : 0xffffff);
+      const sp = new THREE.Sprite(mat);
+      sp.position.set(z.x, elev + 1.6, z.z);
+      sp.renderOrder = 1000;
+      this.zoneGroup.add(sp);
     }
   }
 
