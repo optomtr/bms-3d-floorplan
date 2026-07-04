@@ -547,6 +547,42 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager?.resetView();
   }
 
+  // --- Hidden Edit entry (long-press top-left corner) ----------------------
+  // A deliberate ~1.5s hold enters the editor (then the PIN gate, if set). It's
+  // a long-press, NOT a tap count, so it can't clash with a kiosk browser's own
+  // multi-tap menu gesture. Moving the finger cancels it.
+  private hotspotTimer?: number;
+  private hotspotStart?: { x: number; y: number };
+
+  private onHotspotDown = (e: PointerEvent): void => {
+    this.clearHotspot(); // reset any prior state BEFORE recording this press
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    this.hotspotStart = { x: e.clientX, y: e.clientY };
+    this.hotspotTimer = window.setTimeout(() => {
+      this.hotspotTimer = undefined;
+      this.enterEdit();
+    }, 1500);
+  };
+
+  private onHotspotMove = (e: PointerEvent): void => {
+    if (
+      this.hotspotStart &&
+      Math.hypot(e.clientX - this.hotspotStart.x, e.clientY - this.hotspotStart.y) > 24
+    ) {
+      this.clearHotspot();
+    }
+  };
+
+  private onHotspotUp = (): void => this.clearHotspot();
+
+  private clearHotspot(): void {
+    if (this.hotspotTimer) {
+      clearTimeout(this.hotspotTimer);
+      this.hotspotTimer = undefined;
+    }
+    this.hotspotStart = undefined;
+  }
+
   /** True when the UI should be Russian (HA user language, else the browser). */
   private get isRu(): boolean {
     const l = (
@@ -1900,33 +1936,44 @@ export class Ha3dFloorplanCard extends LitElement {
           <button class="btn" title="Reset view" @click=${this.onResetView}>
             ⌂ ${this.t('Reset')}
           </button>
-          ${!this.editing
-            ? html`<div class="quality-wrap">
-                <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
-                  @click=${() => (this.qualityMenuOpen = !this.qualityMenuOpen)}>
-                  ⚙ ${this.qualityLabel(this.qualityChoice)}
-                </button>
-                ${this.qualityMenuOpen
-                  ? html`<div class="quality-menu">
-                      ${QUALITY_CHOICES.map(
-                        (q) => html`<button
-                          class="qopt ${q === this.qualityChoice ? 'on' : ''}"
-                          @click=${() => this.onPickQuality(q)}>${this.qualityLabel(q)}</button>`,
-                      )}
-                    </div>`
-                  : nothing}
-              </div>`
-            : nothing}
           ${this.editing
-            ? html`<button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
-                ✓ ${this.t('Done & Save')}
-              </button>`
-            : html`<button class="btn" title="Edit floor plan" @click=${this.enterEdit}>
-                ✎ ${this.t('Edit')}
-              </button>`}
+            ? html`<div class="quality-wrap">
+                  <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
+                    @click=${() => (this.qualityMenuOpen = !this.qualityMenuOpen)}>
+                    ⚙ ${this.qualityLabel(this.qualityChoice)}
+                  </button>
+                  ${this.qualityMenuOpen
+                    ? html`<div class="quality-menu">
+                        ${QUALITY_CHOICES.map(
+                          (q) => html`<button
+                            class="qopt ${q === this.qualityChoice ? 'on' : ''}"
+                            @click=${() => this.onPickQuality(q)}>${this.qualityLabel(q)}</button>`,
+                        )}
+                      </div>`
+                    : nothing}
+                </div>
+                <button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
+                  ✓ ${this.t('Done & Save')}
+                </button>`
+            : nothing}
         </div>
 
-        ${this.qualityMenuOpen && !this.editing
+        <!-- Hidden Edit entry (kiosk-safe): a ~1.5s hold in the top-left corner
+             opens the editor (then the PIN prompt if one is set). A long-press,
+             NOT a tap count, so it never clashes with a kiosk browser's own
+             multi-tap menu gesture. -->
+        ${this.editing
+          ? nothing
+          : html`<div
+              class="edit-hotspot"
+              @pointerdown=${this.onHotspotDown}
+              @pointermove=${this.onHotspotMove}
+              @pointerup=${this.onHotspotUp}
+              @pointercancel=${this.onHotspotUp}
+              @pointerleave=${this.onHotspotUp}
+            ></div>`}
+
+        ${this.qualityMenuOpen
           ? html`<div class="menu-backdrop" @click=${() => (this.qualityMenuOpen = false)}></div>`
           : nothing}
 
@@ -2033,6 +2080,16 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .quality-wrap {
       position: relative;
+    }
+    /* Invisible top-left hotspot: hold ~1.5s to open the editor (kiosk-safe). */
+    .edit-hotspot {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 56px;
+      height: 56px;
+      z-index: 3;
+      touch-action: none;
     }
     /* Tap anywhere outside the open quality menu to dismiss it. Sits above the
        canvas but below the overlay that holds the menu itself. */
