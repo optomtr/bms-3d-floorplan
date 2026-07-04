@@ -47,6 +47,16 @@ function behaviorFor(def: BindingDef): BindingBehavior {
   return domainOf(def.entity_id) as BindingBehavior;
 }
 
+/** Stop a group's meshes from casting shadows. Used for animated pieces (a
+ *  spinning fan, a sliding curtain): the shadow map is only re-rendered on scene
+ *  changes for performance, so a moving caster would otherwise leave a frozen,
+ *  wrong shadow — and skipping it is cheaper too. */
+function disableShadowCasting(root: THREE.Object3D | null | undefined): void {
+  root?.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = false;
+  });
+}
+
 function collectEmissive(root: THREE.Object3D): THREE.Mesh[] {
   const out: THREE.Mesh[] = [];
   root.traverse((o) => {
@@ -163,6 +173,13 @@ export class BindingManager {
 
     if (behavior === 'fan') {
       ab.spin = ab.anchor ?? undefined;
+      disableShadowCasting(ab.anchor); // a spinning fan can't leave a frozen shadow
+    }
+
+    // Sliding curtain panels: same reasoning — don't cast a shadow that would
+    // freeze mid-slide while the panel visibly moves.
+    if (ab.curtains && ab.curtains.length) {
+      for (const piv of ab.curtains) disableShadowCasting(piv);
     }
   }
 

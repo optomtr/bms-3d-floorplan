@@ -366,6 +366,9 @@ export class EditorController {
           f.position = [obj.position.x, f.position[1], obj.position.z];
         }
       }
+      // The piece moved in place (no rebuild on these branches) → refresh its
+      // cached shadow so it doesn't stay behind at the old position.
+      this.sm.requestShadowUpdate();
     }
     this.dragMode = null;
     this.dragVertex = null;

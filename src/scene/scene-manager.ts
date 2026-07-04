@@ -179,6 +179,11 @@ export class SceneManager {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
     this.renderer.shadowMap.enabled = preset.shadows;
     this.renderer.shadowMap.type = preset.shadowType;
+    // Shadows are cast only by the fixed sun, so the shadow map is static. Stop
+    // re-rendering it every frame (the main cause of stutter on weak GPUs) — we
+    // refresh it once whenever the scene actually changes (see requestShadowUpdate).
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     this.renderer.domElement.style.touchAction = 'none';
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.width = '100%';
@@ -216,6 +221,13 @@ export class SceneManager {
     this.setupLights();
     this.setupResize();
     this.setupPointer();
+  }
+
+  /** Re-render the (static) shadow map once on the next frame. Call after any
+   *  change to what casts shadows — plan load, floor switch, quality change, or
+   *  an in-place edit that moves a shadow-caster without a full rebuild. */
+  requestShadowUpdate(): void {
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   private setupLights(): void {
@@ -305,6 +317,7 @@ export class SceneManager {
       this.resetView();
     }
     this.buildMarkers();
+    this.requestShadowUpdate();
   }
 
   private clearPlan(): void {
@@ -343,6 +356,7 @@ export class SceneManager {
     });
     this.resetView();
     this.buildMarkers();
+    this.requestShadowUpdate();
   }
 
   get currentFloor(): number {
@@ -424,6 +438,7 @@ export class SceneManager {
       const m = (o as THREE.Mesh).material;
       if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
     });
+    this.requestShadowUpdate();
     this.resize();
     return prevAA !== p.aa;
   }
