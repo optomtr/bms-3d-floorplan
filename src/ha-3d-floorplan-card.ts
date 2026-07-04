@@ -1363,7 +1363,7 @@ export class Ha3dFloorplanCard extends LitElement {
             ${isFurniture && this.editIsLightSet
               ? html`<div class="toolrow">
                     <span class="hint">Spread:</span>
-                    <input type="range" min="0.6" max="4" step="0.1"
+                    <input type="range" min="0.6" max="10" step="0.1"
                       .value=${String(this.editSpread)}
                       title="Spacing between elements (each keeps its size)"
                       @input=${this.onSetSpread} />

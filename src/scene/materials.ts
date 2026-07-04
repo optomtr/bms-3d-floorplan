@@ -14,13 +14,23 @@ export type SurfaceMaterial =
   | 'plaster'
   | 'brick'
   | 'panel'
+  | 'molding'
   | 'concrete'
   | 'marble'
   | 'carpet'
-  | 'parquet';
+  | 'parquet'
+  | 'herringbone'
+  | 'walnut';
 
-export const WALL_MATERIALS: SurfaceMaterial[] = ['plain', 'stripes', 'plaster', 'brick', 'panel', 'concrete', 'marble'];
-export const FLOOR_MATERIALS: SurfaceMaterial[] = ['plain', 'wood', 'parquet', 'tile', 'marble', 'carpet', 'concrete'];
+export const WALL_MATERIALS: SurfaceMaterial[] = ['plain', 'molding', 'panel', 'stripes', 'plaster', 'brick', 'concrete', 'marble'];
+export const FLOOR_MATERIALS: SurfaceMaterial[] = ['plain', 'herringbone', 'parquet', 'wood', 'walnut', 'tile', 'marble', 'carpet', 'concrete'];
+
+/** Materials that bake their own colour (wood etc.) — the builder shows them on
+ *  a WHITE base so the rich tone reads through instead of being tinted flat. */
+export const BAKED_MATERIALS = new Set<SurfaceMaterial>(['wood', 'parquet', 'herringbone', 'walnut', 'marble']);
+export function isBakedMaterial(name?: string): boolean {
+  return BAKED_MATERIALS.has(name as SurfaceMaterial);
+}
 
 const cache = new Map<string, THREE.Texture | null>();
 
@@ -28,6 +38,48 @@ function canvas(size = 256): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   return [c, c.getContext('2d')!];
+}
+
+/** Draw wood grain (streaks + pores) over a filled plank region. */
+function woodGrain(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, dark: string): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  for (let i = 0; i < Math.max(6, (w * h) / 400); i++) {
+    ctx.strokeStyle = dark;
+    ctx.globalAlpha = 0.08 + Math.random() * 0.14;
+    ctx.lineWidth = 0.6 + Math.random();
+    ctx.beginPath();
+    const sy = y + Math.random() * h;
+    ctx.moveTo(x, sy);
+    for (let px = x; px < x + w; px += 8) ctx.lineTo(px, sy + (Math.random() - 0.5) * 3);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/** A parallelogram plank at 45° (for herringbone). */
+function plank45(ctx: CanvasRenderingContext2D, cx: number, cy: number, len: number, wid: number, dir: 1 | -1, fill: string, dark: string): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate((dir * Math.PI) / 4);
+  ctx.fillStyle = fill;
+  ctx.fillRect(-len / 2, -wid / 2, len, wid);
+  ctx.strokeStyle = dark;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-len / 2, -wid / 2, len, wid);
+  ctx.globalAlpha = 0.18;
+  for (let gx = -len / 2 + 4; gx < len / 2; gx += 7) {
+    ctx.beginPath();
+    ctx.moveTo(gx, -wid / 2);
+    ctx.lineTo(gx, wid / 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function build(name: SurfaceMaterial): THREE.Texture | null {
@@ -67,13 +119,38 @@ function build(name: SurfaceMaterial): THREE.Texture | null {
     for (let i = 24; i < 256; i += 64) {
       ctx.strokeRect(i, 24, 40, 208);
     }
-  } else if (name === 'wood') {
-    for (let y = 0; y < 256; y += 26) {
-      ctx.fillStyle = 'rgba(0,0,0,0.10)';
-      ctx.fillRect(0, y, 256, 2);
-      for (let i = 0; i < 40; i++) {
-        ctx.fillStyle = `rgba(90,60,30,${Math.random() * 0.06})`;
-        ctx.fillRect(Math.random() * 256, y + Math.random() * 24, 18, 1);
+  } else if (name === 'wood' || name === 'walnut') {
+    // Wide planks with baked oak / walnut tone + grain.
+    const tones = name === 'walnut'
+      ? ['#6f4a2f', '#78502f', '#664226', '#7a5535']
+      : ['#c9a878', '#c4a06e', '#cfb083', '#bd9862'];
+    const dark = name === 'walnut' ? '#3c2716' : '#8a5f34';
+    const ph = 34;
+    for (let y = 0; y < 256; y += ph) {
+      const offset = ((y / ph) % 2) * 40; // stagger the seams
+      for (let x = -offset; x < 256; x += 128) {
+        ctx.fillStyle = tones[Math.floor(Math.random() * tones.length)];
+        ctx.fillRect(x, y, 128, ph);
+        woodGrain(ctx, x, y, 128, ph, dark);
+        ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(x, y, 128, ph);
+      }
+    }
+  } else if (name === 'herringbone') {
+    ctx.fillStyle = '#c7a678';
+    ctx.fillRect(0, 0, 256, 256);
+    const L = 46;
+    const W = 22;
+    let dir: 1 | -1 = 1;
+    for (let row = 0; row < 10; row++) {
+      dir = (row % 2 === 0 ? 1 : -1) as 1 | -1;
+      for (let col = -1; col < 8; col++) {
+        const cx = col * L * 0.72 + (row % 2) * L * 0.36;
+        const cy = row * W * 1.5;
+        const tone = ['#c9a878', '#c1a06f', '#d0b184', '#bb9660'][(row + col + 8) % 4];
+        plank45(ctx, cx, cy, L, W, dir, tone, '#8a5f34');
+        plank45(ctx, cx + L * 0.36, cy + W * 0.75, L, W, (dir * -1) as 1 | -1, tone, '#8a5f34');
       }
     }
   } else if (name === 'tile') {
@@ -95,16 +172,19 @@ function build(name: SurfaceMaterial): THREE.Texture | null {
     ctx.fillStyle = 'rgba(0,0,0,0.05)';
     for (let i = 0; i < 6; i++) ctx.fillRect(0, Math.random() * 256, 256, 1);
   } else if (name === 'marble') {
-    // Soft veining: a few faint diagonal strokes.
-    ctx.strokeStyle = 'rgba(120,120,140,0.18)';
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i < 14; i++) {
+    // Light stone base + stronger grey/gold veining.
+    ctx.fillStyle = '#eef0f3';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 18; i++) {
+      ctx.strokeStyle = i % 4 === 0 ? 'rgba(150,120,70,0.35)' : 'rgba(90,95,110,0.35)';
+      ctx.lineWidth = i % 3 === 0 ? 2.2 : 1;
       ctx.beginPath();
-      let x = Math.random() * 256, y = 0;
+      let x = Math.random() * 256;
+      let y = 0;
       ctx.moveTo(x, y);
       while (y < 256) {
-        x += (Math.random() - 0.5) * 30;
-        y += 16 + Math.random() * 16;
+        x += (Math.random() - 0.5) * 34;
+        y += 12 + Math.random() * 14;
         ctx.lineTo(x, y);
       }
       ctx.stroke();
@@ -115,21 +195,43 @@ function build(name: SurfaceMaterial): THREE.Texture | null {
       ctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 2);
     }
   } else if (name === 'parquet') {
-    const s = 32;
-    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
-    ctx.lineWidth = 1.5;
-    for (let by = 0; by < 256; by += s) {
-      for (let bx = 0; bx < 256; bx += s) {
-        const vertical = ((bx / s) + (by / s)) % 2 === 0;
-        ctx.strokeRect(bx, by, s, s);
-        for (let k = 4; k < s; k += 6) {
+    const s = 42;
+    const tones = ['#c9a878', '#c1a06f', '#cfb083', '#bd9862'];
+    for (let by = 0, r = 0; by < 256; by += s, r++) {
+      for (let bx = 0, cc = 0; bx < 256; bx += s, cc++) {
+        const vertical = (r + cc) % 2 === 0;
+        ctx.fillStyle = tones[(r + cc) % tones.length];
+        ctx.fillRect(bx, by, s, s);
+        woodGrain(ctx, bx, by, s, s, '#8a5f34');
+        // planks within the block run one way
+        ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+        ctx.lineWidth = 1;
+        for (let k = 0; k <= s; k += s / 4) {
           ctx.beginPath();
           if (vertical) { ctx.moveTo(bx + k, by); ctx.lineTo(bx + k, by + s); }
           else { ctx.moveTo(bx, by + k); ctx.lineTo(bx + s, by + k); }
           ctx.stroke();
         }
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(bx, by, s, s);
       }
     }
+  } else if (name === 'molding') {
+    // Premium wall: a large framed molding panel (like classic wainscoting).
+    const inset = 26;
+    const draw = (x: number, y: number, w: number, h: number) => {
+      ctx.strokeStyle = 'rgba(0,0,0,0.16)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+      ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+    };
+    draw(inset, inset, 256 - inset * 2, 256 - inset * 2);
   }
 
   const tex = new THREE.CanvasTexture(c);

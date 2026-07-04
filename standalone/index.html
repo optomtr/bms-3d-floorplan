@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>3D Floor Plan — standalone</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1b1d22;
+        overflow: hidden;
+      }
+      /* HA provides <ha-card>; here we shim it so the card renders standalone. */
+      ha-card {
+        display: block;
+        height: 100%;
+      }
+      ha-3d-floorplan-card {
+        --primary-color: #03a9f4;
+        --primary-text-color: #eee;
+        --card-background-color: #1b1d22;
+        --divider-color: #333;
+        display: block;
+        height: 100%;
+      }
+      #err {
+        color: #ffb3b3;
+        font: 14px system-ui, sans-serif;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Standalone, VIEW-ONLY 3D floor plan — runs on its OWN port, completely
+      separate from Home Assistant, so it can't reach any HA settings.
+
+      How to run (any static server, any port; put it behind HTTPS with a proxy):
+        1. Copy the built card next to this file:  ha-3d-floorplan-card.js
+           (from custom_components/ha_3d_floorplan/frontend/ or dist/)
+        2. Put your exported plan next to it:       plan.json   (Editor → Export)
+        3. Serve this folder, e.g.:                 python -m http.server 8099
+        4. Open  http://<host>:8099/   (or your HTTPS URL)
+
+      Overrides via query string:
+        ?card=<url-to-card-js>   ?plan=<url-to-plan-json>
+
+      NOTE: this is view-only (shows the 3D reference, no live entity control).
+      Live control from a separate port would need a Home Assistant WebSocket
+      token — ask to have that added.
+    -->
+    <div id="err"></div>
+    <script>
+      if (!customElements.get('ha-card')) {
+        customElements.define('ha-card', class extends HTMLElement {});
+      }
+      const params = new URLSearchParams(location.search);
+      const cardUrl = params.get('card') || './ha-3d-floorplan-card.js';
+      const planUrl = params.get('plan') || './plan.json';
+
+      async function boot() {
+        try {
+          await import(cardUrl);
+          const plan = await (await fetch(planUrl, { cache: 'no-cache' })).json();
+          const card = document.createElement('ha-3d-floorplan-card');
+          card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
+          document.body.appendChild(card);
+        } catch (e) {
+          document.getElementById('err').textContent =
+            'Failed to load: ' + (e && e.message ? e.message : e) +
+            ' — check that ' + cardUrl + ' and ' + planUrl + ' are reachable.';
+        }
+      }
+      boot();
+    </script>
+  </body>
+</html>

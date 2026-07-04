@@ -869,6 +869,26 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.45 }), 0, 0, 0));
     return g;
   },
+  // Full-wall floor-to-ceiling terrace glazing WITH a door pane. Placed from the
+  // palette it cuts a full-height opening (auto-fits the wall).
+  terrace_wall: (c) => {
+    const g = new THREE.Group();
+    const fr = mat(0x4a5560);
+    const W = 4, H = 2.55, fw = 0.08, d = 0.12;
+    g.add(tint(box(W, fw, d, fr, 0, H - fw / 2, 0), c)); // top
+    g.add(box(W, fw, d, fr, 0, fw / 2, 0)); // bottom
+    g.add(box(fw, H, d, fr, -W / 2 + fw / 2, H / 2, 0)); // left
+    g.add(box(fw, H, d, fr, W / 2 - fw / 2, H / 2, 0)); // right
+    const panes = 4;
+    for (let i = 1; i < panes; i++) g.add(box(0.05, H, d * 0.6, fr, -W / 2 + (W * i) / panes, H / 2, 0));
+    // First pane = a door: edge post, bottom rail, handle.
+    const dx1 = -W / 2 + W / panes;
+    g.add(box(0.06, H - fw, d * 0.7, fr, dx1 - 0.03, H / 2, 0));
+    g.add(box(W / panes - 0.1, 0.07, d * 0.7, fr, (-W / 2 + dx1) / 2, 0.12, 0));
+    g.add(box(0.04, 0.16, d * 1.2, mat(0xcbb26a, { metalness: 0.6, roughness: 0.35 }), dx1 - 0.16, 1.05, 0)); // handle
+    g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.4, metalness: 0.2 }), 0, H / 2, 0));
+    return g;
+  },
 
   // ---- Kitchen ----
   oven: (c) => {
@@ -1357,7 +1377,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   radiator: '#eeeeee', tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8',
-  window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8',
+  window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
   // Lighting (warm shades)
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
   ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',

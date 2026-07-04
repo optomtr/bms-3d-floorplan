@@ -12,14 +12,14 @@ import type { FloorDef, WallDef, RoomDef, Vec2 } from '../types';
 import { resolveFurniture } from '../furniture/loader';
 import { TextLabel } from './labels';
 import { isShapeRoom, roomPolygon, roomWalls } from './room-shapes';
-import { surfaceTexture, tiled } from './materials';
+import { surfaceTexture, tiled, isBakedMaterial } from './materials';
 
 const DEFAULT_WALL_HEIGHT = 2.6;
 const DEFAULT_THICKNESS = 0.12;
 
 /** Selectable style variants for door / window openings. */
 export const DOOR_VARIANTS = ['single', 'double', 'glass', 'sliding'];
-export const WINDOW_VARIANTS = ['single', 'double', 'picture', 'sliding'];
+export const WINDOW_VARIANTS = ['single', 'double', 'picture', 'sliding', 'terrace'];
 
 export interface BuiltFloor {
   group: THREE.Group;
@@ -35,8 +35,11 @@ export interface BuiltFloor {
 }
 
 function wallMaterial(color?: string, material?: string): THREE.MeshStandardMaterial {
+  // Baked materials (wood/marble) carry their own colour → show on white so the
+  // rich tone reads through; a user-chosen colour still tints if set.
+  const base = color ?? (isBakedMaterial(material) ? '#ffffff' : '#e6e6e6');
   return new THREE.MeshStandardMaterial({
-    color: color ?? '#e6e6e6',
+    color: base,
     roughness: 0.95,
     metalness: 0.0,
     map: material && material !== 'plain' ? tiled(surfaceTexture(material), 3, 2) : null,
@@ -98,6 +101,8 @@ function buildWall(
   // Door/window frames are rendered INTO the wall group so they're owned by the
   // wall (deleted with it), coupled to the opening, and sized to the hole.
   const doorMat = new THREE.MeshStandardMaterial({ color: 0xb98a52, roughness: 0.6 });
+  const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x6f5535, roughness: 0.55 });
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0xcbb26a, roughness: 0.35, metalness: 0.6 });
   const glassMat = new THREE.MeshStandardMaterial({
     color: 0x9cc7da,
     transparent: true,
@@ -149,24 +154,40 @@ function buildWall(
     group.add(opGroup);
     const span = (a: number, b: number, yb: number, yt: number, th: number, mat: THREE.Material) =>
       addWallSpan(opGroup, start, dir, normalAngle, a, b, yb, yt, th, mat);
+    // A small proud knob at distance `along` (m from wall start) and height `y`.
+    const handle = (along: number, y: number) =>
+      span(along - 0.025, along + 0.025, y - 0.05, y + 0.05, thickness * 1.5, handleMat);
     const fw = 0.06; // frame width
     const mid = (opStart + opEnd) / 2;
     const ymid = (sill + top) / 2;
     if (op.kind === 'door') {
       const v = op.variant || 'single';
+      // A finished casing/frame around the opening (wood, slightly proud of the
+      // wall) so doors read as installed rather than a bare slab.
+      span(opStart, opStart + fw, sill, top, thickness * 1.15, doorFrameMat);
+      span(opEnd - fw, opEnd, sill, top, thickness * 1.15, doorFrameMat);
+      span(opStart, opEnd, top - fw, top, thickness * 1.15, doorFrameMat);
+      const li = opStart + fw;
+      const ri = opEnd - fw;
+      const ti = top - fw;
+      const lmid = (li + ri) / 2;
       if (v === 'double') {
-        span(opStart, mid - 0.03, sill, top, 0.06, doorMat);
-        span(mid + 0.03, opEnd, sill, top, 0.06, doorMat);
+        span(li, lmid - 0.02, sill, ti, 0.055, doorMat);
+        span(lmid + 0.02, ri, sill, ti, 0.055, doorMat);
+        handle(lmid - 0.1, ymid);
+        handle(lmid + 0.1, ymid);
       } else if (v === 'glass') {
-        span(opStart, opStart + fw, sill, top, thickness, doorMat);
-        span(opEnd - fw, opEnd, sill, top, thickness, doorMat);
-        span(opStart, opEnd, top - fw, top, thickness, doorMat);
-        span(opStart + fw, opEnd - fw, sill, top - fw, 0.04, glassMat);
+        span(li, li + fw, sill, ti, thickness, doorMat);
+        span(ri - fw, ri, sill, ti, thickness, doorMat);
+        span(li + fw, ri - fw, sill, ti - fw, 0.04, glassMat);
+        handle(ri - 0.12, ymid);
       } else if (v === 'sliding') {
-        span(opStart, mid + 0.06, sill, top, 0.045, glassMat);
-        span(mid - 0.06, opEnd, sill, top, 0.05, doorMat);
+        span(li, lmid + 0.06, sill, ti, 0.045, glassMat);
+        span(lmid - 0.06, ri, sill, ti, 0.05, doorMat);
+        handle(lmid - 0.12, ymid);
       } else {
-        span(opStart, opEnd, sill, top, 0.06, doorMat); // single leaf
+        span(li, ri, sill, ti, 0.055, doorMat); // single leaf, inset in casing
+        handle(ri - 0.12, ymid);
       }
     } else {
       // Window: frame all around + see-through glass spanning the wall thickness.
@@ -181,6 +202,17 @@ function buildWall(
         span(opStart + fw, opEnd - fw, ymid - 0.03, ymid + 0.03, thickness * 1.05, winFrameMat);
       } else if (v === 'double' || v === 'sliding') {
         span(mid - 0.03, mid + 0.03, sill + fw, top - fw, thickness * 1.05, winFrameMat);
+      } else if (v === 'terrace') {
+        // Full-height glazing: several vertical mullions + one framed door pane.
+        const panes = Math.max(2, Math.round((opEnd - opStart) / 0.95));
+        for (let i = 1; i < panes; i++) {
+          const x = opStart + ((opEnd - opStart) * i) / panes;
+          span(x - 0.03, x + 0.03, sill + fw, top - fw, thickness * 1.05, winFrameMat);
+        }
+        // Turn the first pane into a door: outline it + a handle.
+        const dx = opStart + (opEnd - opStart) / panes;
+        span(opStart + fw, dx, sill, sill + 0.06, thickness * 1.1, winFrameMat); // bottom rail
+        handle(dx - 0.14, 1.05);
       }
       // 'picture' → no mullions (clean pane).
     }
@@ -222,7 +254,7 @@ function buildFloor(
   const mesh = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
-      color: room.color ?? '#cfc7ba',
+      color: room.color ?? (isBakedMaterial(room.material) ? '#ffffff' : '#cfc7ba'),
       roughness: 1,
       metalness: 0,
       side: THREE.DoubleSide,

@@ -24,6 +24,8 @@ const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant
   window_frame: { kind: 'window', width: 1.2, variant: 'single' },
   terrace_window: { kind: 'window', width: 2.4, variant: 'picture' },
   patio_door: { kind: 'door', width: 2.4, variant: 'glass', sill: 0, top: 2.2 },
+  // Full-wall floor-to-ceiling terrace glazing (auto-fits the wall) with a door.
+  terrace_wall: { kind: 'window', width: 12, variant: 'terrace', sill: 0, top: 2.55 },
   // Doors placed from the palette cut a real opening into the nearest wall (so
   // they're flush in the wall, never floating/flickering) and are then
   // selectable + draggable along the wall.
@@ -1107,7 +1109,7 @@ export class EditorController {
     const f = this.selectedFurniture();
     if (!f) return;
     this.pushUndo();
-    f.spread = Math.max(0.4, Math.min(5, Math.round(v * 100) / 100));
+    f.spread = Math.max(0.4, Math.min(12, Math.round(v * 100) / 100));
     this.rebuild();
     this.reselect();
     this.onChange?.();
