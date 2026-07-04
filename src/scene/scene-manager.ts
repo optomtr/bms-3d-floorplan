@@ -120,8 +120,6 @@ export class SceneManager {
   private qualityChoice: QualityChoice = 'auto';
   private qualityTier: QualityTier = 'high';
   private sun?: THREE.DirectionalLight;
-  /** Last-loaded plan, so a quality change can recompile in place. */
-  private lastPlan?: FloorPlan;
 
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -260,7 +258,6 @@ export class SceneManager {
   // -- Floor plan loading -----------------------------------------------------
 
   loadPlan(plan: FloorPlan, keepView = false): void {
-    this.lastPlan = plan;
     const prevTarget = this.controls.target.clone();
     const prevPos = this.camera.position.clone();
     const prevFloor = this.activeFloor;

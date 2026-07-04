@@ -1027,6 +1027,29 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(cyl(0.04, 0.04, 0.22, mat(METAL), 0, 0.14, 0, 10));
     return g;
   },
+  // Small round ceiling exhaust vent (extractor). Sits flush under the ceiling;
+  // bind a fan.* entity and the whole grille spins while the fan is ON.
+  ceiling_vent: (c) => {
+    const g = new THREE.Group();
+    const shell = mat(WHITE, { metalness: 0.1, roughness: 0.7 });
+    const grille = mat(0xd7dce1, { metalness: 0.25, roughness: 0.55 });
+    const hubMat = mat(METAL, { metalness: 0.55, roughness: 0.35 });
+    // Round housing, flush under the ceiling (origin at the ceiling face).
+    g.add(tint(cyl(0.24, 0.26, 0.05, shell, 0, -0.025, 0, 32), c));
+    // Recessed face plate.
+    g.add(cyl(0.2, 0.2, 0.012, grille, 0, -0.055, 0, 32));
+    // Center hub (the fan boss).
+    g.add(cyl(0.055, 0.06, 0.045, hubMat, 0, -0.07, 0, 20));
+    // Radial fan blades — discrete spokes so the spin reads when it's running.
+    const blade = mat(0xeceef1, { metalness: 0.2, roughness: 0.5 });
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const b = box(0.15, 0.006, 0.05, blade, Math.cos(a) * 0.11, -0.062, Math.sin(a) * 0.11);
+      b.rotation.y = -a;
+      g.add(b);
+    }
+    return g;
+  },
   // ---- Bathroom ----
   bidet: (c) => {
     const g = new THREE.Group();
@@ -1261,6 +1284,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'ac_unit':
       return ['climate', 'fan', 'switch'];
     case 'ceiling_fan':
+    case 'ceiling_vent':
       return ['fan', 'switch'];
     case 'wardrobe_lit':
       return ['light', 'switch'];
@@ -1321,6 +1345,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
     return wallHeight - 0.02;
   if (model === 'wall_sconce') return 1.6;
   if (model === 'ceiling_fan') return wallHeight - 0.25;
+  if (model === 'ceiling_vent') return wallHeight - 0.02;
   if (model === 'wall_cabinet') return 1.55;
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
@@ -1376,7 +1401,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
   radiator: '#eeeeee', tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
-  wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8',
+  wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
   window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
   // Lighting (warm shades)
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
