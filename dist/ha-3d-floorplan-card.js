@@ -22637,7 +22637,7 @@ function Kb(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const Yb = "0.25.1", Eo = "ha-3d-floorplan-sidebar-item", Md = "ha-3d-floorplan-overlay";
+const Yb = "0.25.2", Eo = "ha-3d-floorplan-sidebar-item", Md = "ha-3d-floorplan-overlay";
 function Zb() {
   return window.ha3dFloorplan ?? {};
 }
@@ -24297,7 +24297,7 @@ let vt = class extends ts {
     }, this.onHotspotDown = (i) => {
       this.clearHotspot(), i.currentTarget.setPointerCapture?.(i.pointerId), this.hotspotStart = { x: i.clientX, y: i.clientY }, this.hotspotTimer = window.setTimeout(() => {
         this.hotspotTimer = void 0, this.enterEdit();
-      }, 1500);
+      }, 5e3);
     }, this.onHotspotMove = (i) => {
       this.hotspotStart && Math.hypot(i.clientX - this.hotspotStart.x, i.clientY - this.hotspotStart.y) > 24 && this.clearHotspot();
     }, this.onHotspotUp = () => this.clearHotspot(), this.cancelPin = () => {
@@ -25452,7 +25452,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 </button>` : mt}
         </div>
 
-        <!-- Hidden Edit entry (kiosk-safe): a ~1.5s hold in the top-left corner
+        <!-- Hidden Edit entry (kiosk-safe): a 5s hold in the top-left corner
              opens the editor (then the PIN prompt if one is set). A long-press,
              NOT a tap count, so it never clashes with a kiosk browser's own
              multi-tap menu gesture. -->
@@ -25563,7 +25563,7 @@ vt.styles = Fd`
     .quality-wrap {
       position: relative;
     }
-    /* Invisible top-left hotspot: hold ~1.5s to open the editor (kiosk-safe). */
+    /* Invisible top-left hotspot: hold 5s to open the editor (kiosk-safe). */
     .edit-hotspot {
       position: absolute;
       top: 0;

@@ -548,8 +548,8 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   // --- Hidden Edit entry (long-press top-left corner) ----------------------
-  // A deliberate ~1.5s hold enters the editor (then the PIN gate, if set). It's
-  // a long-press, NOT a tap count, so it can't clash with a kiosk browser's own
+  // A deliberate 5s hold enters the editor (then the PIN gate, if set). It's a
+  // long-press, NOT a tap count, so it can't clash with a kiosk browser's own
   // multi-tap menu gesture. Moving the finger cancels it.
   private hotspotTimer?: number;
   private hotspotStart?: { x: number; y: number };
@@ -561,7 +561,7 @@ export class Ha3dFloorplanCard extends LitElement {
     this.hotspotTimer = window.setTimeout(() => {
       this.hotspotTimer = undefined;
       this.enterEdit();
-    }, 1500);
+    }, 5000);
   };
 
   private onHotspotMove = (e: PointerEvent): void => {
@@ -1958,7 +1958,7 @@ export class Ha3dFloorplanCard extends LitElement {
             : nothing}
         </div>
 
-        <!-- Hidden Edit entry (kiosk-safe): a ~1.5s hold in the top-left corner
+        <!-- Hidden Edit entry (kiosk-safe): a 5s hold in the top-left corner
              opens the editor (then the PIN prompt if one is set). A long-press,
              NOT a tap count, so it never clashes with a kiosk browser's own
              multi-tap menu gesture. -->
@@ -2081,7 +2081,7 @@ export class Ha3dFloorplanCard extends LitElement {
     .quality-wrap {
       position: relative;
     }
-    /* Invisible top-left hotspot: hold ~1.5s to open the editor (kiosk-safe). */
+    /* Invisible top-left hotspot: hold 5s to open the editor (kiosk-safe). */
     .edit-hotspot {
       position: absolute;
       top: 0;

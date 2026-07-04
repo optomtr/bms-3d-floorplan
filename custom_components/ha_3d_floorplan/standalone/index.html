@@ -31,11 +31,12 @@
         bottom: 10px;
         z-index: 20;
         font-size: 12px;
-        color: #cfe0ff;
-        background: rgba(20, 22, 26, 0.7);
+        color: #ffd7d0;
+        background: rgba(60, 24, 24, 0.82);
         padding: 5px 10px;
         border-radius: 8px;
         pointer-events: none;
+        display: none; /* shown only on a problem */
       }
       #gear {
         position: fixed;
@@ -50,6 +51,7 @@
         border-radius: 10px;
         padding: 8px 11px;
         cursor: pointer;
+        display: none; /* only shown for manual (non-injected) serving */
       }
       #setup {
         position: fixed;
@@ -166,7 +168,12 @@
     <script type="module">
       const $ = (s) => document.querySelector(s);
       const statusEl = $('#status');
-      const setStatus = (t) => (statusEl.textContent = t);
+      // Show a message ONLY when something is wrong; stay invisible when all is
+      // well (connecting/connected). `show` defaults to false = hidden.
+      const setStatus = (t, show = false) => {
+        statusEl.textContent = t;
+        statusEl.style.display = show ? 'block' : 'none';
+      };
       const errMsg = (e) => (e && e.message ? e.message : String(e));
 
       // Config injected by the HA integration's kiosk server (trusted), if any.
@@ -261,7 +268,9 @@
 
       // --- Setup dialog ---------------------------------------------------
       const setup = $('#setup');
-      if (useSession) $('#gear').style.display = 'none'; // session auth needs no manual setup
+      // The ⚙ connect button is only for MANUAL folder serving. When the page is
+      // served by the integration (injected config), it's never shown.
+      if (!inj) $('#gear').style.display = 'block';
       $('#gear').onclick = () => {
         $('#ha-url').value = haUrl;
         $('#ha-token').value = token;
@@ -309,7 +318,7 @@
         try {
           await import(cardUrl);
         } catch (err) {
-          setStatus('card load failed: ' + errMsg(err));
+          setStatus('card load failed: ' + errMsg(err), true);
           return;
         }
         if (useSession || (haUrl && token)) {
@@ -317,8 +326,8 @@
         } else {
           const plan = await fetchFilePlan();
           if (plan) ensureCard(plan);
-          const hint = inj ? 'add a token in HA → 3D Floor Plan options' : 'tap ⚙ to connect';
-          setStatus((plan ? 'view-only · ' : 'view-only · no plan — ') + hint);
+          const hint = inj ? 'log in to Home Assistant' : 'tap ⚙ to connect';
+          setStatus((plan ? 'view-only · ' : 'view-only · no plan — ') + hint, true);
         }
       }
 
@@ -393,7 +402,7 @@
           try {
             sock = ws = new WebSocket(wsUrl);
           } catch (e) {
-            setStatus('bad HA URL — fix it (⚙)');
+            setStatus('bad HA URL — fix it (⚙)', true);
             return;
           }
           // Ignore callbacks/continuations from a socket that has been superseded
@@ -417,21 +426,21 @@
                 // Session token temporarily unavailable (HA restarting / refresh
                 // hiccup) — reconnect and try again rather than latch a failure.
                 if (!current()) return;
-                setStatus('waiting for Home Assistant…');
+                setStatus('waiting for Home Assistant…', true);
                 try { sock.close(); } catch {}
                 return;
               }
               if (!current()) return;
               if (!tk) {
                 authFailed = true;
-                setStatus(useSession ? 'log in to Home Assistant first' : 'no token — set one (⚙)');
+                setStatus(useSession ? 'log in to Home Assistant first' : 'no token — set one (⚙)', true);
                 try { sock.close(); } catch {}
                 return;
               }
               sock.send(JSON.stringify({ type: 'auth', access_token: tk }));
             } else if (m.type === 'auth_invalid') {
               authFailed = true;
-              setStatus('auth failed — check the token (⚙)');
+              setStatus(useSession ? 'Home Assistant login expired — reload the page' : 'auth failed — check the token (⚙)', true);
               try { sock.close(); } catch {}
             } else if (m.type === 'auth_ok') {
               setStatus('connected');
@@ -450,7 +459,7 @@
                     ensureCard(plan);
                     planLoaded = true; // only latch once a REAL plan is shown
                   } else {
-                    setStatus('connected · no plan saved for this account');
+                    setStatus('connected · no plan saved for this account', true);
                   }
                 }
                 pushHass();
@@ -458,7 +467,7 @@
               } catch (e) {
                 if (!current()) return;
                 syncFails++;
-                setStatus('live sync failed — retrying…');
+                setStatus('live sync failed — retrying…', true);
                 try { sock.close(); } catch {}
               }
             } else if (m.type === 'result') {
@@ -479,13 +488,13 @@
             pending.forEach((p) => p.rej(new Error('socket closed')));
             pending.clear();
             if (authFailed) {
-              setStatus('auth failed — check the token (⚙)');
+              setStatus(useSession ? 'Home Assistant login expired — reload the page' : 'auth failed — check the token (⚙)', true);
               return; // don't hammer HA with a wrong token
             }
             // Back off on repeated sync failures so a deterministic error
             // (e.g. a restricted token) doesn't hot-loop; a plain drop retries fast.
             const delay = Math.min(2500 * Math.pow(2, Math.min(syncFails, 5)), 60000);
-            setStatus('disconnected — retrying…');
+            setStatus('disconnected — retrying…', true);
             setTimeout(open, delay);
           };
           sock.onerror = () => {
