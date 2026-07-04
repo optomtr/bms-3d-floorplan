@@ -195,6 +195,46 @@ path to use a custom model instead.
 - For a standalone kiosk page, also set the viewport meta:
   `maximum-scale=1, user-scalable=no`.
 
+## Standalone kiosk page (own port, no HA login)
+
+A wall tablet can show a **live, controllable 3D floor plan with no Home
+Assistant chrome** — just the 3D. Three ways to run it:
+
+**Simplest — a path on Home Assistant's own port (no extra port, no token).**
+Open `http://<home-assistant-host>:8123/3d-floorplan-kiosk` on a device that is
+already logged into Home Assistant. It shows only the 3D (no sidebar/header) and
+reuses that browser's existing HA login for live control — nothing is embedded
+in the page, so it's safe even if HA is reachable externally. A device that
+isn't logged in just gets a view-only page.
+
+If instead you want a fully separate endpoint (its own port, its own token):
+
+**Automatic (recommended) — the integration serves it for you.** No file
+copying, no `python -m http.server`, no per-device token entry:
+
+1. In HA: **Settings → Devices & Services → 3D Floor Plan → Configure**.
+2. Set a **Kiosk server port** (e.g. `8099`) and paste a **long-lived access
+   token** (HA → your profile → *Long-lived access tokens*). Create the token
+   with the **same HA account you edit the plan with** — the page pulls your
+   saved plan from that user's storage.
+3. Open `http://<home-assistant-host>:<port>/` on the tablet. It auto-connects,
+   loads your last-saved plan live, and controls devices. Leave the token blank
+   for a **view-only** reference.
+
+The kiosk server only serves the 3D page and the card bundle — it never proxies
+HA's admin UI. **Security:** the injected token is a full-privilege credential
+served over plain HTTP to anyone who can reach the port, so keep this port on a
+**trusted LAN and never forward it to the internet**; revoking the long-lived
+token in HA is the kill switch. TLS: front it with your existing HTTPS reverse
+proxy if you need it. The token is never taken from the URL, so a crafted link
+can't steal or redirect it; `?card=`/`?plan=` overrides are same-origin only.
+
+**Manual — serve the `standalone/` folder yourself.** Copy the built
+`ha-3d-floorplan-card.js` next to `standalone/index.html`, (optionally) drop an
+exported `plan.json` beside it, serve the folder (`python -m http.server 8099`),
+and tap ⚙ to enter your HA URL + token for live control. See the comment at the
+top of [`standalone/index.html`](standalone/index.html) for details.
+
 ## Development
 
 ```bash

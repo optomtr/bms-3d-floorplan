@@ -3,4 +3,6 @@ node_modules/
 .DS_Store
 .vite/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 # dist/ is intentionally committed for HACS releases — do NOT ignore it.
