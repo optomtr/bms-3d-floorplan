@@ -1050,6 +1050,48 @@ const builders: Record<string, FurnitureBuilder> = {
     }
     return g;
   },
+  // Underfloor heating mat (тёплый пол) — lies flat on the floor; the serpentine
+  // heating loop glows when the heater is ON (bind climate/switch).
+  warm_floor: (c) => {
+    const g = new THREE.Group();
+    const W = 1.6;
+    const D = 1.1;
+    g.add(tint(box(W, 0.015, D, mat(0xb98f7d, { roughness: 0.9 }), 0, 0.0075, 0), c));
+    const coil = mat(0xd9784a, { roughness: 0.5 });
+    const rows = 5;
+    const xL = -W / 2 + 0.14;
+    const xR = W / 2 - 0.14;
+    const z0 = -D / 2 + 0.14;
+    const dz = (D - 0.28) / (rows - 1);
+    for (let i = 0; i < rows; i++) {
+      const bar = box(xR - xL, 0.02, 0.035, coil, 0, 0.02, z0 + i * dz);
+      bar.name = 'emissive';
+      g.add(bar);
+    }
+    for (let i = 0; i < rows - 1; i++) {
+      const ex = i % 2 === 0 ? xR : xL;
+      const b = box(0.035, 0.02, dz, coil, ex, 0.02, z0 + i * dz + dz / 2);
+      b.name = 'emissive';
+      g.add(b);
+    }
+    return g;
+  },
+  // Floor convector / panel heater (конвектор) — slim body with a top grille;
+  // the front strip glows when the heater is ON (bind climate/switch/fan).
+  convector: (c) => {
+    const g = new THREE.Group();
+    const W = 0.8;
+    const H = 0.22;
+    const D = 0.14;
+    g.add(tint(box(W, H, D, mat(WHITE, { metalness: 0.1, roughness: 0.6 }), 0, H / 2 + 0.02, 0), c));
+    const slot = mat(0x2b2f36);
+    for (let i = 0; i < 7; i++) g.add(box(W - 0.12, 0.01, 0.012, slot, 0, H + 0.02, -0.045 + i * 0.015));
+    const strip = box(W - 0.1, 0.05, 0.008, mat(0xd98a5a, { roughness: 0.5 }), 0, H / 2 + 0.02, D / 2);
+    strip.name = 'emissive';
+    g.add(strip);
+    for (const sx of [-1, 1]) g.add(box(0.05, 0.02, D, slot, sx * (W / 2 - 0.06), 0.01, 0));
+    return g;
+  },
   // ---- Bathroom ----
   bidet: (c) => {
     const g = new THREE.Group();
@@ -1282,7 +1324,10 @@ export function entityDomainsFor(model: string): string[] {
   if (LIGHT_KEYS.includes(model)) return ['light', 'switch'];
   switch (model) {
     case 'ac_unit':
+    case 'convector':
       return ['climate', 'fan', 'switch'];
+    case 'warm_floor':
+      return ['climate', 'switch'];
     case 'ceiling_fan':
     case 'ceiling_vent':
       return ['fan', 'switch'];
@@ -1402,6 +1447,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   radiator: '#eeeeee', tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
+  warm_floor: '#b98f7d', convector: '#eeeeee',
   window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
   // Lighting (warm shades)
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',

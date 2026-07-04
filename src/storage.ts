@@ -52,27 +52,38 @@ async function readHA(hass: HomeAssistant): Promise<StoredProjects | null> {
   return null;
 }
 
-/** Load the full project set (HA preferred, else localStorage). */
+/** Load the full project set.
+ *
+ *  Inside Home Assistant (a live WS connection) the per-user store is the ONLY
+ *  source of truth — we deliberately do NOT fall back to localStorage there.
+ *  localStorage is shared across same-origin URLs, so two HA instances reached
+ *  at the same host:port (e.g. both `homeassistant.local:8123`) would otherwise
+ *  show each other's projects. localStorage is used only with no HA connection
+ *  at all (a manually-served standalone page). */
 export async function loadProjects(hass?: HomeAssistant): Promise<StoredProjects> {
-  if (hass) {
-    const data = await readHA(hass);
-    if (data) return data;
+  if (hass?.callWS) {
+    return (await readHA(hass)) ?? { projects: {} };
   }
   return loadLocalSet() ?? { projects: {} };
 }
 
-/** Persist the full project set to HA (if available) and always mirror locally. */
+/** Persist the full project set. Inside HA it goes to the per-user store only;
+ *  localStorage is written just as a fallback when there's no HA connection or
+ *  the HA write fails — never as a shadow copy that could leak between instances. */
 export async function saveProjects(
   data: StoredProjects,
   hass?: HomeAssistant,
 ): Promise<{ ha: boolean }> {
-  saveLocalSet(data);
-  if (!hass) return { ha: false };
+  if (!hass?.callWS) {
+    saveLocalSet(data);
+    return { ha: false };
+  }
   try {
-    await hass.callWS?.({ type: 'frontend/set_user_data', key: HA_KEY, value: data });
+    await hass.callWS({ type: 'frontend/set_user_data', key: HA_KEY, value: data });
     return { ha: true };
   } catch (e) {
     console.error('[3d-floorplan] HA save failed, kept localStorage copy:', e);
+    saveLocalSet(data);
     return { ha: false };
   }
 }

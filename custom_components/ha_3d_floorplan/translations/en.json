@@ -9,17 +9,5 @@
     "abort": {
       "already_configured": "3D Floor Plan is already set up."
     }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Standalone kiosk server",
-        "description": "Serve a self-contained live 3D page on its own port for wall tablets / kiosks. The page only shows the 3D view (no access to Home Assistant settings). Leave the port at 0 to disable. Set a long-lived access token to enable live state + control — create it in your Home Assistant profile using the SAME account you edit the plan with. Then open http://<home-assistant-host>:<port>/ on the kiosk. SECURITY: this port serves the token to anyone who can reach it, over plain HTTP — keep it on a trusted LAN and never forward it to the internet. Revoke the token in HA to shut off access.",
-        "data": {
-          "standalone_port": "Kiosk server port (0 = off)",
-          "live_token": "Long-lived access token (blank = view-only)"
-        }
-      }
-    }
   }
 }

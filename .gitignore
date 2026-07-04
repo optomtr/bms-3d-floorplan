@@ -6,3 +6,6 @@ node_modules/
 __pycache__/
 *.pyc
 # dist/ is intentionally committed for HACS releases — do NOT ignore it.
+
+# Never ship real home plans (privacy)
+examples/durmon*.json
