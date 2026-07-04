@@ -22604,7 +22604,7 @@ function qb(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const Kb = "0.23.0", Eo = "ha-3d-floorplan-sidebar-item", Md = "ha-3d-floorplan-overlay";
+const Kb = "0.23.1", Eo = "ha-3d-floorplan-sidebar-item", Md = "ha-3d-floorplan-overlay";
 function Yb() {
   return window.ha3dFloorplan ?? {};
 }
@@ -24232,13 +24232,34 @@ var SM = Object.defineProperty, wM = Object.getOwnPropertyDescriptor, bt = (i, t
   return n && s && SM(t, e, s), s;
 };
 const Nd = [
-  { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "fan", "input_boolean"] },
-  { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate"] },
+  { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "input_boolean"] },
+  { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate", "fan"] },
   { key: "curtains", label: "Curtains", icon: "curtain", behaviors: ["cover"] },
   { key: "media", label: "Media", icon: "tv", behaviors: ["media_player"] },
   { key: "locks", label: "Locks", icon: "lockClosed", behaviors: ["lock"] },
   { key: "sensors", label: "Sensors", icon: "gauge", behaviors: ["sensor", "binary_sensor"] }
-];
+], EM = {
+  Reset: "Сброс",
+  Edit: "Изменить",
+  "Done & Save": "Готово",
+  Auto: "Авто",
+  High: "Высокое",
+  Medium: "Среднее",
+  Low: "Низкое",
+  Quality: "Качество",
+  Lights: "Свет",
+  Climate: "Климат",
+  Curtains: "Шторы",
+  Media: "Медиа",
+  Locks: "Замки",
+  Sensors: "Датчики",
+  Other: "Другое",
+  Room: "Комната",
+  "All on": "Включить всё",
+  "All off": "Выключить всё",
+  devices: "устройств",
+  "No controllable devices": "Нет управляемых устройств"
+};
 let vt = class extends ts {
   constructor() {
     super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedEntity = null, this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.editEntitySearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.closeControl = () => {
@@ -24291,7 +24312,7 @@ let vt = class extends ts {
     };
   }
   static async getConfigElement() {
-    return await Promise.resolve().then(() => AM), document.createElement("ha-3d-floorplan-card-editor");
+    return await Promise.resolve().then(() => RM), document.createElement("ha-3d-floorplan-card-editor");
   }
   // -- hass updates -----------------------------------------------------------
   willUpdate(i) {
@@ -24468,8 +24489,16 @@ let vt = class extends ts {
   onResetView() {
     this.sceneManager?.resetView();
   }
+  /** True when the UI should be Russian (HA user language, else the browser). */
+  get isRu() {
+    return (this.hass?.language || (typeof navigator < "u" ? navigator.language : "") || "").toLowerCase().startsWith("ru");
+  }
+  /** Translate a user-visible string. English is the key + fallback. */
+  t(i) {
+    return this.isRu ? EM[i] ?? i : i;
+  }
   qualityLabel(i) {
-    return { auto: "Auto", high: "High", medium: "Medium", low: "Low" }[i];
+    return this.t({ auto: "Auto", high: "High", medium: "Medium", low: "Low" }[i]);
   }
   onPickQuality(i) {
     if (this.qualityMenuOpen = !1, !this.sceneManager) return;
@@ -24477,7 +24506,7 @@ let vt = class extends ts {
     this.qualityChoice = i;
     const e = this.sceneManager.getQualityTier();
     this.showToast(
-      `Quality: ${this.qualityLabel(i)}${i === "auto" ? ` (${e})` : ""}` + (t ? " — reload to finish applying" : "")
+      `${this.t("Quality")}: ${this.qualityLabel(i)}${i === "auto" ? ` (${e})` : ""}` + (t ? " — reload to finish applying" : "")
     );
   }
   // -- Editor -----------------------------------------------------------------
@@ -25247,7 +25276,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       <div class="control-popup" style="left:${e}px"
         @click=${(n) => n.stopPropagation()}>
         <div class="control-head">
-          <span>${t.length > 1 ? `${t.length} devices` : ""}</span>
+          <span>${t.length > 1 ? `${t.length} ${this.t("devices")}` : ""}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
         ${t.map((n) => this.renderEntityControl(n))}
@@ -25271,13 +25300,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         @click=${(l) => l.stopPropagation()}>
         <div class="control-head">
           <span>${a ? nt`<button type="button" class="ctl back" title="Back"
-                @click=${() => this.controlCategory = null}>${this.ic("chevUp")}</button> ${a.label}` : i.name || "Room"}</span>
+                @click=${() => this.controlCategory = null}>${this.ic("chevUp")}</button> ${this.t(a.label)}` : i.name || this.t("Room")}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
         ${a ? nt`${a.key === "lights" ? (() => {
       const l = a.ents.some((c) => this.effState(c.entity_id) === "on");
       return nt`<div class="control-row">
-                      <span class="control-name">${l ? "All off" : "All on"}</span>
+                      <span class="control-name">${this.t(l ? "All off" : "All on")}</span>
                       <div class="control-ctls">
                         <button type="button" class="ctl big ${l ? "on" : ""}" title="Toggle all"
                           @click=${() => this.onToggleAll(a.ents)}>${this.ic("power")}</button>
@@ -25287,10 +25316,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? nt`<div class="cat-grid">
                 ${n.map(
       (l) => nt`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
-                    ${this.ic(l.icon)}<span>${l.label}</span><small>${l.ents.length}</small>
+                    ${this.ic(l.icon)}<span>${this.t(l.label)}</span><small>${l.ents.length}</small>
                   </button>`
     )}
-              </div>` : nt`<span class="hint">No controllable devices</span>`}
+              </div>` : nt`<span class="hint">${this.t("No controllable devices")}</span>`}
       </div>
     `;
   }
@@ -25364,7 +25393,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         <div class="overlay top-right">
           <button class="btn" title="Reset view" @click=${this.onResetView}>
-            ⌂ Reset
+            ⌂ ${this.t("Reset")}
           </button>
           ${this.editing ? _t : nt`<div class="quality-wrap">
                 <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
@@ -25380,9 +25409,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     </div>` : _t}
               </div>`}
           ${this.editing ? nt`<button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
-                ✓ Done &amp; Save
+                ✓ ${this.t("Done & Save")}
               </button>` : nt`<button class="btn" title="Edit floor plan" @click=${this.enterEdit}>
-                ✎ Edit
+                ✎ ${this.t("Edit")}
               </button>`}
         </div>
 
@@ -26239,10 +26268,10 @@ console.info(
   "color:#03a9f4;background:#222;border-radius:0 4px 4px 0;padding:2px 6px"
 );
 iM();
-var EM = Object.defineProperty, TM = Object.getOwnPropertyDescriptor, fr = (i, t, e, n) => {
-  for (var s = n > 1 ? void 0 : n ? TM(t, e) : t, r = i.length - 1, o; r >= 0; r--)
+var TM = Object.defineProperty, AM = Object.getOwnPropertyDescriptor, fr = (i, t, e, n) => {
+  for (var s = n > 1 ? void 0 : n ? AM(t, e) : t, r = i.length - 1, o; r >= 0; r--)
     (o = i[r]) && (s = (n ? o(t, e, s) : o(s)) || s);
-  return n && s && EM(t, e, s), s;
+  return n && s && TM(t, e, s), s;
 };
 let hi = class extends ts {
   constructor() {
@@ -26405,7 +26434,7 @@ fr([
 hi = fr([
   Gd("ha-3d-floorplan-card-editor")
 ], hi);
-const AM = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const RM = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get Ha3dFloorplanCardEditor() {
     return hi;

@@ -34,15 +34,41 @@ import { isZirconPlan, convertZircon } from './import/zircon';
 import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
 import { ICON_PATHS, climateModeIconName } from './scene/icons';
 
-/** Device categories shown when a room marker is tapped (only present ones). */
+/** Device categories shown when a room marker is tapped (only present ones).
+ *  Fans/ventilation live under Climate (not Lights). */
 const DEVICE_CATEGORIES: { key: string; label: string; icon: string; behaviors: string[] }[] = [
-  { key: 'lights', label: 'Lights', icon: 'bulb', behaviors: ['light', 'switch', 'fan', 'input_boolean'] },
-  { key: 'climate', label: 'Climate', icon: 'snow', behaviors: ['climate'] },
+  { key: 'lights', label: 'Lights', icon: 'bulb', behaviors: ['light', 'switch', 'input_boolean'] },
+  { key: 'climate', label: 'Climate', icon: 'snow', behaviors: ['climate', 'fan'] },
   { key: 'curtains', label: 'Curtains', icon: 'curtain', behaviors: ['cover'] },
   { key: 'media', label: 'Media', icon: 'tv', behaviors: ['media_player'] },
   { key: 'locks', label: 'Locks', icon: 'lockClosed', behaviors: ['lock'] },
   { key: 'sensors', label: 'Sensors', icon: 'gauge', behaviors: ['sensor', 'binary_sensor'] },
 ];
+
+/** Russian translations for the user-visible view-mode UI. English is the key
+ *  and the fallback, so any language that isn't Russian shows English. */
+const RU_STRINGS: Record<string, string> = {
+  Reset: 'Сброс',
+  Edit: 'Изменить',
+  'Done & Save': 'Готово',
+  Auto: 'Авто',
+  High: 'Высокое',
+  Medium: 'Среднее',
+  Low: 'Низкое',
+  Quality: 'Качество',
+  Lights: 'Свет',
+  Climate: 'Климат',
+  Curtains: 'Шторы',
+  Media: 'Медиа',
+  Locks: 'Замки',
+  Sensors: 'Датчики',
+  Other: 'Другое',
+  Room: 'Комната',
+  'All on': 'Включить всё',
+  'All off': 'Выключить всё',
+  devices: 'устройств',
+  'No controllable devices': 'Нет управляемых устройств',
+};
 
 @customElement('ha-3d-floorplan-card')
 export class Ha3dFloorplanCard extends LitElement {
@@ -521,8 +547,23 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager?.resetView();
   }
 
+  /** True when the UI should be Russian (HA user language, else the browser). */
+  private get isRu(): boolean {
+    const l = (
+      this.hass?.language ||
+      (typeof navigator !== 'undefined' ? navigator.language : '') ||
+      ''
+    ).toLowerCase();
+    return l.startsWith('ru');
+  }
+
+  /** Translate a user-visible string. English is the key + fallback. */
+  private t(en: string): string {
+    return this.isRu ? RU_STRINGS[en] ?? en : en;
+  }
+
   private qualityLabel(q: QualityChoice): string {
-    return { auto: 'Auto', high: 'High', medium: 'Medium', low: 'Low' }[q];
+    return this.t({ auto: 'Auto', high: 'High', medium: 'Medium', low: 'Low' }[q]);
   }
 
   private onPickQuality(q: QualityChoice): void {
@@ -532,7 +573,7 @@ export class Ha3dFloorplanCard extends LitElement {
     this.qualityChoice = q;
     const tier = this.sceneManager.getQualityTier();
     this.showToast(
-      `Quality: ${this.qualityLabel(q)}${q === 'auto' ? ` (${tier})` : ''}` +
+      `${this.t('Quality')}: ${this.qualityLabel(q)}${q === 'auto' ? ` (${tier})` : ''}` +
         (needsReload ? ' — reload to finish applying' : ''),
     );
   }
@@ -1696,7 +1737,7 @@ export class Ha3dFloorplanCard extends LitElement {
       <div class="control-popup" style="left:${x}px"
         @click=${(e: Event) => e.stopPropagation()}>
         <div class="control-head">
-          <span>${ids.length > 1 ? `${ids.length} devices` : ''}</span>
+          <span>${ids.length > 1 ? `${ids.length} ${this.t('devices')}` : ''}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
         ${ids.map((id) => this.renderEntityControl(id))}
@@ -1728,8 +1769,8 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="control-head">
           <span>${active
             ? html`<button type="button" class="ctl back" title="Back"
-                @click=${() => (this.controlCategory = null)}>${this.ic('chevUp')}</button> ${active.label}`
-            : room.name || 'Room'}</span>
+                @click=${() => (this.controlCategory = null)}>${this.ic('chevUp')}</button> ${this.t(active.label)}`
+            : room.name || this.t('Room')}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
         ${active
@@ -1737,7 +1778,7 @@ export class Ha3dFloorplanCard extends LitElement {
                 ? (() => {
                     const anyOn = active.ents.some((e) => this.effState(e.entity_id) === 'on');
                     return html`<div class="control-row">
-                      <span class="control-name">${anyOn ? 'All off' : 'All on'}</span>
+                      <span class="control-name">${this.t(anyOn ? 'All off' : 'All on')}</span>
                       <div class="control-ctls">
                         <button type="button" class="ctl big ${anyOn ? 'on' : ''}" title="Toggle all"
                           @click=${() => this.onToggleAll(active.ents)}>${this.ic('power')}</button>
@@ -1750,11 +1791,11 @@ export class Ha3dFloorplanCard extends LitElement {
             ? html`<div class="cat-grid">
                 ${cats.map(
                   (c) => html`<button type="button" class="cat-btn" @click=${() => (this.controlCategory = c.key)}>
-                    ${this.ic(c.icon)}<span>${c.label}</span><small>${c.ents.length}</small>
+                    ${this.ic(c.icon)}<span>${this.t(c.label)}</span><small>${c.ents.length}</small>
                   </button>`,
                 )}
               </div>`
-            : html`<span class="hint">No controllable devices</span>`}
+            : html`<span class="hint">${this.t('No controllable devices')}</span>`}
       </div>
     `;
   }
@@ -1857,7 +1898,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
         <div class="overlay top-right">
           <button class="btn" title="Reset view" @click=${this.onResetView}>
-            ⌂ Reset
+            ⌂ ${this.t('Reset')}
           </button>
           ${!this.editing
             ? html`<div class="quality-wrap">
@@ -1878,10 +1919,10 @@ export class Ha3dFloorplanCard extends LitElement {
             : nothing}
           ${this.editing
             ? html`<button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
-                ✓ Done &amp; Save
+                ✓ ${this.t('Done & Save')}
               </button>`
             : html`<button class="btn" title="Edit floor plan" @click=${this.enterEdit}>
-                ✎ Edit
+                ✎ ${this.t('Edit')}
               </button>`}
         </div>
 
