@@ -9,7 +9,6 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { FloorPlan, Underlay, ZoneDef } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
@@ -127,7 +126,6 @@ export class SceneManager {
   private qualityChoice: QualityChoice = 'auto';
   private qualityTier: QualityTier = 'high';
   private sun?: THREE.DirectionalLight;
-  private envTexture?: THREE.Texture;
 
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -192,9 +190,6 @@ export class SceneManager {
     // refresh it once whenever the scene actually changes (see requestShadowUpdate).
     this.renderer.shadowMap.autoUpdate = false;
     this.renderer.shadowMap.needsUpdate = true;
-    // Filmic tone mapping = richer, less "flat plastic" look.
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
     this.renderer.domElement.style.touchAction = 'none';
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.width = '100%';
@@ -203,7 +198,6 @@ export class SceneManager {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(background);
-    this.applyEnvironment();
     this.scene.add(this.previewGroup);
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
@@ -251,34 +245,8 @@ export class SceneManager {
     this.needsRender = true;
   }
 
-  /** Build (or tear down) the neutral studio image-based lighting for the
-   *  current tier. Env IBL gives materials soft realistic reflections/shading —
-   *  a big "premium" boost — but the per-pixel sampling isn't worth it on the
-   *  weakest GPUs, so the low tier runs without it. Called from the constructor
-   *  and on runtime quality changes, and cleans up its GPU resources. */
-  private applyEnvironment(): void {
-    const want = this.qualityTier !== 'low';
-    const has = !!this.scene.environment;
-    if (want && !has) {
-      const pmrem = new THREE.PMREMGenerator(this.renderer);
-      const roomEnv = new RoomEnvironment();
-      this.envTexture = pmrem.fromScene(roomEnv, 0.04).texture;
-      this.scene.environment = this.envTexture;
-      // Keep the IBL subtle — a soft fill, not a wash-out that flattens things.
-      this.scene.environmentIntensity = 0.35;
-      roomEnv.dispose();
-      pmrem.dispose();
-    } else if (!want && has) {
-      this.scene.environment = null;
-      this.envTexture?.dispose();
-      this.envTexture = undefined;
-    }
-  }
-
   private setupLights(): void {
-    // The environment map now provides soft fill, so keep the flat ambient low
-    // to preserve contrast/shading (a lit scene, not a washed-out one).
-    const ambient = new THREE.AmbientLight(0xffffff, this.qualityTier === 'low' ? 0.55 : 0.28);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
     this.scene.add(ambient);
 
     const preset = QUALITY_PRESETS[this.qualityTier];
@@ -474,7 +442,6 @@ export class SceneManager {
     this.qualityTier = choice === 'auto' ? detectTier() : choice;
     const p = QUALITY_PRESETS[this.qualityTier];
 
-    this.applyEnvironment(); // add/remove the env map to match the new tier
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, p.pixelRatio));
     this.renderer.shadowMap.enabled = p.shadows;
     this.renderer.shadowMap.type = p.shadowType;
@@ -1148,7 +1115,6 @@ export class SceneManager {
     this.clearPlan();
     for (const t of this.markerTexCache.values()) t.dispose();
     this.markerTexCache.clear();
-    this.envTexture?.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
