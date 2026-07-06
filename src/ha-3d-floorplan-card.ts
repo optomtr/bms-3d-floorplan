@@ -173,6 +173,8 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private rooms: RoomInfo[] = [];
   /** The room whose devices fill the right-side panel. */
   @state() private activeRoomKey: string | null = null;
+  /** Overview (1B): the room opened in the full-screen detail slide-over. */
+  @state() private detailRoomKey: string | null = null;
   /** Live clock for the panel header (ticks every 10s). */
   @state() private now = new Date();
   private clockTimer?: number;
@@ -536,6 +538,9 @@ export class Ha3dFloorplanCard extends LitElement {
     if (this.activeRoomKey && !rooms.some((r) => r.key === this.activeRoomKey)) {
       this.activeRoomKey = null;
     }
+    if (this.detailRoomKey && !rooms.some((r) => r.key === this.detailRoomKey)) {
+      this.detailRoomKey = null;
+    }
     this.sceneManager?.selectRoom(this.activeRoomKey);
     this.requestUpdate();
   }
@@ -549,6 +554,34 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private get activeRoom(): RoomInfo | undefined {
     return this.activeRoomKey ? this.rooms.find((r) => r.key === this.activeRoomKey) : undefined;
+  }
+
+  private openDetail(key: string): void {
+    this.detailRoomKey = key;
+    this.requestUpdate();
+  }
+  private closeDetail(): void {
+    this.detailRoomKey = null;
+    this.requestUpdate();
+  }
+  private get detailRoom(): RoomInfo | undefined {
+    return this.detailRoomKey ? this.rooms.find((r) => r.key === this.detailRoomKey) : undefined;
+  }
+
+  /** Set a light's colour temperature from a 0..100 slider (0 = warm, 100 = cold). */
+  private setLightCT(id: string, pct: number): void {
+    const a = this.hass?.states[id]?.attributes ?? {};
+    const minK = Number(a.min_color_temp_kelvin) || 2200;
+    const maxK = Number(a.max_color_temp_kelvin) || 6500;
+    const kelvin = Math.round(minK + ((maxK - minK) * pct) / 100);
+    this.svc('light', 'turn_on', { color_temp_kelvin: kelvin }, id, 'on');
+  }
+
+  /** Whether a light exposes colour-temperature control. */
+  private lightSupportsCT(id: string): boolean {
+    const a = this.hass?.states[id]?.attributes ?? {};
+    const modes: string[] = a.supported_color_modes ?? [];
+    return modes.includes('color_temp') || a.color_temp_kelvin != null || a.min_color_temp_kelvin != null;
   }
 
   private closeControl = (): void => {
@@ -2286,6 +2319,64 @@ export class Ha3dFloorplanCard extends LitElement {
     `;
   }
 
+  /** Count of distinct device categories present in a room (for "N устройства"). */
+  private deviceCount(room: RoomInfo): number {
+    const has = (...b: string[]) => room.entities.some((e) => b.includes(e.behavior));
+    return [
+      has('light', 'switch', 'input_boolean'),
+      has('climate', 'fan'),
+      has('cover'),
+      has('media_player'),
+      has('lock'),
+    ].filter(Boolean).length;
+  }
+
+  private ruPlural(n: number, one: string, few: string, many: string): string {
+    const a = n % 10, b = n % 100;
+    if (a === 1 && b !== 11) return one;
+    if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return few;
+    return many;
+  }
+
+  /** Overview (1B) full-screen detail slide-over for one room. */
+  private renderDetail() {
+    const room = this.detailRoom;
+    if (!room) return nothing;
+    const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
+    const humEnt = this.roomSensor(room, 'humidity', ['%']);
+    const skip = new Set<string>();
+    if (tempEnt) skip.add(tempEnt.entity_id);
+    if (humEnt) skip.add(humEnt.entity_id);
+    const climate = room.entities.find((e) => e.behavior === 'climate');
+    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
+    const num = (v: any, d: number) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
+    };
+    const tempChip = tempEnt != null ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    const humChip = humEnt != null ? `${num(humEnt.state, 0)}%` : null;
+    const n = this.deviceCount(room);
+    return html`
+      <div class="detail-back" @click=${() => this.closeDetail()}></div>
+      <div class="detail" @click=${(e: Event) => e.stopPropagation()}>
+        <div class="dhead">
+          <button type="button" class="dback" title="Back" @click=${() => this.closeDetail()}>${this.ic('arrowLeft')}</button>
+          <div class="cgrow">
+            <div class="dtitle">${room.name || this.t('Room')}</div>
+            <div class="dsub">${n} ${this.ruPlural(n, 'устройство', 'устройства', 'устройств')}</div>
+          </div>
+          ${tempChip || humChip
+            ? html`<div class="rp-chips">
+                ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
+                ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
+              </div>`
+            : nothing}
+        </div>
+        <div class="dbody">${this.roomCards(room, skip)}</div>
+      </div>
+    `;
+  }
+
   /** Build the ordered device cards for a room (lights, climate, covers, …). */
   private roomCards(room: RoomInfo, skip: Set<string>) {
     const hass = this.hass;
@@ -2324,6 +2415,14 @@ export class Ha3dFloorplanCard extends LitElement {
     const rawBri = ent?.attributes?.brightness;
     const briReal = rawBri != null ? Math.round((rawBri / 255) * 100) : 100;
     const bri = this.sliderValue(id, briReal);
+    // Colour temperature (warm↔cold), 0..100 from the entity's kelvin range.
+    const a = ent?.attributes ?? {};
+    const minK = Number(a.min_color_temp_kelvin) || 2200;
+    const maxK = Number(a.max_color_temp_kelvin) || 6500;
+    const curK = Number(a.color_temp_kelvin);
+    const ctReal = Number.isFinite(curK) ? Math.round(((curK - minK) / (maxK - minK)) * 100) : 50;
+    const ctKey = `${id}#ct`;
+    const ct = this.sliderValue(ctKey, Math.max(0, Math.min(100, ctReal)));
     return html`<div class="card ${on ? 'on' : ''}">
       <div class="crow">
         <div class="cicon ${on ? 'lit' : ''}">${this.ic('bulb')}</div>
@@ -2336,9 +2435,17 @@ export class Ha3dFloorplanCard extends LitElement {
       </div>
       ${on
         ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'))}>
-            <div class="slider-fill" style="width:${bri}%"></div>
-            <div class="slider-lab"><span>${this.t('Brightness')}</span><span>${bri}%</span></div>
-          </div>`
+              <div class="slider-fill" style="width:${bri}%"></div>
+              <div class="slider-lab"><span>${this.t('Brightness')}</span><span>${bri}%</span></div>
+            </div>
+            ${this.lightSupportsCT(id)
+              ? html`<div class="ctwrap">
+                  <div class="ctlab"><span>${this.t('Warm')}</span><span>${this.t('Cool')}</span></div>
+                  <div class="cttrack" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, ctKey, (p) => this.setLightCT(id, p))}>
+                    <div class="ctthumb" style="left:${ct}%"></div>
+                  </div>
+                </div>`
+              : nothing}`
         : nothing}
     </div>`;
   }
@@ -2512,6 +2619,7 @@ export class Ha3dFloorplanCard extends LitElement {
   private setViewMode(mode: 'room' | 'overview'): void {
     if (this.viewMode === mode) return;
     this.viewMode = mode;
+    this.detailRoomKey = null;
     this.requestUpdate();
     // The 3D viewport changes size between the two layouts — reframe it once the
     // new layout has settled so the model stays nicely centred.
@@ -2645,7 +2753,7 @@ export class Ha3dFloorplanCard extends LitElement {
     if (lock) {
       const locked = this.effState(lock.entity_id) === 'locked';
       extraChip = html`<button type="button" class="qstat lockq ${locked ? 'locked' : 'unlocked'}"
-        @click=${() => this.svc('lock', locked ? 'unlock' : 'lock', {}, lock.entity_id, locked ? 'unlocked' : 'locked')}>
+        @click=${(e: Event) => { e.stopPropagation(); this.svc('lock', locked ? 'unlock' : 'lock', {}, lock.entity_id, locked ? 'unlocked' : 'locked'); }}>
         ${this.ic(locked ? 'lockClosed' : 'lockOpen')}${locked ? this.t('Locked') : this.t('Unlocked')}</button>`;
     } else if (climate) {
       const target = this.hass?.states[climate.entity_id]?.attributes?.temperature;
@@ -2655,16 +2763,16 @@ export class Ha3dFloorplanCard extends LitElement {
       extraChip = html`<div class="qstat">${this.ic('curtain')}${pos != null ? `${pos}%` : '—'}</div>`;
     }
 
-    return html`<div class="rcard ${anyOn ? 'on' : ''}">
+    return html`<div class="rcard link ${anyOn ? 'on' : ''}" @click=${() => this.openDetail(room.key)}>
       <div class="rchead">
         <div class="rcicon">${this.ic(this.roomIcon(room.name))}</div>
         <div class="cgrow">
-          <div class="rcname">${room.name || this.t('Room')}</div>
+          <div class="rcname">${room.name || this.t('Room')}<span class="rcchev">${this.ic('chevRight')}</span></div>
           <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ') || '—'}</div>
         </div>
         ${ids.length
           ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle"
-              @click=${() => this.onToggleAll(room.entities.filter((e) => ['light', 'switch', 'input_boolean'].includes(e.behavior)))}><span class="sw-k"></span></button>`
+              @click=${(e: Event) => { e.stopPropagation(); this.onToggleAll(room.entities.filter((x) => ['light', 'switch', 'input_boolean'].includes(x.behavior))); }}><span class="sw-k"></span></button>`
           : nothing}
       </div>
       ${ids.length
@@ -2678,7 +2786,7 @@ export class Ha3dFloorplanCard extends LitElement {
               const lon = this.effState(id) === 'on';
               const nm = this.hass?.states[id]?.attributes?.friendly_name ?? id;
               return html`<button type="button" class="lightseg ${lon ? 'on' : ''}" title=${nm}
-                @click=${() => this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on')}></button>`;
+                @click=${(e: Event) => { e.stopPropagation(); this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}></button>`;
             })}
           </div>`
         : nothing}
@@ -2714,7 +2822,7 @@ export class Ha3dFloorplanCard extends LitElement {
         ${this.editing
           ? nothing
           : this.viewMode === 'overview'
-            ? this.renderOverview()
+            ? html`${this.renderOverview()}${this.renderDetail()}`
             : html`${this.renderStageChrome()}${this.renderRoomPanel()}`}
 
         ${!this.editing && this.idle ? this.renderScreensaver() : nothing}
@@ -4455,6 +4563,137 @@ export class Ha3dFloorplanCard extends LitElement {
     .qstat.lockq.unlocked {
       color: #f26a4b;
       background: rgba(242, 106, 75, 0.12);
+    }
+    .rcard.link {
+      cursor: pointer;
+    }
+    .rcchev {
+      display: inline-flex;
+      vertical-align: -3px;
+      margin-left: 4px;
+      color: var(--fnt, #646a75);
+    }
+    .rcchev .icn {
+      width: 15px;
+      height: 15px;
+    }
+
+    /* ---- Light colour-temperature slider (Тёплый ↔ Холодный) ---- */
+    .ctwrap {
+      margin-top: 14px;
+    }
+    .ctlab {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--mut);
+      margin-bottom: 7px;
+    }
+    .cttrack {
+      position: relative;
+      height: 40px;
+      border-radius: 13px;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      background: linear-gradient(90deg, #f3a83c, #fff 52%, #cfe0ff);
+    }
+    .ctthumb {
+      position: absolute;
+      top: 50%;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      border: 2px solid rgba(0, 0, 0, 0.06);
+    }
+
+    /* ---- Overview detail slide-over (1B) ---- */
+    .detail-back {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: rgba(6, 7, 9, 0.55);
+      backdrop-filter: blur(3px);
+      animation: rp-fade 0.2s both;
+    }
+    .detail {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(720px, 82%);
+      z-index: 21;
+      background: radial-gradient(150% 120% at 80% 4%, #20222a, #141519 55%, #0f1013);
+      border-left: 1px solid var(--brd);
+      box-shadow: -30px 0 80px -20px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      animation: slide-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes slide-in {
+      from { transform: translateX(40px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+    .dhead {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 24px 26px 16px;
+    }
+    .dback {
+      width: 46px;
+      height: 46px;
+      flex: none;
+      border-radius: 14px;
+      border: 1px solid var(--brd);
+      background: var(--card);
+      color: var(--tx);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .dback:hover {
+      background: var(--card2);
+    }
+    .dtitle {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.01em;
+    }
+    .dsub {
+      font-size: 13px;
+      color: var(--mut);
+      margin-top: 2px;
+    }
+    .dbody {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 26px 24px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: min-content;
+      gap: 14px;
+      align-content: start;
+    }
+    .dbody::-webkit-scrollbar {
+      width: 0;
+    }
+    .dbody > .lockbtn {
+      grid-column: 1 / -1;
+    }
+    @media (max-width: 720px) {
+      .detail {
+        width: 100%;
+      }
+      .dbody {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Keep the editor/legacy overlays clear of the room panel in view mode. */
