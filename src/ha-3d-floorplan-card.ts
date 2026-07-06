@@ -547,6 +547,11 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager?.resetView();
   }
 
+  /** Open the chrome-free full-screen kiosk page (HA panel only). */
+  private openKiosk = (): void => {
+    window.location.href = '/3d-floorplan-kiosk';
+  };
+
   // --- Hidden Edit entry (long-press top-left corner) ----------------------
   // A deliberate 5s hold enters the editor (then the PIN gate, if set). It's a
   // long-press, NOT a tap count, so it can't clash with a kiosk browser's own
@@ -1936,6 +1941,9 @@ export class Ha3dFloorplanCard extends LitElement {
           <button class="btn" title="Reset view" @click=${this.onResetView}>
             ⌂ ${this.t('Reset')}
           </button>
+          ${this.panel && !this.editing
+            ? html`<button class="btn" title="Full-screen 3D (kiosk)" @click=${this.openKiosk}>⛶</button>`
+            : nothing}
           ${this.editing
             ? html`<div class="quality-wrap">
                   <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
@@ -1958,7 +1966,7 @@ export class Ha3dFloorplanCard extends LitElement {
             : nothing}
         </div>
 
-        <!-- Hidden Edit entry (kiosk-safe): a 5s hold in the top-left corner
+        <!-- Hidden Edit entry (kiosk-safe): a 5s hold in the bottom-left corner
              opens the editor (then the PIN prompt if one is set). A long-press,
              NOT a tap count, so it never clashes with a kiosk browser's own
              multi-tap menu gesture. -->
@@ -2081,10 +2089,11 @@ export class Ha3dFloorplanCard extends LitElement {
     .quality-wrap {
       position: relative;
     }
-    /* Invisible top-left hotspot: hold 5s to open the editor (kiosk-safe). */
+    /* Invisible bottom-left hotspot: hold 5s to open the editor (kiosk-safe).
+       Bottom-left keeps it clear of the kiosk's "Home Assistant" back button. */
     .edit-hotspot {
       position: absolute;
-      top: 0;
+      bottom: 0;
       left: 0;
       width: 56px;
       height: 56px;

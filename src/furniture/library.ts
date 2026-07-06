@@ -1076,20 +1076,24 @@ const builders: Record<string, FurnitureBuilder> = {
     }
     return g;
   },
-  // Floor convector / panel heater (конвектор) — slim body with a top grille;
-  // the front strip glows when the heater is ON (bind climate/switch/fan).
+  // In-floor trench convector (конвектор) — a recessed linear grille FLUSH with
+  // the floor (like the warm-floor mat), usually along a window. The grille bars
+  // glow warm when the heater is ON (bind climate/switch/fan).
   convector: (c) => {
     const g = new THREE.Group();
-    const W = 0.8;
-    const H = 0.22;
-    const D = 0.14;
-    g.add(tint(box(W, H, D, mat(WHITE, { metalness: 0.1, roughness: 0.6 }), 0, H / 2 + 0.02, 0), c));
-    const slot = mat(0x2b2f36);
-    for (let i = 0; i < 7; i++) g.add(box(W - 0.12, 0.01, 0.012, slot, 0, H + 0.02, -0.045 + i * 0.015));
-    const strip = box(W - 0.1, 0.05, 0.008, mat(0xd98a5a, { roughness: 0.5 }), 0, H / 2 + 0.02, D / 2);
-    strip.name = 'emissive';
-    g.add(strip);
-    for (const sx of [-1, 1]) g.add(box(0.05, 0.02, D, slot, sx * (W / 2 - 0.06), 0.01, 0));
+    const W = 1.0;
+    const D = 0.18;
+    // Recessed metal frame, sitting flush at floor level.
+    g.add(tint(box(W, 0.04, D, mat(0x9aa0a6, { metalness: 0.55, roughness: 0.35 }), 0, 0.02, 0), c));
+    // Linear grille bars across the trench.
+    const bar = mat(0xd98a5a, { metalness: 0.3, roughness: 0.5 });
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const x = -W / 2 + 0.05 + (i / (n - 1)) * (W - 0.1);
+      const b = box(0.018, 0.02, D - 0.05, bar, x, 0.035, 0);
+      b.name = 'emissive';
+      g.add(b);
+    }
     return g;
   },
   // ---- Bathroom ----
@@ -1447,7 +1451,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   radiator: '#eeeeee', tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
-  warm_floor: '#b98f7d', convector: '#eeeeee',
+  warm_floor: '#b98f7d', convector: '#9aa0a6',
   window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
   // Lighting (warm shades)
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',

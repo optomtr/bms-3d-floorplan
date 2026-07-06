@@ -281,19 +281,40 @@ export class BindingManager {
     }
   }
 
-  /** Per-frame animation for fans + sliding curtains. */
-  animate(delta: number): void {
+  /** Per-frame animation for fans + sliding curtains. Returns true if anything
+   *  is still moving, so the render loop knows a redraw is needed this frame. */
+  animate(delta: number): boolean {
+    let active = false;
     for (const ab of this.bindings) {
       if (ab.behavior === 'fan' && ab.spin) {
         ab.spin.rotation.y += delta * 6;
+        active = true;
       }
       if (ab.curtains && ab.curtains.length && ab.coverOpen !== undefined) {
         // Closed = scale.x 1 (full span); open = 0.16 (gathered to the side).
         const target = 1 - 0.84 * ab.coverOpen;
         const k = Math.min(1, delta * 4); // smooth slide
         for (const piv of ab.curtains) {
-          piv.scale.x += (target - piv.scale.x) * k;
+          if (Math.abs(target - piv.scale.x) > 0.001) {
+            piv.scale.x += (target - piv.scale.x) * k;
+            active = true;
+          } else {
+            piv.scale.x = target; // settled — snap exactly, stop animating
+          }
         }
+      }
+    }
+    return active;
+  }
+
+  /** Snap curtain/blind panels straight to their current cover target (no
+   *  slide). Called when a floor becomes active so an already-open curtain shows
+   *  open immediately instead of sliding from closed on entry. */
+  settleCovers(): void {
+    for (const ab of this.bindings) {
+      if (ab.curtains && ab.curtains.length && ab.coverOpen !== undefined) {
+        const target = 1 - 0.84 * ab.coverOpen;
+        for (const piv of ab.curtains) piv.scale.x = target;
       }
     }
   }

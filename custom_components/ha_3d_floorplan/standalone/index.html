@@ -53,6 +53,21 @@
         cursor: pointer;
         display: none; /* only shown for manual (non-injected) serving */
       }
+      #ha-back {
+        position: fixed;
+        left: 10px;
+        top: 10px;
+        z-index: 20;
+        font: inherit;
+        font-size: 13px;
+        color: #fff;
+        background: rgba(20, 22, 26, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 10px;
+        padding: 7px 12px;
+        cursor: pointer;
+        display: none; /* shown only when Home Assistant serves the page */
+      }
       #setup {
         position: fixed;
         inset: 0;
@@ -141,6 +156,7 @@
       Optional same-origin resource overrides: ?card=<path> ?plan=<path> (relative
       paths on THIS origin only — remote/data: URLs are rejected).
     -->
+    <button id="ha-back" title="Back to Home Assistant">⌂ Home Assistant</button>
     <div id="status">starting…</div>
     <button id="gear" title="Connect to Home Assistant">⚙</button>
     <div id="setup">
@@ -271,6 +287,12 @@
       // The ⚙ connect button is only for MANUAL folder serving. When the page is
       // served by the integration (injected config), it's never shown.
       if (!inj) $('#gear').style.display = 'block';
+      // When Home Assistant serves the kiosk page, offer a way back to HA.
+      if (inj) {
+        const back = $('#ha-back');
+        back.style.display = 'block';
+        back.onclick = () => (location.href = '/');
+      }
       $('#gear').onclick = () => {
         $('#ha-url').value = haUrl;
         $('#ha-token').value = token;
