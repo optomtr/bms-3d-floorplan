@@ -373,6 +373,7 @@ export class Ha3dFloorplanCard extends LitElement {
       const plan = await this.resolvePlan();
       this.currentPlan = plan;
       this.sceneManager.loadPlan(plan);
+      this.sceneManager.optimizeForView(); // merge static geometry (view mode)
       this.floorNames = plan.floors.map((f, i) => f.name || `Floor ${i + 1}`);
       this.activeFloorIndex = 0;
       this.planLoaded = true;
@@ -758,6 +759,7 @@ export class Ha3dFloorplanCard extends LitElement {
     // Reload the last saved/loaded plan for clean View mode.
     if (this.currentPlan && this.sceneManager) {
       this.sceneManager.loadPlan(this.currentPlan);
+      this.sceneManager.optimizeForView(); // re-merge static geometry for view
       if (this.hass) {
         this.lastHass = undefined;
         this.lastPushed = undefined;

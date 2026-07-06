@@ -9,6 +9,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { FloorPlan, Underlay, ZoneDef } from '../types';
 import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
@@ -243,6 +244,73 @@ export class SceneManager {
    *  that changes what's on screen but isn't a camera move or animation. */
   invalidate(): void {
     this.needsRender = true;
+  }
+
+  /** Collapse each floor's STATIC architecture (walls, floors, opening frames —
+   *  everything EXCEPT furniture, which stays live for bindings/markers) into a
+   *  handful of merged meshes, one per material look. This cuts a heavy plan
+   *  from hundreds of draw calls to a few — the main win for weak tablet GPUs.
+   *  View mode ONLY; the editor always rebuilds the scene unmerged (loadPlan) so
+   *  per-wall/room selection keeps working. Safe to call after each view load. */
+  optimizeForView(): void {
+    if (this.editing) return;
+    for (const floor of this.floors) this.mergeArchitecture(floor);
+    this.requestShadowUpdate();
+    this.invalidate();
+  }
+
+  private mergeArchitecture(floor: BuiltFloor): void {
+    const furnitureRoots = new Set<THREE.Object3D>(floor.furnitureById.values());
+    const inFurniture = (o: THREE.Object3D): boolean => {
+      for (let cur: THREE.Object3D | null = o; cur; cur = cur.parent) {
+        if (furnitureRoots.has(cur)) return true;
+      }
+      return false;
+    };
+    floor.group.updateMatrixWorld(true);
+    const invFloor = floor.group.matrixWorld.clone().invert();
+
+    // Bucket mergeable meshes by a material "signature" (same look → one mesh).
+    const groups = new Map<string, { mat: THREE.Material; meshes: THREE.Mesh[] }>();
+    floor.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.userData.merged || inFurniture(m)) return;
+      if (Array.isArray(m.material) || !m.geometry) return;
+      const mat = m.material as THREE.MeshStandardMaterial;
+      const sig = [
+        mat.type,
+        mat.color?.getHexString?.() ?? '',
+        (mat.map as { uuid?: string } | null)?.uuid ?? '',
+        mat.transparent, mat.opacity, mat.roughness, mat.metalness, mat.side, mat.depthWrite,
+      ].join('|');
+      let g = groups.get(sig);
+      if (!g) { g = { mat, meshes: [] }; groups.set(sig, g); }
+      g.meshes.push(m);
+    });
+
+    for (const { mat, meshes } of groups.values()) {
+      if (meshes.length < 2) continue; // nothing to gain from a lone mesh
+      const geos: THREE.BufferGeometry[] = [];
+      for (const m of meshes) {
+        m.updateMatrixWorld(true);
+        const g = m.geometry.clone();
+        g.applyMatrix4(invFloor.clone().multiply(m.matrixWorld)); // bake into floor space
+        geos.push(g);
+      }
+      const merged = mergeGeometries(geos, false);
+      geos.forEach((g) => g.dispose());
+      if (!merged) continue; // incompatible attributes — leave those meshes as-is
+      const mesh = new THREE.Mesh(merged, mat.clone());
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.merged = true;
+      floor.group.add(mesh);
+      for (const m of meshes) {
+        m.removeFromParent();
+        m.geometry.dispose();
+        (m.material as THREE.Material).dispose();
+      }
+    }
   }
 
   private setupLights(): void {
