@@ -12,7 +12,7 @@ import type { FloorDef, WallDef, RoomDef, Vec2 } from '../types';
 import { resolveFurniture } from '../furniture/loader';
 import { TextLabel } from './labels';
 import { isShapeRoom, roomPolygon, roomWalls } from './room-shapes';
-import { surfaceTexture, tiled, isBakedMaterial } from './materials';
+import { surfaceTexture, tiled, isBakedMaterial, grainTexture } from './materials';
 
 const DEFAULT_WALL_HEIGHT = 2.6;
 const DEFAULT_THICKNESS = 0.12;
@@ -40,9 +40,11 @@ function wallMaterial(color?: string, material?: string): THREE.MeshStandardMate
   const base = color ?? (isBakedMaterial(material) ? '#ffffff' : '#e6e6e6');
   return new THREE.MeshStandardMaterial({
     color: base,
-    roughness: 0.95,
+    roughness: 0.9,
     metalness: 0.0,
-    map: material && material !== 'plain' ? tiled(surfaceTexture(material), 3, 2) : null,
+    // Plain walls get a shared fine grain so they read as painted plaster, not
+    // flat plastic (shared → still merges in view mode).
+    map: material && material !== 'plain' ? tiled(surfaceTexture(material), 3, 2) : grainTexture(),
   });
 }
 
@@ -255,10 +257,10 @@ function buildFloor(
     geo,
     new THREE.MeshStandardMaterial({
       color: room.color ?? (isBakedMaterial(room.material) ? '#ffffff' : '#cfc7ba'),
-      roughness: 1,
+      roughness: 0.9,
       metalness: 0,
       side: THREE.DoubleSide,
-      map: room.material && room.material !== 'plain' ? surfaceTexture(room.material) : null,
+      map: room.material && room.material !== 'plain' ? surfaceTexture(room.material) : grainTexture(),
     }),
   );
   mesh.position.y = 0.005;

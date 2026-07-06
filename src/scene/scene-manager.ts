@@ -254,16 +254,20 @@ export class SceneManager {
    *  per-wall/room selection keeps working. Safe to call after each view load. */
   optimizeForView(): void {
     if (this.editing) return;
-    for (const floor of this.floors) this.mergeArchitecture(floor);
+    for (let i = 0; i < this.floors.length; i++) {
+      // Keep BOUND furniture live (glow/spin/curtain + markers); everything else
+      // — architecture AND unbound furniture — is fair game to merge.
+      const keep = new Set<THREE.Object3D>(this.bindingManagers[i]?.anchorObjects() ?? []);
+      this.mergeStatic(this.floors[i], keep);
+    }
     this.requestShadowUpdate();
     this.invalidate();
   }
 
-  private mergeArchitecture(floor: BuiltFloor): void {
-    const furnitureRoots = new Set<THREE.Object3D>(floor.furnitureById.values());
-    const inFurniture = (o: THREE.Object3D): boolean => {
+  private mergeStatic(floor: BuiltFloor, keepRoots: Set<THREE.Object3D>): void {
+    const inKept = (o: THREE.Object3D): boolean => {
       for (let cur: THREE.Object3D | null = o; cur; cur = cur.parent) {
-        if (furnitureRoots.has(cur)) return true;
+        if (keepRoots.has(cur)) return true;
       }
       return false;
     };
@@ -274,12 +278,13 @@ export class SceneManager {
     const groups = new Map<string, { mat: THREE.Material; meshes: THREE.Mesh[] }>();
     floor.group.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (!m.isMesh || m.userData.merged || inFurniture(m)) return;
+      if (!m.isMesh || m.userData.merged || inKept(m)) return;
       if (Array.isArray(m.material) || !m.geometry) return;
       const mat = m.material as THREE.MeshStandardMaterial;
       const sig = [
         mat.type,
         mat.color?.getHexString?.() ?? '',
+        mat.emissive?.getHexString?.() ?? '', mat.emissiveIntensity ?? '',
         (mat.map as { uuid?: string } | null)?.uuid ?? '',
         mat.transparent, mat.opacity, mat.roughness, mat.metalness, mat.side, mat.depthWrite,
       ].join('|');

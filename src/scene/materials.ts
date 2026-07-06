@@ -246,6 +246,30 @@ export function surfaceTexture(name?: string): THREE.Texture | null {
   return cache.get(key) ?? null;
 }
 
+let grainTex: THREE.Texture | undefined;
+/** A single SHARED, very fine grain texture used on otherwise-plain walls and
+ *  floors so they read as painted/finished surfaces instead of flat plastic.
+ *  Fine noise is scale-invariant, so one fixed-repeat instance works on any
+ *  surface — and being shared (not cloned) it lets the view-mode geometry merge
+ *  still collapse all plain walls/floors into one mesh. */
+export function grainTexture(): THREE.Texture {
+  if (!grainTex) {
+    const [c, ctx] = canvas(256);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 12000; i++) {
+      const v = Math.random();
+      ctx.fillStyle = v < 0.5 ? `rgba(0,0,0,${v * 0.06})` : `rgba(255,255,255,${(v - 0.5) * 0.06})`;
+      ctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(4, 4);
+    grainTex = t;
+  }
+  return grainTex;
+}
+
 /** Repeat the texture across a surface of the given world size (meters). */
 export function tiled(tex: THREE.Texture | null, wMeters: number, hMeters: number): THREE.Texture | null {
   if (!tex) return null;

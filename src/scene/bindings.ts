@@ -307,6 +307,15 @@ export class BindingManager {
     return active;
   }
 
+  /** The furniture Object3Ds entities are bound to. These must stay LIVE (light
+   *  glow, fan spin, curtain slide, and the markers that anchor to them), so the
+   *  view-mode geometry merge keeps them separate; everything else can merge. */
+  anchorObjects(): THREE.Object3D[] {
+    const out: THREE.Object3D[] = [];
+    for (const ab of this.bindings) if (ab.anchor) out.push(ab.anchor);
+    return out;
+  }
+
   /** Snap curtain/blind panels straight to their current cover target (no
    *  slide). Called when a floor becomes active so an already-open curtain shows
    *  open immediately instead of sliding from closed on entry. */
