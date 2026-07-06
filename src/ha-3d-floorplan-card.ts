@@ -34,6 +34,7 @@ import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
 import { isZirconPlan, convertZircon } from './import/zircon';
 import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
 import { ICON_PATHS, climateModeIconName } from './scene/icons';
+import { FONT_FACE_CSS } from './scene/fonts';
 
 /** Device categories shown when a room marker is tapped (only present ones).
  *  Fans/ventilation live under Climate (not Lights). */
@@ -1274,8 +1275,21 @@ export class Ha3dFloorplanCard extends LitElement {
 
   // -- Lit lifecycle ----------------------------------------------------------
 
+  /** Register the Onest webfont once at the document level. @font-face rules are
+   *  ignored inside Shadow DOM, so the card's shadow styles can only *use* the
+   *  family if it's declared in the light DOM (here). Guarded so many cards share
+   *  the one <style>. */
+  private static injectFonts(): void {
+    if (typeof document === 'undefined' || document.getElementById('ha3d-onest-font')) return;
+    const style = document.createElement('style');
+    style.id = 'ha3d-onest-font';
+    style.textContent = FONT_FACE_CSS;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   public override connectedCallback(): void {
     super.connectedCallback();
+    Ha3dFloorplanCard.injectFonts();
     this.sceneManager?.start();
     window.addEventListener('keydown', this.trackShift);
     window.addEventListener('keyup', this.trackShift);
