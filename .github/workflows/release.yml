@@ -1,0 +1,27 @@
+name: Auto release on tag
+
+# HACS shows an "update available" in Home Assistant based on GitHub *Releases*.
+# Publishing a release by hand each time is the only manual step left — this
+# workflow removes it: push a version tag (e.g. v0.29.1) and a GitHub Release is
+# created automatically, with notes generated from the commits. Nothing in Home
+# Assistant needs to change; HACS just picks up the new release.
+#
+# Flow from now on: commit -> `git tag vX.Y.Z` -> `git push --tags`. Done.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the GitHub Release for this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
