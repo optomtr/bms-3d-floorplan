@@ -2407,7 +2407,8 @@ export class Ha3dFloorplanCard extends LitElement {
     let sum = 0;
     let n = 0;
     for (const room of this.rooms) {
-      if (this.roomLights(room).anyOn) onCount++;
+      // Count every light source that is on (not just rooms with a light on).
+      onCount += this.roomLights(room).ids.filter((id) => this.effState(id) === 'on').length;
       const t = this.roomSensor(room, 'temperature', ['°C', '°F']);
       let tv = t ? Number(t.state) : undefined;
       if (tv == null || !Number.isFinite(tv)) {
@@ -2481,7 +2482,10 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private renderOverviewCard(room: RoomInfo, num: (v: any, d: number) => string) {
-    const { ids, lightId, anyOn, bri } = this.roomLights(room);
+    const { ids, anyOn } = this.roomLights(room);
+    // Each light = one segment; the % is how many are on (1 of 5 = 20%, …).
+    const onCount = ids.filter((id) => this.effState(id) === 'on').length;
+    const pct = ids.length ? Math.round((onCount / ids.length) * 100) : 0;
     const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
     const humEnt = this.roomSensor(room, 'humidity', ['%']);
     const climate = room.entities.find((e) => e.behavior === 'climate');
@@ -2490,8 +2494,6 @@ export class Ha3dFloorplanCard extends LitElement {
     const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
     const tempStr = tempEnt ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
     const humStr = humEnt ? `${num(humEnt.state, 0)}%` : null;
-
-    const setAllBri = (p: number) => { for (const id of ids) this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'); };
 
     // One extra footer chip (lock > climate > cover), mirroring the mockup.
     let extraChip = nothing as unknown;
@@ -2520,14 +2522,19 @@ export class Ha3dFloorplanCard extends LitElement {
               @click=${() => this.onToggleAll(room.entities.filter((e) => ['light', 'switch', 'input_boolean'].includes(e.behavior)))}><span class="sw-k"></span></button>`
           : nothing}
       </div>
-      ${lightId
+      ${ids.length
         ? html`
           <div class="rcmid">
             <span class="icn-mid">${this.ic('bulb')}</span><span class="lbltxt">${this.t('Light')}</span>
-            <div class="grow"></div><span class="brival">${bri}%</span>
+            <div class="grow"></div><span class="brival">${onCount}/${ids.length} · ${pct}%</span>
           </div>
-          <div class="slider sm" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, lightId, setAllBri)}>
-            <div class="slider-fill ${anyOn ? '' : 'dim'}" style="width:${bri}%"></div>
+          <div class="lightsegs">
+            ${ids.map((id) => {
+              const lon = this.effState(id) === 'on';
+              const nm = this.hass?.states[id]?.attributes?.friendly_name ?? id;
+              return html`<button type="button" class="lightseg ${lon ? 'on' : ''}" title=${nm}
+                @click=${() => this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on')}></button>`;
+            })}
           </div>`
         : nothing}
       ${humStr || extraChip !== nothing
@@ -3985,6 +3992,34 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .slider-fill.dim {
       background: rgba(255, 255, 255, 0.5);
+    }
+    /* One segment per light: on = accent, off = dim. Filling them raises the %. */
+    .lightsegs {
+      display: flex;
+      gap: 4px;
+      margin-top: 10px;
+      height: 38px;
+    }
+    .lightseg {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.09);
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s, box-shadow 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .lightseg:hover {
+      background: rgba(255, 255, 255, 0.17);
+    }
+    .lightseg.on {
+      background: var(--accent);
+      box-shadow: 0 2px 10px -3px rgba(243, 168, 60, 0.7);
+    }
+    .lightseg.on:hover {
+      background: #f4b358;
     }
     .rcfoot {
       display: flex;
