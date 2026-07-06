@@ -90,6 +90,14 @@ const RU_STRINGS: Record<string, string> = {
   'opened to': 'Открыто на',
   'No devices in this room': 'В этой комнате нет устройств',
   'Select a room': 'Выберите комнату',
+  // Overview (Option 1B: house overview).
+  Overview: 'Обзор',
+  'lights on': 'свет включён',
+  'on average': 'в среднем',
+  'All off short': 'Всё выкл.',
+  'My home': 'Мой дом',
+  rooms: 'комнат',
+  'light sources active': 'источников света активно',
 };
 
 @customElement('ha-3d-floorplan-card')
@@ -144,6 +152,8 @@ export class Ha3dFloorplanCard extends LitElement {
    *  would otherwise close it the instant it appears on tablets. */
   private controlOpenedAt = 0;
   // --- Room control panel (Option 1A: room in focus) ---
+  /** Which view is showing: single room in focus (1A) or the house grid (1B). */
+  @state() private viewMode: 'room' | 'overview' = 'room';
   /** Rooms on the active floor (from the scene), for the pills + right panel. */
   @state() private rooms: RoomInfo[] = [];
   /** The room whose devices fill the right-side panel. */
@@ -2093,9 +2103,9 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="cdate">${this.fmtClockDate()}</div>
       </div>
       <div class="topstat">
+        ${this.renderViewToggle()}
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic('room')}</button>
         ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
-        <div class="sdot"><span class="on-dot"></span>${this.ic('wifi')}</div>
       </div>
       ${this.renderPills()}
     `;
@@ -2352,6 +2362,183 @@ export class Ha3dFloorplanCard extends LitElement {
     }
   }
 
+  // -- Overview (Option 1B: house overview) -----------------------------------
+
+  private setViewMode(mode: 'room' | 'overview'): void {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    this.requestUpdate();
+    // The 3D viewport changes size between the two layouts — reframe it once the
+    // new layout has settled so the model stays nicely centred.
+    requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView()));
+  }
+
+  private renderViewToggle() {
+    const on = (m: string) => (this.viewMode === m ? 'on' : '');
+    return html`<div class="view-toggle">
+      <button type="button" class="vt-btn ${on('room')}" @click=${() => this.setViewMode('room')}>
+        ${this.ic('room')}<span>${this.t('Room')}</span>
+      </button>
+      <button type="button" class="vt-btn ${on('overview')}" @click=${() => this.setViewMode('overview')}>
+        ${this.ic('grid')}<span>${this.t('Overview')}</span>
+      </button>
+    </div>`;
+  }
+
+  /** Aggregate light state + representative brightness for a whole room. */
+  private roomLights(room: RoomInfo): { ids: string[]; lightId?: string; anyOn: boolean; bri: number } {
+    const ids = room.entities
+      .filter((e) => ['light', 'switch', 'input_boolean'].includes(e.behavior))
+      .map((e) => e.entity_id)
+      .filter((id) => this.hass?.states[id]);
+    const anyOn = ids.some((id) => this.effState(id) === 'on');
+    const lightId = room.entities.find((e) => e.behavior === 'light' && this.hass?.states[e.entity_id])?.entity_id;
+    let bri = 100;
+    if (lightId) {
+      const b = this.hass?.states[lightId]?.attributes?.brightness;
+      bri = b != null ? Math.round((b / 255) * 100) : 100;
+      if (this.dragEntity === lightId) bri = this.dragValue;
+    }
+    return { ids, lightId, anyOn, bri };
+  }
+
+  private overviewStats(): { onCount: number; avgTemp: string; roomCount: number } {
+    let onCount = 0;
+    let sum = 0;
+    let n = 0;
+    for (const room of this.rooms) {
+      if (this.roomLights(room).anyOn) onCount++;
+      const t = this.roomSensor(room, 'temperature', ['°C', '°F']);
+      let tv = t ? Number(t.state) : undefined;
+      if (tv == null || !Number.isFinite(tv)) {
+        const c = room.entities.find((e) => e.behavior === 'climate');
+        const cur = c ? this.hass?.states[c.entity_id]?.attributes?.current_temperature : undefined;
+        tv = cur != null ? Number(cur) : undefined;
+      }
+      if (tv != null && Number.isFinite(tv)) { sum += tv; n++; }
+    }
+    return { onCount, avgTemp: n ? `${Math.round(sum / n)}°` : '—', roomCount: this.rooms.length };
+  }
+
+  /** Master "everything off" across the whole home (overview). */
+  private allOffHouse(): void {
+    if (!this.hass) return;
+    const offIds: string[] = [];
+    for (const room of this.rooms) {
+      for (const e of room.entities) {
+        if (['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior) && this.effState(e.entity_id) === 'on') {
+          offIds.push(e.entity_id);
+        }
+        if (e.behavior === 'media_player') {
+          const s = this.effState(e.entity_id);
+          if (!['off', 'paused', 'idle', 'standby', 'unavailable', 'unknown'].includes(s)) {
+            this.svc('media_player', 'media_pause', {}, e.entity_id, 'paused');
+          }
+        }
+      }
+    }
+    if (offIds.length) {
+      const gens = offIds.map((id) => this.setOptimistic(id, 'off'));
+      const revert = () => offIds.forEach((id, i) => { if (this.optimistic.get(id)?.gen === gens[i]) this.clearOptimistic(id); });
+      try {
+        const p: any = this.hass.callService('homeassistant', 'turn_off', { entity_id: offIds });
+        if (p && typeof p.catch === 'function') p.catch(revert);
+      } catch {
+        revert();
+      }
+    }
+  }
+
+  private renderOverview() {
+    const stats = this.overviewStats();
+    const num = (v: any, d: number) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
+    };
+    return html`
+      <div class="ov-top">
+        <div class="ov-clock">
+          <div class="ctime">${this.fmtClockTime()}</div>
+          <div class="cdate">${this.fmtClockDate()}</div>
+        </div>
+        <div class="ov-actions">
+          ${this.renderViewToggle()}
+          <div class="sumcard act"><div class="sumn">${stats.onCount}</div><div class="suml">${this.t('lights on')}</div></div>
+          <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${this.t('on average')}</div></div>
+          <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic('power')}<span>${this.t('All off short')}</span></button>
+        </div>
+      </div>
+      <div class="ov-banner-label">
+        <div class="bmh">${this.t('My home')}</div>
+        <div class="bms">${stats.roomCount} ${this.t('rooms')} · ${stats.onCount} ${this.t('light sources active')}</div>
+      </div>
+      <div class="ov-grid">
+        ${this.rooms.length
+          ? this.rooms.map((r) => this.renderOverviewCard(r, num))
+          : html`<div class="rp-empty">${this.t('No devices in this room')}</div>`}
+      </div>
+    `;
+  }
+
+  private renderOverviewCard(room: RoomInfo, num: (v: any, d: number) => string) {
+    const { ids, lightId, anyOn, bri } = this.roomLights(room);
+    const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
+    const humEnt = this.roomSensor(room, 'humidity', ['%']);
+    const climate = room.entities.find((e) => e.behavior === 'climate');
+    const lock = room.entities.find((e) => e.behavior === 'lock');
+    const cover = room.entities.find((e) => e.behavior === 'cover');
+    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
+    const tempStr = tempEnt ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    const humStr = humEnt ? `${num(humEnt.state, 0)}%` : null;
+
+    const setAllBri = (p: number) => { for (const id of ids) this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'); };
+
+    // One extra footer chip (lock > climate > cover), mirroring the mockup.
+    let extraChip = nothing as unknown;
+    if (lock) {
+      const locked = this.effState(lock.entity_id) === 'locked';
+      extraChip = html`<button type="button" class="qstat lockq ${locked ? 'locked' : 'unlocked'}"
+        @click=${() => this.svc('lock', locked ? 'unlock' : 'lock', {}, lock.entity_id, locked ? 'unlocked' : 'locked')}>
+        ${this.ic(locked ? 'lockClosed' : 'lockOpen')}${locked ? this.t('Locked') : this.t('Unlocked')}</button>`;
+    } else if (climate) {
+      const target = this.hass?.states[climate.entity_id]?.attributes?.temperature;
+      extraChip = html`<div class="qstat">${this.ic('heat')}${target != null ? `${target}°` : '—'}</div>`;
+    } else if (cover) {
+      const pos = this.hass?.states[cover.entity_id]?.attributes?.current_position;
+      extraChip = html`<div class="qstat">${this.ic('curtain')}${pos != null ? `${pos}%` : '—'}</div>`;
+    }
+
+    return html`<div class="rcard ${anyOn ? 'on' : ''}">
+      <div class="rchead">
+        <div class="rcicon">${this.ic(this.roomIcon(room.name))}</div>
+        <div class="cgrow">
+          <div class="rcname">${room.name || this.t('Room')}</div>
+          <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ') || '—'}</div>
+        </div>
+        ${ids.length
+          ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle"
+              @click=${() => this.onToggleAll(room.entities.filter((e) => ['light', 'switch', 'input_boolean'].includes(e.behavior)))}><span class="sw-k"></span></button>`
+          : nothing}
+      </div>
+      ${lightId
+        ? html`
+          <div class="rcmid">
+            <span class="icn-mid">${this.ic('bulb')}</span><span class="lbltxt">${this.t('Light')}</span>
+            <div class="grow"></div><span class="brival">${bri}%</span>
+          </div>
+          <div class="slider sm" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, lightId, setAllBri)}>
+            <div class="slider-fill ${anyOn ? '' : 'dim'}" style="width:${bri}%"></div>
+          </div>`
+        : nothing}
+      ${humStr || extraChip !== nothing
+        ? html`<div class="rcfoot">
+            ${humStr ? html`<div class="qstat">${this.ic('drop')}${humStr}</div>` : nothing}
+            ${extraChip}
+          </div>`
+        : nothing}
+    </div>`;
+  }
+
   // -- Render -----------------------------------------------------------------
 
   protected override render() {
@@ -2360,15 +2547,18 @@ export class Ha3dFloorplanCard extends LitElement {
     const projects = this.config.projects ?? [];
 
     return html`
-      <ha-card class=${this.editing ? 'editing' : 'view'} style=${this.editing ? '' : `height:${height}`}>
+      <ha-card class=${this.editing ? 'editing' : `view ${this.viewMode}`} style=${this.editing ? '' : `height:${height}`}>
         <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
 
         ${this.loadError
           ? html`<div class="error">⚠ ${this.loadError}</div>`
           : nothing}
 
-        ${!this.editing ? this.renderStageChrome() : nothing}
-        ${!this.editing ? this.renderRoomPanel() : nothing}
+        ${this.editing
+          ? nothing
+          : this.viewMode === 'overview'
+            ? this.renderOverview()
+            : html`${this.renderStageChrome()}${this.renderRoomPanel()}`}
 
         ${this.editing
           ? html`<div class="overlay top-right">
@@ -3095,7 +3285,7 @@ export class Ha3dFloorplanCard extends LitElement {
       font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
       background: radial-gradient(150% 120% at 80% 4%, #20222a, #141519 52%, #0f1013);
     }
-    ha-card.view .viewport {
+    ha-card.view.room .viewport {
       position: absolute;
       top: 0;
       left: 0;
@@ -3557,6 +3747,281 @@ export class Ha3dFloorplanCard extends LitElement {
       margin-top: 1px;
     }
 
+    /* ---- View toggle (Обзор / Комната) ---- */
+    .view-toggle {
+      display: inline-flex;
+      padding: 4px;
+      gap: 3px;
+      border-radius: 13px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+    }
+    .vt-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: var(--mut);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .vt-btn .icn {
+      width: 17px;
+      height: 17px;
+    }
+    .vt-btn.on {
+      background: #fff;
+      color: #17181c;
+    }
+
+    /* ===================================================================
+       House overview (Option 1B): summary bar + 3D banner + room grid.
+       =================================================================== */
+    ha-card.view.overview {
+      background: radial-gradient(1200px 900px at 28% 0%, #1b1d24, #0b0c0e 62%);
+    }
+    ha-card.view.overview .viewport {
+      position: absolute;
+      top: 120px;
+      left: 30px;
+      right: 30px;
+      height: 150px;
+      width: auto;
+      background: var(--model, #1b1d22);
+      border-radius: 20px;
+      border: 1px solid var(--brd);
+      overflow: hidden;
+    }
+    .ov-top {
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      right: 30px;
+      z-index: 5;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .ov-actions {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .sumcard {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      padding: 11px 16px;
+      border-radius: 15px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      min-width: 96px;
+    }
+    .sumn {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+    }
+    .suml {
+      font-size: 12px;
+      color: var(--mut);
+    }
+    .sumcard.act {
+      background: rgba(243, 168, 60, 0.16);
+      border-color: rgba(243, 168, 60, 0.48);
+    }
+    .sumcard.act .sumn {
+      color: var(--accent);
+    }
+    .ov-master {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 20px;
+      border-radius: 15px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      color: var(--tx);
+      font: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .ov-master:hover {
+      background: var(--card2);
+    }
+    .ov-banner-label {
+      position: absolute;
+      top: 120px;
+      left: 30px;
+      right: 30px;
+      height: 150px;
+      z-index: 6;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-left: 22px;
+      border-radius: 20px;
+      background: linear-gradient(90deg, rgba(12, 13, 16, 0.85), rgba(12, 13, 16, 0.2) 46%, transparent 70%);
+    }
+    .bmh {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .bms {
+      font-size: 13px;
+      color: var(--mut);
+      margin-top: 3px;
+    }
+    .ov-grid {
+      position: absolute;
+      top: 292px;
+      left: 30px;
+      right: 30px;
+      bottom: 26px;
+      z-index: 5;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      align-content: start;
+    }
+    .ov-grid::-webkit-scrollbar {
+      width: 0;
+    }
+    .rcard {
+      background: var(--card);
+      border: 1px solid var(--brd);
+      border-radius: 18px;
+      padding: 15px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      animation: rp-rise 0.36s both;
+    }
+    .rcard.on {
+      border-color: rgba(243, 168, 60, 0.5);
+      background: linear-gradient(rgba(243, 168, 60, 0.14), transparent 55%), var(--card);
+    }
+    .rchead {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .rcicon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--mut);
+      flex: none;
+    }
+    .rcicon .icn {
+      width: 20px;
+      height: 20px;
+    }
+    .rcard.on .rcicon {
+      background: rgba(243, 168, 60, 0.16);
+      color: var(--accent);
+    }
+    .rcname {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--tx);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rctemp {
+      font-size: 12.5px;
+      color: var(--mut);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rcmid {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 13px;
+    }
+    .icn-mid {
+      display: inline-flex;
+      color: var(--mut);
+    }
+    .icn-mid .icn {
+      width: 17px;
+      height: 17px;
+    }
+    .lbltxt {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--mut);
+    }
+    .brival {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .slider.sm {
+      height: 38px;
+      margin-top: 10px;
+    }
+    .slider-fill.dim {
+      background: rgba(255, 255, 255, 0.5);
+    }
+    .rcfoot {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .qstat {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--mut);
+      flex: 1;
+      border: none;
+      font-family: inherit;
+    }
+    .qstat .icn {
+      width: 15px;
+      height: 15px;
+    }
+    .qstat.lockq {
+      cursor: pointer;
+    }
+    .qstat.lockq.locked {
+      color: #37c58e;
+      background: rgba(55, 197, 142, 0.12);
+    }
+    .qstat.lockq.unlocked {
+      color: #f26a4b;
+      background: rgba(242, 106, 75, 0.12);
+    }
+
     /* Keep the editor/legacy overlays clear of the room panel in view mode. */
     ha-card.view .overlay.top-left {
       top: 108px;
@@ -3571,12 +4036,15 @@ export class Ha3dFloorplanCard extends LitElement {
 
     /* Narrow cards: stack the panel below the 3D. */
     @media (max-width: 720px) {
-      ha-card.view {
+      ha-card.view.room {
         --panel-w: 0px;
       }
-      ha-card.view .viewport {
+      ha-card.view.room .viewport {
         right: 0;
         bottom: 46%;
+      }
+      ha-card.view.overview .ov-grid {
+        grid-template-columns: repeat(2, 1fr);
       }
       .room-panel {
         top: 54%;

@@ -36,6 +36,7 @@ export const ICON_PATHS: Record<string, string[]> = {
   stop: ['M6.5 6.5h11v11h-11z'],
   play: ['M8 5.2l11 6.8-11 6.8z'],
   pause: ['M9 5v14', 'M15 5v14'],
+  grid: ['M4 4h7v7H4z', 'M13 4h7v7h-7z', 'M4 13h7v7H4z', 'M13 13h7v7h-7z'],
   minus: ['M5 12h14'],
   plus: ['M12 5v14', 'M5 12h14'],
   tv: ['M3 5.5h18v12H3z', 'M8.5 21h7', 'M12 17.5v3.5'],
