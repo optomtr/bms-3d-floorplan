@@ -113,6 +113,7 @@ const RU_STRINGS: Record<string, string> = {
   'Open blind': 'Открыть',
   Warm: 'Тёплый',
   Cool: 'Холодный',
+  now: 'сейчас',
 };
 
 @customElement('ha-3d-floorplan-card')
@@ -2394,7 +2395,9 @@ export class Ha3dFloorplanCard extends LitElement {
     const infos = ents.filter((e) => !known.has(e.behavior));
 
     const out: unknown[] = [];
-    lights.forEach((e) => out.push(this.renderLightCard(e.entity_id, lights.length === 1 ? this.t('Light') : undefined)));
+    // All of a room's lights collapse into ONE "Свет" card (matches the design);
+    // per-light on/off stays available via the overview segment buttons.
+    if (lights.length) out.push(this.renderLightCard(lights.map((e) => e.entity_id)));
     switches.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'power')));
     climates.forEach((e) => out.push(this.renderClimateCard(e.entity_id, climates.length === 1 ? this.t('Climate') : undefined)));
     fans.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'fan')));
@@ -2422,39 +2425,46 @@ export class Ha3dFloorplanCard extends LitElement {
     return n || (st?.attributes?.friendly_name as string) || id;
   }
 
-  private renderLightCard(id: string, title?: string) {
-    const ent = this.hass!.states[id];
-    const on = this.effState(id) === 'on';
-    const rawBri = ent?.attributes?.brightness;
+  /** One "Свет" card for ALL of a room's lights — toggle/brightness/colour-temp
+   *  apply to every light together (matches the design's single light card). */
+  private renderLightCard(ids: string[]) {
+    const on = ids.some((id) => this.effState(id) === 'on');
+    const repId = ids.find((id) => this.effState(id) === 'on') ?? ids[0];
+    const rawBri = this.hass?.states[repId]?.attributes?.brightness;
     const briReal = rawBri != null ? Math.round((rawBri / 255) * 100) : 100;
-    const bri = this.sliderValue(id, briReal);
-    // Colour temperature (warm↔cold), 0..100 from the entity's kelvin range.
-    const a = ent?.attributes ?? {};
+    const briKey = ids[0];
+    const bri = this.sliderValue(briKey, briReal);
+    // Colour temperature (warm↔cold) from the lights that expose it.
+    const ctIds = ids.filter((id) => this.lightSupportsCT(id));
+    const ctRep = ctIds.find((id) => this.effState(id) === 'on') ?? ctIds[0];
+    const a = ctRep ? this.hass?.states[ctRep]?.attributes ?? {} : {};
     const minK = Number(a.min_color_temp_kelvin) || 2200;
     const maxK = Number(a.max_color_temp_kelvin) || 6500;
     const curK = Number(a.color_temp_kelvin);
     const ctReal = Number.isFinite(curK) ? Math.round(((curK - minK) / (maxK - minK)) * 100) : 50;
-    const ctKey = `${id}#ct`;
+    const ctKey = `${ids[0]}#ct`;
     const ct = this.sliderValue(ctKey, Math.max(0, Math.min(100, ctReal)));
+    const setAllBri = (p: number) => { for (const id of ids) this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'); };
+    const setAllCT = (p: number) => { for (const id of ctIds) this.setLightCT(id, p); };
     return html`<div class="card ${on ? 'on' : ''}">
       <div class="crow">
         <div class="cicon ${on ? 'lit' : ''}">${this.ic('bulb')}</div>
         <div class="cgrow">
-          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="clabel">${this.t('Light')}</div>
           <div class="csub">${on ? `${this.t('On')} · ${bri}%` : this.t('Off')}</div>
         </div>
         <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
-          @click=${() => this.svc('light', 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
+          @click=${() => this.onToggleAll(ids.map((id) => ({ entity_id: id, behavior: 'light' })))}><span class="sw-k"></span></button>
       </div>
       ${on
-        ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'))}>
+        ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, briKey, setAllBri)}>
               <div class="slider-fill" style="width:${bri}%"></div>
               <div class="slider-lab"><span>${this.t('Brightness')}</span><span>${bri}%</span></div>
             </div>
-            ${this.lightSupportsCT(id)
+            ${ctIds.length
               ? html`<div class="ctwrap">
                   <div class="ctlab"><span>${this.t('Warm')}</span><span>${this.t('Cool')}</span></div>
-                  <div class="cttrack" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, ctKey, (p) => this.setLightCT(id, p))}>
+                  <div class="cttrack" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, ctKey, setAllCT)}>
                     <div class="ctthumb" style="left:${ct}%"></div>
                   </div>
                 </div>`
@@ -2491,9 +2501,10 @@ export class Ha3dFloorplanCard extends LitElement {
       this.svc('climate', 'set_temperature', { temperature: Math.round((target + d) * inv) / inv }, id);
     };
     const cur = ent?.attributes?.current_temperature as number | undefined;
-    // The setpoint already shows in the stepper — the sub carries mode + the
-    // measured room temperature instead (no redundant target).
-    const sub = on ? `${this.climateModeLabel(mode)}${cur != null ? ` · ${cur}°` : ''}` : this.t('Off');
+    // The setpoint shows in the stepper and the mode in the segments below, so
+    // the sub carries the measured room temperature ("22,5° сейчас").
+    const curStr = cur != null ? Number(cur).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    const sub = on ? (curStr != null ? `${curStr}° ${this.t('now')}` : this.climateModeLabel(mode)) : this.t('Off');
     const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'heat', 'auto'];
     const autoMode = modes.includes('auto') ? 'auto' : 'heat_cool';
     const isAuto = mode === 'auto' || mode === 'heat_cool';
@@ -2566,10 +2577,16 @@ export class Ha3dFloorplanCard extends LitElement {
         </div>
       </div>
       <div class="mp">
-        <div class="mpart">${this.ic('tv')}</div>
+        <div class="mpart">${this.ic('album')}</div>
         <div class="mptxt"><div class="mptrack">${track}</div><div class="mpartist">${artist}</div></div>
-        <button type="button" class="mpb play" title="Play/Pause"
-          @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
+        <div class="mpctl">
+          <button type="button" class="mpb" title="Previous"
+            @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>${this.ic('skipPrev')}</button>
+          <button type="button" class="mpb play" title="Play/Pause"
+            @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
+          <button type="button" class="mpb" title="Next"
+            @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>${this.ic('skipNext')}</button>
+        </div>
       </div>
       <div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('media_player', 'volume_set', { volume_level: p / 100 }, id))}>
         <div class="slider-fill" style="width:${vol}%"></div>
@@ -4227,6 +4244,12 @@ export class Ha3dFloorplanCard extends LitElement {
       color: var(--mut);
       margin-top: 1px;
     }
+    .mpctl {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: none;
+    }
     .mpb {
       width: 42px;
       height: 42px;
@@ -4234,11 +4257,22 @@ export class Ha3dFloorplanCard extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #17181c;
+      color: var(--tx);
       cursor: pointer;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.06);
       border: none;
       flex: none;
+    }
+    .mpb:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .mpb.play {
+      background: #fff;
+      color: #17181c;
+    }
+    .mpb .icn {
+      width: 22px;
+      height: 22px;
     }
     /* Lock */
     .lockbtn {
