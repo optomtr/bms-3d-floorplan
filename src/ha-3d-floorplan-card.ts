@@ -99,6 +99,20 @@ const RU_STRINGS: Record<string, string> = {
   'My home': 'Мой дом',
   rooms: 'комнат',
   'light sources active': 'источников света активно',
+  // Screensaver + new controls (design v3).
+  'Select a room to control its devices': 'Выберите комнату, чтобы управлять её устройствами',
+  'Touch the screen to return': 'Коснитесь экрана, чтобы вернуться',
+  'in the house': 'в доме',
+  humidity: 'влажность',
+  security: 'безопасность',
+  'At home': 'Дома',
+  'Heat mode': 'Обогрев',
+  'Auto mode': 'Авто',
+  'Off mode': 'Выкл',
+  'Close blind': 'Закрыть',
+  'Open blind': 'Открыть',
+  Warm: 'Тёплый',
+  Cool: 'Холодный',
 };
 
 @customElement('ha-3d-floorplan-card')
@@ -162,6 +176,9 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Live clock for the panel header (ticks every 10s). */
   @state() private now = new Date();
   private clockTimer?: number;
+  /** Idle screensaver (big clock + home summary) after N minutes of no input. */
+  @state() private idle = false;
+  private idleTimer?: number;
   /** Transient value (0..100) shown while dragging a slider, before HA confirms. */
   @state() private dragEntity: string | null = null;
   private dragValue = 0;
@@ -512,25 +529,26 @@ export class Ha3dFloorplanCard extends LitElement {
     this.requestUpdate();
   }
 
-  /** React to the scene's room list (plan load / floor switch): keep the
-   *  selection valid and default to the first room. */
+  /** React to the scene's room list (plan load / floor switch). The panel opens
+   *  with NO room in focus (full 3D + a hint); only keep a still-valid selection. */
   private onRoomsChanged(rooms: RoomInfo[]): void {
     this.rooms = rooms;
-    const stillThere = this.activeRoomKey && rooms.some((r) => r.key === this.activeRoomKey);
-    if (!stillThere) this.activeRoomKey = rooms[0]?.key ?? null;
+    if (this.activeRoomKey && !rooms.some((r) => r.key === this.activeRoomKey)) {
+      this.activeRoomKey = null;
+    }
     this.sceneManager?.selectRoom(this.activeRoomKey);
     this.requestUpdate();
   }
 
-  /** Select a room: highlight its pin and fill the right-side panel. */
+  /** Select a room (or toggle off if it's already selected). */
   private selectRoom(key: string | null): void {
-    this.activeRoomKey = key;
-    this.sceneManager?.selectRoom(key);
+    this.activeRoomKey = this.activeRoomKey === key ? null : key;
+    this.sceneManager?.selectRoom(this.activeRoomKey);
     this.requestUpdate();
   }
 
   private get activeRoom(): RoomInfo | undefined {
-    return this.rooms.find((r) => r.key === this.activeRoomKey) ?? this.rooms[0];
+    return this.activeRoomKey ? this.rooms.find((r) => r.key === this.activeRoomKey) : undefined;
   }
 
   private closeControl = (): void => {
@@ -1296,6 +1314,9 @@ export class Ha3dFloorplanCard extends LitElement {
     // Tick the panel clock on the minute boundary-ish (every 10s is plenty).
     this.now = new Date();
     this.clockTimer = window.setInterval(() => (this.now = new Date()), 10000);
+    // Screensaver: any input wakes it and re-arms the idle timer.
+    this.idleEvents.forEach((ev) => window.addEventListener(ev, this.onActivity, { passive: true }));
+    this.armIdle();
   }
 
   public override disconnectedCallback(): void {
@@ -1304,6 +1325,27 @@ export class Ha3dFloorplanCard extends LitElement {
     window.removeEventListener('keydown', this.trackShift);
     window.removeEventListener('keyup', this.trackShift);
     if (this.clockTimer) window.clearInterval(this.clockTimer);
+    if (this.idleTimer) window.clearTimeout(this.idleTimer);
+    this.idleEvents.forEach((ev) => window.removeEventListener(ev, this.onActivity));
+  }
+
+  private readonly idleEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+  private onActivity = (): void => this.wake();
+
+  /** (Re)start the idle countdown. idleMinutes: config, default 10, 0 = disabled. */
+  private armIdle(): void {
+    if (this.idleTimer) window.clearTimeout(this.idleTimer);
+    const min = this.config?.idleMinutes ?? 10;
+    if (!(min > 0) || this.editing) return; // never dim while editing
+    this.idleTimer = window.setTimeout(() => {
+      this.now = new Date();
+      this.idle = true;
+    }, min * 60000);
+  }
+
+  private wake(): void {
+    if (this.idle) this.idle = false;
+    this.armIdle();
   }
 
   private renderPaletteCell(model: string, label: string) {
@@ -2098,7 +2140,7 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private renderPills() {
-    if (this.rooms.length <= 1) return nothing;
+    if (!this.rooms.length) return nothing;
     return html`<div class="pills">
       ${this.rooms.map(
         (r) => html`<button
@@ -2110,7 +2152,25 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
+  private renderFloorTabs() {
+    if (this.floorNames.length <= 1) return nothing;
+    return html`<div class="ftabs">
+      ${this.floorNames.map(
+        (name, i) => html`<button type="button" class="ftab ${i === this.activeFloorIndex ? 'on' : ''}"
+          @click=${() => this.onSelectFloor(i)}>${name}</button>`,
+      )}
+    </div>`;
+  }
+
+  private onSleep(e: Event): void {
+    if (e && 'stopPropagation' in e) e.stopPropagation();
+    if (this.idleTimer) window.clearTimeout(this.idleTimer);
+    this.now = new Date();
+    this.idle = true;
+  }
+
   private renderStageChrome() {
+    const hasRoom = !!this.activeRoom;
     return html`
       <div class="clock">
         <div class="ctime">${this.fmtClockTime()}</div>
@@ -2120,16 +2180,68 @@ export class Ha3dFloorplanCard extends LitElement {
         ${this.renderViewToggle()}
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic('room')}</button>
         ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
+        <button class="sdot" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
       </div>
-      ${this.renderPills()}
+      <div class="stage-bottom">
+        ${this.renderFloorTabs()}
+        ${this.renderPills()}
+        ${!hasRoom
+          ? html`<div class="ahint">${this.ic('dot')}<span>${this.t('Select a room to control its devices')}</span></div>`
+          : nothing}
+      </div>
     `;
+  }
+
+  /** Whole-home rollup for the screensaver: avg temp/humidity, lights on, lock. */
+  private homeSummary(): { temp: string; hum: string; on: string; secIcon: string; secLabel: string } {
+    let tSum = 0, tN = 0, hSum = 0, hN = 0, on = 0;
+    const locks: string[] = [];
+    for (const room of this.rooms) {
+      const t = this.roomSensor(room, 'temperature', ['°C', '°F']);
+      let tv = t ? Number(t.state) : undefined;
+      if (tv == null || !Number.isFinite(tv)) {
+        const c = room.entities.find((e) => e.behavior === 'climate');
+        const cur = c ? this.hass?.states[c.entity_id]?.attributes?.current_temperature : undefined;
+        tv = cur != null ? Number(cur) : undefined;
+      }
+      if (tv != null && Number.isFinite(tv)) { tSum += tv; tN++; }
+      const h = this.roomSensor(room, 'humidity', ['%']);
+      if (h) { const hv = Number(h.state); if (Number.isFinite(hv)) { hSum += hv; hN++; } }
+      on += this.roomLights(room).ids.filter((id) => this.effState(id) === 'on').length;
+      for (const e of room.entities) if (e.behavior === 'lock') locks.push(e.entity_id);
+    }
+    const fT = (v: number) => v.toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    let secIcon = 'room', secLabel = this.t('At home');
+    if (locks.length) {
+      const allLocked = locks.every((id) => this.effState(id) === 'locked');
+      secIcon = allLocked ? 'lockClosed' : 'lockOpen';
+      secLabel = allLocked ? this.t('Locked') : this.t('Unlocked');
+    }
+    return { temp: tN ? `${fT(tSum / tN)}°` : '—', hum: hN ? `${Math.round(hSum / hN)}%` : '—', on: String(on), secIcon, secLabel };
+  }
+
+  private renderScreensaver() {
+    const s = this.homeSummary();
+    return html`<div class="saver" @pointerdown=${() => this.wake()}>
+      <div class="saver-aurora"></div>
+      <div class="saver-in">
+        <div class="saver-home">${this.t('My home')}</div>
+        <div class="saver-time">${this.fmtClockTime()}</div>
+        <div class="saver-date">${this.fmtClockDate()}</div>
+        <div class="saver-info">
+          <div class="si">${this.ic('thermo')}<div class="sitx"><div class="siv">${s.temp}</div><div class="sil">${this.t('in the house')}</div></div></div>
+          <div class="si cool">${this.ic('drop')}<div class="sitx"><div class="siv">${s.hum}</div><div class="sil">${this.t('humidity')}</div></div></div>
+          <div class="si">${this.ic('bulb')}<div class="sitx"><div class="siv">${s.on}</div><div class="sil">${this.t('lights on')}</div></div></div>
+          <div class="si good">${this.ic(s.secIcon)}<div class="sitx"><div class="siv">${s.secLabel}</div><div class="sil">${this.t('security')}</div></div></div>
+        </div>
+        <div class="saver-hint">${this.ic('dot')}<span>${this.t('Touch the screen to return')}</span></div>
+      </div>
+    </div>`;
   }
 
   private renderRoomPanel() {
     const room = this.activeRoom;
-    if (!room) {
-      return html`<div class="room-panel"><div class="rp-empty">${this.t('Select a room')}</div></div>`;
-    }
+    if (!room) return nothing;
     const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
     const humEnt = this.roomSensor(room, 'humidity', ['%']);
     const skip = new Set<string>();
@@ -2151,7 +2263,10 @@ export class Ha3dFloorplanCard extends LitElement {
     return html`
       <div class="room-panel">
         <div class="rp-head">
-          <div class="rp-name">${room.name || this.t('Room')}</div>
+          <div class="rp-top">
+            <div class="rp-name">${room.name || this.t('Room')}</div>
+            <button type="button" class="closebtn" title="Close" @click=${() => this.selectRoom(null)}>${this.ic('close')}</button>
+          </div>
           ${tempChip || humChip
             ? html`<div class="rp-chips">
                 ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
@@ -2259,6 +2374,9 @@ export class Ha3dFloorplanCard extends LitElement {
     // The setpoint already shows in the stepper — the sub carries mode + the
     // measured room temperature instead (no redundant target).
     const sub = on ? `${this.climateModeLabel(mode)}${cur != null ? ` · ${cur}°` : ''}` : this.t('Off');
+    const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'heat', 'auto'];
+    const autoMode = modes.includes('auto') ? 'auto' : 'heat_cool';
+    const isAuto = mode === 'auto' || mode === 'heat_cool';
     return html`<div class="card ${on ? 'on cool' : ''}">
       <div class="crow">
         <button type="button" class="cicon ${on ? 'lit' : ''}" title="Toggle"
@@ -2272,6 +2390,14 @@ export class Ha3dFloorplanCard extends LitElement {
           <div class="tval">${target != null ? `${target}°` : '—'}</div>
           <button type="button" class="stbtn" title="Warmer" @click=${() => setTemp(step)}>${this.ic('plus')}</button>
         </div>
+      </div>
+      <div class="seg">
+        <button type="button" class="segb ${mode === 'heat' ? 'on' : ''}"
+          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: 'heat' }, id, 'heat')}>${this.t('Heat mode')}</button>
+        <button type="button" class="segb ${isAuto ? 'on' : ''}"
+          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: autoMode }, id, autoMode)}>${this.t('Auto mode')}</button>
+        <button type="button" class="segb ${!on ? 'on' : ''}"
+          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: 'off' }, id, 'off')}>${this.t('Off mode')}</button>
       </div>
     </div>`;
   }
@@ -2294,6 +2420,11 @@ export class Ha3dFloorplanCard extends LitElement {
       <div class="slider cover" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('cover', 'set_cover_position', { position: p }, id, p > 0 ? 'open' : 'closed'))}>
         <div class="slider-fill white" style="width:${pos}%"></div>
         <div class="slider-lab"><span>${this.t('Closed')}</span><span>${this.t('Open')}</span></div>
+      </div>
+      <div class="qbtns">
+        <button type="button" class="qb" @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.t('Close blind')}</button>
+        <button type="button" class="qb" @click=${() => this.svc('cover', 'set_cover_position', { position: 50 }, id, 'open')}>50%</button>
+        <button type="button" class="qb" @click=${() => this.svc('cover', 'open_cover', {}, id, 'open')}>${this.t('Open blind')}</button>
       </div>
     </div>`;
   }
@@ -2568,7 +2699,12 @@ export class Ha3dFloorplanCard extends LitElement {
     const projects = this.config.projects ?? [];
 
     return html`
-      <ha-card class=${this.editing ? 'editing' : `view ${this.viewMode}`} style=${this.editing ? '' : `height:${height}`}>
+      <ha-card
+        class=${this.editing
+          ? 'editing'
+          : `view ${this.viewMode}${this.viewMode === 'room' && this.activeRoom ? ' has-room' : ''}${this.idle ? ' idle' : ''}`}
+        style=${this.editing ? '' : `height:${height}`}
+      >
         <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
 
         ${this.loadError
@@ -2580,6 +2716,8 @@ export class Ha3dFloorplanCard extends LitElement {
           : this.viewMode === 'overview'
             ? this.renderOverview()
             : html`${this.renderStageChrome()}${this.renderRoomPanel()}`}
+
+        ${!this.editing && this.idle ? this.renderScreensaver() : nothing}
 
         ${this.editing
           ? html`<div class="overlay top-right">
@@ -2678,7 +2816,7 @@ export class Ha3dFloorplanCard extends LitElement {
             `
           : nothing}
 
-        ${this.floorNames.length > 1 && !this.editing
+        ${this.floorNames.length > 1 && this.editing
           ? html`
               <div class="overlay bottom">
                 ${this.floorNames.map(
@@ -3311,10 +3449,15 @@ export class Ha3dFloorplanCard extends LitElement {
       top: 0;
       left: 0;
       bottom: 0;
-      right: var(--panel-w);
+      right: 0;
       width: auto;
       height: auto;
       background: transparent;
+      transition: right 0.28s ease;
+    }
+    /* A room is in focus → make room for the right-side panel. */
+    ha-card.view.room.has-room .viewport {
+      right: var(--panel-w);
     }
     .icn {
       width: 20px;
@@ -3331,6 +3474,7 @@ export class Ha3dFloorplanCard extends LitElement {
       pointer-events: none;
     }
     .ctime {
+      font-family: 'Unbounded', 'Onest', sans-serif;
       font-size: 64px;
       line-height: 0.9;
       font-weight: 300;
@@ -3346,10 +3490,14 @@ export class Ha3dFloorplanCard extends LitElement {
     .topstat {
       position: absolute;
       top: 28px;
-      right: calc(var(--panel-w) + 24px);
+      right: 26px;
       z-index: 4;
       display: flex;
       gap: 10px;
+      transition: right 0.28s ease;
+    }
+    ha-card.view.room.has-room .topstat {
+      right: calc(var(--panel-w) + 24px);
     }
     .sdot {
       position: relative;
@@ -3374,15 +3522,253 @@ export class Ha3dFloorplanCard extends LitElement {
       border-radius: 50%;
       background: var(--accent);
     }
-    .pills {
+    /* Bottom stack over the 3D: floor tabs, room pills, and the "pick a room"
+       hint. Shifts left of the panel when a room is in focus. */
+    .stage-bottom {
       position: absolute;
       left: 26px;
-      right: calc(var(--panel-w) + 24px);
+      right: 26px;
       bottom: 22px;
       z-index: 3;
       display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 11px;
+      transition: right 0.28s ease;
+    }
+    ha-card.view.room.has-room .stage-bottom {
+      right: calc(var(--panel-w) + 24px);
+    }
+    .pills {
+      display: flex;
       flex-wrap: wrap;
       gap: 9px;
+    }
+    .ftabs {
+      display: inline-flex;
+      padding: 4px;
+      gap: 3px;
+      border-radius: 13px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+    }
+    .ftab {
+      padding: 8px 15px;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: var(--mut);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ftab.on {
+      background: #fff;
+      color: #17181c;
+    }
+    .ahint {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 15px;
+      border-radius: 13px;
+      background: rgba(243, 168, 60, 0.14);
+      border: 1px solid rgba(243, 168, 60, 0.4);
+      color: var(--accent);
+      font-size: 13.5px;
+      font-weight: 600;
+      max-width: 100%;
+    }
+    .ahint .icn {
+      width: 16px;
+      height: 16px;
+    }
+    /* Room panel header top row (name + close). */
+    .rp-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .rp-top .rp-name {
+      flex: 1;
+      min-width: 0;
+    }
+    .closebtn {
+      width: 38px;
+      height: 38px;
+      flex: none;
+      border-radius: 12px;
+      border: 1px solid var(--brd);
+      background: var(--card);
+      color: var(--mut);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .closebtn:hover {
+      background: var(--card2);
+      color: var(--tx);
+    }
+    /* Climate mode segmented control. */
+    .seg {
+      display: flex;
+      gap: 4px;
+      margin-top: 14px;
+    }
+    .segb {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 11px;
+      border: 1px solid var(--brd);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--mut);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .segb.on {
+      background: rgba(91, 184, 232, 0.18);
+      border-color: rgba(91, 184, 232, 0.5);
+      color: var(--cool);
+    }
+    /* Blinds quick buttons. */
+    .qbtns {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .qb {
+      flex: 1;
+      padding: 11px 0;
+      border-radius: 12px;
+      border: 1px solid var(--brd);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--tx);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .qb:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    /* ---- Screensaver (idle) ---- */
+    .saver {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: radial-gradient(150% 120% at 50% 0%, #14161d, #0a0b0e 60%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      animation: rp-fade 0.4s both;
+    }
+    @keyframes rp-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .saver-aurora {
+      position: absolute;
+      inset: -20%;
+      background:
+        radial-gradient(40% 40% at 25% 30%, rgba(243, 168, 60, 0.22), transparent 70%),
+        radial-gradient(35% 35% at 78% 65%, rgba(91, 184, 232, 0.2), transparent 70%),
+        radial-gradient(30% 30% at 60% 20%, rgba(185, 140, 255, 0.16), transparent 70%);
+      filter: blur(20px);
+      animation: aurora 16s ease-in-out infinite alternate;
+    }
+    @keyframes aurora {
+      from { transform: translate(-3%, -2%) scale(1); }
+      to { transform: translate(4%, 3%) scale(1.12); }
+    }
+    .saver-in {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .saver-home {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--mut);
+      letter-spacing: 0.04em;
+    }
+    .saver-time {
+      font-family: 'Unbounded', 'Onest', sans-serif;
+      font-weight: 300;
+      font-size: 132px;
+      line-height: 0.92;
+      color: #fff;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      margin-top: 6px;
+    }
+    .saver-date {
+      font-size: 18px;
+      color: var(--mut);
+      margin-top: 10px;
+    }
+    .saver-info {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 34px;
+    }
+    .si {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 18px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid var(--brd);
+      color: var(--mut);
+    }
+    .si .icn {
+      width: 22px;
+      height: 22px;
+    }
+    .si.cool .icn {
+      color: var(--cool);
+    }
+    .si.good .icn {
+      color: #37c58e;
+    }
+    .sitx {
+      text-align: left;
+    }
+    .siv {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+    }
+    .sil {
+      font-size: 12px;
+      color: var(--mut);
+      margin-top: 3px;
+    }
+    .saver-hint {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 38px;
+      font-size: 14px;
+      color: var(--fnt, #646a75);
+    }
+    .saver-hint .icn {
+      width: 17px;
+      height: 17px;
     }
     .pill {
       display: inline-flex;

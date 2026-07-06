@@ -251,6 +251,8 @@ export interface CardConfig {
   cameraDistance?: number;
   /** Start in editor mode. Default false. */
   editor?: boolean;
+  /** Minutes of no input before the screensaver (big clock) appears. Default 10; 0 disables. */
+  idleMinutes?: number;
   /** Optional backend base URL for project CRUD (stretch goal). */
   backend?: string;
 }
