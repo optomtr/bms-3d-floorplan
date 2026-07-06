@@ -34,6 +34,8 @@ export const ICON_PATHS: Record<string, string[]> = {
   chevUp: ['M5 15l7-7 7 7'],
   chevDown: ['M5 9l7 7 7-7'],
   stop: ['M6.5 6.5h11v11h-11z'],
+  play: ['M8 5.2l11 6.8-11 6.8z'],
+  pause: ['M9 5v14', 'M15 5v14'],
   minus: ['M5 12h14'],
   plus: ['M12 5v14', 'M5 12h14'],
   tv: ['M3 5.5h18v12H3z', 'M8.5 21h7', 'M12 17.5v3.5'],
@@ -43,6 +45,18 @@ export const ICON_PATHS: Record<string, string[]> = {
   dot: ['M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0'],
   // Room / house (used by the per-room grouped marker).
   room: ['M4 11l8-6 8 6', 'M6 10v9h12v-9', 'M10.5 19v-5h3v5'],
+  // Header chips + status dots for the room control panel.
+  thermo: ['M12 4a2 2 0 0 0-2 2v8.1a3.5 3.5 0 1 0 4 0V6a2 2 0 0 0-2-2z', 'M12 9v5.5'],
+  drop: ['M12 3.6c3.6 4.3 5.6 6.8 5.6 9.6a5.6 5.6 0 0 1-11.2 0c0-2.8 2-5.3 5.6-9.6z'],
+  wifi: ['M4.5 9.5a11 11 0 0 1 15 0', 'M7.5 12.8a6.5 6.5 0 0 1 9 0', 'M10.4 16a2.3 2.3 0 0 1 3.2 0', 'M12 19h.01'],
+  shield: ['M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z'],
+  // Room-type glyphs for the pill bar (best-effort match to the mockup).
+  couch: ['M4 12v5', 'M20 12v5', 'M4 14h16', 'M6 14v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3', 'M6.5 17v1.5', 'M17.5 17v1.5'],
+  counter: ['M3.5 10h17', 'M4.5 10v8.5', 'M19.5 10v8.5', 'M7 7.5l1-2.5h8l1 2.5', 'M9 14v2'],
+  bed: ['M3 18v-9', 'M3 14h18', 'M21 18v-4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2', 'M7 12v-1.3A1.7 1.7 0 0 1 8.7 9h2a1.7 1.7 0 0 1 1.7 1.7V12'],
+  child: ['M12 5.6a1.8 1.8 0 1 0 .01 0', 'M12 8.4v5.6', 'M8.8 10.6h6.4', 'M9.4 18l2.6-3.2 2.6 3.2'],
+  bath: ['M5 12V6.6A1.6 1.6 0 0 1 6.6 5a1.5 1.5 0 0 1 1.5 1.1', 'M3.5 12h17', 'M5 12v2.6a3.4 3.4 0 0 0 3.4 3.4h7.2a3.4 3.4 0 0 0 3.4-3.4V12', 'M7 18l-1 2', 'M17 18l1 2'],
+  door: ['M6 3.6h12v16.8H6z', 'M14.4 12h.01'],
 };
 
 /** Icon for a climate HVAC mode chip (undefined → fall back to the text label). */

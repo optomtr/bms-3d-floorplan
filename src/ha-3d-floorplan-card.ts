@@ -7,12 +7,13 @@ import { customElement, property, state, query } from 'lit/decorators.js';
 import type {
   CardConfig,
   FloorPlan,
+  HassEntity,
   HomeAssistant,
   ProjectRef,
   RoomDef,
   RoomShape,
 } from './types';
-import { SceneManager, ClickResult, QualityChoice, QUALITY_CHOICES } from './scene/scene-manager';
+import { SceneManager, ClickResult, QualityChoice, QUALITY_CHOICES, RoomInfo } from './scene/scene-manager';
 import { CARD_VERSION } from './version';
 import { installSidebar } from './sidebar';
 import { DEMO_PLAN } from './scene/demo-plan';
@@ -68,6 +69,27 @@ const RU_STRINGS: Record<string, string> = {
   'All off': 'Выключить всё',
   devices: 'устройств',
   'No controllable devices': 'Нет управляемых устройств',
+  // Room control panel (Option 1A layout).
+  Light: 'Свет',
+  Brightness: 'Яркость',
+  Volume: 'Громкость',
+  Closed: 'Закрыто',
+  Open: 'Открыто',
+  On: 'Включён',
+  Off: 'Выключен',
+  Heating: 'Отопление',
+  Cooling: 'Охлаждение',
+  Ventilation: 'Вентиляция',
+  Drying: 'Осушение',
+  'Playing now': 'Играет сейчас',
+  Paused: 'На паузе',
+  Locked: 'Заперто',
+  Unlocked: 'Отперто',
+  'Front door': 'Входная дверь',
+  'Turn everything off': 'Выключить всё',
+  'opened to': 'Открыто на',
+  'No devices in this room': 'В этой комнате нет устройств',
+  'Select a room': 'Выберите комнату',
 };
 
 @customElement('ha-3d-floorplan-card')
@@ -121,6 +143,17 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Timestamp the popup opened — guards against the touch "ghost click" that
    *  would otherwise close it the instant it appears on tablets. */
   private controlOpenedAt = 0;
+  // --- Room control panel (Option 1A: room in focus) ---
+  /** Rooms on the active floor (from the scene), for the pills + right panel. */
+  @state() private rooms: RoomInfo[] = [];
+  /** The room whose devices fill the right-side panel. */
+  @state() private activeRoomKey: string | null = null;
+  /** Live clock for the panel header (ticks every 10s). */
+  @state() private now = new Date();
+  private clockTimer?: number;
+  /** Transient value (0..100) shown while dragging a slider, before HA confirms. */
+  @state() private dragEntity: string | null = null;
+  private dragValue = 0;
   @state() private editEntitySearch = '';
   @state() private editFurnSearch = '';
   // Whole-floor surface appearance pickers (apply to all walls / all floors).
@@ -361,6 +394,7 @@ export class Ha3dFloorplanCard extends LitElement {
     this.qualityChoice = this.sceneManager.getQualityChoice();
     if (this.config?.cameraDistance) this.sceneManager.setCameraDistance(this.config.cameraDistance);
     this.sceneManager.setPickHandler((r) => this.handlePick(r));
+    this.sceneManager.setRoomsHandler((rooms) => this.onRoomsChanged(rooms));
     this.sceneManager.start();
     this.loadActiveProject();
   }
@@ -448,25 +482,44 @@ export class Ha3dFloorplanCard extends LitElement {
     const x = Math.max(150, Math.min(vw - 150, sx));
     this.controlPos = [x, Math.max(0, Math.min(vh, sy))];
 
-    if (r.roomEntities && r.roomEntities.length) {
-      // A room marker → category chooser (Lights / Climate / Curtains …).
-      this.controlRoom = { name: r.roomName, entities: r.roomEntities };
-      this.controlCategory = null;
-      this.controlEntities = [];
-    } else {
-      // A device tap → the tapped entity + any others stacked at the same spot.
-      const near = r.point ? this.sceneManager!.entitiesNear(r.point, 1.6) : [];
-      const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
-      const seen = new Set<string>();
-      this.controlEntities = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
-        (id) => id && !seen.has(id) && seen.add(id),
-      );
-      this.controlRoom = null;
-      this.controlCategory = null;
+    if (r.roomKey && r.roomEntities && r.roomEntities.length) {
+      // A room pin → fill the right-side panel with that room's devices.
+      this.selectRoom(r.roomKey);
+      return;
     }
+    // A device tap → the tapped entity + any others stacked at the same spot.
+    const near = r.point ? this.sceneManager!.entitiesNear(r.point, 1.6) : [];
+    const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
+    const seen = new Set<string>();
+    this.controlEntities = [r.entity_id, ...list.map((e) => e.entity_id)].filter(
+      (id) => id && !seen.has(id) && seen.add(id),
+    );
+    this.controlRoom = null;
+    this.controlCategory = null;
     this.controlOpenedAt = performance.now();
     this.controlOpen = true;
     this.requestUpdate();
+  }
+
+  /** React to the scene's room list (plan load / floor switch): keep the
+   *  selection valid and default to the first room. */
+  private onRoomsChanged(rooms: RoomInfo[]): void {
+    this.rooms = rooms;
+    const stillThere = this.activeRoomKey && rooms.some((r) => r.key === this.activeRoomKey);
+    if (!stillThere) this.activeRoomKey = rooms[0]?.key ?? null;
+    this.sceneManager?.selectRoom(this.activeRoomKey);
+    this.requestUpdate();
+  }
+
+  /** Select a room: highlight its pin and fill the right-side panel. */
+  private selectRoom(key: string | null): void {
+    this.activeRoomKey = key;
+    this.sceneManager?.selectRoom(key);
+    this.requestUpdate();
+  }
+
+  private get activeRoom(): RoomInfo | undefined {
+    return this.rooms.find((r) => r.key === this.activeRoomKey) ?? this.rooms[0];
   }
 
   private closeControl = (): void => {
@@ -1216,6 +1269,9 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager?.start();
     window.addEventListener('keydown', this.trackShift);
     window.addEventListener('keyup', this.trackShift);
+    // Tick the panel clock on the minute boundary-ish (every 10s is plenty).
+    this.now = new Date();
+    this.clockTimer = window.setInterval(() => (this.now = new Date()), 10000);
   }
 
   public override disconnectedCallback(): void {
@@ -1223,6 +1279,7 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager?.stop();
     window.removeEventListener('keydown', this.trackShift);
     window.removeEventListener('keyup', this.trackShift);
+    if (this.clockTimer) window.clearInterval(this.clockTimer);
   }
 
   private renderPaletteCell(model: string, label: string) {
@@ -1924,6 +1981,377 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
+  // -- Room control panel (Option 1A: room in focus) --------------------------
+
+  private get uiLocale(): string {
+    if (this.isRu) return 'ru-RU';
+    return this.hass?.locale?.language || this.hass?.language || 'en';
+  }
+
+  private fmtClockTime(): string {
+    const h = String(this.now.getHours()).padStart(2, '0');
+    const m = String(this.now.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  }
+
+  private fmtClockDate(): string {
+    try {
+      const s = new Intl.DateTimeFormat(this.uiLocale, { weekday: 'long', day: 'numeric', month: 'long' }).format(this.now);
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    } catch {
+      return this.now.toDateString();
+    }
+  }
+
+  /** Best-effort icon for a room pill, guessed from its (localised) name. */
+  private roomIcon(name?: string): string {
+    const n = (name || '').toLowerCase();
+    const has = (...ws: string[]) => ws.some((w) => n.includes(w));
+    if (has('гост', 'зал', 'living', 'lounge')) return 'couch';
+    if (has('кухн', 'kitchen')) return 'counter';
+    if (has('спал', 'bed')) return 'bed';
+    if (has('дет', 'child', 'kid', 'nursery')) return 'child';
+    if (has('ванн', 'санузел', 'bath', 'toilet', 'wc')) return 'bath';
+    if (has('прихож', 'коридор', 'hall', 'entry', 'corridor')) return 'door';
+    return 'room';
+  }
+
+  /** First sensor in the room matching a device_class / unit (for header chips). */
+  private roomSensor(room: RoomInfo, cls: string, units: string[]): HassEntity | undefined {
+    for (const e of room.entities) {
+      if (e.behavior !== 'sensor') continue;
+      const st = this.hass?.states[e.entity_id];
+      if (!st) continue;
+      const dc = st.attributes?.device_class;
+      const u = st.attributes?.unit_of_measurement;
+      if (dc === cls || (u && units.includes(u))) return st;
+    }
+    return undefined;
+  }
+
+  /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
+  private onSliderDown(e: PointerEvent, id: string, cb: (pct: number) => void): void {
+    if (e.cancelable) e.preventDefault();
+    const track = e.currentTarget as HTMLElement;
+    const rect = track.getBoundingClientRect();
+    let lastSent = -1;
+    let lastAt = 0;
+    const apply = (clientX: number, force: boolean) => {
+      const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const pct = Math.round(p * 100);
+      this.dragEntity = id;
+      this.dragValue = pct;
+      this.requestUpdate();
+      const t = performance.now();
+      if (force || (pct !== lastSent && t - lastAt > 110)) {
+        lastSent = pct;
+        lastAt = t;
+        cb(pct);
+      }
+    };
+    apply(e.clientX, false);
+    const mv = (ev: PointerEvent) => apply(ev.clientX, false);
+    const up = (ev: PointerEvent) => {
+      apply(ev.clientX, true); // always deliver the final value
+      window.removeEventListener('pointermove', mv);
+      window.removeEventListener('pointerup', up);
+      this.dragEntity = null;
+      this.requestUpdate();
+    };
+    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** 0..100 slider value: the live drag value while dragging, else `real`. */
+  private sliderValue(id: string, real: number): number {
+    return this.dragEntity === id ? this.dragValue : real;
+  }
+
+  private climateModeLabel(mode: string): string {
+    return this.t(
+      { heat: 'Heating', cool: 'Cooling', auto: 'Auto', fan_only: 'Ventilation', dry: 'Drying', heat_cool: 'Auto' }[mode] ?? 'Heating',
+    );
+  }
+
+  private renderPills() {
+    if (this.rooms.length <= 1) return nothing;
+    return html`<div class="pills">
+      ${this.rooms.map(
+        (r) => html`<button
+          type="button"
+          class="pill ${r.key === this.activeRoomKey ? 'on' : ''}"
+          @click=${() => this.selectRoom(r.key)}
+        >${this.ic(this.roomIcon(r.name))}<span>${r.name || this.t('Room')}</span></button>`,
+      )}
+    </div>`;
+  }
+
+  private renderStageChrome() {
+    return html`
+      <div class="clock">
+        <div class="ctime">${this.fmtClockTime()}</div>
+        <div class="cdate">${this.fmtClockDate()}</div>
+      </div>
+      <div class="topstat">
+        <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic('room')}</button>
+        ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
+        <div class="sdot"><span class="on-dot"></span>${this.ic('wifi')}</div>
+      </div>
+      ${this.renderPills()}
+    `;
+  }
+
+  private renderRoomPanel() {
+    const room = this.activeRoom;
+    if (!room) {
+      return html`<div class="room-panel"><div class="rp-empty">${this.t('Select a room')}</div></div>`;
+    }
+    const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
+    const humEnt = this.roomSensor(room, 'humidity', ['%']);
+    const skip = new Set<string>();
+    if (tempEnt) skip.add(tempEnt.entity_id);
+    if (humEnt) skip.add(humEnt.entity_id);
+    // A climate entity's current_temperature is a good fallback temp chip.
+    const climate = room.entities.find((e) => e.behavior === 'climate');
+    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
+
+    const num = (v: any, digits: number) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—';
+    };
+    const tempChip =
+      tempEnt != null ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    const humChip = humEnt != null ? `${num(humEnt.state, 0)}%` : null;
+
+    const cards = this.roomCards(room, skip);
+    return html`
+      <div class="room-panel">
+        <div class="rp-head">
+          <div class="rp-name">${room.name || this.t('Room')}</div>
+          ${tempChip || humChip
+            ? html`<div class="rp-chips">
+                ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
+                ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
+              </div>`
+            : nothing}
+        </div>
+        <div class="rp-body">
+          ${cards.length ? cards : html`<div class="rp-empty">${this.t('No devices in this room')}</div>`}
+        </div>
+        <div class="rp-foot">
+          <button type="button" class="rp-master" @click=${() => this.onRoomAllOff(room)}>
+            ${this.ic('power')}<span>${this.t('Turn everything off')}</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Build the ordered device cards for a room (lights, climate, covers, …). */
+  private roomCards(room: RoomInfo, skip: Set<string>) {
+    const hass = this.hass;
+    if (!hass) return [];
+    const ents = room.entities.filter((e) => hass.states[e.entity_id] && !skip.has(e.entity_id));
+    const of = (...b: string[]) => ents.filter((e) => b.includes(e.behavior));
+    const lights = of('light');
+    const switches = of('switch', 'input_boolean');
+    const climates = of('climate');
+    const fans = of('fan');
+    const covers = of('cover');
+    const medias = of('media_player');
+    const locks = of('lock');
+    const known = new Set(['light', 'switch', 'input_boolean', 'climate', 'fan', 'cover', 'media_player', 'lock']);
+    const infos = ents.filter((e) => !known.has(e.behavior));
+
+    const out: unknown[] = [];
+    lights.forEach((e) => out.push(this.renderLightCard(e.entity_id, lights.length === 1 ? this.t('Light') : undefined)));
+    switches.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'power')));
+    climates.forEach((e) => out.push(this.renderClimateCard(e.entity_id, climates.length === 1 ? this.t('Climate') : undefined)));
+    fans.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'fan')));
+    covers.forEach((e) => out.push(this.renderCoverCard(e.entity_id, covers.length === 1 ? this.t('Curtains') : undefined)));
+    medias.forEach((e) => out.push(this.renderMediaCard(e.entity_id, medias.length === 1 ? this.t('Media') : undefined)));
+    locks.forEach((e) => out.push(this.renderLockCard(e.entity_id)));
+    infos.forEach((e) => out.push(this.renderInfoCard(e.entity_id)));
+    return out;
+  }
+
+  private cardName(id: string, fallback?: string): string {
+    return fallback ?? this.hass?.states[id]?.attributes?.friendly_name ?? id;
+  }
+
+  private renderLightCard(id: string, title?: string) {
+    const ent = this.hass!.states[id];
+    const on = this.effState(id) === 'on';
+    const rawBri = ent?.attributes?.brightness;
+    const briReal = rawBri != null ? Math.round((rawBri / 255) * 100) : 100;
+    const bri = this.sliderValue(id, briReal);
+    return html`<div class="card ${on ? 'on' : ''}">
+      <div class="crow">
+        <div class="cicon ${on ? 'lit' : ''}">${this.ic('bulb')}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="csub">${on ? `${this.t('On')} · ${bri}%` : this.t('Off')}</div>
+        </div>
+        <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+          @click=${() => this.svc('light', 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
+      </div>
+      ${on
+        ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'))}>
+            <div class="slider-fill" style="width:${bri}%"></div>
+            <div class="slider-lab"><span>${this.t('Brightness')}</span><span>${bri}%</span></div>
+          </div>`
+        : nothing}
+    </div>`;
+  }
+
+  private renderToggleCard(id: string, icon: string) {
+    const on = this.effState(id) === 'on';
+    const domain = id.split('.')[0];
+    return html`<div class="card ${on ? 'on' : ''}">
+      <div class="crow">
+        <div class="cicon ${on ? 'lit' : ''}">${this.ic(icon)}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(id)}</div>
+          <div class="csub">${on ? this.t('On') : this.t('Off')}</div>
+        </div>
+        <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+          @click=${() => this.svc(domain, 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
+      </div>
+    </div>`;
+  }
+
+  private renderClimateCard(id: string, title?: string) {
+    const ent = this.hass!.states[id];
+    const mode = this.effState(id);
+    const on = mode !== 'off' && mode !== 'unavailable' && mode !== 'unknown';
+    const target = ent?.attributes?.temperature as number | undefined;
+    const step = (ent?.attributes?.target_temp_step as number) || 0.5;
+    const setTemp = (d: number) => {
+      if (typeof target !== 'number') return;
+      const inv = step > 0 ? 1 / step : 2;
+      this.svc('climate', 'set_temperature', { temperature: Math.round((target + d) * inv) / inv }, id);
+    };
+    const cur = ent?.attributes?.current_temperature as number | undefined;
+    // The setpoint already shows in the stepper — the sub carries mode + the
+    // measured room temperature instead (no redundant target).
+    const sub = on ? `${this.climateModeLabel(mode)}${cur != null ? ` · ${cur}°` : ''}` : this.t('Off');
+    return html`<div class="card ${on ? 'on cool' : ''}">
+      <div class="crow">
+        <button type="button" class="cicon ${on ? 'lit' : ''}" title="Toggle"
+          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: on ? 'off' : 'heat' }, id, on ? 'off' : 'heat')}>${this.ic('heat')}</button>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="csub">${sub}</div>
+        </div>
+        <div class="stepper">
+          <button type="button" class="stbtn" title="Cooler" @click=${() => setTemp(-step)}>${this.ic('minus')}</button>
+          <div class="tval">${target != null ? `${target}°` : '—'}</div>
+          <button type="button" class="stbtn" title="Warmer" @click=${() => setTemp(step)}>${this.ic('plus')}</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  private renderCoverCard(id: string, title?: string) {
+    const ent = this.hass!.states[id];
+    const posAttr = ent?.attributes?.current_position;
+    const state = this.effState(id);
+    const real = typeof posAttr === 'number' ? posAttr : state === 'open' || state === 'opening' ? 100 : 0;
+    const pos = this.sliderValue(id, real);
+    const sub = pos > 0 ? `${this.t('opened to')} ${pos}%` : this.t('Closed');
+    return html`<div class="card">
+      <div class="crow">
+        <div class="cicon">${this.ic('curtain')}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="csub">${sub}</div>
+        </div>
+      </div>
+      <div class="slider cover" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('cover', 'set_cover_position', { position: p }, id, p > 0 ? 'open' : 'closed'))}>
+        <div class="slider-fill white" style="width:${pos}%"></div>
+        <div class="slider-lab"><span>${this.t('Closed')}</span><span>${this.t('Open')}</span></div>
+      </div>
+    </div>`;
+  }
+
+  private renderMediaCard(id: string, title?: string) {
+    const ent = this.hass!.states[id];
+    const state = this.effState(id);
+    const playing = state === 'playing';
+    const volReal = Math.round((Number(ent?.attributes?.volume_level) || 0) * 100);
+    const vol = this.sliderValue(id, volReal);
+    const track = ent?.attributes?.media_title ?? this.cardName(id, title);
+    const artist = ent?.attributes?.media_artist ?? '';
+    return html`<div class="card ${playing ? 'on' : ''}">
+      <div class="crow">
+        <div class="cicon ${playing ? 'lit' : ''}">${this.ic('tv')}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="csub">${playing ? this.t('Playing now') : this.t('Paused')}</div>
+        </div>
+      </div>
+      <div class="mp">
+        <div class="mpart">${this.ic('tv')}</div>
+        <div class="mptxt"><div class="mptrack">${track}</div><div class="mpartist">${artist}</div></div>
+        <button type="button" class="mpb play" title="Play/Pause"
+          @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
+      </div>
+      <div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('media_player', 'volume_set', { volume_level: p / 100 }, id))}>
+        <div class="slider-fill" style="width:${vol}%"></div>
+        <div class="slider-lab"><span>${this.t('Volume')}</span><span>${vol}%</span></div>
+      </div>
+    </div>`;
+  }
+
+  private renderLockCard(id: string) {
+    const locked = this.effState(id) === 'locked';
+    return html`<button type="button" class="lockbtn ${locked ? 'locked' : 'unlocked'}"
+      @click=${() => this.svc('lock', locked ? 'unlock' : 'lock', {}, id, locked ? 'unlocked' : 'locked')}>
+      ${this.ic(locked ? 'lockClosed' : 'lockOpen')}
+      <div class="cgrow"><div class="lktxt">${locked ? this.t('Locked') : this.t('Unlocked')}</div>
+        <div class="lksub">${this.cardName(id)}</div></div>
+      ${this.ic('chevUp')}
+    </button>`;
+  }
+
+  private renderInfoCard(id: string) {
+    const ent = this.hass!.states[id];
+    const unit = ent?.attributes?.unit_of_measurement ?? '';
+    return html`<div class="card">
+      <div class="crow">
+        <div class="cicon">${this.ic('gauge')}</div>
+        <div class="cgrow"><div class="clabel">${this.cardName(id)}</div></div>
+        <div class="info-val">${this.effState(id)}${unit}</div>
+      </div>
+    </div>`;
+  }
+
+  /** Master "turn everything off": lights + switches off, media paused. */
+  private onRoomAllOff(room: RoomInfo): void {
+    if (!this.hass) return;
+    const offIds = room.entities
+      .filter((e) => ['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior))
+      .map((e) => e.entity_id)
+      .filter((id) => this.effState(id) === 'on');
+    if (offIds.length) {
+      const gens = offIds.map((id) => this.setOptimistic(id, 'off'));
+      const revert = () => offIds.forEach((id, i) => { if (this.optimistic.get(id)?.gen === gens[i]) this.clearOptimistic(id); });
+      try {
+        const p: any = this.hass.callService('homeassistant', 'turn_off', { entity_id: offIds });
+        if (p && typeof p.catch === 'function') p.catch(revert);
+      } catch {
+        revert();
+      }
+    }
+    for (const e of room.entities) {
+      if (e.behavior !== 'media_player') continue;
+      const s = this.effState(e.entity_id);
+      if (!['off', 'paused', 'idle', 'standby', 'unavailable', 'unknown'].includes(s)) {
+        this.svc('media_player', 'media_pause', {}, e.entity_id, 'paused');
+      }
+    }
+  }
+
   // -- Render -----------------------------------------------------------------
 
   protected override render() {
@@ -1932,41 +2360,39 @@ export class Ha3dFloorplanCard extends LitElement {
     const projects = this.config.projects ?? [];
 
     return html`
-      <ha-card>
-        <div class="viewport" style="height:${height}"></div>
+      <ha-card class=${this.editing ? 'editing' : 'view'} style=${this.editing ? '' : `height:${height}`}>
+        <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
 
         ${this.loadError
           ? html`<div class="error">⚠ ${this.loadError}</div>`
           : nothing}
 
-        <div class="overlay top-right">
-          <button class="btn" title="Reset view" @click=${this.onResetView}>
-            ⌂ ${this.t('Reset')}
-          </button>
-          ${this.panel && !this.editing
-            ? html`<button class="btn" title="Full-screen 3D (kiosk)" @click=${this.openKiosk}>⛶</button>`
-            : nothing}
-          ${this.editing
-            ? html`<div class="quality-wrap">
-                  <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
-                    @click=${() => (this.qualityMenuOpen = !this.qualityMenuOpen)}>
-                    ⚙ ${this.qualityLabel(this.qualityChoice)}
-                  </button>
-                  ${this.qualityMenuOpen
-                    ? html`<div class="quality-menu">
-                        ${QUALITY_CHOICES.map(
-                          (q) => html`<button
-                            class="qopt ${q === this.qualityChoice ? 'on' : ''}"
-                            @click=${() => this.onPickQuality(q)}>${this.qualityLabel(q)}</button>`,
-                        )}
-                      </div>`
-                    : nothing}
-                </div>
-                <button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
-                  ✓ ${this.t('Done & Save')}
-                </button>`
-            : nothing}
-        </div>
+        ${!this.editing ? this.renderStageChrome() : nothing}
+        ${!this.editing ? this.renderRoomPanel() : nothing}
+
+        ${this.editing
+          ? html`<div class="overlay top-right">
+              <button class="btn" title="Reset view" @click=${this.onResetView}>⌂ ${this.t('Reset')}</button>
+              <div class="quality-wrap">
+                <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
+                  @click=${() => (this.qualityMenuOpen = !this.qualityMenuOpen)}>
+                  ⚙ ${this.qualityLabel(this.qualityChoice)}
+                </button>
+                ${this.qualityMenuOpen
+                  ? html`<div class="quality-menu">
+                      ${QUALITY_CHOICES.map(
+                        (q) => html`<button
+                          class="qopt ${q === this.qualityChoice ? 'on' : ''}"
+                          @click=${() => this.onPickQuality(q)}>${this.qualityLabel(q)}</button>`,
+                      )}
+                    </div>`
+                  : nothing}
+              </div>
+              <button class="btn primary" title="Save & exit editor" @click=${this.exitEdit}>
+                ✓ ${this.t('Done & Save')}
+              </button>
+            </div>`
+          : nothing}
 
         <!-- Hidden Edit entry (kiosk-safe): a 5s hold in the bottom-left corner
              opens the editor (then the PIN prompt if one is set). A long-press,
@@ -2066,6 +2492,7 @@ export class Ha3dFloorplanCard extends LitElement {
       display: block;
     }
     ha-card {
+      display: block;
       position: relative;
       overflow: hidden;
       padding: 0;
@@ -2649,6 +3076,526 @@ export class Ha3dFloorplanCard extends LitElement {
       border-radius: 8px;
       max-width: 80%;
       text-align: center;
+    }
+
+    /* ===================================================================
+       Room-in-focus layout (Option 1A): 3D + clock + pills on the left,
+       the selected room's device panel on the right.
+       =================================================================== */
+    ha-card.view {
+      --accent: #f3a83c;
+      --cool: #5bb8e8;
+      --tx: #f2f3f6;
+      --mut: #99a0ac;
+      --brd: rgba(255, 255, 255, 0.09);
+      --card: rgba(255, 255, 255, 0.045);
+      --card2: rgba(255, 255, 255, 0.08);
+      --panel-w: clamp(300px, 36%, 470px);
+      color: var(--tx);
+      font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: radial-gradient(150% 120% at 80% 4%, #20222a, #141519 52%, #0f1013);
+    }
+    ha-card.view .viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: var(--panel-w);
+      width: auto;
+      height: auto;
+      background: transparent;
+    }
+    .icn {
+      width: 20px;
+      height: 20px;
+      flex: none;
+    }
+
+    /* ---- Clock + status dots + room pills (over the 3D) ---- */
+    .clock {
+      position: absolute;
+      top: 26px;
+      left: 30px;
+      z-index: 3;
+      pointer-events: none;
+    }
+    .ctime {
+      font-size: 64px;
+      line-height: 0.9;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+    .cdate {
+      margin-top: 10px;
+      font-size: 15px;
+      color: var(--mut);
+    }
+    .topstat {
+      position: absolute;
+      top: 28px;
+      right: calc(var(--panel-w) + 24px);
+      z-index: 4;
+      display: flex;
+      gap: 10px;
+    }
+    .sdot {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      color: var(--mut);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font: inherit;
+    }
+    .sdot .on-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .pills {
+      position: absolute;
+      left: 26px;
+      right: calc(var(--panel-w) + 24px);
+      bottom: 22px;
+      z-index: 3;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      color: var(--mut);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.16s, color 0.16s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pill .icn {
+      width: 18px;
+      height: 18px;
+    }
+    .pill:hover {
+      background: var(--card2);
+      color: var(--tx);
+    }
+    .pill.on {
+      background: #fff;
+      color: #17181c;
+      border-color: #fff;
+    }
+
+    /* ---- Right-side room control panel ---- */
+    .room-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: var(--panel-w);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.018);
+      border-left: 1px solid var(--brd);
+    }
+    .rp-head {
+      padding: 26px 22px 12px;
+    }
+    .rp-name {
+      font-size: 25px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.01em;
+    }
+    .rp-chips {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .rp-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border-radius: 11px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--tx);
+    }
+    .rp-chip .icn {
+      width: 17px;
+      height: 17px;
+      color: var(--mut);
+    }
+    .rp-chip.cool .icn {
+      color: var(--cool);
+    }
+    .rp-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .rp-body::-webkit-scrollbar {
+      width: 0;
+    }
+    .rp-empty {
+      color: var(--mut);
+      font-size: 14px;
+      padding: 24px 4px;
+      text-align: center;
+    }
+    .rp-foot {
+      padding: 12px 20px 18px;
+      border-top: 1px solid var(--brd);
+    }
+    .rp-master {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--brd);
+      color: var(--tx);
+      font: inherit;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .rp-master:hover {
+      background: rgba(255, 255, 255, 0.11);
+    }
+
+    /* ---- Device cards ---- */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--brd);
+      border-radius: 18px;
+      padding: 16px;
+      animation: rp-rise 0.36s both;
+    }
+    @keyframes rp-rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    .card.on {
+      border-color: rgba(243, 168, 60, 0.5);
+      background: linear-gradient(rgba(243, 168, 60, 0.16), transparent 60%), var(--card);
+    }
+    .card.on.cool {
+      border-color: rgba(91, 184, 232, 0.5);
+      background: linear-gradient(rgba(91, 184, 232, 0.15), transparent 60%), var(--card);
+    }
+    .crow {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+    }
+    .cicon {
+      width: 44px;
+      height: 44px;
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--mut);
+      flex: none;
+      border: none;
+      cursor: default;
+    }
+    button.cicon {
+      cursor: pointer;
+    }
+    .cicon .icn {
+      width: 23px;
+      height: 23px;
+    }
+    .card.on .cicon.lit {
+      background: rgba(243, 168, 60, 0.16);
+      color: var(--accent);
+    }
+    .card.on.cool .cicon.lit {
+      background: rgba(91, 184, 232, 0.16);
+      color: var(--cool);
+    }
+    .cgrow {
+      flex: 1;
+      min-width: 0;
+    }
+    .clabel {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--tx);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .csub {
+      font-size: 13px;
+      color: var(--mut);
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .info-val {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      flex: none;
+    }
+    /* Toggle switch */
+    .sw {
+      width: 54px;
+      height: 31px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      position: relative;
+      cursor: pointer;
+      flex: none;
+      border: none;
+      padding: 0;
+      transition: background 0.2s;
+    }
+    .sw-k {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: #fff;
+      transition: left 0.2s;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+    }
+    .sw.on {
+      background: var(--accent);
+    }
+    .sw.on .sw-k {
+      left: 26px;
+    }
+    /* Slider */
+    .slider {
+      height: 44px;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.08);
+      position: relative;
+      margin-top: 14px;
+      cursor: pointer;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+    .slider-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0;
+      background: var(--accent);
+      border-radius: 13px;
+    }
+    .slider-fill.white {
+      background: rgba(255, 255, 255, 0.88);
+    }
+    .slider-lab {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+    /* White (cover) fill: dark labels read better on the light bar. */
+    .slider.cover .slider-lab {
+      color: #2b2e35;
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+    }
+    /* Climate stepper */
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: none;
+    }
+    .stbtn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--brd);
+      color: var(--tx);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex: none;
+    }
+    .stbtn:hover {
+      background: rgba(255, 255, 255, 0.13);
+    }
+    .tval {
+      font-size: 24px;
+      font-weight: 700;
+      min-width: 46px;
+      text-align: center;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Media */
+    .mp {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .mpart {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #3a3d47, #22242a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--mut);
+      flex: none;
+    }
+    .mptxt {
+      flex: 1;
+      min-width: 0;
+    }
+    .mptrack {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mpartist {
+      font-size: 13px;
+      color: var(--mut);
+      margin-top: 1px;
+    }
+    .mpb {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #17181c;
+      cursor: pointer;
+      background: #fff;
+      border: none;
+      flex: none;
+    }
+    /* Lock */
+    .lockbtn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 15px;
+      border-radius: 16px;
+      cursor: pointer;
+      font: inherit;
+      border: 1px solid var(--brd);
+      background: var(--card);
+      animation: rp-rise 0.36s both;
+    }
+    .lockbtn.locked {
+      background: rgba(55, 197, 142, 0.13);
+      border-color: rgba(55, 197, 142, 0.42);
+      color: #37c58e;
+    }
+    .lockbtn.unlocked {
+      background: rgba(242, 106, 75, 0.13);
+      border-color: rgba(242, 106, 75, 0.42);
+      color: #f26a4b;
+    }
+    .lktxt {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .lksub {
+      font-size: 13px;
+      opacity: 0.75;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* Keep the editor/legacy overlays clear of the room panel in view mode. */
+    ha-card.view .overlay.top-left {
+      top: 108px;
+      left: 30px;
+    }
+    ha-card.view .overlay.bottom {
+      left: 26px;
+      right: calc(var(--panel-w) + 24px);
+      bottom: 74px;
+      justify-content: flex-start;
+    }
+
+    /* Narrow cards: stack the panel below the 3D. */
+    @media (max-width: 720px) {
+      ha-card.view {
+        --panel-w: 0px;
+      }
+      ha-card.view .viewport {
+        right: 0;
+        bottom: 46%;
+      }
+      .room-panel {
+        top: 54%;
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--brd);
+      }
+      .topstat {
+        right: 18px;
+      }
+      .pills {
+        right: 18px;
+      }
+      ha-card.view .overlay.bottom {
+        right: 18px;
+      }
+      .ctime {
+        font-size: 48px;
+      }
     }
   `;
 }

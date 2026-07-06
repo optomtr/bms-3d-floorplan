@@ -95,6 +95,17 @@ export interface ClickResult {
   /** Set when a ROOM marker was tapped: all bound devices in that room. */
   roomEntities?: { entity_id: string; behavior: string }[];
   roomName?: string;
+  /** Stable key of the tapped room (matches getRooms()), for panel selection. */
+  roomKey?: string;
+}
+
+/** A room surfaced to the card for the pills + right-side control panel. */
+export interface RoomInfo {
+  key: string;
+  name?: string;
+  entities: { entity_id: string; behavior: string }[];
+  /** World-space centre of the room's marker (metres). */
+  center: [number, number, number];
 }
 
 export class SceneManager {
@@ -158,6 +169,13 @@ export class SceneManager {
   /** Per-floor manual zones (hand-placed room icons + explicit membership). */
   private floorZones: ZoneDef[][] = [];
   private floorElev: number[] = [];
+  /** Rooms on the active floor, in marker-build order — the source for the
+   *  card's room pills + right-side panel. Rebuilt with the markers. */
+  private activeRooms: (RoomInfo & { sprite: THREE.Sprite })[] = [];
+  /** Key of the room the card currently has selected (drives the accent pin). */
+  private selectedRoomKey: string | null = null;
+  /** Fired after markers rebuild so the card can refresh its room list. */
+  private onRoomsChanged?: (rooms: RoomInfo[]) => void;
   /** Edit-mode dots showing where each zone's icon sits. */
   readonly zoneGroup = new THREE.Group();
   private editing = false;
@@ -693,9 +711,16 @@ export class SceneManager {
     }
     this.markerGroup.clear();
     this.markerByEntity.clear();
-    if (this.editing) return;
+    this.activeRooms = [];
+    if (this.editing) {
+      this.onRoomsChanged?.([]);
+      return;
+    }
     const bm = this.bindingManagers[this.activeFloor];
-    if (!bm) return;
+    if (!bm) {
+      this.onRoomsChanged?.([]);
+      return;
+    }
     const allDevices = bm.markerData();
     const rooms = this.floorRooms[this.activeFloor] ?? [];
     const zones = this.floorZones[this.activeFloor] ?? [];
@@ -711,14 +736,18 @@ export class SceneManager {
       if (!ents.length) continue;
       for (const id of ents) claimed.add(id);
       const sp = this.makeMarkerSprite('room', z.x, elev + 1.6, z.z);
+      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id)! }));
+      const key = `${z.id ?? z.name ?? 'zone'}#${this.activeRooms.length}`;
       sp.userData = {
         roomMarker: true,
+        roomKey: key,
         roomName: z.name,
-        roomEntities: ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id)! })),
+        roomEntities,
         wx: z.x,
         wy: elev + 1.6,
         wz: z.z,
       };
+      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], sprite: sp });
       for (const id of ents) this.markerByEntity.set(id, sp);
     }
     // 2) Auto-group the remaining (unclaimed) devices by their room polygon.
@@ -748,14 +777,18 @@ export class SceneManager {
       const room = rooms[ri];
       const [cx, cz] = polyCentroid(room.poly);
       const sp = this.makeMarkerSprite('room', cx, room.elev + 1.6, cz);
+      const roomEntities = ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior }));
+      const key = `${room.name ?? 'room'}#${this.activeRooms.length}`;
       sp.userData = {
         roomMarker: true,
+        roomKey: key,
         roomName: room.name,
-        roomEntities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior })),
+        roomEntities,
         wx: cx,
         wy: room.elev + 1.6,
         wz: cz,
       };
+      this.activeRooms.push({ key, name: room.name, entities: roomEntities, center: [cx, room.elev + 1.6, cz], sprite: sp });
       for (const d of ds) this.markerByEntity.set(d.entity_id, sp);
     }
     for (const d of loose) {
@@ -772,6 +805,30 @@ export class SceneManager {
     // Colour freshly-built markers from the last known state (on = blue).
     if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
     this.needsRender = true;
+    // Drop a stale selection that no longer maps to a room on this floor.
+    if (this.selectedRoomKey && !this.activeRooms.some((r) => r.key === this.selectedRoomKey)) {
+      this.selectedRoomKey = null;
+    }
+    this.onRoomsChanged?.(this.getRooms());
+  }
+
+  /** Register a listener for the active floor's room list (pills + panel). */
+  setRoomsHandler(fn: (rooms: RoomInfo[]) => void): void {
+    this.onRoomsChanged = fn;
+  }
+
+  /** Rooms on the active floor, in build order (zones first, then auto-grouped). */
+  getRooms(): RoomInfo[] {
+    return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center }));
+  }
+
+  /** Highlight one room's pin (accent) and neutralise the rest. */
+  selectRoom(key: string | null): void {
+    this.selectedRoomKey = key;
+    if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
+    else for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, this.lastHass);
+    this.needsRender = true;
+    this.invalidate();
   }
 
   /** Whether a toggle device counts as "on" (drives the blue marker tint). */
@@ -782,12 +839,21 @@ export class SceneManager {
     );
   }
 
-  /** Tint a marker blue when it (or, for a room marker, any of its lights) is on. */
+  /** Tint a marker: the selected room's pin is accent-orange; other room pins
+   *  glow soft-amber when any of their lights are on; loose device markers turn
+   *  blue when on. */
   private colorMarker(sp: THREE.Sprite, hass: any): void {
     const ud = sp.userData;
-    const on = ud.roomMarker
-      ? (ud.roomEntities || []).some((e: any) => this.isOnLight(e.behavior, hass?.states?.[e.entity_id]?.state))
-      : this.isOnLight(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
+    if (ud.roomMarker) {
+      if (ud.roomKey && ud.roomKey === this.selectedRoomKey) {
+        (sp.material as THREE.SpriteMaterial).color.setHex(0xf3a83c);
+        return;
+      }
+      const anyOn = (ud.roomEntities || []).some((e: any) => this.isOnLight(e.behavior, hass?.states?.[e.entity_id]?.state));
+      (sp.material as THREE.SpriteMaterial).color.setHex(anyOn ? 0xf6c98a : 0xffffff);
+      return;
+    }
+    const on = this.isOnLight(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
     (sp.material as THREE.SpriteMaterial).color.setHex(on ? 0x4da3ff : 0xffffff);
   }
 
@@ -1098,7 +1164,7 @@ export class SceneManager {
         const screen: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
         const point: [number, number, number] = [ud.wx, ud.wy, ud.wz];
         if (ud.roomMarker) {
-          this.onPick({ entity_id: '', behavior: 'room', roomEntities: ud.roomEntities, roomName: ud.roomName, point, screen });
+          this.onPick({ entity_id: '', behavior: 'room', roomEntities: ud.roomEntities, roomName: ud.roomName, roomKey: ud.roomKey, point, screen });
         } else {
           this.onPick({ entity_id: ud.markerEntity as string, behavior: ud.markerBehavior as string, point, screen });
         }
