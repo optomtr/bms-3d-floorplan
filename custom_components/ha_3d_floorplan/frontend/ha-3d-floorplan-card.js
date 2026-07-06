@@ -22806,7 +22806,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.34.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.35.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25916,6 +25916,17 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   cardName(i, t) {
     return t ?? this.hass?.states[i]?.attributes?.friendly_name ?? i;
   }
+  /** Short label for a light segment — the HA name with the room prefix stripped
+   *  (e.g. "Гостиная · Люстра" → "Люстра"). Truncation is done in CSS. */
+  shortLightName(i, t) {
+    const e = this.hass?.states[i];
+    let n = e?.attributes?.friendly_name ?? i.split(".").pop() ?? i;
+    if (t) {
+      const s = t.trim().toLowerCase();
+      s && n.toLowerCase().startsWith(s) && (n = n.slice(t.trim().length));
+    }
+    return n = n.replace(/^[\s·:,_\-–—]+/, "").trim(), n || e?.attributes?.friendly_name || i;
+  }
   renderLightCard(i, t) {
     const e = this.hass.states[i], n = this.effState(i) === "on", s = e?.attributes?.brightness, r = s != null ? Math.round(s / 255 * 100) : 100, o = this.sliderValue(i, r), a = e?.attributes ?? {}, l = Number(a.min_color_temp_kelvin) || 2200, c = Number(a.max_color_temp_kelvin) || 6500, h = Number(a.color_temp_kelvin), d = Number.isFinite(h) ? Math.round((h - l) / (c - l) * 100) : 50, u = `${i}#ct`, f = this.sliderValue(u, Math.max(0, Math.min(100, d)));
     return Y`<div class="card ${n ? "on" : ""}">
@@ -26196,7 +26207,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       return Y`<button type="button" class="lightseg ${m ? "on" : ""}" title=${g}
                 @click=${(b) => {
         b.stopPropagation(), this.svc(v.split(".")[0], "toggle", {}, v, m ? "off" : "on");
-      }}></button>`;
+      }}><span>${this.shortLightName(v, i.name)}</span></button>`;
     })}
           </div>` : it}
       ${f || p !== it ? Y`<div class="rcfoot">
@@ -27894,19 +27905,36 @@ ut.styles = Bd`
       border-radius: 9px;
       background: rgba(255, 255, 255, 0.09);
       cursor: pointer;
-      padding: 0;
-      transition: background 0.15s, box-shadow 0.15s;
+      padding: 0 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: inherit;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--mut);
+      transition: background 0.15s, box-shadow 0.15s, color 0.15s;
       -webkit-tap-highlight-color: transparent;
+    }
+    .lightseg span {
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .lightseg:hover {
       background: rgba(255, 255, 255, 0.17);
+      color: var(--tx);
     }
     .lightseg.on {
       background: var(--accent);
+      color: #241a08;
       box-shadow: 0 2px 10px -3px rgba(243, 168, 60, 0.7);
     }
     .lightseg.on:hover {
       background: #f4b358;
+      color: #241a08;
     }
     .rcfoot {
       display: flex;

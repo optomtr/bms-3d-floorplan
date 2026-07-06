@@ -2409,6 +2409,19 @@ export class Ha3dFloorplanCard extends LitElement {
     return fallback ?? this.hass?.states[id]?.attributes?.friendly_name ?? id;
   }
 
+  /** Short label for a light segment — the HA name with the room prefix stripped
+   *  (e.g. "Гостиная · Люстра" → "Люстра"). Truncation is done in CSS. */
+  private shortLightName(id: string, roomName?: string): string {
+    const st = this.hass?.states[id];
+    let n = (st?.attributes?.friendly_name as string) ?? id.split('.').pop() ?? id;
+    if (roomName) {
+      const rn = roomName.trim().toLowerCase();
+      if (rn && n.toLowerCase().startsWith(rn)) n = n.slice(roomName.trim().length);
+    }
+    n = n.replace(/^[\s·:,_\-–—]+/, '').trim();
+    return n || (st?.attributes?.friendly_name as string) || id;
+  }
+
   private renderLightCard(id: string, title?: string) {
     const ent = this.hass!.states[id];
     const on = this.effState(id) === 'on';
@@ -2786,7 +2799,7 @@ export class Ha3dFloorplanCard extends LitElement {
               const lon = this.effState(id) === 'on';
               const nm = this.hass?.states[id]?.attributes?.friendly_name ?? id;
               return html`<button type="button" class="lightseg ${lon ? 'on' : ''}" title=${nm}
-                @click=${(e: Event) => { e.stopPropagation(); this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}></button>`;
+                @click=${(e: Event) => { e.stopPropagation(); this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}><span>${this.shortLightName(id, room.name)}</span></button>`;
             })}
           </div>`
         : nothing}
@@ -4515,19 +4528,36 @@ export class Ha3dFloorplanCard extends LitElement {
       border-radius: 9px;
       background: rgba(255, 255, 255, 0.09);
       cursor: pointer;
-      padding: 0;
-      transition: background 0.15s, box-shadow 0.15s;
+      padding: 0 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: inherit;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--mut);
+      transition: background 0.15s, box-shadow 0.15s, color 0.15s;
       -webkit-tap-highlight-color: transparent;
+    }
+    .lightseg span {
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .lightseg:hover {
       background: rgba(255, 255, 255, 0.17);
+      color: var(--tx);
     }
     .lightseg.on {
       background: var(--accent);
+      color: #241a08;
       box-shadow: 0 2px 10px -3px rgba(243, 168, 60, 0.7);
     }
     .lightseg.on:hover {
       background: #f4b358;
+      color: #241a08;
     }
     .rcfoot {
       display: flex;
