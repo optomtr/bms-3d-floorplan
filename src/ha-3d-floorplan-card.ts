@@ -114,6 +114,10 @@ const RU_STRINGS: Record<string, string> = {
   Warm: 'Тёплый',
   Cool: 'Холодный',
   now: 'сейчас',
+  of: 'из',
+  'blinds open': 'шторы открыты',
+  'humidity in house': 'влажность в доме',
+  'front door': 'входная дверь',
 };
 
 @customElement('ha-3d-floorplan-card')
@@ -2733,8 +2737,47 @@ export class Ha3dFloorplanCard extends LitElement {
     }
   }
 
+  /** Whole-home status for the Обзор status row (heating / blinds / hum / lock). */
+  private houseStatus(): { heat: string; heatLabel: string; blinds: string; hum: string; secIcon: string; secLabel: string } {
+    let heatN = 0, bTotal = 0, bOpen = 0, hSum = 0, hN = 0;
+    const locks: string[] = [];
+    for (const room of this.rooms) {
+      const c = room.entities.find((e) => e.behavior === 'climate');
+      if (c) {
+        const s = this.effState(c.entity_id);
+        if (s !== 'off' && s !== 'unavailable' && s !== 'unknown') heatN++;
+      }
+      for (const e of room.entities) {
+        if (e.behavior === 'cover') {
+          bTotal++;
+          const pos = this.hass?.states[e.entity_id]?.attributes?.current_position;
+          const open = typeof pos === 'number' ? pos > 0 : this.effState(e.entity_id) === 'open';
+          if (open) bOpen++;
+        }
+        if (e.behavior === 'lock') locks.push(e.entity_id);
+      }
+      const h = this.roomSensor(room, 'humidity', ['%']);
+      if (h) { const hv = Number(h.state); if (Number.isFinite(hv)) { hSum += hv; hN++; } }
+    }
+    let secIcon = 'room', secLabel = this.t('At home');
+    if (locks.length) {
+      const all = locks.every((id) => this.effState(id) === 'locked');
+      secIcon = all ? 'lockClosed' : 'lockOpen';
+      secLabel = all ? this.t('Locked') : this.t('Unlocked');
+    }
+    return {
+      heat: String(heatN),
+      heatLabel: this.ruPlural(heatN, 'комната греется', 'комнаты греются', 'комнат греются'),
+      blinds: `${bOpen} ${this.t('of')} ${bTotal}`,
+      hum: hN ? `${Math.round(hSum / hN)}%` : '—',
+      secIcon,
+      secLabel,
+    };
+  }
+
   private renderOverview() {
     const stats = this.overviewStats();
+    const st = this.houseStatus();
     const num = (v: any, d: number) => {
       const n = Number(v);
       return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
@@ -2747,6 +2790,7 @@ export class Ha3dFloorplanCard extends LitElement {
         </div>
         <div class="ov-actions">
           ${this.renderViewToggle()}
+          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
           <div class="sumcard act"><div class="sumn">${stats.onCount}</div><div class="suml">${this.t('lights on')}</div></div>
           <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${this.t('on average')}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic('power')}<span>${this.t('All off short')}</span></button>
@@ -2755,6 +2799,12 @@ export class Ha3dFloorplanCard extends LitElement {
       <div class="ov-banner-label">
         <div class="bmh">${this.t('My home')}</div>
         <div class="bms">${stats.roomCount} ${this.t('rooms')} · ${stats.onCount} ${this.t('light sources active')}</div>
+      </div>
+      <div class="bstatus">
+        <div class="bstat warm"><div class="bstat-ic">${this.ic('heat')}</div><div><div class="bstat-v">${st.heat}</div><div class="bstat-l">${st.heatLabel}</div></div></div>
+        <div class="bstat"><div class="bstat-ic">${this.ic('curtain')}</div><div><div class="bstat-v">${st.blinds}</div><div class="bstat-l">${this.t('blinds open')}</div></div></div>
+        <div class="bstat cool"><div class="bstat-ic">${this.ic('drop')}</div><div><div class="bstat-v">${st.hum}</div><div class="bstat-l">${this.t('humidity in house')}</div></div></div>
+        <div class="bstat good"><div class="bstat-ic">${this.ic(st.secIcon)}</div><div><div class="bstat-v">${st.secLabel}</div><div class="bstat-l">${this.t('front door')}</div></div></div>
       </div>
       <div class="ov-grid">
         ${this.rooms.length
@@ -4448,9 +4498,87 @@ export class Ha3dFloorplanCard extends LitElement {
       color: var(--mut);
       margin-top: 3px;
     }
+    .bsleep {
+      align-self: stretch;
+      width: 46px;
+      flex: none;
+      border-radius: 15px;
+      border: 1px solid var(--brd);
+      background: var(--card);
+      color: var(--mut);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .bsleep:hover {
+      background: var(--card2);
+      color: var(--tx);
+    }
+    /* House status row (heating / blinds / humidity / door). */
+    .bstatus {
+      position: absolute;
+      top: 288px;
+      left: 30px;
+      right: 30px;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .bstat {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-radius: 16px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      min-width: 0;
+    }
+    .bstat-ic {
+      width: 40px;
+      height: 40px;
+      flex: none;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--mut);
+    }
+    .bstat.warm .bstat-ic {
+      background: rgba(243, 168, 60, 0.16);
+      color: var(--accent);
+    }
+    .bstat.cool .bstat-ic {
+      background: rgba(91, 184, 232, 0.16);
+      color: var(--cool);
+    }
+    .bstat.good .bstat-ic {
+      background: rgba(55, 197, 142, 0.16);
+      color: #37c58e;
+    }
+    .bstat-v {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bstat-l {
+      font-size: 12px;
+      color: var(--mut);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .ov-grid {
       position: absolute;
-      top: 292px;
+      top: 368px;
       left: 30px;
       right: 30px;
       bottom: 26px;

@@ -22809,7 +22809,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.36.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.37.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -24506,7 +24506,11 @@ const kd = [
   "Open blind": "Открыть",
   Warm: "Тёплый",
   Cool: "Холодный",
-  now: "сейчас"
+  now: "сейчас",
+  of: "из",
+  "blinds open": "шторы открыты",
+  "humidity in house": "влажность в доме",
+  "front door": "входная дверь"
 };
 let ut = class extends ts {
   constructor() {
@@ -26156,10 +26160,48 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       }
     }
   }
+  /** Whole-home status for the Обзор status row (heating / blinds / hum / lock). */
+  houseStatus() {
+    let i = 0, t = 0, e = 0, n = 0, s = 0;
+    const r = [];
+    for (const l of this.rooms) {
+      const c = l.entities.find((d) => d.behavior === "climate");
+      if (c) {
+        const d = this.effState(c.entity_id);
+        d !== "off" && d !== "unavailable" && d !== "unknown" && i++;
+      }
+      for (const d of l.entities) {
+        if (d.behavior === "cover") {
+          t++;
+          const u = this.hass?.states[d.entity_id]?.attributes?.current_position;
+          (typeof u == "number" ? u > 0 : this.effState(d.entity_id) === "open") && e++;
+        }
+        d.behavior === "lock" && r.push(d.entity_id);
+      }
+      const h = this.roomSensor(l, "humidity", ["%"]);
+      if (h) {
+        const d = Number(h.state);
+        Number.isFinite(d) && (n += d, s++);
+      }
+    }
+    let o = "room", a = this.t("At home");
+    if (r.length) {
+      const l = r.every((c) => this.effState(c) === "locked");
+      o = l ? "lockClosed" : "lockOpen", a = l ? this.t("Locked") : this.t("Unlocked");
+    }
+    return {
+      heat: String(i),
+      heatLabel: this.ruPlural(i, "комната греется", "комнаты греются", "комнат греются"),
+      blinds: `${e} ${this.t("of")} ${t}`,
+      hum: s ? `${Math.round(n / s)}%` : "—",
+      secIcon: o,
+      secLabel: a
+    };
+  }
   renderOverview() {
-    const i = this.overviewStats(), t = (e, n) => {
-      const s = Number(e);
-      return Number.isFinite(s) ? s.toLocaleString(this.uiLocale, { minimumFractionDigits: n, maximumFractionDigits: n }) : "—";
+    const i = this.overviewStats(), t = this.houseStatus(), e = (n, s) => {
+      const r = Number(n);
+      return Number.isFinite(r) ? r.toLocaleString(this.uiLocale, { minimumFractionDigits: s, maximumFractionDigits: s }) : "—";
     };
     return Y`
       <div class="ov-top">
@@ -26169,6 +26211,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         </div>
         <div class="ov-actions">
           ${this.renderViewToggle()}
+          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(n) => this.onSleep(n)}>${this.ic("moon")}</button>
           <div class="sumcard act"><div class="sumn">${i.onCount}</div><div class="suml">${this.t("lights on")}</div></div>
           <div class="sumcard"><div class="sumn">${i.avgTemp}</div><div class="suml">${this.t("on average")}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic("power")}<span>${this.t("All off short")}</span></button>
@@ -26178,8 +26221,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="bmh">${this.t("My home")}</div>
         <div class="bms">${i.roomCount} ${this.t("rooms")} · ${i.onCount} ${this.t("light sources active")}</div>
       </div>
+      <div class="bstatus">
+        <div class="bstat warm"><div class="bstat-ic">${this.ic("heat")}</div><div><div class="bstat-v">${t.heat}</div><div class="bstat-l">${t.heatLabel}</div></div></div>
+        <div class="bstat"><div class="bstat-ic">${this.ic("curtain")}</div><div><div class="bstat-v">${t.blinds}</div><div class="bstat-l">${this.t("blinds open")}</div></div></div>
+        <div class="bstat cool"><div class="bstat-ic">${this.ic("drop")}</div><div><div class="bstat-v">${t.hum}</div><div class="bstat-l">${this.t("humidity in house")}</div></div></div>
+        <div class="bstat good"><div class="bstat-ic">${this.ic(t.secIcon)}</div><div><div class="bstat-v">${t.secLabel}</div><div class="bstat-l">${this.t("front door")}</div></div></div>
+      </div>
       <div class="ov-grid">
-        ${this.rooms.length ? this.rooms.map((e) => this.renderOverviewCard(e, t)) : Y`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
+        ${this.rooms.length ? this.rooms.map((n) => this.renderOverviewCard(n, e)) : Y`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
       </div>
     `;
   }
@@ -27824,9 +27873,87 @@ ut.styles = Bd`
       color: var(--mut);
       margin-top: 3px;
     }
+    .bsleep {
+      align-self: stretch;
+      width: 46px;
+      flex: none;
+      border-radius: 15px;
+      border: 1px solid var(--brd);
+      background: var(--card);
+      color: var(--mut);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .bsleep:hover {
+      background: var(--card2);
+      color: var(--tx);
+    }
+    /* House status row (heating / blinds / humidity / door). */
+    .bstatus {
+      position: absolute;
+      top: 288px;
+      left: 30px;
+      right: 30px;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .bstat {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-radius: 16px;
+      background: var(--card);
+      border: 1px solid var(--brd);
+      min-width: 0;
+    }
+    .bstat-ic {
+      width: 40px;
+      height: 40px;
+      flex: none;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--mut);
+    }
+    .bstat.warm .bstat-ic {
+      background: rgba(243, 168, 60, 0.16);
+      color: var(--accent);
+    }
+    .bstat.cool .bstat-ic {
+      background: rgba(91, 184, 232, 0.16);
+      color: var(--cool);
+    }
+    .bstat.good .bstat-ic {
+      background: rgba(55, 197, 142, 0.16);
+      color: #37c58e;
+    }
+    .bstat-v {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bstat-l {
+      font-size: 12px;
+      color: var(--mut);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .ov-grid {
       position: absolute;
-      top: 292px;
+      top: 368px;
       left: 30px;
       right: 30px;
       bottom: 26px;
