@@ -22811,7 +22811,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.42.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.43.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27795,30 +27795,31 @@ ut.styles = Bd`
     }
     .ov-actions {
       display: flex;
-      align-items: stretch;
+      align-items: center;
       gap: 10px;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
     .sumcard {
+      height: 42px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 2px;
-      padding: 11px 16px;
-      border-radius: 15px;
+      gap: 0;
+      padding: 0 15px;
+      border-radius: 13px;
       background: var(--card);
       border: 1px solid var(--brd);
-      min-width: 96px;
+      min-width: 90px;
     }
     .sumn {
-      font-size: 22px;
+      font-size: 19px;
       font-weight: 700;
       color: #fff;
-      line-height: 1;
+      line-height: 1.05;
     }
     .suml {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--mut);
     }
     .sumcard.act {
@@ -27829,11 +27830,12 @@ ut.styles = Bd`
       color: var(--accent);
     }
     .ov-master {
+      height: 42px;
       display: inline-flex;
       align-items: center;
       gap: 9px;
-      padding: 0 20px;
-      border-radius: 15px;
+      padding: 0 18px;
+      border-radius: 13px;
       background: var(--card);
       border: 1px solid var(--brd);
       color: var(--tx);
@@ -27871,10 +27873,10 @@ ut.styles = Bd`
       margin-top: 3px;
     }
     .bsleep {
-      align-self: stretch;
-      width: 46px;
+      width: 42px;
+      height: 42px;
       flex: none;
-      border-radius: 15px;
+      border-radius: 13px;
       border: 1px solid var(--brd);
       background: var(--card);
       color: var(--mut);

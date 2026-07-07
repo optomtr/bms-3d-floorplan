@@ -4420,30 +4420,31 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .ov-actions {
       display: flex;
-      align-items: stretch;
+      align-items: center;
       gap: 10px;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
     .sumcard {
+      height: 42px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 2px;
-      padding: 11px 16px;
-      border-radius: 15px;
+      gap: 0;
+      padding: 0 15px;
+      border-radius: 13px;
       background: var(--card);
       border: 1px solid var(--brd);
-      min-width: 96px;
+      min-width: 90px;
     }
     .sumn {
-      font-size: 22px;
+      font-size: 19px;
       font-weight: 700;
       color: #fff;
-      line-height: 1;
+      line-height: 1.05;
     }
     .suml {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--mut);
     }
     .sumcard.act {
@@ -4454,11 +4455,12 @@ export class Ha3dFloorplanCard extends LitElement {
       color: var(--accent);
     }
     .ov-master {
+      height: 42px;
       display: inline-flex;
       align-items: center;
       gap: 9px;
-      padding: 0 20px;
-      border-radius: 15px;
+      padding: 0 18px;
+      border-radius: 13px;
       background: var(--card);
       border: 1px solid var(--brd);
       color: var(--tx);
@@ -4496,10 +4498,10 @@ export class Ha3dFloorplanCard extends LitElement {
       margin-top: 3px;
     }
     .bsleep {
-      align-self: stretch;
-      width: 46px;
+      width: 42px;
+      height: 42px;
       flex: none;
-      border-radius: 15px;
+      border-radius: 13px;
       border: 1px solid var(--brd);
       background: var(--card);
       color: var(--mut);
