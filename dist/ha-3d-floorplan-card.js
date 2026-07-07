@@ -22811,7 +22811,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.39.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.40.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26103,10 +26103,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   // -- Overview (Option 1B: house overview) -----------------------------------
   setViewMode(i) {
-    if (this.viewMode === i) return;
-    this.viewMode = i, this.detailRoomKey = null, this.requestUpdate();
-    const t = i === "overview" ? 0.34 : 1;
-    requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView(t)));
+    this.viewMode !== i && (this.viewMode = i, this.detailRoomKey = null, this.requestUpdate(), i === "room" && requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView())));
   }
   renderViewToggle() {
     const i = (t) => this.viewMode === t ? "on" : "";
@@ -26221,10 +26218,6 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <div class="sumcard"><div class="sumn">${i.avgTemp}</div><div class="suml">${this.t("on average")}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic("power")}<span>${this.t("All off short")}</span></button>
         </div>
-      </div>
-      <div class="ov-banner-label">
-        <div class="bmh">${this.t("My home")}</div>
-        <div class="bms">${i.roomCount} ${this.t("rooms")} · ${i.onCount} ${this.t("light sources active")}</div>
       </div>
       <div class="bstatus">
         <div class="bstat warm"><div class="bstat-ic">${this.ic("heat")}</div><div><div class="bstat-v">${t.heat}</div><div class="bstat-l">${t.heatLabel}</div></div></div>
@@ -27783,17 +27776,9 @@ ut.styles = Bd`
     ha-card.view.overview {
       background: radial-gradient(1200px 900px at 28% 0%, #1b1d24, #0b0c0e 62%);
     }
+    /* Обзор has no 3D — it's a pure grid dashboard (the 3D lives in Комната). */
     ha-card.view.overview .viewport {
-      position: absolute;
-      top: 120px;
-      left: 30px;
-      right: 30px;
-      height: 150px;
-      width: auto;
-      background: var(--model, #1b1d22);
-      border-radius: 20px;
-      border: 1px solid var(--brd);
-      overflow: hidden;
+      display: none;
     }
     .ov-top {
       position: absolute;
@@ -27903,7 +27888,7 @@ ut.styles = Bd`
     /* House status row (heating / blinds / humidity / door). */
     .bstatus {
       position: absolute;
-      top: 288px;
+      top: 122px;
       left: 30px;
       right: 30px;
       z-index: 5;
@@ -27963,7 +27948,7 @@ ut.styles = Bd`
     }
     .ov-grid {
       position: absolute;
-      top: 368px;
+      top: 202px;
       left: 30px;
       right: 30px;
       bottom: 26px;

@@ -2655,11 +2655,11 @@ export class Ha3dFloorplanCard extends LitElement {
     this.viewMode = mode;
     this.detailRoomKey = null;
     this.requestUpdate();
-    // The 3D viewport changes size between the two layouts — reframe it once the
-    // new layout has settled. The Обзор banner is short + wide, so pull in closer
-    // there or the model would sit tiny in the middle.
-    const mul = mode === 'overview' ? 0.34 : 1;
-    requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView(mul)));
+    // Обзор hides the 3D; when returning to Комната the viewport is shown again,
+    // so reframe it once the layout has settled.
+    if (mode === 'room') {
+      requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView()));
+    }
   }
 
   private renderViewToggle() {
@@ -2797,10 +2797,6 @@ export class Ha3dFloorplanCard extends LitElement {
           <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${this.t('on average')}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic('power')}<span>${this.t('All off short')}</span></button>
         </div>
-      </div>
-      <div class="ov-banner-label">
-        <div class="bmh">${this.t('My home')}</div>
-        <div class="bms">${stats.roomCount} ${this.t('rooms')} · ${stats.onCount} ${this.t('light sources active')}</div>
       </div>
       <div class="bstatus">
         <div class="bstat warm"><div class="bstat-ic">${this.ic('heat')}</div><div><div class="bstat-v">${st.heat}</div><div class="bstat-l">${st.heatLabel}</div></div></div>
@@ -4405,17 +4401,9 @@ export class Ha3dFloorplanCard extends LitElement {
     ha-card.view.overview {
       background: radial-gradient(1200px 900px at 28% 0%, #1b1d24, #0b0c0e 62%);
     }
+    /* Обзор has no 3D — it's a pure grid dashboard (the 3D lives in Комната). */
     ha-card.view.overview .viewport {
-      position: absolute;
-      top: 120px;
-      left: 30px;
-      right: 30px;
-      height: 150px;
-      width: auto;
-      background: var(--model, #1b1d22);
-      border-radius: 20px;
-      border: 1px solid var(--brd);
-      overflow: hidden;
+      display: none;
     }
     .ov-top {
       position: absolute;
@@ -4525,7 +4513,7 @@ export class Ha3dFloorplanCard extends LitElement {
     /* House status row (heating / blinds / humidity / door). */
     .bstatus {
       position: absolute;
-      top: 288px;
+      top: 122px;
       left: 30px;
       right: 30px;
       z-index: 5;
@@ -4585,7 +4573,7 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .ov-grid {
       position: absolute;
-      top: 368px;
+      top: 202px;
       left: 30px;
       right: 30px;
       bottom: 26px;
