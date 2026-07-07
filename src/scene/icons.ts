@@ -39,7 +39,7 @@ export const ICON_PATHS: Record<string, string[]> = {
   skipPrev: ['M7 6v12', 'M18 6l-8 6 8 6z'],
   skipNext: ['M17 6v12', 'M6 6l8 6-8 6z'],
   album: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
-  grid: ['M5 5h5v5H5z', 'M14 5h5v5h-5z', 'M5 14h5v5H5z', 'M14 14h5v5h-5z'],
+  grid: ['M5.5 5.5h4v4h-4z', 'M14.5 5.5h4v4h-4z', 'M5.5 14.5h4v4h-4z', 'M14.5 14.5h4v4h-4z'],
   moon: ['M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z'],
   close: ['M6 6l12 12', 'M18 6l-12 12'],
   chevRight: ['M9 5l7 7-7 7'],
