@@ -2656,8 +2656,10 @@ export class Ha3dFloorplanCard extends LitElement {
     this.detailRoomKey = null;
     this.requestUpdate();
     // The 3D viewport changes size between the two layouts — reframe it once the
-    // new layout has settled so the model stays nicely centred.
-    requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView()));
+    // new layout has settled. The Обзор banner is short + wide, so pull in closer
+    // there or the model would sit tiny in the middle.
+    const mul = mode === 'overview' ? 0.5 : 1;
+    requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView(mul)));
   }
 
   private renderViewToggle() {
@@ -3998,8 +4000,13 @@ export class Ha3dFloorplanCard extends LitElement {
       z-index: 5;
       display: flex;
       flex-direction: column;
-      background: rgba(255, 255, 255, 0.018);
+      background: var(--model, #141519);
       border-left: 1px solid var(--brd);
+      animation: panel-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes panel-in {
+      from { transform: translateX(18px); opacity: 0; }
+      to { transform: none; opacity: 1; }
     }
     .rp-head {
       padding: 26px 22px 12px;
@@ -4384,8 +4391,8 @@ export class Ha3dFloorplanCard extends LitElement {
       -webkit-tap-highlight-color: transparent;
     }
     .vt-btn .icn {
-      width: 17px;
-      height: 17px;
+      width: 15px;
+      height: 15px;
     }
     .vt-btn.on {
       background: #fff;

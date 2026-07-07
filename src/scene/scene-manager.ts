@@ -372,6 +372,14 @@ export class SceneManager {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.needsRender = true;
+    // setSize() clears the WebGL buffer, so with render-on-demand the canvas
+    // would flash black for a frame until the next rAF. This matters when the
+    // viewport animates its width (opening/closing the room panel) — the
+    // observer fires every frame. Draw synchronously so it never blanks.
+    if (this.running && this.floors.length) {
+      this.renderer.render(this.scene, this.camera);
+      this.needsRender = false;
+    }
   }
 
   // -- Floor plan loading -----------------------------------------------------
@@ -476,7 +484,9 @@ export class SceneManager {
   // -- Camera / touch hardening ----------------------------------------------
 
   /** Recenter on the visible floor's bounding box. The kiosk safety net. */
-  resetView(): void {
+  /** Frame the active floor. `distMul` < 1 dollies closer (e.g. the short,
+   *  wide Обзор banner, where the fit-to-view distance leaves the model tiny). */
+  resetView(distMul = 1): void {
     let box = this.floors[this.activeFloor]?.bbox ?? this.fullBBox;
     if (!box || box.isEmpty()) {
       // Blank/empty plan: frame a default area around the origin so the camera
@@ -493,7 +503,7 @@ export class SceneManager {
     this.controls.target.copy(center);
     // Pull back enough to frame the floor. `cameraDistance` (config) scales it —
     // <1 = closer, >1 = further. Default sits noticeably closer than before.
-    const dist = (maxDim * 0.95 + 3) * this.cameraDistance;
+    const dist = (maxDim * 0.95 + 3) * this.cameraDistance * distMul;
     this.camera.position.set(center.x + dist * 0.7, center.y + dist * 0.8, center.z + dist * 0.7);
     this.controls.maxDistance = dist * 3;
     this.controls.minDistance = Math.max(1.2, maxDim * 0.1);

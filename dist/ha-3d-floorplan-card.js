@@ -22055,7 +22055,7 @@ const Eo = {
   skipPrev: ["M7 6v12", "M18 6l-8 6 8 6z"],
   skipNext: ["M17 6v12", "M6 6l8 6-8 6z"],
   album: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"],
-  grid: ["M4 4h7v7H4z", "M13 4h7v7h-7z", "M4 13h7v7H4z", "M13 13h7v7h-7z"],
+  grid: ["M5 5h5v5H5z", "M14 5h5v5h-5z", "M5 14h5v5H5z", "M14 14h5v5h-5z"],
   moon: ["M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"],
   close: ["M6 6l12 12", "M18 6l-12 12"],
   chevRight: ["M9 5l7 7-7 7"],
@@ -22247,7 +22247,7 @@ class K_ {
   }
   resize() {
     const t = this.container.clientWidth || 1, e = this.container.clientHeight || 1;
-    this.renderer.setSize(t, e, !1), this.camera.aspect = t / e, this.camera.updateProjectionMatrix(), this.needsRender = !0;
+    this.renderer.setSize(t, e, !1), this.camera.aspect = t / e, this.camera.updateProjectionMatrix(), this.needsRender = !0, this.running && this.floors.length && (this.renderer.render(this.scene, this.camera), this.needsRender = !1);
   }
   // -- Floor plan loading -----------------------------------------------------
   loadPlan(t, e = !1) {
@@ -22291,16 +22291,18 @@ class K_ {
   }
   // -- Camera / touch hardening ----------------------------------------------
   /** Recenter on the visible floor's bounding box. The kiosk safety net. */
-  resetView() {
-    let t = this.floors[this.activeFloor]?.bbox ?? this.fullBBox;
-    (!t || t.isEmpty()) && (t = new Ke(
+  /** Frame the active floor. `distMul` < 1 dollies closer (e.g. the short,
+   *  wide Обзор banner, where the fit-to-view distance leaves the model tiny). */
+  resetView(t = 1) {
+    let e = this.floors[this.activeFloor]?.bbox ?? this.fullBBox;
+    (!e || e.isEmpty()) && (e = new Ke(
       new L(-4, 0, -4),
       new L(4, 2.6, 4)
     ));
-    const e = t.getCenter(new L()), n = t.getSize(new L()), s = Math.max(n.x, n.z, 2);
-    this.controls.target.copy(e);
-    const r = (s * 0.95 + 3) * this.cameraDistance;
-    this.camera.position.set(e.x + r * 0.7, e.y + r * 0.8, e.z + r * 0.7), this.controls.maxDistance = r * 3, this.controls.minDistance = Math.max(1.2, s * 0.1), this.camera.lookAt(e), this.controls.update();
+    const n = e.getCenter(new L()), s = e.getSize(new L()), r = Math.max(s.x, s.z, 2);
+    this.controls.target.copy(n);
+    const o = (r * 0.95 + 3) * this.cameraDistance * t;
+    this.camera.position.set(n.x + o * 0.7, n.y + o * 0.8, n.z + o * 0.7), this.controls.maxDistance = o * 3, this.controls.minDistance = Math.max(1.2, r * 0.1), this.camera.lookAt(n), this.controls.update();
   }
   /** Multiplier on the reset-view framing distance (from card config). */
   setCameraDistance(t) {
@@ -22809,7 +22811,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.37.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.38.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26101,7 +26103,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   // -- Overview (Option 1B: house overview) -----------------------------------
   setViewMode(i) {
-    this.viewMode !== i && (this.viewMode = i, this.detailRoomKey = null, this.requestUpdate(), requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView())));
+    if (this.viewMode === i) return;
+    this.viewMode = i, this.detailRoomKey = null, this.requestUpdate();
+    const t = i === "overview" ? 0.5 : 1;
+    requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView(t)));
   }
   renderViewToggle() {
     const i = (t) => this.viewMode === t ? "on" : "";
@@ -27373,8 +27378,13 @@ ut.styles = Bd`
       z-index: 5;
       display: flex;
       flex-direction: column;
-      background: rgba(255, 255, 255, 0.018);
+      background: var(--model, #141519);
       border-left: 1px solid var(--brd);
+      animation: panel-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes panel-in {
+      from { transform: translateX(18px); opacity: 0; }
+      to { transform: none; opacity: 1; }
     }
     .rp-head {
       padding: 26px 22px 12px;
@@ -27759,8 +27769,8 @@ ut.styles = Bd`
       -webkit-tap-highlight-color: transparent;
     }
     .vt-btn .icn {
-      width: 17px;
-      height: 17px;
+      width: 15px;
+      height: 15px;
     }
     .vt-btn.on {
       background: #fff;
