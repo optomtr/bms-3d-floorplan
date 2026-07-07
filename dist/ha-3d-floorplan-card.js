@@ -22811,7 +22811,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.41.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.42.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27740,6 +27740,8 @@ ut.styles = Bd`
     /* ---- View toggle (Обзор / Комната) ---- */
     .view-toggle {
       display: inline-flex;
+      align-self: center;
+      flex: none;
       padding: 4px;
       gap: 3px;
       border-radius: 13px;

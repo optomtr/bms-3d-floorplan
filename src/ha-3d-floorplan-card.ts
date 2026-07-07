@@ -4365,6 +4365,8 @@ export class Ha3dFloorplanCard extends LitElement {
     /* ---- View toggle (Обзор / Комната) ---- */
     .view-toggle {
       display: inline-flex;
+      align-self: center;
+      flex: none;
       padding: 4px;
       gap: 3px;
       border-radius: 13px;
