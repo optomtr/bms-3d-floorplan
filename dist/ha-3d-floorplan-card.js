@@ -22811,7 +22811,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.38.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.39.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26105,7 +26105,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   setViewMode(i) {
     if (this.viewMode === i) return;
     this.viewMode = i, this.detailRoomKey = null, this.requestUpdate();
-    const t = i === "overview" ? 0.5 : 1;
+    const t = i === "overview" ? 0.34 : 1;
     requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView(t)));
   }
   renderViewToggle() {
@@ -27871,7 +27871,7 @@ ut.styles = Bd`
       justify-content: center;
       padding-left: 22px;
       border-radius: 20px;
-      background: linear-gradient(90deg, rgba(12, 13, 16, 0.85), rgba(12, 13, 16, 0.2) 46%, transparent 70%);
+      background: linear-gradient(90deg, rgba(12, 13, 16, 0.92) 0%, rgba(12, 13, 16, 0.55) 20%, transparent 42%);
     }
     .bmh {
       font-size: 19px;

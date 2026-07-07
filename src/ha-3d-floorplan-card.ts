@@ -2658,7 +2658,7 @@ export class Ha3dFloorplanCard extends LitElement {
     // The 3D viewport changes size between the two layouts — reframe it once the
     // new layout has settled. The Обзор banner is short + wide, so pull in closer
     // there or the model would sit tiny in the middle.
-    const mul = mode === 'overview' ? 0.5 : 1;
+    const mul = mode === 'overview' ? 0.34 : 1;
     requestAnimationFrame(() => requestAnimationFrame(() => this.sceneManager?.resetView(mul)));
   }
 
@@ -4493,7 +4493,7 @@ export class Ha3dFloorplanCard extends LitElement {
       justify-content: center;
       padding-left: 22px;
       border-radius: 20px;
-      background: linear-gradient(90deg, rgba(12, 13, 16, 0.85), rgba(12, 13, 16, 0.2) 46%, transparent 70%);
+      background: linear-gradient(90deg, rgba(12, 13, 16, 0.92) 0%, rgba(12, 13, 16, 0.55) 20%, transparent 42%);
     }
     .bmh {
       font-size: 19px;
