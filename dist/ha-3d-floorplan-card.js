@@ -23046,7 +23046,7 @@ function e1(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const n1 = "0.49.0", To = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
+const n1 = "0.50.0", To = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
 function i1() {
   return window.ha3dFloorplan ?? {};
 }
@@ -24874,7 +24874,7 @@ let dt = class extends es {
         t === "z" && !i.shiftKey ? (i.preventDefault(), this.editor.undo()) : (t === "y" || t === "z" && i.shiftKey) && (i.preventDefault(), this.editor.redo());
       }
       this.editing && this.editor && i.type === "keydown" && (i.key === "Enter" ? (i.preventDefault(), this.editor.finishChain()) : i.key === "Escape" && (i.preventDefault(), this.editor.cancelChain()));
-    }, this.idleEvents = ["pointerdown", "keydown", "wheel", "touchstart"], this.onActivity = () => this.wake(), this.sleepGuardUntil = 0;
+    }, this.idleEvents = ["pointerdown", "keydown", "wheel", "touchstart"], this.onActivity = () => this.wake();
   }
   // -- Lovelace lifecycle -----------------------------------------------------
   setConfig(i) {
@@ -25487,7 +25487,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }, i * 6e4));
   }
   wake() {
-    performance.now() < this.sleepGuardUntil || (this.idle && (this.idle = !1), this.armIdle());
+    this.idle && (this.idle = !1), this.armIdle();
   }
   renderPaletteCell(i, t) {
     return Y`
@@ -26134,7 +26134,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   onSleep(i) {
-    i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.sleepGuardUntil = performance.now() + 700, this.now = /* @__PURE__ */ new Date(), this.idle = !0;
+    i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.now = /* @__PURE__ */ new Date(), this.idle = !0;
   }
   renderStageChrome() {
     const i = !!this.activeRoom;
@@ -26146,7 +26146,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       <div class="topstat">
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic("room")}</button>
         ${this.panel ? Y`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : st}
-        <button class="sdot" title="Screensaver" @pointerdown=${(t) => this.onSleep(t)}>${this.ic("moon")}</button>
+        <button class="sdot" title="Screensaver" @click=${(t) => this.onSleep(t)}>${this.ic("moon")}</button>
         ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
@@ -26576,7 +26576,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <div class="sumcard act"><div class="sumn">${i.onCount}</div><div class="suml">${this.t("lights on")}</div></div>
           <div class="sumcard"><div class="sumn">${i.avgTemp}</div><div class="suml">${this.t("on average")}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic("power")}<span>${this.t("All off short")}</span></button>
-          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(n) => this.onSleep(n)}>${this.ic("moon")}</button>
+          <button type="button" class="bsleep" title="Screensaver" @click=${(n) => this.onSleep(n)}>${this.ic("moon")}</button>
           ${this.renderViewToggle()}
         </div>
       </div>
@@ -26762,17 +26762,15 @@ dt.styles = Hd`
     :host {
       display: block;
     }
-    /* Kiosk/tablet: never draw the focus ring on tapped controls. */
-    button,
-    .slider,
-    .cttrack,
-    [tabindex] {
-      outline: none;
+    /* Kiosk/tablet: never draw a focus ring or tap flash on ANY control.
+       WebView draws its own highlight on links/pills/divs too, so this has to
+       be blanket — the earlier button-only rule left some controls ringed. */
+    * {
       -webkit-tap-highlight-color: transparent;
     }
-    button:focus,
-    button:focus-visible {
-      outline: none;
+    *:focus,
+    *:focus-visible {
+      outline: none !important;
     }
     ha-card {
       display: block;

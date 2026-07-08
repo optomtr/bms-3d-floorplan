@@ -12,6 +12,11 @@
         background: #1b1d22;
         overflow: hidden;
         font-family: system-ui, sans-serif;
+        /* Kiosk WebView: never flash the native tap highlight on any control. */
+        -webkit-tap-highlight-color: transparent;
+      }
+      * {
+        -webkit-tap-highlight-color: transparent;
       }
       ha-card {
         display: block;

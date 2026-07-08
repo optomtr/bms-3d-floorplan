@@ -1383,10 +1383,6 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private readonly idleEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
   private onActivity = (): void => this.wake();
-  /** Ignore wake() until this time — the very tap that opens the screensaver
-   *  fires both pointerdown AND touchstart, and the touchstart would otherwise
-   *  wake it right back up, so it would never appear on a tablet. */
-  private sleepGuardUntil = 0;
 
   /** (Re)start the idle countdown. idleMinutes: config, default 10, 0 = disabled. */
   private armIdle(): void {
@@ -1400,7 +1396,6 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private wake(): void {
-    if (performance.now() < this.sleepGuardUntil) return;
     if (this.idle) this.idle = false;
     this.armIdle();
   }
@@ -2237,7 +2232,6 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSleep(e: Event): void {
     if (e && 'stopPropagation' in e) e.stopPropagation();
     if (this.idleTimer) window.clearTimeout(this.idleTimer);
-    this.sleepGuardUntil = performance.now() + 700; // ignore this tap's wake events
     this.now = new Date();
     this.idle = true;
   }
@@ -2252,7 +2246,7 @@ export class Ha3dFloorplanCard extends LitElement {
       <div class="topstat">
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic('room')}</button>
         ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
-        <button class="sdot" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
+        <button class="sdot" title="Screensaver" @click=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
         ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
@@ -2829,7 +2823,7 @@ export class Ha3dFloorplanCard extends LitElement {
           <div class="sumcard act"><div class="sumn">${stats.onCount}</div><div class="suml">${this.t('lights on')}</div></div>
           <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${this.t('on average')}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic('power')}<span>${this.t('All off short')}</span></button>
-          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
+          <button type="button" class="bsleep" title="Screensaver" @click=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
           ${this.renderViewToggle()}
         </div>
       </div>
@@ -3061,17 +3055,15 @@ export class Ha3dFloorplanCard extends LitElement {
     :host {
       display: block;
     }
-    /* Kiosk/tablet: never draw the focus ring on tapped controls. */
-    button,
-    .slider,
-    .cttrack,
-    [tabindex] {
-      outline: none;
+    /* Kiosk/tablet: never draw a focus ring or tap flash on ANY control.
+       WebView draws its own highlight on links/pills/divs too, so this has to
+       be blanket — the earlier button-only rule left some controls ringed. */
+    * {
       -webkit-tap-highlight-color: transparent;
     }
-    button:focus,
-    button:focus-visible {
-      outline: none;
+    *:focus,
+    *:focus-visible {
+      outline: none !important;
     }
     ha-card {
       display: block;
