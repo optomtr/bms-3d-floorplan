@@ -104,11 +104,51 @@ function ledFrame(W: number, D: number, t: number, colorHex: number): THREE.Mesh
 const builders: Record<string, FurnitureBuilder> = {
   sofa: (c) => {
     const g = new THREE.Group();
-    const fabric = mat(FABRIC);
-    g.add(tint(box(1.9, 0.4, 0.85, fabric, 0, 0.2, 0), c)); // base
-    g.add(tint(box(1.9, 0.5, 0.2, fabric, 0, 0.55, -0.32), c)); // backrest
-    g.add(tint(box(0.2, 0.45, 0.85, fabric, -0.85, 0.5, 0), c)); // left arm
-    g.add(tint(box(0.2, 0.45, 0.85, fabric, 0.85, 0.5, 0), c)); // right arm
+    const frameC = c.clone().multiplyScalar(0.62);          // two-tone: darker frame
+    const seatMat = () => mat(FABRIC, { roughness: 0.9 }); // fresh mat per cushion so tint is independent
+    const frameMat = () => mat(FABRIC, { roughness: 0.97 });
+    const legMat = mat(0x3b2f26, { roughness: 0.5, metalness: 0.2 }); // dark-wood feet
+
+    // 4 short tapered feet
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1])
+        g.add(cyl(0.035, 0.05, 0.1, legMat, sx * 0.92, 0.05, sz * 0.34, 10));
+
+    // base plinth (darker) + chamfered seat deck
+    g.add(tint(box(2.0, 0.24, 0.86, frameMat(), 0, 0.22, 0), frameC));
+    g.add(tint(box(1.9, 0.06, 0.8, frameMat(), 0, 0.35, 0.02), frameC));
+
+    // two upholstered arms with rounded top rolls
+    for (const sx of [-1, 1]) {
+      g.add(tint(box(0.2, 0.52, 0.86, seatMat(), sx * 0.95, 0.36, 0), c));
+      const roll = cyl(0.1, 0.1, 0.86, seatMat(), sx * 0.95, 0.62, 0, 14);
+      roll.rotation.x = Math.PI / 2;
+      g.add(tint(roll, c));
+    }
+
+    // back frame board
+    g.add(tint(box(1.74, 0.5, 0.12, frameMat(), 0, 0.62, -0.37), frameC));
+
+    // 3 separate seat cushions (slab + inset cap = faux-rounded piping)
+    for (const sx of [-0.58, 0, 0.58]) {
+      g.add(tint(box(0.56, 0.16, 0.6, seatMat(), sx, 0.42, 0.08), c));
+      g.add(tint(box(0.5, 0.06, 0.54, seatMat(), sx, 0.52, 0.08), c));
+    }
+
+    // 3 back cushions, slightly reclined
+    for (const sx of [-0.58, 0, 0.58]) {
+      const b = box(0.56, 0.42, 0.16, seatMat(), sx, 0.66, -0.3);
+      b.rotation.x = -0.14;
+      g.add(tint(b, c));
+    }
+
+    // 2 accent throw pillows (diamond-tilted, leaning on the back)
+    for (const [px, rot] of [[-0.6, 0.5], [0.5, -0.5]]) {
+      const p = box(0.34, 0.34, 0.12, seatMat(), px, 0.6, -0.12);
+      p.rotation.z = rot;
+      p.rotation.x = -0.2;
+      g.add(tint(p, frameC));
+    }
     return g;
   },
   sofa_round: (c) => {
@@ -148,11 +188,35 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   bed: (c) => {
     const g = new THREE.Group();
-    g.add(box(1.6, 0.3, 2.0, mat(WOOD), 0, 0.15, 0)); // frame
-    g.add(tint(box(1.55, 0.18, 1.95, mat(WHITE), 0, 0.39, 0), c)); // mattress/duvet
-    g.add(box(1.6, 0.6, 0.1, mat(WOOD), 0, 0.5, -0.95)); // headboard
-    g.add(box(0.5, 0.12, 0.35, mat(WHITE), -0.45, 0.5, -0.7)); // pillow
-    g.add(box(0.5, 0.12, 0.35, mat(WHITE), 0.45, 0.5, -0.7));
+    const uph = mat(FABRIC, { roughness: 0.9 });   // upholstery: base + headboard + duvet (shared so one tint recolors all)
+    const linen = mat(WHITE, { roughness: 0.85 });  // mattress, turned-down sheet, pillows
+    const foot = mat(DARK, { roughness: 0.6 });
+    // short feet at the four corners
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(box(0.1, 0.1, 0.1, foot, sx * 0.82, 0.05, sz * 0.92));
+    // upholstered base / valance — MAIN tinted surface (shared uph material recolors every upholstered part)
+    g.add(tint(box(1.9, 0.3, 2.15, uph, 0, 0.25, 0), c));
+    g.add(box(1.86, 0.06, 2.11, uph, 0, 0.41, 0)); // chamfer rail stacked on the base
+    // mattress
+    g.add(box(1.8, 0.22, 1.98, linen, 0, 0.51, 0.05));
+    // duvet — drapes slightly past the mattress edges
+    g.add(box(1.84, 0.12, 1.3, uph, 0, 0.68, 0.39));
+    // folded-back sheet turn-down over the head of the duvet
+    const fold = box(1.84, 0.07, 0.22, linen, 0, 0.74, -0.2);
+    fold.rotation.x = -0.12;
+    g.add(fold);
+    // two pillows propped at the head
+    for (const sx of [-1, 1] as const) {
+      const p = box(0.74, 0.16, 0.44, linen, sx * 0.42, 0.71, -0.62);
+      p.rotation.x = -0.18;
+      g.add(p);
+    }
+    // tall upholstered headboard: backing panel + padded face + tufted panel grid
+    g.add(box(1.9, 1.05, 0.1, uph, 0, 0.725, -1.025));
+    g.add(box(1.78, 0.95, 0.06, uph, 0, 0.75, -0.97));
+    for (const px of [-0.6, 0, 0.6])
+      for (const py of [0.58, 1.02])
+        g.add(box(0.54, 0.4, 0.05, uph, px, py, -0.93)); // raised cushions; gaps read as tufting
     return g;
   },
   table: (c) => {
@@ -326,18 +390,56 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   armchair: (c) => {
     const g = new THREE.Group();
-    const f = mat(FABRIC);
-    g.add(tint(box(0.85, 0.4, 0.85, f, 0, 0.2, 0), c));
-    g.add(tint(box(0.85, 0.5, 0.18, f, 0, 0.55, -0.33), c));
-    g.add(tint(box(0.16, 0.45, 0.85, f, -0.42, 0.5, 0), c));
-    g.add(tint(box(0.16, 0.45, 0.85, f, 0.42, 0.5, 0), c));
+    const fabric = mat(FABRIC, { roughness: 0.9 });
+    const wood = mat(0x5b3f28, { roughness: 0.45, metalness: 0.05 });
+    const seam = mat(0x4a4f57, { roughness: 0.7 });
+    // Four tapered wooden legs, splayed slightly outward (mid-century base).
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      const leg = cyl(0.022, 0.038, 0.2, wood, sx * 0.3, 0.1, sz * 0.32, 10);
+      leg.rotation.z = sx * 0.08;
+      leg.rotation.x = -sz * 0.06;
+      g.add(leg);
+    }
+    // Slim base frame / plinth the cushions rest on.
+    g.add(box(0.72, 0.09, 0.76, wood, 0, 0.24, 0));
+    // Seat cushion — chamfered (fat box + smaller rounded top layer).
+    g.add(tint(box(0.66, 0.13, 0.68, fabric, 0, 0.35, 0.02), c));
+    g.add(tint(box(0.6, 0.05, 0.62, fabric, 0, 0.43, 0.02), c));
+    g.add(box(0.6, 0.02, 0.02, seam, 0, 0.41, 0.35)); // front welt seam
+    // Curved/reclined back: main panel + inner pad + rounded top bolster.
+    const back = tint(box(0.66, 0.52, 0.13, fabric, 0, 0.66, -0.33), c);
+    back.rotation.x = -0.12;
+    g.add(back);
+    const pad = tint(box(0.58, 0.44, 0.06, fabric, 0, 0.66, -0.26), c);
+    pad.rotation.x = -0.12;
+    g.add(pad);
+    const bolster = tint(cyl(0.08, 0.08, 0.62, fabric, 0, 0.88, -0.31, 14), c);
+    bolster.rotation.z = Math.PI / 2;
+    g.add(bolster);
+    // Two padded arms — a block + a rounded top roll each.
+    for (const sx of [-1, 1]) {
+      g.add(tint(box(0.13, 0.26, 0.66, fabric, sx * 0.34, 0.5, 0.02), c));
+      const roll = tint(cyl(0.07, 0.07, 0.66, fabric, sx * 0.34, 0.63, 0.02, 14), c);
+      roll.rotation.x = Math.PI / 2;
+      g.add(roll);
+    }
     return g;
   },
   coffee_table: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(1.0, 0.05, 0.55, mat(WOOD), 0, 0.4, 0), c));
+    const woodDark = mat(0x6f4a28, { roughness: 0.55 }); // edge band / underframe
+    const legMat = mat(DARK, { roughness: 0.4, metalness: 0.3 }); // slim tapered metal legs
+    // Top slab: darker edge band + a slightly smaller tinted cap (chamfer/reveal)
+    g.add(box(1.2, 0.035, 0.6, woodDark, 0, 0.383, 0)); // edge band (peeks out under the cap)
+    g.add(tint(box(1.15, 0.03, 0.55, mat(WOOD, { roughness: 0.5 }), 0, 0.415, 0), c)); // main veneer top
+    // Apron under the top for a solid look
+    g.add(box(1.06, 0.05, 0.46, woodDark, 0, 0.345, 0));
+    // Lower display shelf (two-tone slab)
+    g.add(box(1.02, 0.03, 0.5, mat(WOOD, { roughness: 0.5 }), 0, 0.13, 0));
+    g.add(box(0.96, 0.02, 0.44, woodDark, 0, 0.112, 0)); // shelf underframe
+    // 4 tapered legs (thinner at the foot)
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(box(0.06, 0.4, 0.06, mat(WOOD), sx * 0.42, 0.2, sz * 0.22));
+      g.add(cyl(0.023, 0.036, 0.36, legMat, sx * 0.52, 0.18, sz * 0.245, 12));
     return g;
   },
   dining_table: (c) => {
@@ -355,23 +457,104 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   desk: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(1.3, 0.05, 0.65, mat(WOOD), 0, 0.74, 0), c));
-    g.add(box(0.5, 0.7, 0.6, mat(DARK), 0.35, 0.37, 0)); // drawers
-    g.add(box(0.05, 0.74, 0.6, mat(WOOD), -0.6, 0.37, 0)); // leg panel
+    const wood = mat(WOOD, { roughness: 0.6 });
+    const dark = mat(DARK, { roughness: 0.5 });
+    const steel = mat(METAL, { roughness: 0.4, metalness: 0.5 });
+    // Chamfered top: main slab + a slightly smaller raised inlay pad on top.
+    g.add(tint(box(1.5, 0.04, 0.75, wood, 0, 0.71, 0), c)); // main top slab (tintable)
+    g.add(box(1.42, 0.02, 0.67, mat(0x8a5f34, { roughness: 0.55 }), 0, 0.735, 0)); // inlay pad / chamfer
+    // Drawer pedestal on the right side.
+    g.add(box(0.42, 0.66, 0.68, dark, 0.5, 0.36, 0)); // pedestal body
+    for (let i = 0; i < 3; i++) {
+      const y = 0.2 + i * 0.2;
+      g.add(box(0.34, 0.17, 0.02, mat(0x3a3f47, { roughness: 0.5 }), 0.5, y, 0.35)); // drawer front
+      g.add(box(0.12, 0.02, 0.02, steel, 0.5, y, 0.37)); // handle
+    }
+    // Modesty panel spanning the kneehole.
+    g.add(box(0.9, 0.42, 0.03, wood, -0.13, 0.45, -0.34));
+    // Slim tapered metal legs on the open (left) side.
+    g.add(cyl(0.025, 0.035, 0.68, steel, -0.68, 0.34, 0.3, 12));
+    g.add(cyl(0.025, 0.035, 0.68, steel, -0.68, 0.34, -0.3, 12));
     return g;
   },
   office_chair: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(0.5, 0.06, 0.5, mat(DARK), 0, 0.5, 0), c));
-    g.add(tint(box(0.5, 0.5, 0.06, mat(DARK), 0, 0.78, -0.22), c));
-    g.add(cyl(0.04, 0.04, 0.45, mat(METAL), 0, 0.25, 0));
-    g.add(cyl(0.26, 0.26, 0.04, mat(METAL), 0, 0.04, 0));
+    const chrome = mat(METAL, { roughness: 0.25, metalness: 0.85 });
+    const dark = mat(DARK, { roughness: 0.6 });
+    const uph = mat(0x3a3e44, { roughness: 0.85 }); // executive upholstery (tinted)
+    const stitch = mat(0x2b2f36, { roughness: 0.9 }); // armrest pads / accents
+
+    // --- 5-star base: chrome hub + 5 radiating spokes, each ending in a caster ---
+    g.add(cyl(0.055, 0.07, 0.07, chrome, 0, 0.06, 0, 16)); // central hub
+    for (let i = 0; i < 5; i++) {
+      const a = (i * Math.PI * 2) / 5;
+      const spoke = box(0.055, 0.05, 0.30, chrome, 0, 0.055, 0.16); // extends outward +Z
+      spoke.rotation.y = a;
+      g.add(spoke);
+      const cx = Math.sin(a) * 0.31;
+      const cz = Math.cos(a) * 0.31;
+      const yoke = box(0.05, 0.06, 0.05, chrome, cx, 0.075, cz); // caster fork
+      yoke.rotation.y = a;
+      g.add(yoke);
+      const wheel = cyl(0.04, 0.04, 0.045, dark, cx, 0.04, cz, 14); // caster wheel
+      wheel.rotation.z = Math.PI / 2;
+      wheel.rotation.y = a;
+      g.add(wheel);
+    }
+
+    // --- Chrome gas cylinder (telescoping look) + tilt mechanism ---
+    g.add(cyl(0.045, 0.05, 0.20, chrome, 0, 0.19, 0, 14)); // outer shroud
+    g.add(cyl(0.028, 0.028, 0.24, chrome, 0, 0.38, 0, 12)); // piston rod
+    g.add(box(0.15, 0.07, 0.22, dark, 0, 0.435, 0)); // seat-plate / tilt block
+
+    // --- Contoured seat (top ~0.50m) ---
+    g.add(tint(box(0.50, 0.07, 0.48, uph, 0, 0.465, 0), c)); // seat pad
+    g.add(tint(box(0.44, 0.04, 0.42, uph, 0, 0.51, 0.01), c)); // rounded top cushion
+    g.add(tint(box(0.06, 0.10, 0.44, uph, -0.23, 0.50, 0), c)); // left bolster
+    g.add(tint(box(0.06, 0.10, 0.44, uph, 0.23, 0.50, 0), c)); // right bolster
+    g.add(tint(box(0.46, 0.06, 0.06, uph, 0, 0.50, 0.23), c)); // front waterfall lip
+
+    // --- Tall padded backrest (slightly reclined) with headrest hint ---
+    const back = new THREE.Group();
+    back.position.set(0, 0.50, -0.23);
+    back.rotation.x = -0.14; // recline: top leans back
+    back.add(tint(box(0.46, 0.56, 0.07, uph, 0, 0.31, 0), c)); // main back panel
+    back.add(tint(box(0.40, 0.50, 0.04, uph, 0, 0.31, 0.05), c)); // padded front face
+    back.add(tint(box(0.10, 0.54, 0.05, uph, -0.20, 0.31, 0.04), c)); // left wing bolster
+    back.add(tint(box(0.10, 0.54, 0.05, uph, 0.20, 0.31, 0.04), c)); // right wing bolster
+    back.add(tint(box(0.44, 0.16, 0.06, uph, 0, 0.12, 0.06), c)); // lumbar cushion bulge
+    back.add(tint(box(0.34, 0.15, 0.06, uph, 0, 0.66, 0.04), c)); // headrest hint
+    back.add(cyl(0.02, 0.02, 0.30, chrome, -0.24, 0.10, -0.05, 10)); // left frame post
+    back.add(cyl(0.02, 0.02, 0.30, chrome, 0.24, 0.10, -0.05, 10)); // right frame post
+    g.add(back);
+
+    // --- Two armrests: chrome posts + padded tops ---
+    for (const sx of [-1, 1]) {
+      g.add(cyl(0.022, 0.022, 0.20, chrome, sx * 0.29, 0.60, -0.02, 10)); // vertical post
+      g.add(box(0.055, 0.05, 0.06, chrome, sx * 0.29, 0.71, 0.06)); // elbow bracket
+      g.add(box(0.075, 0.05, 0.26, stitch, sx * 0.29, 0.73, 0.03)); // padded armrest top
+    }
+
     return g;
   },
   nightstand: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(0.45, 0.5, 0.4, mat(WOOD), 0, 0.25, 0), c));
-    g.add(box(0.4, 0.02, 0.02, mat(METAL), 0, 0.32, 0.21));
+    const wood = mat(WOOD, { roughness: 0.6 });     // carcass + drawer fronts + top (shared -> recolor together)
+    const dark = mat(DARK, { roughness: 0.6 });
+    const metal = mat(METAL, { roughness: 0.3, metalness: 0.6 });
+    // four short tapered legs
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(cyl(0.02, 0.03, 0.12, dark, sx * 0.2, 0.06, sz * 0.16, 8));
+    // carcass — MAIN tinted surface (shared wood material recolors drawers + top too)
+    g.add(tint(box(0.46, 0.34, 0.4, wood, 0, 0.29, 0), c));
+    // two drawer fronts, sitting slightly proud of the carcass face
+    g.add(box(0.42, 0.15, 0.02, wood, 0, 0.21, 0.205));
+    g.add(box(0.42, 0.15, 0.02, wood, 0, 0.37, 0.205));
+    // slim horizontal bar handles
+    g.add(box(0.16, 0.015, 0.02, metal, 0, 0.235, 0.22));
+    g.add(box(0.16, 0.015, 0.02, metal, 0, 0.395, 0.22));
+    // thin overhanging top
+    g.add(box(0.5, 0.03, 0.44, wood, 0, 0.475, 0));
     return g;
   },
   dresser: (c) => {
@@ -519,11 +702,39 @@ const builders: Record<string, FurnitureBuilder> = {
   // a lower inner work surface.
   reception: (c) => {
     const g = new THREE.Group();
-    const body = mat(WOOD, { roughness: 0.6 });
-    g.add(tint(box(2.4, 1.05, 0.7, body, 0, 0.525, 0), c)); // front counter
-    g.add(box(2.6, 0.06, 0.95, mat(DARK, { roughness: 0.4 }), 0, 1.09, 0)); // transaction top
-    g.add(box(2.2, 0.04, 0.5, mat(0xcbb79c, { roughness: 0.5 }), 0, 0.76, -0.16)); // inner surface
-    g.add(box(2.35, 0.5, 0.03, mat(0x8a5f34), 0, 0.28, 0.34)); // front accent panel
+    // Premium floor-standing reception desk (~2.4 wide): recessed toe-kick, paneled
+    // front with reveal grooves, staff-side inner work surface, and a raised stone
+    // transaction top floating on slim metal standoffs. Front faces +Z.
+    const W = 2.4, D = 0.72, H = 1.02;
+    const body = mat(WOOD, { roughness: 0.55 });
+    const panel = mat(0x8a5f34, { roughness: 0.5 });
+    const stone = mat(0xe6e2d8, { roughness: 0.35, metalness: 0.05 });
+    const dark = mat(DARK, { roughness: 0.4 });
+    const metal = mat(METAL, { metalness: 0.7, roughness: 0.3 });
+    const yBody = 0.12 + (H - 0.12) / 2;
+    // Recessed toe-kick (set back so the carcass appears to float).
+    g.add(box(W - 0.1, 0.12, D - 0.16, dark, 0, 0.06, 0));
+    // Main carcass — the primary tinted surface.
+    g.add(tint(box(W, H - 0.12, D, body, 0, yBody, 0), c));
+    // Paneled front: three raised panels with reveal gaps between them.
+    const pz = D / 2 + 0.012, pw = (W - 0.16) / 3;
+    for (let i = 0; i < 3; i++) {
+      const px = -W / 2 + 0.08 + pw / 2 + i * (pw + 0.02);
+      g.add(box(pw - 0.02, H - 0.3, 0.024, panel, px, yBody, pz));
+    }
+    // Slim horizontal reveal grooves (top + bottom shadow lines).
+    g.add(box(W - 0.12, 0.02, 0.006, dark, 0, H - 0.18, pz + 0.006));
+    g.add(box(W - 0.12, 0.02, 0.006, dark, 0, 0.3, pz + 0.006));
+    // Side return panels (subtle two-tone end caps).
+    for (const sx of [-1, 1])
+      g.add(box(0.02, H - 0.2, D - 0.06, panel, sx * (W / 2 + 0.011), yBody, 0));
+    // Staff-side inner work surface (desk height).
+    g.add(box(W - 0.2, 0.04, 0.5, mat(0xcbb79c, { roughness: 0.5 }), 0, 0.74, -0.16));
+    // Raised transaction top — stone slab floating on slim metal standoffs.
+    for (const sx of [-1, 0, 1])
+      g.add(cyl(0.012, 0.012, 0.1, metal, sx * (W / 2 - 0.2), H + 0.05, 0.05, 8));
+    g.add(box(W + 0.12, 0.05, D + 0.22, stone, 0, H + 0.125, 0.02));  // transaction slab
+    g.add(box(W + 0.08, 0.03, D + 0.18, stone, 0, H + 0.09, 0.02));   // stepped under-lip (thick-edge reveal)
     return g;
   },
   // Carport canopy (Навес) — a flat roof on four slim posts.
@@ -1168,7 +1379,21 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   ottoman: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(0.6, 0.4, 0.6, mat(FABRIC), 0, 0.2, 0), c));
+    const fabric = mat(FABRIC, { roughness: 0.9 });
+    const wood = mat(0x5b3f28, { roughness: 0.45, metalness: 0.05 });
+    const pipe = mat(0x4a4f57, { roughness: 0.7 }); // contrast piping/trim
+    // Small tapered feet.
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+      g.add(cyl(0.02, 0.03, 0.09, wood, sx * 0.24, 0.045, sz * 0.24, 8));
+    // Upholstered body.
+    g.add(tint(box(0.56, 0.22, 0.56, fabric, 0, 0.2, 0), c));
+    // Piped rim around the top edge.
+    g.add(box(0.6, 0.03, 0.6, pipe, 0, 0.31, 0));
+    // Top cushion — chamfered (box + smaller rounded top).
+    g.add(tint(box(0.54, 0.1, 0.54, fabric, 0, 0.35, 0), c));
+    g.add(tint(box(0.48, 0.04, 0.48, fabric, 0, 0.4, 0), c));
+    // Center button tuft.
+    g.add(cyl(0.02, 0.02, 0.025, pipe, 0, 0.41, 0, 8));
     return g;
   },
   console_table: (c) => {
@@ -1481,6 +1706,336 @@ const builders: Record<string, FurnitureBuilder> = {
   },
 
   // Generic fallback marker so an unknown model key still renders something.
+  sofa_l: (c) => {
+    const g = new THREE.Group();
+    const frameC = c.clone().multiplyScalar(0.62);          // two-tone: darker frame
+    const seatMat = () => mat(FABRIC, { roughness: 0.9 });
+    const frameMat = () => mat(FABRIC, { roughness: 0.97 });
+    const legMat = mat(0x3b2f26, { roughness: 0.5, metalness: 0.2 });
+
+    // feet at the L's outer corners + mid supports
+    for (const [fx, fz] of [[-1.15, -1.05], [1.15, -1.05], [1.15, 1.05], [0.5, 1.05], [-1.15, -0.4], [0.5, -0.4]])
+      g.add(cyl(0.035, 0.05, 0.1, legMat, fx, 0.05, fz, 10));
+
+    // L-shaped base: rear bar + forward chaise column, each with a chamfer deck
+    g.add(tint(box(2.6, 0.24, 0.95, frameMat(), 0, 0.22, -0.725), frameC));   // rear bar
+    g.add(tint(box(0.95, 0.24, 1.45, frameMat(), 0.825, 0.22, 0.475), frameC)); // chaise column
+    g.add(tint(box(2.5, 0.06, 0.88, frameMat(), 0, 0.35, -0.725), frameC));
+    g.add(tint(box(0.88, 0.06, 1.4, frameMat(), 0.825, 0.35, 0.475), frameC));
+
+    // right outer arm (full depth) + roll
+    g.add(tint(box(0.2, 0.52, 2.4, seatMat(), 1.2, 0.36, 0), c));
+    const rr = cyl(0.1, 0.1, 2.4, seatMat(), 1.2, 0.62, 0, 14);
+    rr.rotation.x = Math.PI / 2;
+    g.add(tint(rr, c));
+    // left arm (rear bar only) + roll
+    g.add(tint(box(0.2, 0.52, 0.95, seatMat(), -1.2, 0.36, -0.725), c));
+    const lr = cyl(0.1, 0.1, 0.95, seatMat(), -1.2, 0.62, -0.725, 14);
+    lr.rotation.x = Math.PI / 2;
+    g.add(tint(lr, c));
+
+    // rear back frame board
+    g.add(tint(box(2.2, 0.5, 0.12, frameMat(), 0, 0.62, -1.09), frameC));
+
+    // seat cushions: 2 main run + 2 chaise (slab + inset cap)
+    for (const [sx, sz, sw, sd] of [[-0.75, -0.65, 0.7, 0.62], [-0.02, -0.65, 0.7, 0.62], [0.82, -0.55, 0.86, 0.7], [0.82, 0.45, 0.86, 1.1]]) {
+      g.add(tint(box(sw, 0.16, sd, seatMat(), sx, 0.42, sz), c));
+      g.add(tint(box(sw - 0.06, 0.06, sd - 0.06, seatMat(), sx, 0.52, sz), c));
+    }
+
+    // 3 back cushions along the rear, slightly reclined
+    for (const sx of [-0.75, -0.02, 0.72]) {
+      const b = box(0.7, 0.42, 0.16, seatMat(), sx, 0.66, -1.0);
+      b.rotation.x = -0.14;
+      g.add(tint(b, c));
+    }
+
+    // 3 accent throw pillows (diamond-tilted)
+    for (const [px, pz, rot] of [[-0.7, -0.75, 0.5], [0.1, -0.75, -0.4], [0.85, -0.1, 0.3]]) {
+      const p = box(0.36, 0.36, 0.12, seatMat(), px, 0.62, pz);
+      p.rotation.z = rot;
+      p.rotation.x = -0.18;
+      g.add(tint(p, frameC));
+    }
+    return g;
+  },
+  sofa_u: (c) => {
+  // Premium U-shaped modular lounge, ~3.0m wide x 2.6m deep, opening toward +Z.
+  // A continuous plinth carries three seating runs (back + two sides); upholstered
+  // backrests wrap the inner perimeter, plush arms cap the two open front ends,
+  // and layered seat cushions + leaning back cushions + accent throw pillows give
+  // the generous, one-piece sectional read. Seats seven (3 back + 2 + 2 sides).
+  const g = new THREE.Group();
+  const fabric = mat(FABRIC, { roughness: 0.9 });                  // main upholstery (tinted)
+  const frame = mat(0x4d5560, { roughness: 0.85 });                // darker plinth (two-tone)
+  const foot = mat(0x2e2823, { roughness: 0.5, metalness: 0.25 }); // low dark feet
+  const accent = mat(0xc9b48f, { roughness: 0.95 });              // accent throw pillows
+
+  const W = 3.0, D = 2.6, run = 0.85;
+  const hW = W / 2, hD = D / 2;
+  const baseH = 0.24, baseY = 0.18, seatTop = 0.30;
+
+  // --- low feet (bottoms at y~0; the plinth rests just above) ---
+  const feet: number[][] = [[-1.30, -1.15], [1.30, -1.15], [-1.30, 1.15], [1.30, 1.15], [0, -1.15], [0, 0.9]];
+  for (const [fx, fz] of feet) g.add(cyl(0.05, 0.065, 0.09, foot, fx, 0.045, fz, 10));
+
+  // --- continuous U plinth: back run + two full-depth side runs (solid corners) ---
+  g.add(box(W, baseH, run, frame, 0, baseY, -(hD - run / 2)));     // back run
+  g.add(box(run, baseH, D, frame, -(hW - run / 2), baseY, 0));     // left run
+  g.add(box(run, baseH, D, frame, (hW - run / 2), baseY, 0));      // right run
+
+  // --- upholstered backrest blocks wrapping the three inner sides ---
+  g.add(tint(box(2.60, 0.50, 0.20, fabric, 0, 0.55, -1.15), c));       // back
+  g.add(tint(box(0.20, 0.50, 2.30, fabric, -1.40, 0.55, -0.10), c));   // left
+  g.add(tint(box(0.20, 0.50, 2.30, fabric, 1.40, 0.55, -0.10), c));    // right
+
+  // --- plush arms capping the two open front ends (slab + chamfer cap) ---
+  for (const sx of [-1, 1]) {
+    const ax = sx * (hW - run / 2);
+    g.add(tint(box(run, 0.30, 0.30, fabric, ax, 0.45, hD - 0.15), c));
+    g.add(tint(box(run - 0.06, 0.05, 0.26, fabric, ax, 0.625, hD - 0.15), c)); // rounded top
+  }
+
+  // --- seat cushions (soft slab + thin chamfer cap) across all three runs ---
+  const seat = (x: number, z: number, w: number, d: number) => {
+    g.add(tint(box(w, 0.12, d, fabric, x, seatTop + 0.06, z), c));
+    g.add(tint(box(w - 0.06, 0.035, d - 0.06, fabric, x, seatTop + 0.14, z), c));
+  };
+  for (const bx of [-0.72, 0, 0.72]) seat(bx, -0.72, 0.68, 0.62);        // back run (3)
+  for (const sx of [-1, 1]) {                                            // sides (2 + 2)
+    seat(sx * 0.925, -0.01, 0.72, 0.66);
+    seat(sx * 0.925, 0.66, 0.72, 0.66);
+  }
+
+  // --- leaning back cushions on all three runs ---
+  const backCush = (x: number, z: number, w: number, d: number) =>
+    g.add(tint(box(w, 0.40, d, fabric, x, 0.60, z), c));
+  for (const bx of [-0.80, 0, 0.80]) backCush(bx, -1.00, 0.74, 0.16);   // back (3)
+  for (const sx of [-1, 1]) {                                           // sides (2 + 2)
+    backCush(sx * 1.26, -0.45, 0.16, 0.74);
+    backCush(sx * 1.26, 0.40, 0.16, 0.74);
+  }
+
+  // --- accent throw pillows tucked into corners (rotated for a casual look) ---
+  const pillow = (x: number, z: number, ry: number) => {
+    const p = box(0.38, 0.36, 0.12, accent, x, 0.60, z);
+    p.rotation.y = ry;
+    g.add(p);
+  };
+  pillow(-0.95, -0.90, Math.PI * 0.18);
+  pillow(0.95, -0.90, -Math.PI * 0.18);
+  pillow(-1.12, 0.55, Math.PI * 0.5 - 0.3);
+  pillow(1.05, -0.10, -Math.PI * 0.5 + 0.3);
+
+  return g;
+},
+  conference_chair: (c) => {
+  const g = new THREE.Group();
+  const fab = mat(0x454b54, { roughness: 0.85 }); // upholstery
+  const frame = mat(METAL, { roughness: 0.4, metalness: 0.5 });
+  const dark = mat(DARK, { roughness: 0.6 });
+  // Seat — chamfered slab: pan + slightly smaller cushion stacked on top
+  g.add(box(0.48, 0.06, 0.46, dark, 0, 0.42, 0)); // seat pan/frame
+  g.add(tint(box(0.44, 0.06, 0.42, fab, 0, 0.47, 0), c)); // seat cushion
+  // Gas post + hub
+  g.add(cyl(0.028, 0.03, 0.30, frame, 0, 0.24, 0, 12)); // post
+  g.add(cyl(0.055, 0.06, 0.05, dark, 0, 0.08, 0, 12)); // hub
+  // 4-star base with foot glides
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const arm = box(0.26, 0.035, 0.06, frame, Math.cos(a) * 0.12, 0.055, Math.sin(a) * 0.12);
+    arm.rotation.y = -a;
+    g.add(arm);
+    g.add(cyl(0.03, 0.035, 0.04, dark, Math.cos(a) * 0.23, 0.025, Math.sin(a) * 0.23, 10)); // glide
+  }
+  // Back — support riser + mid-back panel + cushion (slight recline)
+  g.add(box(0.07, 0.30, 0.05, dark, 0, 0.56, -0.19)); // riser
+  const back = box(0.46, 0.42, 0.06, dark, 0, 0.74, -0.21);
+  back.rotation.x = -0.10;
+  g.add(back);
+  const backPad = box(0.42, 0.38, 0.05, fab, 0, 0.74, -0.18);
+  backPad.rotation.x = -0.10;
+  g.add(tint(backPad, c));
+  // Thin arms — L-shaped (vertical support + horizontal top)
+  for (const sx of [-1, 1]) {
+    g.add(box(0.04, 0.20, 0.04, frame, sx * 0.25, 0.57, 0.02)); // upright
+    g.add(box(0.05, 0.03, 0.26, dark, sx * 0.25, 0.66, 0.0)); // armrest top
+  }
+  return g;
+},
+  tub_chair: (c) => {
+  const g = new THREE.Group();
+  const fab = mat(0xa89a86, { roughness: 0.9 }); // taupe upholstery
+  const wood = mat(WOOD, { roughness: 0.5 });
+  // Upholstered base skirt + round seat cushion (chamfered top)
+  g.add(tint(cyl(0.26, 0.28, 0.16, fab, 0, 0.28, 0, 28), c)); // skirt / base
+  g.add(tint(cyl(0.25, 0.26, 0.13, fab, 0, 0.44, 0, 28), c)); // seat cushion
+  g.add(cyl(0.21, 0.22, 0.05, mat(0x8f8271, { roughness: 0.9 }), 0, 0.51, 0, 24)); // cushion top inset
+  // Wrap-around barrel back — partial torus, open toward the front (+Z)
+  const barrel = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.12, 12, 30, Math.PI * 1.4), fab);
+  barrel.castShadow = true;
+  barrel.receiveShadow = true;
+  barrel.position.set(0, 0.53, 0.0);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.rotation.z = -Math.PI * 0.20; // open the wrap toward the front
+  g.add(tint(barrel, c));
+  // Slim piping trim along the top rim (two-tone accent)
+  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.025, 8, 30, Math.PI * 1.4), wood);
+  trim.castShadow = true;
+  trim.position.set(0, 0.64, 0.0);
+  trim.rotation.x = Math.PI / 2;
+  trim.rotation.z = -Math.PI * 0.20;
+  g.add(trim);
+  // Four short splayed wooden legs
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const leg = cyl(0.02, 0.032, 0.20, wood, Math.cos(a) * 0.20, 0.10, Math.sin(a) * 0.20, 10);
+    leg.rotation.z = Math.cos(a) * 0.12;
+    leg.rotation.x = -Math.sin(a) * 0.12; // slight outward splay
+    g.add(leg);
+  }
+  return g;
+},
+  conference_table: (c) => {
+    const g = new THREE.Group();
+    const L = 6.8, W = 1.4; // long boardroom footprint (length on X, width on Z)
+    const veneer = mat(WOOD, { roughness: 0.45 });
+    const bandMat = mat(0x6f4a28, { roughness: 0.55 }); // darker edge band / plinths
+    const inlayMat = mat(0x4a3218, { roughness: 0.4 }); // subtle contrast inlay
+    const portMat = mat(DARK, { roughness: 0.4, metalness: 0.45 }); // cable/port boxes
+    const glow = mat(0x101418, { emissive: 0x0a1a22 }); // recessed port faces
+    // Top: darker edge band + a slightly smaller tinted veneer cap (chamfer/reveal)
+    g.add(box(L, 0.045, W, bandMat, 0, 0.695, 0)); // edge band
+    g.add(tint(box(L - 0.12, 0.04, W - 0.08, veneer, 0, 0.72, 0), c)); // main veneer top (surface ~0.74)
+    // Subtle inlay border strips inset in the veneer, running the length
+    for (const sz of [-1, 1])
+      g.add(box(L - 0.5, 0.006, 0.05, inlayMat, 0, 0.741, sz * 0.5));
+    // Two chunky panel/plinth legs near the ends
+    for (const sx of [-1, 1]) {
+      g.add(box(0.14, 0.66, W - 0.25, bandMat, sx * 2.35, 0.35, 0)); // panel leg
+      g.add(box(0.12, 0.62, W - 0.4, mat(0x5a3d22, { roughness: 0.5 }), sx * 2.35, 0.35, 0)); // inset face
+      g.add(box(0.5, 0.06, W - 0.1, bandMat, sx * 2.35, 0.03, 0)); // floor plinth
+    }
+    // Central connecting beam between the panels
+    g.add(box(4.5, 0.18, 0.24, bandMat, 0, 0.42, 0));
+    // Hint of cable/port boxes down the centre line
+    for (const px of [-1.8, 0, 1.8]) {
+      g.add(box(0.38, 0.03, 0.24, portMat, px, 0.755, 0)); // flush cable tray
+      g.add(box(0.3, 0.01, 0.16, glow, px, 0.772, 0)); // recessed port face
+    }
+    return g;
+  },
+  executive_desk: (c) => {
+    const g = new THREE.Group();
+    const wood = mat(WOOD, { roughness: 0.55 });
+    const dark = mat(DARK, { roughness: 0.5 });
+    const steel = mat(METAL, { roughness: 0.4, metalness: 0.5 });
+    // Large chamfered top: slab + inset leather-look pad.
+    g.add(tint(box(2.0, 0.05, 0.95, wood, 0, 0.73, 0), c)); // main top slab (tintable)
+    g.add(box(1.8, 0.02, 0.8, mat(0x7a5230, { roughness: 0.5 }), 0, 0.758, 0)); // desk pad / chamfer
+    // Subtle raised back edge (director's gallery rail).
+    g.add(box(2.0, 0.05, 0.07, wood, 0, 0.785, -0.44));
+    // Full-height modesty front panel (visitor side) + recessed accent inset.
+    g.add(box(1.45, 0.64, 0.04, wood, -0.255, 0.38, 0.44));
+    g.add(box(1.3, 0.44, 0.02, mat(0x8a5f34, { roughness: 0.55 }), -0.255, 0.38, 0.465));
+    // Solid left end panel.
+    g.add(box(0.05, 0.7, 0.9, wood, -0.97, 0.35, 0));
+    // Side return / drawer pedestal on the right; drawers face the seated user (-Z).
+    g.add(box(0.5, 0.72, 0.9, dark, 0.72, 0.36, 0));
+    for (let i = 0; i < 3; i++) {
+      const y = 0.2 + i * 0.22;
+      g.add(box(0.42, 0.2, 0.02, mat(0x3a3f47, { roughness: 0.5 }), 0.72, y, -0.46)); // drawer front
+      g.add(box(0.14, 0.02, 0.02, steel, 0.72, y, -0.48)); // handle
+    }
+    return g;
+  },
+  tree: (c) => {
+    const g = new THREE.Group();
+    const bark = mat(0x6b4a2f, { roughness: 0.95 });
+    const leaf = mat(0x3f7d3f);
+    // Tapered trunk (wider at the base), low seg — it's mostly hidden by canopy.
+    g.add(cyl(0.09, 0.17, 1.3, bark, 0, 0.65, 0, 8));
+    // Two short branch stubs angling out from the crown to break the silhouette.
+    const b1 = cyl(0.035, 0.07, 0.55, bark, -0.13, 1.25, 0.05, 6);
+    b1.rotation.z = 0.5;
+    g.add(b1);
+    const b2 = cyl(0.035, 0.07, 0.55, bark, 0.14, 1.3, -0.04, 6);
+    b2.rotation.z = -0.6;
+    g.add(b2);
+    // Layered leafy canopy: overlapping low-poly icosahedron blobs, slightly
+    // squashed vertically so it reads as a rounded crown rather than a ball.
+    const blob = (r: number, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), leaf);
+      m.position.set(x, y, z);
+      m.scale.set(1, 0.92, 1);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      return tint(m, c);
+    };
+    g.add(blob(0.85, 0, 2.05, 0)); // central mass (main tinted surface)
+    g.add(blob(0.6, -0.62, 1.78, 0.15)); // lower-left bulge
+    g.add(blob(0.58, 0.6, 1.82, -0.2)); // lower-right bulge
+    g.add(blob(0.55, 0.1, 2.45, 0.2)); // top crown
+    g.add(blob(0.5, 0.2, 1.9, 0.58)); // front bulge
+    g.add(blob(0.48, -0.16, 1.92, -0.55)); // back bulge
+    return g;
+  },
+  shrub: (c) => {
+    const g = new THREE.Group();
+    const leaf = mat(0x4a7d3a);
+    // A round hedge clump from a few flattened, overlapping low-poly spheres.
+    const blob = (r: number, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), leaf);
+      m.position.set(x, y, z);
+      m.scale.set(1, 0.62, 1); // squash → low mounded bush
+      m.castShadow = true;
+      m.receiveShadow = true;
+      return tint(m, c);
+    };
+    g.add(blob(0.34, 0, 0.22, 0)); // central mound (main tinted surface)
+    g.add(blob(0.27, -0.2, 0.18, 0.06)); // left lobe
+    g.add(blob(0.26, 0.2, 0.19, -0.05)); // right lobe
+    return g;
+  },
+  sink_double: (c) => {
+    const g = new THREE.Group();
+    // Wall-hung double vanity. Built around the countertop plane at local y=0
+    // (like the wall-mounted urinal) so, placed at defaultY, the top lands at a
+    // realistic ~0.8m: cabinet hangs below (-y), faucets/backsplash/mirrors rise (+y).
+    const stone = mat(0xeef1f3, { roughness: 0.28, metalness: 0.08 }); // countertop / basins
+    const cab = mat(0xdad0c4, { roughness: 0.7 });                    // cabinet carcass
+    const face = mat(0xcabfae, { roughness: 0.6 });                   // door fronts
+    const metal = mat(METAL, { metalness: 0.7, roughness: 0.25 });
+    const W = 1.4, D = 0.55, tT = 0.04;
+    // Countertop slab (top surface at local y=0), chamfered by a slimmer top reveal.
+    g.add(tint(box(W, tT, D, stone, 0, -tT / 2, 0), c));              // main slab
+    g.add(box(W - 0.06, 0.014, D - 0.06, stone, 0, 0.006, 0));        // rounded top reveal
+    g.add(box(W, 0.05, 0.03, stone, 0, 0.025, -D / 2 + 0.015));       // backsplash upstand
+    // Wall-hung cabinet under the counter.
+    const cw = W - 0.06, ch = 0.44, cd = D - 0.06, cyBody = -tT - ch / 2;
+    g.add(box(cw, ch, cd, cab, 0, cyBody, 0.005));                    // cabinet body
+    for (const sx of [-1, 1]) {                                       // two door fronts + slim handles
+      g.add(box(cw / 2 - 0.02, ch - 0.05, 0.02, face, sx * (cw / 4), cyBody, cd / 2 + 0.006));
+      g.add(box(0.018, 0.1, 0.02, metal, sx * 0.018, cyBody, cd / 2 + 0.02)); // handles at the centre gap
+    }
+    // Two inset oval basins + rims + faucets.
+    for (const sx of [-1, 1]) {
+      const bx = sx * 0.34, bz = 0.02;
+      const rim = cyl(0.185, 0.185, 0.02, stone, bx, -0.01, bz, 20); rim.scale.z = 0.72; g.add(rim);
+      const bowl = cyl(0.155, 0.09, 0.11, mat(0xf6f8f9, { roughness: 0.22 }), bx, -0.07, bz, 20); bowl.scale.z = 0.72; g.add(bowl);
+      g.add(cyl(0.016, 0.02, 0.17, metal, bx, 0.085, -D / 2 + 0.11, 12));   // faucet riser
+      g.add(box(0.03, 0.03, 0.11, metal, bx, 0.16, -D / 2 + 0.16));         // forward spout
+      g.add(box(0.05, 0.02, 0.02, metal, bx, 0.1, -D / 2 + 0.09));          // lever handle
+    }
+    // Two framed mirrors above the counter (wall-mounted behind the backsplash).
+    for (const sx of [-1, 1]) {
+      const mx = sx * 0.34;
+      g.add(box(0.5, 0.62, 0.02, cab, mx, 0.62, -D / 2 + 0.02));            // frame
+      g.add(box(0.44, 0.56, 0.01, mat(0xbcd0d6, { metalness: 0.4, roughness: 0.08 }), mx, 0.62, -D / 2 + 0.035)); // glass
+    }
+    return g;
+  },
+
   marker: (c) => {
     const g = new THREE.Group();
     g.add(tint(cyl(0, 0.12, 0.3, mat(0xff5555), 0, 0.15, 0, 8), c));
@@ -1497,7 +2052,7 @@ export const WALL_MOUNT_KEYS = [
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
-  'curtain_single', 'urinal',
+  'curtain_single', 'urinal', 'sink_double',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -1510,7 +2065,7 @@ export const SURFACE_MOUNT_KEYS = [
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
-  'curtain_single', 'urinal',
+  'curtain_single', 'urinal', 'sink_double',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -1625,6 +2180,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'range_hood') return 1.6;
   if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind') return 0.1;
   if (model === 'urinal') return 0.55;
+  if (model === 'sink_double') return 0.8;
   return 0;
 }
 
@@ -1682,6 +2238,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
+  sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
 /** Realistic default color for a model (neutral grey when unspecified). */
