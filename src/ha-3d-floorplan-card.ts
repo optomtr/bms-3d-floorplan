@@ -1369,6 +1369,10 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private readonly idleEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
   private onActivity = (): void => this.wake();
+  /** Ignore wake() until this time — the very tap that opens the screensaver
+   *  fires both pointerdown AND touchstart, and the touchstart would otherwise
+   *  wake it right back up, so it would never appear on a tablet. */
+  private sleepGuardUntil = 0;
 
   /** (Re)start the idle countdown. idleMinutes: config, default 10, 0 = disabled. */
   private armIdle(): void {
@@ -1382,6 +1386,7 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private wake(): void {
+    if (performance.now() < this.sleepGuardUntil) return;
     if (this.idle) this.idle = false;
     this.armIdle();
   }
@@ -2203,6 +2208,7 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSleep(e: Event): void {
     if (e && 'stopPropagation' in e) e.stopPropagation();
     if (this.idleTimer) window.clearTimeout(this.idleTimer);
+    this.sleepGuardUntil = performance.now() + 700; // ignore this tap's wake events
     this.now = new Date();
     this.idle = true;
   }
@@ -3025,6 +3031,18 @@ export class Ha3dFloorplanCard extends LitElement {
   static override styles = css`
     :host {
       display: block;
+    }
+    /* Kiosk/tablet: never draw the focus ring on tapped controls. */
+    button,
+    .slider,
+    .cttrack,
+    [tabindex] {
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:focus,
+    button:focus-visible {
+      outline: none;
     }
     ha-card {
       display: block;

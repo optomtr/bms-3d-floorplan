@@ -22942,7 +22942,7 @@ function tM(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const eM = "0.46.0", Ao = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
+const eM = "0.47.0", Ao = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
 function nM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -24665,7 +24665,7 @@ let ut = class extends ts {
         t === "z" && !i.shiftKey ? (i.preventDefault(), this.editor.undo()) : (t === "y" || t === "z" && i.shiftKey) && (i.preventDefault(), this.editor.redo());
       }
       this.editing && this.editor && i.type === "keydown" && (i.key === "Enter" ? (i.preventDefault(), this.editor.finishChain()) : i.key === "Escape" && (i.preventDefault(), this.editor.cancelChain()));
-    }, this.idleEvents = ["pointerdown", "keydown", "wheel", "touchstart"], this.onActivity = () => this.wake();
+    }, this.idleEvents = ["pointerdown", "keydown", "wheel", "touchstart"], this.onActivity = () => this.wake(), this.sleepGuardUntil = 0;
   }
   // -- Lovelace lifecycle -----------------------------------------------------
   setConfig(i) {
@@ -25270,7 +25270,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }, i * 6e4));
   }
   wake() {
-    this.idle && (this.idle = !1), this.armIdle();
+    performance.now() < this.sleepGuardUntil || (this.idle && (this.idle = !1), this.armIdle());
   }
   renderPaletteCell(i, t) {
     return Y`
@@ -25904,7 +25904,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   onSleep(i) {
-    i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.now = /* @__PURE__ */ new Date(), this.idle = !0;
+    i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.sleepGuardUntil = performance.now() + 700, this.now = /* @__PURE__ */ new Date(), this.idle = !0;
   }
   renderStageChrome() {
     const i = !!this.activeRoom;
@@ -26531,6 +26531,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 ut.styles = Hd`
     :host {
       display: block;
+    }
+    /* Kiosk/tablet: never draw the focus ring on tapped controls. */
+    button,
+    .slider,
+    .cttrack,
+    [tabindex] {
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:focus,
+    button:focus-visible {
+      outline: none;
     }
     ha-card {
       display: block;
