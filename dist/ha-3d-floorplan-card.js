@@ -20752,6 +20752,25 @@ const Cl = {
       t.add(D(M(r, 0.16, s, a, l, d + (u + 1) * n, c - s / 2 + u * s), i));
     return t;
   },
+  // Flat, plan-symbol staircase — lies FLUSH on the floor and reads exactly like
+  // the way stairs are drawn on the architectural plan (tread lines across the
+  // run + a direction arrow), for tracing the plan rather than a raised 3D flight.
+  stairs_flat: (i) => {
+    const t = new H(), e = 12, n = 0.27, s = 1.2, r = 0.014, o = e * n, a = w(15262940, { roughness: 0.96 });
+    t.add(D(M(s, r, o, a, 0, r / 2, 0), i));
+    const l = w(5919048, { roughness: 0.9 });
+    for (let h = 1; h < e; h++)
+      t.add(M(s - 0.04, r * 1.4, 0.018, l, 0, r + 2e-3, -o / 2 + h * n));
+    for (const h of [-1, 1])
+      t.add(M(0.02, r * 1.4, o, l, h * (s / 2 - 0.01), r + 2e-3, 0));
+    const c = w(10107694, { roughness: 0.9 });
+    t.add(M(0.03, r * 1.8, o * 0.66, c, 0, r + 4e-3, o * 0.02));
+    for (const h of [-1, 1]) {
+      const d = M(0.03, r * 1.8, 0.24, c, h * 0.08, r + 4e-3, -o / 2 + 0.17);
+      d.rotation.y = h * (Math.PI / 5), t.add(d);
+    }
+    return t;
+  },
   // Freestanding structural columns (the red-square posts on the grid). A wall of
   // zero length collapses in the builder, so a placeable column model is needed.
   column_sq: (i) => {
@@ -21700,6 +21719,7 @@ const _1 = {
   round_table: "#e9e2d5",
   roly_chair: "#9aa878",
   stairs_switchback: "#b08a5a",
+  stairs_flat: "#e8e4dc",
   column_sq: "#d8d2c6",
   column_round: "#d8d2c6",
   elevator: "#e8eaec",
@@ -23275,7 +23295,7 @@ function e_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const n_ = "0.54.0", Ro = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
+const n_ = "0.55.0", Ro = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
 function i_() {
   return window.ha3dFloorplan ?? {};
 }

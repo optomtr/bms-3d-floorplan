@@ -670,6 +670,29 @@ const builders: Record<string, FurnitureBuilder> = {
       g.add(tint(box(w, 0.16, run, wood, lane, base2 + (i + 1) * rise, zFar - run / 2 + i * run), c)); // down-return flight (right)
     return g;
   },
+  // Flat, plan-symbol staircase — lies FLUSH on the floor and reads exactly like
+  // the way stairs are drawn on the architectural plan (tread lines across the
+  // run + a direction arrow), for tracing the plan rather than a raised 3D flight.
+  stairs_flat: (c) => {
+    const g = new THREE.Group();
+    const steps = 12, run = 0.27, W = 1.2, t = 0.014;
+    const L = steps * run;
+    const slab = mat(0xe8e4dc, { roughness: 0.96 });
+    g.add(tint(box(W, t, L, slab, 0, t / 2, 0), c)); // flush footprint slab
+    const line = mat(0x5a5148, { roughness: 0.9 });
+    for (let i = 1; i < steps; i++) // tread lines across the width
+      g.add(box(W - 0.04, t * 1.4, 0.018, line, 0, t + 0.002, -L / 2 + i * run));
+    for (const sx of [-1, 1]) // side stringer outlines
+      g.add(box(0.02, t * 1.4, L, line, sx * (W / 2 - 0.01), t + 0.002, 0));
+    const arrow = mat(0x9a3b2e, { roughness: 0.9 }); // direction arrow (up)
+    g.add(box(0.03, t * 1.8, L * 0.66, arrow, 0, t + 0.004, L * 0.02));
+    for (const s of [-1, 1]) {
+      const head = box(0.03, t * 1.8, 0.24, arrow, s * 0.08, t + 0.004, -L / 2 + 0.17);
+      head.rotation.y = s * (Math.PI / 5);
+      g.add(head);
+    }
+    return g;
+  },
   // Freestanding structural columns (the red-square posts on the grid). A wall of
   // zero length collapses in the builder, so a placeable column model is needed.
   column_sq: (c) => {
@@ -2201,7 +2224,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   console_table: '#9c6b3f', desk: '#9c6b3f', chair: '#9c6b3f', office_chair: '#3a3e44',
   bar_stool: '#9c6b3f', stairs: '#b08a5a', stairs_down: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
   swing: '#8a6a4a', round_table: '#e9e2d5', roly_chair: '#9aa878',
-  stairs_switchback: '#b08a5a', column_sq: '#d8d2c6', column_round: '#d8d2c6',
+  stairs_switchback: '#b08a5a', stairs_flat: '#e8e4dc', column_sq: '#d8d2c6', column_round: '#d8d2c6',
   elevator: '#e8eaec', reception: '#9c6b3f', canopy: '#d8d8dc', car: '#30506e', porch: '#d7d2c8',
   double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
   // Cabinetry (darker wood)
