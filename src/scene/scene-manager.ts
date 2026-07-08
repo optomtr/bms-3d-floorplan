@@ -17,6 +17,58 @@ import { drawMarkerCanvas, markerIconName } from './icons';
 import { isShapeRoom, roomPolygon } from './room-shapes';
 
 // ---------------------------------------------------------------------------
+// Scene backdrop: instead of a flat clear colour, paint a soft radial
+// "spotlight" gradient behind the model — a touch lighter (and faintly cool)
+// where the building sits, deepening to near-black at the edges. Derived from
+// the configured background colour so a custom `background:` still tints it.
+// ---------------------------------------------------------------------------
+function makeBackdropTexture(base: string): THREE.Texture {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const b = new THREE.Color(base);
+  const hex = (c: THREE.Color) => '#' + c.getHexString();
+  if (!ctx) {
+    // No 2D context (headless/edge case) — fall back to a flat fill.
+    return new THREE.Color(base) as unknown as THREE.Texture;
+  }
+
+  // 1) Base spotlight: lifted, faintly cool centre behind the model, deepening
+  //    to a near-black vignette at the rim.
+  const inner = hex(b.clone().lerp(new THREE.Color('#4a5468'), 0.34));
+  const mid = hex(b.clone().lerp(new THREE.Color('#000000'), 0.12));
+  const outer = hex(b.clone().lerp(new THREE.Color('#000000'), 0.66));
+  const base_g = ctx.createRadialGradient(size * 0.5, size * 0.4, 0, size * 0.5, size * 0.42, size * 0.82);
+  base_g.addColorStop(0, inner);
+  base_g.addColorStop(0.55, mid);
+  base_g.addColorStop(1, outer);
+  ctx.fillStyle = base_g;
+  ctx.fillRect(0, 0, size, size);
+
+  // 2) Brand glows, added softly so the backdrop has a little life without
+  //    fighting the model: a cool wash top-right, a warm one low-centre.
+  const glow = (x: number, y: number, r: number, rgb: string, a: number) => {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = a;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${rgb}, 1)`);
+    g.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+  };
+  glow(size * 0.82, size * 0.08, size * 0.7, '91, 184, 232', 0.1); // cool  (#5bb8e8)
+  glow(size * 0.5, size * 0.72, size * 0.62, '243, 168, 60', 0.08); // warm (#f3a83c)
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ---------------------------------------------------------------------------
 // Render quality tiers. Weak mobile GPUs (e.g. Adreno 610 in a Redmi Pad SE)
 // choke on the per-frame shadow pass and 2x pixel ratio when a large plan has
 // hundreds of meshes. We auto-detect the device tier and let the user override
@@ -216,7 +268,7 @@ export class SceneManager {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(background);
+    this.scene.background = makeBackdropTexture(background);
     this.scene.add(this.previewGroup);
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
