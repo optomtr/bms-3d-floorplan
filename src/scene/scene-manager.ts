@@ -86,16 +86,21 @@ interface QualityPreset {
   shadowMap: number;
   pixelRatio: number;
   aa: boolean;
+  /** Max real point lights. Each one makes EVERY material's fragment shader loop
+   *  once more per pixel, so this is the dominant cost of a light-heavy plan on a
+   *  weak GPU. Past the cap, lights still glow via their emissive material. */
+  maxLights: number;
 }
 
 const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
   // "high" is intentionally identical to the original hard-coded settings, so
   // capable devices see zero change.
-  high: { shadows: true, shadowType: THREE.PCFSoftShadowMap, shadowMap: 1024, pixelRatio: 2, aa: true },
-  medium: { shadows: true, shadowType: THREE.PCFShadowMap, shadowMap: 1024, pixelRatio: 1.5, aa: true },
-  // The big win for weak GPUs is dropping the shadow pass entirely; the pixel
-  // ratio only comes down to 1.5 (not 1) so it doesn't look soft on a tablet.
-  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1.5, aa: false },
+  high: { shadows: true, shadowType: THREE.PCFSoftShadowMap, shadowMap: 1024, pixelRatio: 2, aa: true, maxLights: 16 },
+  medium: { shadows: true, shadowType: THREE.PCFShadowMap, shadowMap: 1024, pixelRatio: 1.5, aa: true, maxLights: 8 },
+  // Weak GPUs are almost always fill-rate + light bound, so drop the shadow pass,
+  // render at 1× device pixels, and keep only a few real point lights — the rest
+  // glow emissively for free. This is what keeps a big plan smooth on a tablet.
+  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1, aa: false, maxLights: 3 },
 };
 
 const QUALITY_KEY = 'ha3dFloorplanQuality';
@@ -177,6 +182,15 @@ export class SceneManager {
   // `editing` flag to force continuous rendering.)
   private needsRender = true;
   private resizeObserver?: ResizeObserver;
+
+  // Adaptive quality: if sustained interaction (orbit/pan) runs slow, step the
+  // renderer down — drop the shadow pass, then the pixel ratio — so the view
+  // stays smooth no matter how many devices/furniture the plan grows to. Only
+  // ever degrades (never auto-upgrades) to avoid oscillation; a manual quality
+  // pick or a plan reload resets it.
+  private frameMs = 16;
+  private slowStreak = 0;
+  private autoDegrade = 0; // 0 = none, 1 = shadows off, 2 = + pixelRatio floor
 
   private floors: BuiltFloor[] = [];
   private floorGroups: THREE.Group[] = [];
@@ -449,7 +463,7 @@ export class SceneManager {
 
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
-      const bm = new BindingManager(built.group);
+      const bm = new BindingManager(built.group, QUALITY_PRESETS[this.qualityTier].maxLights);
       bm.register(built, floorDef.bindings ?? []);
       this.scene.add(built.group);
       this.floors.push(built);
@@ -610,6 +624,10 @@ export class SceneManager {
       const m = (o as THREE.Mesh).material;
       if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
     });
+    // A deliberate quality pick clears any adaptive degrade and re-arms it.
+    this.autoDegrade = 0;
+    this.slowStreak = 0;
+    this.frameMs = 16;
     this.requestShadowUpdate();
     this.resize();
     return prevAA !== p.aa;
@@ -1296,10 +1314,12 @@ export class SceneManager {
       // idles the GPU, which is what keeps high quality smooth on weak tablets.
       const moved = this.controls.update();
       const anim = this.bindingManagers[this.activeFloor]?.animate(delta) ?? false;
-      if (this.needsRender || moved || anim || this.editing) {
+      const interacting = moved || anim; // continuous frames — where lag is felt
+      if (this.needsRender || interacting || this.editing) {
         this.updateMarkerScales();
         this.renderer.render(this.scene, this.camera);
         this.needsRender = false;
+        if (interacting) this.trackFrame(delta);
       }
     };
     loop();
@@ -1308,6 +1328,44 @@ export class SceneManager {
   stop(): void {
     this.running = false;
     cancelAnimationFrame(this.rafId);
+  }
+
+  /** Smooth the interaction frame time; step quality down if it stays slow, so a
+   *  plan can grow without the tablet ever bogging down. */
+  private trackFrame(delta: number): void {
+    // Only auto-tune when the user hasn't pinned a quality — an explicit pick is
+    // respected as-is.
+    if (this.qualityChoice !== 'auto') return;
+    const ms = Math.min(delta * 1000, 200); // ignore huge gaps (tab was hidden)
+    this.frameMs = this.frameMs * 0.9 + ms * 0.1;
+    if (this.frameMs > 42) {
+      // ~sustained < 24 fps: after ~0.7s of it, drop a rung.
+      if (++this.slowStreak > 40 && this.autoDegrade < 2) {
+        this.stepDownQuality();
+        this.slowStreak = 0;
+      }
+    } else if (this.slowStreak > 0) {
+      this.slowStreak--;
+    }
+  }
+
+  /** One rung down the adaptive-quality ladder: shadows first (cheap, big win),
+   *  then the pixel ratio (fill rate). Applied live; never auto-upgrades. */
+  private stepDownQuality(): void {
+    this.autoDegrade++;
+    if (this.autoDegrade === 1) {
+      this.renderer.shadowMap.enabled = false;
+      if (this.sun) this.sun.castShadow = false;
+      this.scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
+      });
+    } else {
+      const cur = this.renderer.getPixelRatio();
+      this.renderer.setPixelRatio(Math.max(0.75, Math.min(1, cur)));
+    }
+    this.frameMs = 16; // reset the average so the next rung waits for real slowness
+    this.resize();
   }
 
   dispose(): void {

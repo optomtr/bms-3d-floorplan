@@ -81,10 +81,11 @@ function collectByName(root: THREE.Object3D, name: string): THREE.Object3D[] {
 }
 
 /**
- * Cap on real THREE.PointLights per floor. Every extra point light makes every
- * material's shader loop once more per pixel, so a plan that binds ~150 lights
- * would otherwise grind (or fail to compile) on a weak GPU. Past the cap, lights
- * still glow via their emissive material — they just don't cast a surface halo.
+ * Default cap on real THREE.PointLights per floor. Every extra point light makes
+ * every material's shader loop once more per pixel, so a plan that binds ~150
+ * lights would otherwise grind (or fail to compile) on a weak GPU. Past the cap,
+ * lights still glow via their emissive material — they just don't cast a surface
+ * halo. The scene passes a tier-specific cap (fewer on weak devices).
  */
 const MAX_POINT_LIGHTS = 16;
 
@@ -94,9 +95,11 @@ export class BindingManager {
   /** entity_id -> bindings (one entity may drive several anchors). */
   private byEntity = new Map<string, ActiveBinding[]>();
   private pointLightsUsed = 0;
+  private maxLights: number;
 
-  constructor(root: THREE.Group) {
+  constructor(root: THREE.Group, maxLights: number = MAX_POINT_LIGHTS) {
     this.root = root;
+    this.maxLights = maxLights;
   }
 
   /** Register all bindings for a freshly built floor. */
@@ -145,7 +148,7 @@ export class BindingManager {
       // the cap; an anchorless light has no mesh to glow, so it always keeps its
       // point light (and isn't counted — anchorless lights are rare).
       const hasEmissiveFallback = ab.emissiveMeshes.length > 0;
-      if (!hasEmissiveFallback || this.pointLightsUsed < MAX_POINT_LIGHTS) {
+      if (!hasEmissiveFallback || this.pointLightsUsed < this.maxLights) {
         const light = new THREE.PointLight(0xfff1d0, 0, 8, 2);
         light.position.copy(worldPos);
         light.castShadow = false;
