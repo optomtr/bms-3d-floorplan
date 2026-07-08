@@ -1675,15 +1675,13 @@ export class Ha3dFloorplanCard extends LitElement {
 
         ${hasSelection
           ? html`<div class="toolrow">
-              <span class="hint">${kind} selected</span>
+              <span class="hint">${kind === 'room' && !this.editRoom?.shape ? 'floor' : kind} selected</span>
               ${isFurniture
                 ? html`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>`
                 : nothing}
-              ${kind !== 'room'
-                ? html`<button class="btn" title="Delete" @click=${this.onDeleteSelected}>🗑 Delete</button>`
-                : nothing}
+              <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>
             ${isFurniture && this.editIsLight
               ? html`<div class="toolrow">

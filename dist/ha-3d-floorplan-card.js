@@ -23275,7 +23275,7 @@ function e_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const n_ = "0.53.0", Ro = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
+const n_ = "0.54.0", Ro = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
 function i_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25945,11 +25945,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     })() : rt}` : rt}
 
         ${s ? Y`<div class="toolrow">
-              <span class="hint">${n} selected</span>
+              <span class="hint">${n === "room" && !this.editRoom?.shape ? "floor" : n} selected</span>
               ${r ? Y`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>` : rt}
-              ${n !== "room" ? Y`<button class="btn" title="Delete" @click=${this.onDeleteSelected}>🗑 Delete</button>` : rt}
+              <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>
             ${r && this.editIsLight ? Y`<div class="toolrow">
                   <span class="hint">Brightness:</span>
