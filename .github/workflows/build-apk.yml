@@ -1,0 +1,68 @@
+name: Build Android APK
+
+# Builds the tablet kiosk .apk: bundles the freshly-built card + the standalone
+# kiosk page into the Android app, compiles a debug APK, uploads it as an
+# artifact, and (on a version tag) attaches it to that GitHub Release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the card bundle
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run build
+
+      - name: Bundle the kiosk page + card into the app assets
+        run: |
+          mkdir -p android/app/src/main/assets/kiosk
+          cp standalone/index.html          android/app/src/main/assets/kiosk/index.html
+          cp dist/ha-3d-floorplan-card.js    android/app/src/main/assets/kiosk/ha-3d-floorplan-card.js
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk bms-3d-floorplan.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bms-3d-floorplan-apk
+          path: bms-3d-floorplan.apk
+          if-no-files-found: error
+
+      - name: Attach APK to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes "Android kiosk APK" || true
+          gh release upload "${GITHUB_REF_NAME}" bms-3d-floorplan.apk --clobber

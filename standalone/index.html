@@ -287,8 +287,9 @@
       // The ⚙ connect button is only for MANUAL folder serving. When the page is
       // served by the integration (injected config), it's never shown.
       if (!inj) $('#gear').style.display = 'block';
-      // When Home Assistant serves the kiosk page, offer a way back to HA.
-      if (inj) {
+      // When Home Assistant serves the kiosk page, offer a way back to HA. Not
+      // in the Android app (inj.app) — there's no HA page to return to there.
+      if (inj && !inj.app) {
         const back = $('#ha-back');
         back.style.display = 'block';
         back.onclick = () => (location.href = '/');
