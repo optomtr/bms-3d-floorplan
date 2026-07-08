@@ -23046,7 +23046,7 @@ function e1(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const n1 = "0.50.0", To = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
+const n1 = "0.51.0", To = "ha-3d-floorplan-sidebar-item", Ad = "ha-3d-floorplan-overlay";
 function i1() {
   return window.ha3dFloorplan ?? {};
 }

@@ -318,14 +318,119 @@
         location.reload();
       };
 
-      // --- Card + plan helpers --------------------------------------------
-      let card;
+      // --- Card, live state + offline cache -------------------------------
+      // These are shared with the live client below AND used before/without any
+      // socket, so the 3D renders from cache with no network and taps simulate
+      // locally. A live connection, when it comes up, overrides both.
+      let card, currentPlan = null;
+      let states = {};
+      let ws = null;
+      let reqId = 10;
+      const pending = new Map();
+      let pushQueued = false;
+
       function ensureCard(plan) {
+        currentPlan = plan;
         if (card) return card;
         card = document.createElement('ha-3d-floorplan-card');
         card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
         document.body.appendChild(card);
         return card;
+      }
+
+      // Offline cache: after a live sync we stash the plan + last states, so the
+      // app opens and shows the 3D with NO network at all (a local demo). Taps
+      // then simulate the service locally (callService below) and stick.
+      const CACHE_KEY = 'ha3d_cache';
+      function cacheSave() {
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ plan: currentPlan, states })); } catch {}
+      }
+      function cacheLoad() {
+        try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch { return null; }
+      }
+      let cacheAt = 0;
+      function cacheSaveThrottled() {
+        const t = performance.now();
+        if (t - cacheAt < 8000) return;
+        cacheAt = t;
+        cacheSave();
+      }
+
+      // Push the current state map into the card (batched to one per frame).
+      function pushHass() {
+        if (pushQueued || !card) return;
+        pushQueued = true;
+        requestAnimationFrame(() => {
+          pushQueued = false;
+          if (card) card.hass = { states: { ...states }, callService, callWS };
+        });
+      }
+
+      // Send a WebSocket request; rejects immediately if the socket isn't open
+      // (so the card's optimistic UI reverts instead of hanging).
+      function request(msg) {
+        return new Promise((res, rej) => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            rej(new Error('socket not open'));
+            return;
+          }
+          const id = ++reqId;
+          msg.id = id;
+          pending.set(id, { res, rej });
+          try {
+            ws.send(JSON.stringify(msg));
+          } catch (e) {
+            pending.delete(id);
+            rej(e);
+          }
+        });
+      }
+      // Card ↔ HA per-user store (saved projects + edit PIN). Rejects offline.
+      const callWS = (msg) => request(msg);
+
+      // Drive a device. Online → real HA service call. Offline → simulate the
+      // result on the local state map, so a tap "turns on right there" and stays
+      // on (the card's optimistic update never gets a rejection to revert).
+      function callService(domain, service, data) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const p = request({ type: 'call_service', domain, service, service_data: data || {} });
+          p.catch(() => {});
+          return p;
+        }
+        applyLocalService(domain, service, data);
+        cacheSave();
+        pushHass();
+        return Promise.resolve();
+      }
+
+      // A minimal local model of the services the card calls, so offline taps
+      // visibly change state: on/off/toggle for lights, switches, covers, locks;
+      // hvac mode; and any attributes passed (brightness, colour, temperature…).
+      function applyLocalService(domain, service, data) {
+        data = data || {};
+        const ids = Array.isArray(data.entity_id)
+          ? data.entity_id
+          : data.entity_id ? [data.entity_id] : [];
+        const attrs = { ...data };
+        delete attrs.entity_id;
+        const offish = (s) => ['off', 'closed', 'locked', 'unavailable', 'unknown', '', undefined, null].includes(s);
+        for (const id of ids) {
+          const cur = states[id] || { entity_id: id, state: 'off', attributes: {} };
+          let ns = null;
+          if (service === 'toggle') ns = offish(cur.state) ? 'on' : 'off';
+          else if (service === 'turn_on') ns = 'on';
+          else if (service === 'turn_off') ns = 'off';
+          else if (service === 'open_cover') ns = 'open';
+          else if (service === 'close_cover') ns = 'closed';
+          else if (service === 'lock') ns = 'locked';
+          else if (service === 'unlock') ns = 'unlocked';
+          else if (service === 'set_hvac_mode' && attrs.hvac_mode != null) ns = String(attrs.hvac_mode);
+          states[id] = {
+            ...cur,
+            state: ns !== null ? ns : cur.state,
+            attributes: { ...(cur.attributes || {}), ...attrs },
+          };
+        }
       }
       const validPlan = (p) => !!p && Array.isArray(p.floors) && p.floors.length > 0;
       async function fetchFilePlan() {
@@ -349,9 +454,20 @@
           setStatus('card load failed: ' + errMsg(err), true);
           return;
         }
+
+        // Offline-first: if a plan was cached from a previous live session, show
+        // the 3D immediately with NO network and let taps simulate locally. If a
+        // live connection then comes up, it overrides with real states + control.
+        const cached = cacheLoad();
+        if (cached && validPlan(cached.plan)) {
+          ensureCard(cached.plan);
+          states = cached.states || {};
+          pushHass();
+        }
+
         if (useSession || (haUrl && token)) {
           connectLive();
-        } else {
+        } else if (!(cached && validPlan(cached.plan))) {
           const plan = await fetchFilePlan();
           if (plan) ensureCard(plan);
           const hint = inj ? 'log in to Home Assistant' : 'tap ⚙ to connect';
@@ -360,54 +476,14 @@
       }
 
       // --- Live Home Assistant WebSocket client ---------------------------
+      // states / ws / pending / request / callService / callWS / pushHass are
+      // module-scoped above (shared with the offline path). connectLive only
+      // drives the socket and updates them live.
       function connectLive() {
-        let states = {};
-        const pending = new Map();
-        let ws = null;
-        let reqId = 10;
-        let pushQueued = false;
         let planLoaded = false;
         let authFailed = false; // a bad token must NOT trigger an endless retry loop
         let syncFails = 0; // consecutive post-auth sync failures → back off
         const wsUrl = haUrl.replace(/^http/, 'ws').replace(/\/+$/, '') + '/api/websocket';
-
-        // Bridge the card's HA calls to this socket. callWS lets the card reach
-        // HA's per-user store (saved projects + edit PIN) so the PIN lock works
-        // on the kiosk too; callService drives devices (with optimistic revert).
-        const callWS = (msg) => request(msg);
-        const callService = (domain, service, data) => {
-          const p = request({ type: 'call_service', domain, service, service_data: data || {} });
-          p.catch(() => {});
-          return p;
-        };
-
-        function pushHass() {
-          if (pushQueued || !card) return;
-          pushQueued = true;
-          requestAnimationFrame(() => {
-            pushQueued = false;
-            if (card) card.hass = { states: { ...states }, callService, callWS };
-          });
-        }
-        function request(msg) {
-          return new Promise((res, rej) => {
-            // Reject cleanly if the socket isn't open (e.g. a tap mid-reconnect),
-            // so the card's optimistic UI reverts instead of hanging.
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-              rej(new Error('socket not open'));
-              return;
-            }
-            const id = ++reqId;
-            msg.id = id;
-            pending.set(id, { res, rej });
-            try {
-              ws.send(JSON.stringify(msg));
-            } catch (e) {
-              pending.delete(id);
-              rej(e);
-            }
-          });
-        }
         // The saved plan — pulled from the SAME per-user store the in-app editor
         // writes to, so the kiosk always shows what was last saved in the app.
         async function fetchUserPlan() {
@@ -491,6 +567,7 @@
                   }
                 }
                 pushHass();
+                cacheSave(); // stash plan + fresh states for the offline demo
                 await request({ type: 'subscribe_events', event_type: 'state_changed' });
               } catch (e) {
                 if (!current()) return;
@@ -509,6 +586,7 @@
               if (d.new_state) states[d.entity_id] = d.new_state;
               else delete states[d.entity_id];
               pushHass();
+              cacheSaveThrottled(); // keep the offline snapshot reasonably fresh
             }
           };
           sock.onclose = () => {
