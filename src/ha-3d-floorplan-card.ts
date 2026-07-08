@@ -2215,10 +2215,10 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="cdate">${this.fmtClockDate()}</div>
       </div>
       <div class="topstat">
-        ${this.renderViewToggle()}
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic('room')}</button>
         ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
         <button class="sdot" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
+        ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
         ${this.renderFloorTabs()}
@@ -2791,11 +2791,11 @@ export class Ha3dFloorplanCard extends LitElement {
           <div class="cdate">${this.fmtClockDate()}</div>
         </div>
         <div class="ov-actions">
-          ${this.renderViewToggle()}
-          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
           <div class="sumcard act"><div class="sumn">${stats.onCount}</div><div class="suml">${this.t('lights on')}</div></div>
           <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${this.t('on average')}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic('power')}<span>${this.t('All off short')}</span></button>
+          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
+          ${this.renderViewToggle()}
         </div>
       </div>
       <div class="bstatus">
@@ -3675,10 +3675,11 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .topstat {
       position: absolute;
-      top: 28px;
-      right: 26px;
+      top: 30px;
+      right: 30px;
       z-index: 4;
       display: flex;
+      align-items: center;
       gap: 10px;
       transition: right 0.28s ease;
     }

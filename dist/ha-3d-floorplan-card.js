@@ -22811,7 +22811,7 @@ function Q_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const $_ = "0.43.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
+const $_ = "0.44.0", Ao = "ha-3d-floorplan-sidebar-item", wd = "ha-3d-floorplan-overlay";
 function tM() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25783,10 +25783,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="cdate">${this.fmtClockDate()}</div>
       </div>
       <div class="topstat">
-        ${this.renderViewToggle()}
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic("room")}</button>
         ${this.panel ? Y`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : it}
         <button class="sdot" title="Screensaver" @pointerdown=${(t) => this.onSleep(t)}>${this.ic("moon")}</button>
+        ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
         ${this.renderFloorTabs()}
@@ -26212,11 +26212,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <div class="cdate">${this.fmtClockDate()}</div>
         </div>
         <div class="ov-actions">
-          ${this.renderViewToggle()}
-          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(n) => this.onSleep(n)}>${this.ic("moon")}</button>
           <div class="sumcard act"><div class="sumn">${i.onCount}</div><div class="suml">${this.t("lights on")}</div></div>
           <div class="sumcard"><div class="sumn">${i.avgTemp}</div><div class="suml">${this.t("on average")}</div></div>
           <button type="button" class="ov-master" @click=${() => this.allOffHouse()}>${this.ic("power")}<span>${this.t("All off short")}</span></button>
+          <button type="button" class="bsleep" title="Screensaver" @pointerdown=${(n) => this.onSleep(n)}>${this.ic("moon")}</button>
+          ${this.renderViewToggle()}
         </div>
       </div>
       <div class="bstatus">
@@ -27050,10 +27050,11 @@ ut.styles = Bd`
     }
     .topstat {
       position: absolute;
-      top: 28px;
-      right: 26px;
+      top: 30px;
+      right: 30px;
       z-index: 4;
       display: flex;
+      align-items: center;
       gap: 10px;
       transition: right 0.28s ease;
     }
