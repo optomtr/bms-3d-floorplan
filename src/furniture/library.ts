@@ -176,6 +176,63 @@ const builders: Record<string, FurnitureBuilder> = {
     }
     return g;
   },
+  // Hanging swing (arg'imchoq) — a freestanding A-frame with a rope seat.
+  swing: (c) => {
+    const g = new THREE.Group();
+    const wood = mat(WOOD);
+    const H = 2.0, span = 1.5, depth = 1.1;
+    const beam = cyl(0.05, 0.05, span + 0.15, wood, 0, H, 0, 10);
+    beam.rotation.z = Math.PI / 2;
+    g.add(beam);
+    const legLen = Math.hypot(H, depth / 2);
+    const tilt = Math.atan2(depth / 2, H);
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) {
+        const leg = cyl(0.035, 0.05, legLen, wood, sx * (span / 2), H / 2, (sz * depth) / 4, 8);
+        leg.rotation.x = -sz * tilt;
+        g.add(leg);
+      }
+    const rope = mat(0x5b5b5b, { roughness: 0.95 });
+    const seatY = 0.5;
+    for (const sx of [-1, 1]) g.add(cyl(0.008, 0.008, H - seatY, rope, sx * 0.34, (H + seatY) / 2, 0, 6));
+    g.add(tint(box(0.85, 0.07, 0.4, mat(0x8a6a4a), 0, seatY, 0), c));
+    return g;
+  },
+  // Round/oval stone table (travertine look) on two chunky curved feet.
+  round_table: (c) => {
+    const g = new THREE.Group();
+    const stone = mat(0xe9e2d5, { roughness: 0.55, metalness: 0.02 });
+    const top = cyl(0.75, 0.75, 0.08, stone, 0, 0.73, 0, 44);
+    top.scale.z = 0.72; // oval
+    g.add(tint(top, c));
+    for (const sz of [-1, 1]) {
+      const foot = cyl(0.16, 0.24, 0.7, stone, 0, 0.35, sz * 0.22, 24);
+      foot.scale.x = 1.3;
+      g.add(tint(foot, c));
+    }
+    return g;
+  },
+  // Chunky rounded tub armchair (Roly-Poly style) — a fat cushion, a wrap-around
+  // back/arms, and 4 stubby rounded legs.
+  roly_chair: (c) => {
+    const g = new THREE.Group();
+    const body = mat(0x9aa878, { roughness: 0.95 }); // sage green default
+    g.add(tint(cyl(0.26, 0.28, 0.18, body, 0, 0.4, 0, 28), c)); // seat cushion
+    const back = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.1, 12, 24, Math.PI * 1.3), body);
+    back.castShadow = true;
+    back.receiveShadow = true;
+    back.position.set(0, 0.55, 0.02);
+    back.rotation.x = Math.PI / 2;
+    back.rotation.z = -Math.PI * 0.15; // open the ring toward the front
+    g.add(tint(back, c));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.2, 4, 8), body);
+      leg.castShadow = true;
+      leg.position.set(sx * 0.17, 0.14, sz * 0.17);
+      g.add(tint(leg, c));
+    }
+    return g;
+  },
   wardrobe: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(1.2, 2.0, 0.6, mat(WOOD), 0, 1.0, 0), c));
@@ -387,6 +444,32 @@ const builders: Record<string, FurnitureBuilder> = {
       g.add(tint(box(1.0, 0.18, 0.3, mat(WOOD), 0, 0.09 + i * 0.18, -i * 0.3), c));
     return g;
   },
+  // Descending staircase — for an UPPER floor, a flight going DOWN to the level
+  // below (steps drop beneath the floor). Treads + risers + side stringers read
+  // clearly as a stairwell.
+  stairs_down: (c) => {
+    const g = new THREE.Group();
+    const steps = 8;
+    const rise = 0.19;
+    const run = 0.3;
+    const w = 1.0;
+    const wood = mat(WOOD);
+    const riserMat = mat(0x8a5f34);
+    for (let i = 0; i < steps; i++) {
+      const y = -0.02 - i * rise;
+      const z = -0.15 - i * run;
+      g.add(tint(box(w, 0.05, run, wood, 0, y, z), c)); // tread
+      g.add(box(w - 0.02, rise, 0.03, riserMat, 0, y - rise / 2, z - run / 2)); // riser
+    }
+    const strLen = Math.hypot(steps * rise, steps * run);
+    const ang = Math.atan2(steps * rise, steps * run);
+    for (const sx of [-1, 1]) {
+      const s = box(0.05, 0.3, strLen, mat(0x7a5230), sx * (w / 2), -0.02 - (steps * rise) / 2, -0.15 - (steps * run) / 2 + run / 2);
+      s.rotation.x = -ang;
+      g.add(s);
+    }
+    return g;
+  },
   curtain: (c) => {
     // Pleated fabric, slightly off the wall, in two pivot panels named
     // "curtainPivot" so a bound cover entity can slide them open/closed.
@@ -410,6 +493,26 @@ const builders: Record<string, FurnitureBuilder> = {
     };
     g.add(panel(-1));
     g.add(panel(1));
+    return g;
+  },
+  // Half curtain: ONE panel that slides to a single side (not centre-split).
+  curtain_single: (c) => {
+    const g = new THREE.Group();
+    const W = 1.6, H = 2.2, OFF = 0.03;
+    const fabric = mat(0x9a8b76, { roughness: 1 });
+    const rod = cyl(0.022, 0.022, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod);
+    const pivot = new THREE.Group();
+    pivot.name = 'curtainPivot';
+    pivot.position.x = -W / 2; // hinge at the left edge → gathers to the left
+    const n = 14, seg = W / n;
+    for (let i = 0; i < n; i++) {
+      const px = (i + 0.5) * seg; // pleats run rightward from the hinge
+      const wave = i % 2 === 0 ? 0.035 : -0.025;
+      pivot.add(tint(box(seg * 0.96, H, 0.05, fabric, px, H / 2, OFF + wave), c));
+    }
+    g.add(pivot);
     return g;
   },
   curtain_sheer: (c) => {
@@ -1281,6 +1384,7 @@ export const WALL_MOUNT_KEYS = [
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
+  'curtain_single',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -1293,6 +1397,7 @@ export const SURFACE_MOUNT_KEYS = [
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
+  'curtain_single',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -1343,6 +1448,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'speaker':
       return ['media_player'];
     case 'curtain':
+    case 'curtain_single':
     case 'curtain_sheer':
     case 'roller_blind':
     case 'roman_blind':
@@ -1404,7 +1510,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'terrace_window') return 1.2;
   if (model === 'wall_clock') return 1.7;
   if (model === 'range_hood') return 1.6;
-  if (model === 'curtain' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind') return 0.1;
+  if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind') return 0.1;
   return 0;
 }
 
@@ -1423,7 +1529,8 @@ const DEFAULT_COLORS: Record<string, string> = {
   // Wood furniture
   table: '#9c6b3f', dining_table: '#9c6b3f', coffee_table: '#9c6b3f',
   console_table: '#9c6b3f', desk: '#9c6b3f', chair: '#9c6b3f', office_chair: '#3a3e44',
-  bar_stool: '#9c6b3f', stairs: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
+  bar_stool: '#9c6b3f', stairs: '#b08a5a', stairs_down: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
+  swing: '#8a6a4a', round_table: '#e9e2d5', roly_chair: '#9aa878',
   double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
   // Cabinetry (darker wood)
   wardrobe: '#8a5a34', wardrobe_glass: '#7a4f2e', wardrobe_lit: '#7a4f2e',
@@ -1444,7 +1551,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   // Decor / soft furnishings
   plant: '#3f8f4f', rug: '#b5563a', floor_vase: '#b0764a', vase: '#b0764a',
   painting: '#cfc2a8', mirror: '#bcc8cc', wall_clock: '#f0f0f0', whiteboard: '#f4f6f8',
-  curtain: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da',
+  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da',
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
