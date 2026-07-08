@@ -670,27 +670,20 @@ const builders: Record<string, FurnitureBuilder> = {
       g.add(tint(box(w, 0.16, run, wood, lane, base2 + (i + 1) * rise, zFar - run / 2 + i * run), c)); // down-return flight (right)
     return g;
   },
-  // Flat, plan-symbol staircase — lies FLUSH on the floor and reads exactly like
-  // the way stairs are drawn on the architectural plan (tread lines across the
-  // run + a direction arrow), for tracing the plan rather than a raised 3D flight.
+  // Flat, plan-symbol staircase — lies FLUSH on the floor and reads like the way
+  // stairs are drawn on the plan: a wooden footprint with tread lines across the
+  // run (no arrow), for tracing the plan rather than a raised 3D flight.
   stairs_flat: (c) => {
     const g = new THREE.Group();
     const steps = 12, run = 0.27, W = 1.2, t = 0.014;
     const L = steps * run;
-    const slab = mat(0xe8e4dc, { roughness: 0.96 });
-    g.add(tint(box(W, t, L, slab, 0, t / 2, 0), c)); // flush footprint slab
-    const line = mat(0x5a5148, { roughness: 0.9 });
+    const slab = mat(WOOD, { roughness: 0.96 });
+    g.add(tint(box(W, t, L, slab, 0, t / 2, 0), c)); // flush wooden footprint
+    const line = mat(0x5a3d24, { roughness: 0.9 }); // darker-wood tread lines
     for (let i = 1; i < steps; i++) // tread lines across the width
       g.add(box(W - 0.04, t * 1.4, 0.018, line, 0, t + 0.002, -L / 2 + i * run));
     for (const sx of [-1, 1]) // side stringer outlines
       g.add(box(0.02, t * 1.4, L, line, sx * (W / 2 - 0.01), t + 0.002, 0));
-    const arrow = mat(0x9a3b2e, { roughness: 0.9 }); // direction arrow (up)
-    g.add(box(0.03, t * 1.8, L * 0.66, arrow, 0, t + 0.004, L * 0.02));
-    for (const s of [-1, 1]) {
-      const head = box(0.03, t * 1.8, 0.24, arrow, s * 0.08, t + 0.004, -L / 2 + 0.17);
-      head.rotation.y = s * (Math.PI / 5);
-      g.add(head);
-    }
     return g;
   },
   // Freestanding structural columns (the red-square posts on the grid). A wall of
@@ -910,6 +903,29 @@ const builders: Record<string, FurnitureBuilder> = {
     for (let i = 0; i < 5; i++) {
       pivot.add(tint(box(W, 0.36, 0.04 + (i % 2 ? 0.02 : 0), fabric, 0, 0.2 + i * 0.36, OFF), c)); // folds
     }
+    g.add(pivot);
+    return g;
+  },
+  // Bottom-up venetian blind (jalyuzi) — opens from the BOTTOM upward: the slats
+  // retract up into the fixed top headrail. Uses the vertical cover hook
+  // 'blindPivotV' (the binding scales it in Y, anchored at the top).
+  blind_bottomup: (c) => {
+    const g = new THREE.Group();
+    const W = 1.6, H = 2.0, OFF = 0.03;
+    g.add(box(W + 0.06, 0.07, 0.08, mat(METAL), 0, H + 0.02, OFF)); // fixed headrail
+    const pivot = new THREE.Group();
+    pivot.name = 'blindPivotV'; // origin at the TOP; slats hang DOWN (negative y)
+    pivot.position.set(0, H, OFF);
+    const slat = mat(0xcbb79c, { roughness: 0.9 });
+    const n = 18, gap = H / n;
+    for (let i = 1; i <= n; i++) {
+      const s = tint(box(W, 0.02, 0.035, slat, 0, -i * gap + gap * 0.4, 0), c);
+      s.rotation.x = 0.32; // tilt → reads as venetian louvres
+      pivot.add(s);
+    }
+    pivot.add(box(W + 0.02, 0.045, 0.05, mat(0x9a8b73), 0, -H, 0)); // bottom rail
+    for (const sx of [-1, 1]) // lift cords
+      pivot.add(box(0.006, H, 0.006, mat(0xcfc8ba), sx * W * 0.3, -H / 2, 0.012));
     g.add(pivot);
     return g;
   },
@@ -2075,7 +2091,7 @@ export const WALL_MOUNT_KEYS = [
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
-  'curtain_single', 'urinal', 'sink_double',
+  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -2088,7 +2104,7 @@ export const SURFACE_MOUNT_KEYS = [
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
-  'curtain_single', 'urinal', 'sink_double',
+  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -2143,6 +2159,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'curtain_sheer':
     case 'roller_blind':
     case 'roman_blind':
+    case 'blind_bottomup':
       return ['cover'];
     case 'door':
     case 'double_door':
@@ -2201,7 +2218,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'terrace_window') return 1.2;
   if (model === 'wall_clock') return 1.7;
   if (model === 'range_hood') return 1.6;
-  if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind') return 0.1;
+  if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind' || model === 'blind_bottomup') return 0.1;
   if (model === 'urinal') return 0.55;
   if (model === 'sink_double') return 0.8;
   return 0;
@@ -2224,7 +2241,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   console_table: '#9c6b3f', desk: '#9c6b3f', chair: '#9c6b3f', office_chair: '#3a3e44',
   bar_stool: '#9c6b3f', stairs: '#b08a5a', stairs_down: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
   swing: '#8a6a4a', round_table: '#e9e2d5', roly_chair: '#9aa878',
-  stairs_switchback: '#b08a5a', stairs_flat: '#e8e4dc', column_sq: '#d8d2c6', column_round: '#d8d2c6',
+  stairs_switchback: '#b08a5a', stairs_flat: '#9c6b3f', column_sq: '#d8d2c6', column_round: '#d8d2c6',
   elevator: '#e8eaec', reception: '#9c6b3f', canopy: '#d8d8dc', car: '#30506e', porch: '#d7d2c8',
   double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
   // Cabinetry (darker wood)
@@ -2246,7 +2263,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   // Decor / soft furnishings
   plant: '#3f8f4f', rug: '#b5563a', floor_vase: '#b0764a', vase: '#b0764a',
   painting: '#cfc2a8', mirror: '#bcc8cc', wall_clock: '#f0f0f0', whiteboard: '#f4f6f8',
-  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da',
+  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da', blind_bottomup: '#cbb79c',
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',

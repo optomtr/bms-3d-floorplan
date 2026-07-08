@@ -32,6 +32,8 @@ interface ActiveBinding {
   spin?: THREE.Object3D;
   /** Curtain pivot groups to slide open/closed (cover behavior). */
   curtains?: THREE.Object3D[];
+  /** Vertical-blind pivots that open bottom→top (scale.y, anchored at the top). */
+  blindsV?: THREE.Object3D[];
   /** Target open fraction for curtains (0 closed .. 1 open). */
   coverOpen?: number;
 }
@@ -128,6 +130,7 @@ export class BindingManager {
         worldPos,
         emissiveMeshes: anchor ? collectEmissive(anchor) : [],
         curtains: anchor ? collectByName(anchor, 'curtainPivot') : [],
+        blindsV: anchor ? collectByName(anchor, 'blindPivotV') : [],
       };
 
       this.setupVisual(ab, floor);
@@ -183,6 +186,9 @@ export class BindingManager {
     // freeze mid-slide while the panel visibly moves.
     if (ab.curtains && ab.curtains.length) {
       for (const piv of ab.curtains) disableShadowCasting(piv);
+    }
+    if (ab.blindsV && ab.blindsV.length) {
+      for (const piv of ab.blindsV) disableShadowCasting(piv);
     }
   }
 
@@ -259,8 +265,8 @@ export class BindingManager {
         const pos = ent?.attributes?.current_position;
         const open = typeof pos === 'number' ? pos / 100
           : (state === 'open' || state === 'opening') ? 1 : 0;
-        if (ab.curtains && ab.curtains.length) {
-          ab.coverOpen = open; // curtains slide in animate()
+        if ((ab.curtains && ab.curtains.length) || (ab.blindsV && ab.blindsV.length)) {
+          ab.coverOpen = open; // curtains slide / blinds lift in animate()
         } else {
           this.setEmissive(ab, open > 0.5 ? 0x4fd06a : 0x000000, open > 0.5 ? 0.4 : 0);
         }
@@ -306,6 +312,20 @@ export class BindingManager {
           }
         }
       }
+      if (ab.blindsV && ab.blindsV.length && ab.coverOpen !== undefined) {
+        // Vertical blind: closed = scale.y 1 (full drop); open = 0.04 (slats
+        // retracted up into the headrail → opens bottom→top).
+        const target = 1 - 0.96 * ab.coverOpen;
+        const k = Math.min(1, delta * 4);
+        for (const piv of ab.blindsV) {
+          if (Math.abs(target - piv.scale.y) > 0.001) {
+            piv.scale.y += (target - piv.scale.y) * k;
+            active = true;
+          } else {
+            piv.scale.y = target;
+          }
+        }
+      }
     }
     return active;
   }
@@ -327,6 +347,9 @@ export class BindingManager {
       if (ab.curtains && ab.curtains.length && ab.coverOpen !== undefined) {
         const target = 1 - 0.84 * ab.coverOpen;
         for (const piv of ab.curtains) piv.scale.x = target;
+      }
+      if (ab.blindsV && ab.blindsV.length && ab.coverOpen !== undefined) {
+        for (const piv of ab.blindsV) piv.scale.y = 1 - 0.96 * ab.coverOpen;
       }
     }
   }
