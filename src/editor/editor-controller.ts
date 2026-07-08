@@ -17,7 +17,7 @@ import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
-export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening' | 'floor';
+export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening' | 'floor' | 'arc';
 
 /** Furniture-palette glazing models that become real wall openings on placement. */
 const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant: string; sill?: number; top?: number }> = {
@@ -421,6 +421,22 @@ export class EditorController {
     return Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1]);
   }
 
+  /** Selected wall thickness in meters (defaults to 0.12 when unset). */
+  get selectedWallThickness(): number | null {
+    if (this.selectedKind !== 'wall') return null;
+    const w = this.floor().walls?.[this.selectedWall];
+    if (!w) return null;
+    return w.thickness ?? 0.12;
+  }
+
+  /** Selected wall's absolute heading in degrees (0 = +x). */
+  get selectedWallAngle(): number | null {
+    if (this.selectedKind !== 'wall') return null;
+    const w = this.floor().walls?.[this.selectedWall];
+    if (!w) return null;
+    return (Math.atan2(w.end[1] - w.start[1], w.end[0] - w.start[0]) * 180) / Math.PI;
+  }
+
   /** Openings (doors/windows) on the selected wall — for the property list. */
   get selectedWallOpenings(): { kind: string; position: number; width: number }[] {
     if (this.selectedKind !== 'wall') return [];
@@ -474,6 +490,33 @@ export class EditorController {
     const dz = w.end[1] - w.start[1];
     const cur = Math.hypot(dx, dz) || 1;
     w.end = [w.start[0] + (dx / cur) * len, w.start[1] + (dz / cur) * len];
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  /** Set the selected wall's thickness in meters (e.g. 0.25, 0.38, 0.78). */
+  setWallThickness(t: number): void {
+    if (this.selectedKind !== 'wall' || !(t > 0)) return;
+    const w = this.floor().walls?.[this.selectedWall];
+    if (!w) return;
+    this.pushUndo();
+    w.thickness = t;
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
+  /** Rotate the selected wall to an absolute heading (deg), pivoting on its start
+   *  point and keeping its length — so a 45° infill can be typed exactly. */
+  setWallAngle(deg: number): void {
+    if (this.selectedKind !== 'wall') return;
+    const w = this.floor().walls?.[this.selectedWall];
+    if (!w) return;
+    const len = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1]) || 1;
+    const r = (deg * Math.PI) / 180;
+    this.pushUndo();
+    w.end = [w.start[0] + Math.cos(r) * len, w.start[1] + Math.sin(r) * len];
     this.rebuild();
     this.reselect();
     this.onChange?.();
@@ -1402,6 +1445,11 @@ export class EditorController {
       this.placeFurniture(p);
       return;
     }
+    if (this.tool === 'arc') {
+      const { pt } = this.snapPoint(p.x, p.z);
+      this.arcClick(pt);
+      return;
+    }
     if (this.tool === 'door' || this.tool === 'window' || this.tool === 'opening') {
       this.addOpening(p, this.tool);
       return;
@@ -1510,7 +1558,74 @@ export class EditorController {
     this.onMessage?.(close ? 'Room closed — floor added' : `${n} wall${n === 1 ? '' : 's'} added`);
   }
 
+  // --- Curved (arc) wall tool -------------------------------------------------
+  // Three taps: START, END, then a BULGE point the arc passes through. The arc is
+  // faceted into a chain of short straight walls (reusing the straight-wall
+  // engine — the target plan itself draws its curves as chord segments).
+
+  private arcClick(pt: Vec2): void {
+    if (this.chain.length < 2) {
+      this.chain.push(pt);
+      this.renderPreview();
+      this.onChange?.();
+      return;
+    }
+    this.commitArc(this.chain[0], this.chain[1], pt);
+  }
+
+  /** Circle through 3 points, faceted into node points along the arc that goes
+   *  from A to B through C. Collinear → just [A, B]. */
+  private arcNodes(A: Vec2, B: Vec2, C: Vec2): Vec2[] {
+    const [ax, az] = A, [bx, bz] = B, [cx, cz] = C;
+    const d = 2 * (ax * (bz - cz) + bx * (cz - az) + cx * (az - bz));
+    if (Math.abs(d) < 1e-6) return [A, B];
+    const a2 = ax * ax + az * az, b2 = bx * bx + bz * bz, c2 = cx * cx + cz * cz;
+    const ux = (a2 * (bz - cz) + b2 * (cz - az) + c2 * (az - bz)) / d;
+    const uz = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
+    const r = Math.hypot(ax - ux, az - uz);
+    const angA = Math.atan2(az - uz, ax - ux);
+    const angB = Math.atan2(bz - uz, bx - ux);
+    const angC = Math.atan2(cz - uz, cx - ux);
+    const TAU = Math.PI * 2;
+    const norm = (x: number) => ((x % TAU) + TAU) % TAU;
+    let sweep = norm(angB - angA);
+    if (norm(angC - angA) > sweep) sweep -= TAU; // take the side C is on
+    const N = Math.min(40, Math.max(2, Math.round((r * Math.abs(sweep)) / 0.4)));
+    const nodes: Vec2[] = [];
+    for (let k = 0; k <= N; k++) {
+      const t = angA + sweep * (k / N);
+      nodes.push([+(ux + r * Math.cos(t)).toFixed(3), +(uz + r * Math.sin(t)).toFixed(3)]);
+    }
+    return nodes;
+  }
+
+  private commitArc(A: Vec2, B: Vec2, C: Vec2): void {
+    const nodes = this.arcNodes(A, B, C);
+    if (nodes.length < 2) {
+      this.cancelChain();
+      return;
+    }
+    this.pushUndo();
+    const fl = this.floor();
+    if (!fl.walls) fl.walls = [];
+    for (let i = 0; i < nodes.length - 1; i++)
+      fl.walls.push({ start: [nodes[i][0], nodes[i][1]], end: [nodes[i + 1][0], nodes[i + 1][1]] });
+    const n = nodes.length - 1;
+    this.cancelChain();
+    this.rebuild();
+    this.onChange?.();
+    this.onMessage?.(`Curved wall — ${n} segment${n === 1 ? '' : 's'}`);
+  }
+
   private onMove(p: THREE.Vector3): void {
+    if (this.tool === 'arc') {
+      if (this.chain.length === 0) return;
+      const r = this.snapPoint(p.x, p.z);
+      this.cursor = r.pt;
+      this.snapInfo = r;
+      this.renderPreview();
+      return;
+    }
     if ((this.tool !== 'wall' && this.tool !== 'floor') || this.chain.length === 0) return;
     const r = this.snapPoint(p.x, p.z);
     this.cursor = r.pt;
@@ -1748,7 +1863,9 @@ export class EditorController {
 
   /** Finish the current run: a floor polygon (floor tool) or an open wall run. */
   finishChain(): void {
-    if (this.tool === 'floor') {
+    if (this.tool === 'arc') {
+      this.cancelChain(); // an incomplete arc (needs 3 taps) can't commit
+    } else if (this.tool === 'floor') {
       this.commitFloorChain();
     } else if (this.chain.length >= 2) {
       this.commitChain(false);
@@ -2141,6 +2258,49 @@ export class EditorController {
     const group = this.sm.previewGroup;
     const elev = this.elevation();
     const h = this.wallHeight();
+
+    // Arc tool: tap 1 = start, tap 2 = end, then move the cursor to bulge the
+    // arc; it previews as a faceted chain of green ghost segments.
+    if (this.tool === 'arc' && this.chain.length >= 1) {
+      const nodes =
+        this.chain.length === 2 && this.cursor
+          ? this.arcNodes(this.chain[0], this.chain[1], this.cursor)
+          : [...this.chain, ...(this.cursor ? [this.cursor] : [])];
+      for (const p of nodes) {
+        const dot = new THREE.Mesh(
+          new THREE.SphereGeometry(0.07, 12, 12),
+          new THREE.MeshBasicMaterial({ color: 0x4fd06a }),
+        );
+        dot.position.set(p[0], elev + 0.06, p[1]);
+        group.add(dot);
+      }
+      for (let i = 0; i < nodes.length - 1; i++) {
+        const a = nodes[i];
+        const b = nodes[i + 1];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len < 1e-3) continue;
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(len, h, 0.1),
+          new THREE.MeshBasicMaterial({ color: 0x4fd06a, transparent: true, opacity: 0.4 }),
+        );
+        mesh.position.set((a[0] + b[0]) / 2, elev + h / 2, (a[1] + b[1]) / 2);
+        mesh.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+        group.add(mesh);
+      }
+      if (this.measureLabel) {
+        if (this.chain.length === 2 && this.cursor) {
+          const seg = nodes.length - 1;
+          const mid = nodes[Math.floor(nodes.length / 2)];
+          this.measureLabel.setText(`arc · ${seg} seg`, '#7CFC8A');
+          this.measureLabel.setPosition(mid[0], elev + h + 0.4, mid[1]);
+          this.measureLabel.sprite.visible = true;
+        } else {
+          this.measureLabel.sprite.visible = false;
+        }
+      }
+      return;
+    }
+
     const chain = this.cursor ? [...this.chain, this.cursor] : [...this.chain];
 
     // Vertices. Points that land on an existing wall endpoint get a larger

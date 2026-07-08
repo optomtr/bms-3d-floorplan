@@ -470,6 +470,119 @@ const builders: Record<string, FurnitureBuilder> = {
     }
     return g;
   },
+  // U-shaped switchback stair: two flights bridged by a mid landing (as drawn in
+  // the Лестничная клетка stairwells).
+  stairs_switchback: (c) => {
+    const g = new THREE.Group();
+    const steps = 7, rise = 0.18, run = 0.28, w = 0.95, gap = 0.06;
+    const wood = mat(WOOD);
+    const lane = w / 2 + gap / 2;
+    const zFar = -steps * run;
+    for (let i = 0; i < steps; i++)
+      g.add(tint(box(w, 0.16, run, wood, -lane, 0.08 + i * rise, -i * run - run / 2), c)); // up flight (left)
+    const landY = 0.08 + (steps - 1) * rise + rise;
+    g.add(tint(box(2 * w + gap, 0.16, run * 2, wood, 0, landY, zFar - run), c)); // landing
+    const base2 = landY;
+    for (let i = 0; i < steps; i++)
+      g.add(tint(box(w, 0.16, run, wood, lane, base2 + (i + 1) * rise, zFar - run / 2 + i * run), c)); // down-return flight (right)
+    return g;
+  },
+  // Freestanding structural columns (the red-square posts on the grid). A wall of
+  // zero length collapses in the builder, so a placeable column model is needed.
+  column_sq: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(box(0.38, 2.6, 0.38, mat(0xd8d2c6, { roughness: 0.9 }), 0, 1.3, 0), c));
+    return g;
+  },
+  column_round: (c) => {
+    const g = new THREE.Group();
+    g.add(tint(cyl(0.19, 0.19, 2.6, mat(0xd8d2c6, { roughness: 0.9 }), 0, 1.3, 0, 24), c));
+    return g;
+  },
+  // Elevator (Лифт) — shaft on three sides, a cabin, and two sliding leaves on
+  // the open face. Footprint ~3.1 x 1.9 m to match the plan.
+  elevator: (c) => {
+    const g = new THREE.Group();
+    const W = 3.1, D = 1.9, H = 2.6;
+    const shaft = mat(0xbfc3c8, { roughness: 0.6, metalness: 0.3 });
+    g.add(box(W, H, 0.1, shaft, 0, H / 2, -D / 2 + 0.05)); // back
+    g.add(box(0.1, H, D, shaft, -W / 2 + 0.05, H / 2, 0)); // left
+    g.add(box(0.1, H, D, shaft, W / 2 - 0.05, H / 2, 0)); // right
+    g.add(box(W, 0.12, D, shaft, 0, H - 0.06, 0)); // lintel
+    g.add(tint(box(W - 0.32, H - 0.22, D - 0.32, mat(0xe8eaec, { roughness: 0.4, metalness: 0.5 }), 0, (H - 0.22) / 2, -0.06), c)); // cabin
+    const door = mat(METAL, { roughness: 0.35, metalness: 0.7 });
+    g.add(box(0.72, H - 0.2, 0.05, door, -0.38, (H - 0.2) / 2, D / 2 - 0.05)); // left leaf
+    g.add(box(0.72, H - 0.2, 0.05, door, 0.38, (H - 0.2) / 2, D / 2 - 0.05)); // right leaf
+    return g;
+  },
+  // Reception / front desk (Ресепшн) — counter carcass + raised transaction top +
+  // a lower inner work surface.
+  reception: (c) => {
+    const g = new THREE.Group();
+    const body = mat(WOOD, { roughness: 0.6 });
+    g.add(tint(box(2.4, 1.05, 0.7, body, 0, 0.525, 0), c)); // front counter
+    g.add(box(2.6, 0.06, 0.95, mat(DARK, { roughness: 0.4 }), 0, 1.09, 0)); // transaction top
+    g.add(box(2.2, 0.04, 0.5, mat(0xcbb79c, { roughness: 0.5 }), 0, 0.76, -0.16)); // inner surface
+    g.add(box(2.35, 0.5, 0.03, mat(0x8a5f34), 0, 0.28, 0.34)); // front accent panel
+    return g;
+  },
+  // Carport canopy (Навес) — a flat roof on four slim posts.
+  canopy: (c) => {
+    const g = new THREE.Group();
+    const W = 7.2, D = 7.0, H = 2.7;
+    const post = mat(METAL, { roughness: 0.5, metalness: 0.4 });
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) g.add(cyl(0.08, 0.08, H, post, sx * (W / 2 - 0.2), H / 2, sz * (D / 2 - 0.2), 12));
+    g.add(tint(box(W, 0.15, D, mat(0xd8d8dc, { roughness: 0.7 }), 0, H + 0.07, 0), c)); // roof slab
+    return g;
+  },
+  // Passenger car (parked under the canopy on the plan).
+  car: (c) => {
+    const g = new THREE.Group();
+    const body = mat(0x30506e, { roughness: 0.4, metalness: 0.5 });
+    g.add(tint(box(1.82, 0.55, 4.3, body, 0, 0.5, 0), c)); // lower body
+    g.add(tint(box(1.7, 0.35, 3.5, body, 0, 0.85, 0), c)); // waist
+    g.add(box(1.5, 0.42, 1.9, mat(0x1a2634, { roughness: 0.2, metalness: 0.3 }), 0, 1.12, -0.15)); // greenhouse
+    const tire = mat(0x1c1c1e, { roughness: 0.9 });
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) {
+        const wl = cyl(0.33, 0.33, 0.22, tire, sx * 0.88, 0.33, sz * 1.35, 18);
+        wl.rotation.z = Math.PI / 2;
+        g.add(wl);
+      }
+    return g;
+  },
+  // Curved exterior entrance porch — stacked half-round stone treads + railing
+  // posts. Self-contained (does not need a curved wall).
+  porch: (c) => {
+    const g = new THREE.Group();
+    const stone = mat(0xd7d2c8, { roughness: 0.9 });
+    const treads = 3;
+    for (let i = 0; i < treads; i++) {
+      const r = 2.2 - i * 0.4;
+      const t = cyl(r, r, 0.15, stone, 0, 0.075 + i * 0.15, 0, 44);
+      t.scale.z = 0.55; // flatten to a shallow arc footprint
+      g.add(tint(t, c));
+    }
+    const post = mat(METAL, { roughness: 0.5, metalness: 0.4 });
+    const rTop = 2.2 - (treads - 1) * 0.4;
+    const yTop = 0.075 + (treads - 1) * 0.15;
+    const n = 7;
+    for (let k = 0; k <= n; k++) {
+      const a = -Math.PI / 2 + Math.PI * (k / n);
+      g.add(cyl(0.03, 0.03, 0.9, post, Math.cos(a) * rTop, yTop + 0.45, Math.sin(a) * rTop * 0.55, 8));
+    }
+    return g;
+  },
+  // Wall-hung urinal for the WCs (Сан.узел).
+  urinal: (c) => {
+    const g = new THREE.Group();
+    const white = mat(WHITE, { roughness: 0.35 });
+    g.add(tint(box(0.36, 0.6, 0.32, white, 0, 0, -0.02), c)); // bowl body
+    g.add(tint(cyl(0.18, 0.14, 0.16, white, 0, -0.18, 0.06, 18), c)); // rounded lip
+    g.add(box(0.08, 0.12, 0.06, mat(METAL, { metalness: 0.7, roughness: 0.3 }), 0, 0.42, -0.06)); // flush valve
+    return g;
+  },
   curtain: (c) => {
     // Pleated fabric, slightly off the wall, in two pivot panels named
     // "curtainPivot" so a bound cover entity can slide them open/closed.
@@ -1384,7 +1497,7 @@ export const WALL_MOUNT_KEYS = [
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
-  'curtain_single',
+  'curtain_single', 'urinal',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -1397,7 +1510,7 @@ export const SURFACE_MOUNT_KEYS = [
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
-  'curtain_single',
+  'curtain_single', 'urinal',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -1511,6 +1624,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'wall_clock') return 1.7;
   if (model === 'range_hood') return 1.6;
   if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind') return 0.1;
+  if (model === 'urinal') return 0.55;
   return 0;
 }
 
@@ -1531,6 +1645,8 @@ const DEFAULT_COLORS: Record<string, string> = {
   console_table: '#9c6b3f', desk: '#9c6b3f', chair: '#9c6b3f', office_chair: '#3a3e44',
   bar_stool: '#9c6b3f', stairs: '#b08a5a', stairs_down: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
   swing: '#8a6a4a', round_table: '#e9e2d5', roly_chair: '#9aa878',
+  stairs_switchback: '#b08a5a', column_sq: '#d8d2c6', column_round: '#d8d2c6',
+  elevator: '#e8eaec', reception: '#9c6b3f', canopy: '#d8d8dc', car: '#30506e', porch: '#d7d2c8',
   double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
   // Cabinetry (darker wood)
   wardrobe: '#8a5a34', wardrobe_glass: '#7a4f2e', wardrobe_lit: '#7a4f2e',
@@ -1547,7 +1663,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   range_hood: '#c6cace', dish_rack: '#cfd3d7', kettle: '#cfd3d7', toaster: '#cfd3d7',
   blender: '#cfd3d7', coffee_machine: '#3a3e44', water_heater: '#e8eaec',
   // Bathroom (porcelain)
-  sink: '#f2f5f6', toilet: '#f2f5f6', bathtub: '#f2f5f6', shower: '#dfe7ea', bidet: '#f2f5f6',
+  sink: '#f2f5f6', toilet: '#f2f5f6', bathtub: '#f2f5f6', shower: '#dfe7ea', bidet: '#f2f5f6', urinal: '#f2f5f6',
   // Decor / soft furnishings
   plant: '#3f8f4f', rug: '#b5563a', floor_vase: '#b0764a', vase: '#b0764a',
   painting: '#cfc2a8', mirror: '#bcc8cc', wall_clock: '#f0f0f0', whiteboard: '#f4f6f8',

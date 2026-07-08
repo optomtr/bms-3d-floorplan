@@ -145,6 +145,8 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editOpeningWidth: number | null = null;
   @state() private editSelectedColor: string | null = null;
   @state() private editSelectedWallLength: number | null = null;
+  @state() private editSelectedWallThickness: number | null = null;
+  @state() private editSelectedWallAngle: number | null = null;
   @state() private editRoom: RoomDef | null = null;
   @state() private editFurnScale: [number, number, number] | null = null;
   @state() private editMaterial = 'plain';
@@ -828,6 +830,8 @@ export class Ha3dFloorplanCard extends LitElement {
       this.editOpeningWidth = ed.selectedOpeningWidth;
       this.editSelectedColor = ed.selectedColor;
       this.editSelectedWallLength = ed.selectedWallLength;
+      this.editSelectedWallThickness = ed.selectedWallThickness;
+      this.editSelectedWallAngle = ed.selectedWallAngle;
       this.editRoom = ed.selectedRoomData;
       this.editFurnScale = ed.selectedFurnitureScale as [number, number, number] | null;
       this.editMaterial = ed.selectedMaterial;
@@ -1123,6 +1127,16 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSetWallLength(e: Event): void {
     const v = parseFloat((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v) && v > 0) this.editor?.setWallLength(v);
+  }
+
+  private onSetWallThickness(e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v) && v > 0) this.editor?.setWallThickness(v);
+  }
+
+  private onSetWallAngle(e: Event): void {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    if (!Number.isNaN(v)) this.editor?.setWallAngle(v);
   }
 
   private onDeleteWallOpening(i: number): void {
@@ -1432,6 +1446,8 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="grid2">
           <button class="btn ${tool === 'wall' ? 'active' : ''}" title="Draw walls"
             @click=${() => this.onEditTool('wall')}>▟ Wall</button>
+          <button class="btn ${tool === 'arc' ? 'active' : ''}" title="Curved wall — tap start, tap end, then move to bulge the arc and tap"
+            @click=${() => this.onEditTool('arc')}>◜ Curve</button>
           <button class="btn ${tool === 'door' ? 'active' : ''}" title="Add a door — tap a wall"
             @click=${() => this.onEditTool('door')}>🚪 Door</button>
           <button class="btn ${tool === 'window' ? 'active' : ''}" title="Add a window — tap a wall"
@@ -1445,6 +1461,9 @@ export class Ha3dFloorplanCard extends LitElement {
           <button class="btn span2 ${tool === 'select' ? 'active' : ''}" title="Select / move / bind (camera always works: drag empty = orbit)"
             @click=${() => this.onEditTool('select')}>☝ Select</button>
         </div>
+        ${tool === 'arc'
+          ? html`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>`
+          : nothing}
         <span class="hint">Camera always on: drag empty space = orbit · two fingers = pan/zoom · tap = act</span>
 
         <div class="panel-group">Building parts — drop a room</div>
@@ -1768,6 +1787,16 @@ export class Ha3dFloorplanCard extends LitElement {
                     @change=${this.onSetWallLength}
                   />
                   <span class="hint">or drag the wall's end point</span>
+                </div>
+                <div class="toolrow">
+                  <span class="hint">Thickness (m):</span>
+                  <input class="num-input" type="number" min="0.05" step="0.01" title="Wall thickness in meters (e.g. 0.25, 0.38, 0.78)"
+                    .value=${this.editSelectedWallThickness != null ? this.editSelectedWallThickness.toFixed(2) : ''}
+                    @change=${this.onSetWallThickness} />
+                  <span class="hint">Angle (°):</span>
+                  <input class="num-input" type="number" step="1" title="Absolute heading in degrees (45 = diagonal), pivots on the start point"
+                    .value=${this.editSelectedWallAngle != null ? this.editSelectedWallAngle.toFixed(0) : ''}
+                    @change=${this.onSetWallAngle} />
                 </div>
                 ${this.editor && this.editor.selectedWallOpenings.length
                   ? html`<div class="panel-group">Openings (tap 🗑 to remove)</div>
