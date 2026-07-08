@@ -322,7 +322,7 @@
       // These are shared with the live client below AND used before/without any
       // socket, so the 3D renders from cache with no network and taps simulate
       // locally. A live connection, when it comes up, overrides both.
-      let card, currentPlan = null;
+      let card, currentPlan = null, lastPlanJson = null;
       let states = {};
       let ws = null;
       let reqId = 10;
@@ -331,11 +331,26 @@
 
       function ensureCard(plan) {
         currentPlan = plan;
+        lastPlanJson = JSON.stringify(plan);
         if (card) return card;
         card = document.createElement('ha-3d-floorplan-card');
         card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
         document.body.appendChild(card);
         return card;
+      }
+
+      // Apply a (possibly new) plan to the card. Returns true if it actually
+      // changed — used by the live plan-sync poller so edits made in HA (devices
+      // added/removed/moved, rooms renamed…) rebuild the 3D without a reload.
+      function applyPlan(plan) {
+        if (!plan) return false;
+        const json = JSON.stringify(plan);
+        if (card && json === lastPlanJson) return false; // unchanged
+        if (!card) { ensureCard(plan); return true; }
+        currentPlan = plan;
+        lastPlanJson = json;
+        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
+        return true;
       }
 
       // Offline cache: after a live sync we stash the plan + last states, so the
@@ -556,11 +571,13 @@
                 states = next; // rebuild → prunes entities removed since last connect
                 syncFails = 0;
                 if (!planLoaded) {
-                  // Live plan from HA, else an optional plan.json.
+                  // Live plan from HA, else an optional plan.json. applyPlan (not
+                  // ensureCard) so a live plan replaces any stale cached one shown
+                  // at boot.
                   const plan = (await fetchUserPlan()) || (await fetchFilePlan());
                   if (!current()) return;
                   if (plan) {
-                    ensureCard(plan);
+                    applyPlan(plan);
                     planLoaded = true; // only latch once a REAL plan is shown
                   } else {
                     setStatus('connected · no plan saved for this account', true);
@@ -610,6 +627,16 @@
           };
         }
         open();
+
+        // Plan auto-sync: HA has no push event for the saved plan, so poll it
+        // and rebuild the 3D only when it actually changed — edits made in HA
+        // (devices added / removed / moved, rooms renamed…) appear on the tablet
+        // within ~15s, no reload. Skips while offline (fetchUserPlan → null).
+        setInterval(async () => {
+          if (!ws || ws.readyState !== WebSocket.OPEN || !planLoaded) return;
+          const plan = await fetchUserPlan();
+          if (plan && applyPlan(plan)) cacheSave(); // also refresh offline snapshot
+        }, 15000);
       }
 
       boot();
