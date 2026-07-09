@@ -401,6 +401,8 @@ export class SceneManager {
       }
       this.simplifyMaterials();
     }
+    // Apply the (heavy-plan-crisp) idle resolution now the scene is built.
+    if (!this.viewDragging) this.applyPR(this.staticPR);
     this.requestShadowUpdate();
     this.invalidate();
   }
@@ -577,6 +579,10 @@ export class SceneManager {
     const maxLights = this.heavyPlan
       ? Math.min(QUALITY_PRESETS[this.qualityTier].maxLights, 3)
       : QUALITY_PRESETS[this.qualityTier].maxLights;
+    // A heavy plan runs matte + shadowless, so its FRAGMENTS are cheap — spend
+    // that budget on a crisp STILL image (idle renders once, on-demand, so a high
+    // idle ratio is nearly free). Dynamic resolution keeps the *drag* coarse.
+    this.staticPR = this.heavyPlan ? 2 : QUALITY_PRESETS[this.qualityTier].pixelRatio;
 
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
@@ -726,8 +732,8 @@ export class SceneManager {
     this.qualityTier = choice === 'auto' ? detectTier() : choice;
     const p = QUALITY_PRESETS[this.qualityTier];
 
-    this.staticPR = p.pixelRatio;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, p.pixelRatio));
+    this.staticPR = this.heavyPlan ? 2 : p.pixelRatio;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.staticPR));
     this.renderer.shadowMap.enabled = p.shadows;
     this.renderer.shadowMap.type = p.shadowType;
     if (this.sun) {
