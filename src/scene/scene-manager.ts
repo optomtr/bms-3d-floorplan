@@ -220,6 +220,14 @@ export class SceneManager {
   private autoDegrade = 0; // 0 = none, 1 = shadows off, 2 = Lambert, 3 = pixelRatio
   private materialsSimplified = false;
 
+  // Dynamic resolution: render COARSE while the camera moves (fill rate is the
+  // weak-GPU bottleneck, so fewer pixels = smooth orbit), and snap back to a
+  // SHARP pixel ratio the instant it settles. You can't see fine pixels mid-spin
+  // anyway, so this buys smoothness for free. `staticPR` is the sharp target.
+  private staticPR = 1.5;
+  private movingNow = false;
+  private heavyPlan = false; // big plan → force the aggressive path on any device
+
   private floors: BuiltFloor[] = [];
   private floorGroups: THREE.Group[] = [];
   private bindingManagers: BindingManager[] = [];
@@ -295,6 +303,7 @@ export class SceneManager {
     const preset = QUALITY_PRESETS[this.qualityTier];
 
     this.renderer = new THREE.WebGLRenderer({ antialias: preset.aa, alpha: false, powerPreference: 'high-performance' });
+    this.staticPR = preset.pixelRatio;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
     this.renderer.shadowMap.enabled = preset.shadows;
     this.renderer.shadowMap.type = preset.shadowType;
@@ -375,7 +384,7 @@ export class SceneManager {
     // Weak GPUs: swap the whole scene to cheap matte materials so it stays smooth
     // at a sharp pixel ratio. (Stronger tiers keep PBR; if the adaptive pass had
     // already simplified, keep new scenes simplified too.)
-    if (this.qualityTier === 'low' || this.autoDegrade >= 2) this.simplifyMaterials();
+    if (this.qualityTier === 'low' || this.heavyPlan || this.autoDegrade >= 2) this.simplifyMaterials();
     this.requestShadowUpdate();
     this.invalidate();
   }
@@ -505,6 +514,15 @@ export class SceneManager {
     }
   }
 
+  /** Switch render resolution (device-pixel ratio) and re-fit the buffer — used
+   *  by dynamic resolution (motion vs idle) and the adaptive floor. */
+  private applyPR(pr: number): void {
+    const clamped = Math.min(window.devicePixelRatio, pr);
+    if (this.renderer.getPixelRatio() === clamped) return;
+    this.renderer.setPixelRatio(clamped);
+    this.resize(); // re-fits the buffer and draws one frame at the new ratio
+  }
+
   // -- Floor plan loading -----------------------------------------------------
 
   loadPlan(plan: FloorPlan, keepView = false): void {
@@ -521,9 +539,18 @@ export class SceneManager {
     // the adaptive pass) re-simplify them if this tier warrants it.
     this.materialsSimplified = false;
 
+    // A big plan is heavy on ANY tablet, so force the aggressive path — matte
+    // materials + only a few real lights — regardless of the detected tier (but
+    // leave a desktop "high" tier on full PBR).
+    const totalBindings = plan.floors.reduce((n, f) => n + (f.bindings?.length ?? 0), 0);
+    this.heavyPlan = totalBindings > 25 && this.qualityTier !== 'high';
+    const maxLights = this.heavyPlan
+      ? Math.min(QUALITY_PRESETS[this.qualityTier].maxLights, 4)
+      : QUALITY_PRESETS[this.qualityTier].maxLights;
+
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
-      const bm = new BindingManager(built.group, QUALITY_PRESETS[this.qualityTier].maxLights);
+      const bm = new BindingManager(built.group, maxLights);
       bm.register(built, floorDef.bindings ?? []);
       this.scene.add(built.group);
       this.floors.push(built);
@@ -669,6 +696,7 @@ export class SceneManager {
     this.qualityTier = choice === 'auto' ? detectTier() : choice;
     const p = QUALITY_PRESETS[this.qualityTier];
 
+    this.staticPR = p.pixelRatio;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, p.pixelRatio));
     this.renderer.shadowMap.enabled = p.shadows;
     this.renderer.shadowMap.type = p.shadowType;
@@ -1375,6 +1403,13 @@ export class SceneManager {
       const moved = this.controls.update();
       const anim = this.bindingManagers[this.activeFloor]?.animate(delta) ?? false;
       const interacting = moved || anim; // continuous frames — where lag is felt
+      // Dynamic resolution: coarse while the camera moves, sharp the moment it
+      // stops. The transition (a couple of times per interaction) is cheap; a
+      // sustained orbit then costs a fraction of the pixels → smooth on any plan.
+      if (moved !== this.movingNow) {
+        this.movingNow = moved;
+        this.applyPR(moved ? Math.max(0.6, this.staticPR * 0.5) : this.staticPR);
+      }
       if (this.needsRender || interacting || this.editing) {
         this.updateMarkerScales();
         this.renderer.render(this.scene, this.camera);
@@ -1422,16 +1457,17 @@ export class SceneManager {
         const m = (o as THREE.Mesh).material;
         if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
       });
+      this.needsRender = true;
     } else if (this.autoDegrade === 2) {
       // 2) Matte Lambert materials — big per-pixel win, keeps the pixel ratio.
       this.simplifyMaterials();
     } else {
-      // 3) Last resort: cut the pixel ratio (the only rung that softens the image).
-      const cur = this.renderer.getPixelRatio();
-      this.renderer.setPixelRatio(Math.max(0.75, Math.min(1, cur)));
+      // 3) Last resort: lower the SHARP (idle) resolution. Motion is already
+      //    cheap via dynamic resolution, so this only bites the still image.
+      this.staticPR = Math.max(0.75, Math.min(1, this.staticPR));
+      if (!this.movingNow) this.applyPR(this.staticPR);
     }
     this.frameMs = 16; // reset the average so the next rung waits for real slowness
-    this.resize();
   }
 
   dispose(): void {
