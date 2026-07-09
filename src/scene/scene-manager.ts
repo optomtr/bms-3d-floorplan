@@ -220,13 +220,14 @@ export class SceneManager {
   private autoDegrade = 0; // 0 = none, 1 = shadows off, 2 = Lambert, 3 = pixelRatio
   private materialsSimplified = false;
 
-  // Dynamic resolution: render COARSE while the camera moves (fill rate is the
-  // weak-GPU bottleneck, so fewer pixels = smooth orbit), and snap back to a
-  // SHARP pixel ratio the instant it settles. You can't see fine pixels mid-spin
-  // anyway, so this buys smoothness for free. `staticPR` is the sharp target.
+  // Dynamic resolution: render COARSE only WHILE a finger is actively dragging
+  // the view (fill rate is the weak-GPU bottleneck, so fewer pixels = a smooth
+  // drag), then snap back to the SHARP pixel ratio the instant the finger lifts.
+  // The still image you actually read is always full quality. `staticPR` is that
+  // sharp target. Pointer-driven (not damping) so it can never get stuck coarse.
   private staticPR = 1.5;
-  private movingNow = false;
-  private heavyPlan = false; // big plan → force the aggressive path on any device
+  private viewDragging = false;
+  private heavyPlan = false; // big plan → fewer real lights (quality-neutral)
 
   private floors: BuiltFloor[] = [];
   private floorGroups: THREE.Group[] = [];
@@ -349,6 +350,14 @@ export class SceneManager {
       this.needsRender = true;
     });
 
+    // Dynamic resolution: coarse while a finger is dragging the view, sharp the
+    // instant it lifts (release listeners on window so they fire even off-canvas).
+    const el = this.renderer.domElement;
+    el.addEventListener('pointerdown', () => this.setViewDragging(true), { passive: true });
+    const stopDrag = () => this.setViewDragging(false);
+    window.addEventListener('pointerup', stopDrag, { passive: true });
+    window.addEventListener('pointercancel', stopDrag, { passive: true });
+
     this.setupLights();
     this.setupResize();
     this.setupPointer();
@@ -381,10 +390,10 @@ export class SceneManager {
       const keep = new Set<THREE.Object3D>(this.bindingManagers[i]?.anchorObjects() ?? []);
       this.mergeStatic(this.floors[i], keep);
     }
-    // Weak GPUs: swap the whole scene to cheap matte materials so it stays smooth
-    // at a sharp pixel ratio. (Stronger tiers keep PBR; if the adaptive pass had
-    // already simplified, keep new scenes simplified too.)
-    if (this.qualityTier === 'low' || this.heavyPlan || this.autoDegrade >= 2) this.simplifyMaterials();
+    // Only the genuinely weak (low) tier, or a device the adaptive pass has
+    // proven slow, gives up PBR for matte Lambert — a medium/high tablet keeps
+    // the richer materials so the still image looks good.
+    if (this.qualityTier === 'low' || this.autoDegrade >= 2) this.simplifyMaterials();
     this.requestShadowUpdate();
     this.invalidate();
   }
@@ -521,6 +530,14 @@ export class SceneManager {
     if (this.renderer.getPixelRatio() === clamped) return;
     this.renderer.setPixelRatio(clamped);
     this.resize(); // re-fits the buffer and draws one frame at the new ratio
+  }
+
+  /** Enter/leave the low-res drag mode (dynamic resolution). Coarse while a
+   *  finger drags for a smooth orbit; sharp again the moment it lifts. */
+  private setViewDragging(d: boolean): void {
+    if (this.viewDragging === d) return;
+    this.viewDragging = d;
+    this.applyPR(d ? Math.max(0.6, this.staticPR * 0.6) : this.staticPR);
   }
 
   // -- Floor plan loading -----------------------------------------------------
@@ -1403,13 +1420,6 @@ export class SceneManager {
       const moved = this.controls.update();
       const anim = this.bindingManagers[this.activeFloor]?.animate(delta) ?? false;
       const interacting = moved || anim; // continuous frames — where lag is felt
-      // Dynamic resolution: coarse while the camera moves, sharp the moment it
-      // stops. The transition (a couple of times per interaction) is cheap; a
-      // sustained orbit then costs a fraction of the pixels → smooth on any plan.
-      if (moved !== this.movingNow) {
-        this.movingNow = moved;
-        this.applyPR(moved ? Math.max(0.6, this.staticPR * 0.5) : this.staticPR);
-      }
       if (this.needsRender || interacting || this.editing) {
         this.updateMarkerScales();
         this.renderer.render(this.scene, this.camera);
@@ -1465,7 +1475,7 @@ export class SceneManager {
       // 3) Last resort: lower the SHARP (idle) resolution. Motion is already
       //    cheap via dynamic resolution, so this only bites the still image.
       this.staticPR = Math.max(0.75, Math.min(1, this.staticPR));
-      if (!this.movingNow) this.applyPR(this.staticPR);
+      if (!this.viewDragging) this.applyPR(this.staticPR);
     }
     this.frameMs = 16; // reset the average so the next rung waits for real slowness
   }

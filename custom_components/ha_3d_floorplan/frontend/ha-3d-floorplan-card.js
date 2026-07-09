@@ -22694,14 +22694,16 @@ function Rd() {
 }
 class $1 {
   constructor(t, e = "#1b1d22") {
-    this.clock = new lb(), this.running = !1, this.rafId = 0, this.needsRender = !0, this.frameMs = 16, this.slowStreak = 0, this.autoDegrade = 0, this.materialsSimplified = !1, this.staticPR = 1.5, this.movingNow = !1, this.heavyPlan = !1, this.floors = [], this.floorGroups = [], this.bindingManagers = [], this.activeFloor = 0, this.fullBBox = new Ye(), this.cameraDistance = 1, this.qualityChoice = "auto", this.qualityTier = "high", this.raycaster = new xb(), this.pointer = new st(), this.downPos = { x: 0, y: 0 }, this.downTime = 0, this.previewGroup = new H(), this.gizmoGroup = new H(), this.underlayGroup = new H(), this.markerGroup = new H(), this.markerTexCache = /* @__PURE__ */ new Map(), this.markerByEntity = /* @__PURE__ */ new Map(), this.floorRooms = [], this.floorZones = [], this.floorElev = [], this.activeRooms = [], this.selectedRoomKey = null, this.zoneGroup = new H(), this.editing = !1, this.groundPlane = new Hn(new I(0, 1, 0), 0), this.dragging = !1, this.container = t, this.qualityChoice = Q1(), this.qualityTier = this.qualityChoice === "auto" ? Rd() : this.qualityChoice;
+    this.clock = new lb(), this.running = !1, this.rafId = 0, this.needsRender = !0, this.frameMs = 16, this.slowStreak = 0, this.autoDegrade = 0, this.materialsSimplified = !1, this.staticPR = 1.5, this.viewDragging = !1, this.heavyPlan = !1, this.floors = [], this.floorGroups = [], this.bindingManagers = [], this.activeFloor = 0, this.fullBBox = new Ye(), this.cameraDistance = 1, this.qualityChoice = "auto", this.qualityTier = "high", this.raycaster = new xb(), this.pointer = new st(), this.downPos = { x: 0, y: 0 }, this.downTime = 0, this.previewGroup = new H(), this.gizmoGroup = new H(), this.underlayGroup = new H(), this.markerGroup = new H(), this.markerTexCache = /* @__PURE__ */ new Map(), this.markerByEntity = /* @__PURE__ */ new Map(), this.floorRooms = [], this.floorZones = [], this.floorElev = [], this.activeRooms = [], this.selectedRoomKey = null, this.zoneGroup = new H(), this.editing = !1, this.groundPlane = new Hn(new I(0, 1, 0), 0), this.dragging = !1, this.container = t, this.qualityChoice = Q1(), this.qualityTier = this.qualityChoice === "auto" ? Rd() : this.qualityChoice;
     const n = Ji[this.qualityTier];
     this.renderer = new Au({ antialias: n.aa, alpha: !1, powerPreference: "high-performance" }), this.staticPR = n.pixelRatio, this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, n.pixelRatio)), this.renderer.shadowMap.enabled = n.shadows, this.renderer.shadowMap.type = n.shadowType, this.renderer.shadowMap.autoUpdate = !1, this.renderer.shadowMap.needsUpdate = !0, this.renderer.domElement.style.touchAction = "none", this.renderer.domElement.style.display = "block", this.renderer.domElement.style.width = "100%", this.renderer.domElement.style.height = "100%", t.appendChild(this.renderer.domElement), this.scene = new Tu(), this.scene.background = Y1(e), this.scene.add(this.previewGroup), this.scene.add(this.gizmoGroup), this.scene.add(this.underlayGroup), this.scene.add(this.markerGroup), this.scene.add(this.zoneGroup), this.camera = new ze(55, 1, 0.1, 1e3), this.camera.position.set(8, 8, 8), this.controls = new wb(this.camera, this.renderer.domElement), this.controls.enableDamping = !0, this.controls.dampingFactor = 0.12, this.controls.screenSpacePanning = !1, this.controls.zoomToCursor = !0, this.controls.minDistance = 2, this.controls.maxDistance = 40, this.controls.maxPolarAngle = Math.PI * 0.49, this.controls.touches = {
       ONE: yn.ROTATE,
       TWO: yn.DOLLY_PAN
     }, this.controls.addEventListener("change", () => {
       this.clampTarget(), this.needsRender = !0;
-    }), this.setupLights(), this.setupResize(), this.setupPointer();
+    }), this.renderer.domElement.addEventListener("pointerdown", () => this.setViewDragging(!0), { passive: !0 });
+    const r = () => this.setViewDragging(!1);
+    window.addEventListener("pointerup", r, { passive: !0 }), window.addEventListener("pointercancel", r, { passive: !0 }), this.setupLights(), this.setupResize(), this.setupPointer();
   }
   /** Re-render the (static) shadow map once on the next frame. Call after any
    *  change to what casts shadows — plan load, floor switch, quality change, or
@@ -22726,7 +22728,7 @@ class $1 {
         const e = new Set(this.bindingManagers[t]?.anchorObjects() ?? []);
         this.mergeStatic(this.floors[t], e);
       }
-      (this.qualityTier === "low" || this.heavyPlan || this.autoDegrade >= 2) && this.simplifyMaterials(), this.requestShadowUpdate(), this.invalidate();
+      (this.qualityTier === "low" || this.autoDegrade >= 2) && this.simplifyMaterials(), this.requestShadowUpdate(), this.invalidate();
     }
   }
   /** Swap every Standard (PBR) material in the scene for a matte Lambert twin —
@@ -22810,6 +22812,11 @@ class $1 {
   applyPR(t) {
     const e = Math.min(window.devicePixelRatio, t);
     this.renderer.getPixelRatio() !== e && (this.renderer.setPixelRatio(e), this.resize());
+  }
+  /** Enter/leave the low-res drag mode (dynamic resolution). Coarse while a
+   *  finger drags for a smooth orbit; sharp again the moment it lifts. */
+  setViewDragging(t) {
+    this.viewDragging !== t && (this.viewDragging = t, this.applyPR(t ? Math.max(0.6, this.staticPR * 0.6) : this.staticPR));
   }
   // -- Floor plan loading -----------------------------------------------------
   loadPlan(t, e = !1) {
@@ -23338,7 +23345,7 @@ class $1 {
       if (!this.running) return;
       this.rafId = requestAnimationFrame(t);
       const e = this.clock.getDelta(), n = this.controls.update(), s = this.bindingManagers[this.activeFloor]?.animate(e) ?? !1, r = n || s;
-      n !== this.movingNow && (this.movingNow = n, this.applyPR(n ? Math.max(0.6, this.staticPR * 0.5) : this.staticPR)), (this.needsRender || r || this.editing) && (this.updateMarkerScales(), this.renderer.render(this.scene, this.camera), this.needsRender = !1, r && this.trackFrame(e));
+      (this.needsRender || r || this.editing) && (this.updateMarkerScales(), this.renderer.render(this.scene, this.camera), this.needsRender = !1, r && this.trackFrame(e));
     };
     t();
   }
@@ -23359,7 +23366,7 @@ class $1 {
     this.autoDegrade++, this.autoDegrade === 1 ? (this.renderer.shadowMap.enabled = !1, this.sun && (this.sun.castShadow = !1), this.scene.traverse((t) => {
       const e = t.material;
       e && (Array.isArray(e) ? e : [e]).forEach((n) => n.needsUpdate = !0);
-    }), this.needsRender = !0) : this.autoDegrade === 2 ? this.simplifyMaterials() : (this.staticPR = Math.max(0.75, Math.min(1, this.staticPR)), this.movingNow || this.applyPR(this.staticPR)), this.frameMs = 16;
+    }), this.needsRender = !0) : this.autoDegrade === 2 ? this.simplifyMaterials() : (this.staticPR = Math.max(0.75, Math.min(1, this.staticPR)), this.viewDragging || this.applyPR(this.staticPR)), this.frameMs = 16;
   }
   dispose() {
     this.stop(), this.resizeObserver?.disconnect(), this.clearPlan();
@@ -23393,7 +23400,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.59.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
+const s_ = "0.60.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }
