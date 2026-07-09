@@ -390,19 +390,15 @@ export class SceneManager {
       const keep = new Set<THREE.Object3D>(this.bindingManagers[i]?.anchorObjects() ?? []);
       this.mergeStatic(this.floors[i], keep);
     }
-    // Weak tier, a big plan, or a device the adaptive pass proved slow → give up
-    // a little material richness for a lot of speed, at FULL resolution (sharp).
+    // Weak tier, a big plan, or a device the adaptive pass proved slow → swap to
+    // cheap matte materials. Shadows are KEPT (they carry most of the depth/
+    // "quality" look) — if the device then can't keep up, the adaptive pass drops
+    // them first anyway.
     if (this.qualityTier === 'low' || this.heavyPlan || this.autoDegrade >= 2) {
-      // A big plan also drops the shadow pass — the per-pixel shadow lookup is a
-      // real fill-rate cost every frame, even with a static shadow map.
-      if (this.heavyPlan && this.renderer.shadowMap.enabled) {
-        this.renderer.shadowMap.enabled = false;
-        if (this.sun) this.sun.castShadow = false;
-      }
       this.simplifyMaterials();
     }
-    // Apply the (heavy-plan-crisp) idle resolution now the scene is built.
-    if (!this.viewDragging) this.applyPR(this.staticPR);
+    // Crisp, super-sampled still image now the scene is built.
+    if (!this.viewDragging) this.applyPR(this.idlePR(), true);
     this.requestShadowUpdate();
     this.invalidate();
   }
@@ -534,19 +530,30 @@ export class SceneManager {
 
   /** Switch render resolution (device-pixel ratio) and re-fit the buffer — used
    *  by dynamic resolution (motion vs idle) and the adaptive floor. */
-  private applyPR(pr: number): void {
-    const clamped = Math.min(window.devicePixelRatio, pr);
-    if (this.renderer.getPixelRatio() === clamped) return;
+  /** Set the render resolution. Normally capped at the device pixel ratio; with
+   *  `allowSupersample` it may exceed it (up to 3x) — rendering ABOVE native then
+   *  down-sampling anti-aliases the still image, so it looks crisp even when a
+   *  WebView reports a low pixel ratio. */
+  private applyPR(pr: number, allowSupersample = false): void {
+    const clamped = allowSupersample ? Math.min(pr, 3) : Math.min(window.devicePixelRatio, pr);
+    if (Math.abs(this.renderer.getPixelRatio() - clamped) < 0.001) return;
     this.renderer.setPixelRatio(clamped);
     this.resize(); // re-fits the buffer and draws one frame at the new ratio
   }
 
+  /** Idle (still-image) resolution: at least 2x and super-sampled for a crisp,
+   *  anti-aliased picture. It renders once (on-demand), so it's nearly free. */
+  private idlePR(): number {
+    return Math.max(2, this.staticPR);
+  }
+
   /** Enter/leave the low-res drag mode (dynamic resolution). Coarse while a
-   *  finger drags for a smooth orbit; sharp again the moment it lifts. */
+   *  finger drags for a smooth orbit; crisp + super-sampled again once it lifts. */
   private setViewDragging(d: boolean): void {
     if (this.viewDragging === d) return;
     this.viewDragging = d;
-    this.applyPR(d ? Math.max(0.6, this.staticPR * 0.6) : this.staticPR);
+    if (d) this.applyPR(Math.max(0.6, this.staticPR * 0.6));
+    else this.applyPR(this.idlePR(), true);
   }
 
   // -- Floor plan loading -----------------------------------------------------
@@ -1491,10 +1498,9 @@ export class SceneManager {
       // 2) Matte Lambert materials — big per-pixel win, keeps the pixel ratio.
       this.simplifyMaterials();
     } else {
-      // 3) Last resort: lower the SHARP (idle) resolution. Motion is already
-      //    cheap via dynamic resolution, so this only bites the still image.
+      // 3) Last resort: lower the DRAG resolution target (the still image stays
+      //    crisp via idlePR() — it's on-demand, so it isn't the cost that hurts).
       this.staticPR = Math.max(0.75, Math.min(1, this.staticPR));
-      if (!this.viewDragging) this.applyPR(this.staticPR);
     }
     this.frameMs = 16; // reset the average so the next rung waits for real slowness
   }

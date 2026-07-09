@@ -22728,7 +22728,7 @@ class $1 {
         const e = new Set(this.bindingManagers[t]?.anchorObjects() ?? []);
         this.mergeStatic(this.floors[t], e);
       }
-      (this.qualityTier === "low" || this.heavyPlan || this.autoDegrade >= 2) && (this.heavyPlan && this.renderer.shadowMap.enabled && (this.renderer.shadowMap.enabled = !1, this.sun && (this.sun.castShadow = !1)), this.simplifyMaterials()), this.viewDragging || this.applyPR(this.staticPR), this.requestShadowUpdate(), this.invalidate();
+      (this.qualityTier === "low" || this.heavyPlan || this.autoDegrade >= 2) && this.simplifyMaterials(), this.viewDragging || this.applyPR(this.idlePR(), !0), this.requestShadowUpdate(), this.invalidate();
     }
   }
   /** Swap every Standard (PBR) material in the scene for a matte Lambert twin —
@@ -22809,14 +22809,23 @@ class $1 {
   }
   /** Switch render resolution (device-pixel ratio) and re-fit the buffer — used
    *  by dynamic resolution (motion vs idle) and the adaptive floor. */
-  applyPR(t) {
-    const e = Math.min(window.devicePixelRatio, t);
-    this.renderer.getPixelRatio() !== e && (this.renderer.setPixelRatio(e), this.resize());
+  /** Set the render resolution. Normally capped at the device pixel ratio; with
+   *  `allowSupersample` it may exceed it (up to 3x) — rendering ABOVE native then
+   *  down-sampling anti-aliases the still image, so it looks crisp even when a
+   *  WebView reports a low pixel ratio. */
+  applyPR(t, e = !1) {
+    const n = e ? Math.min(t, 3) : Math.min(window.devicePixelRatio, t);
+    Math.abs(this.renderer.getPixelRatio() - n) < 1e-3 || (this.renderer.setPixelRatio(n), this.resize());
+  }
+  /** Idle (still-image) resolution: at least 2x and super-sampled for a crisp,
+   *  anti-aliased picture. It renders once (on-demand), so it's nearly free. */
+  idlePR() {
+    return Math.max(2, this.staticPR);
   }
   /** Enter/leave the low-res drag mode (dynamic resolution). Coarse while a
-   *  finger drags for a smooth orbit; sharp again the moment it lifts. */
+   *  finger drags for a smooth orbit; crisp + super-sampled again once it lifts. */
   setViewDragging(t) {
-    this.viewDragging !== t && (this.viewDragging = t, this.applyPR(t ? Math.max(0.6, this.staticPR * 0.6) : this.staticPR));
+    this.viewDragging !== t && (this.viewDragging = t, t ? this.applyPR(Math.max(0.6, this.staticPR * 0.6)) : this.applyPR(this.idlePR(), !0));
   }
   // -- Floor plan loading -----------------------------------------------------
   loadPlan(t, e = !1) {
@@ -23369,7 +23378,7 @@ class $1 {
     this.autoDegrade++, this.autoDegrade === 1 ? (this.renderer.shadowMap.enabled = !1, this.sun && (this.sun.castShadow = !1), this.scene.traverse((t) => {
       const e = t.material;
       e && (Array.isArray(e) ? e : [e]).forEach((n) => n.needsUpdate = !0);
-    }), this.needsRender = !0) : this.autoDegrade === 2 ? this.simplifyMaterials() : (this.staticPR = Math.max(0.75, Math.min(1, this.staticPR)), this.viewDragging || this.applyPR(this.staticPR)), this.frameMs = 16;
+    }), this.needsRender = !0) : this.autoDegrade === 2 ? this.simplifyMaterials() : this.staticPR = Math.max(0.75, Math.min(1, this.staticPR)), this.frameMs = 16;
   }
   dispose() {
     this.stop(), this.resizeObserver?.disconnect(), this.clearPlan();
@@ -23403,7 +23412,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.62.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
+const s_ = "0.63.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }
