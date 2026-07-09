@@ -22728,7 +22728,7 @@ class $1 {
         const e = new Set(this.bindingManagers[t]?.anchorObjects() ?? []);
         this.mergeStatic(this.floors[t], e);
       }
-      (this.qualityTier === "low" || this.autoDegrade >= 2) && this.simplifyMaterials(), this.requestShadowUpdate(), this.invalidate();
+      (this.qualityTier === "low" || this.heavyPlan || this.autoDegrade >= 2) && (this.heavyPlan && this.renderer.shadowMap.enabled && (this.renderer.shadowMap.enabled = !1, this.sun && (this.sun.castShadow = !1)), this.simplifyMaterials()), this.requestShadowUpdate(), this.invalidate();
     }
   }
   /** Swap every Standard (PBR) material in the scene for a matte Lambert twin —
@@ -22822,9 +22822,12 @@ class $1 {
   loadPlan(t, e = !1) {
     const n = this.controls.target.clone(), s = this.camera.position.clone(), r = this.activeFloor;
     this.clearPlan(), this.fullBBox.makeEmpty(), this.floorRooms = [], this.floorZones = [], this.floorElev = [], this.materialsSimplified = !1;
-    const o = t.floors.reduce((c, h) => c + (h.bindings?.length ?? 0), 0);
-    this.heavyPlan = o > 25 && this.qualityTier !== "high";
-    const a = this.heavyPlan ? Math.min(Ji[this.qualityTier].maxLights, 4) : Ji[this.qualityTier].maxLights;
+    const o = t.floors.reduce(
+      (c, h) => c + (h.furniture?.length ?? 0) + (h.rooms?.length ?? 0) + (h.walls?.length ?? 0) + (h.bindings?.length ?? 0),
+      0
+    );
+    this.heavyPlan = o > 50 && this.qualityTier !== "high";
+    const a = this.heavyPlan ? Math.min(Ji[this.qualityTier].maxLights, 3) : Ji[this.qualityTier].maxLights;
     t.floors.forEach((c) => {
       const h = z1(c, t.wallHeight), d = new q1(h.group, a);
       d.register(h, c.bindings ?? []), this.scene.add(h.group), this.floors.push(h), this.floorGroups.push(h.group), this.bindingManagers.push(d), this.fullBBox.union(h.bbox);
@@ -23400,7 +23403,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.60.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
+const s_ = "0.61.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }

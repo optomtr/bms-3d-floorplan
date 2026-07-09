@@ -390,10 +390,17 @@ export class SceneManager {
       const keep = new Set<THREE.Object3D>(this.bindingManagers[i]?.anchorObjects() ?? []);
       this.mergeStatic(this.floors[i], keep);
     }
-    // Only the genuinely weak (low) tier, or a device the adaptive pass has
-    // proven slow, gives up PBR for matte Lambert — a medium/high tablet keeps
-    // the richer materials so the still image looks good.
-    if (this.qualityTier === 'low' || this.autoDegrade >= 2) this.simplifyMaterials();
+    // Weak tier, a big plan, or a device the adaptive pass proved slow → give up
+    // a little material richness for a lot of speed, at FULL resolution (sharp).
+    if (this.qualityTier === 'low' || this.heavyPlan || this.autoDegrade >= 2) {
+      // A big plan also drops the shadow pass — the per-pixel shadow lookup is a
+      // real fill-rate cost every frame, even with a static shadow map.
+      if (this.heavyPlan && this.renderer.shadowMap.enabled) {
+        this.renderer.shadowMap.enabled = false;
+        if (this.sun) this.sun.castShadow = false;
+      }
+      this.simplifyMaterials();
+    }
     this.requestShadowUpdate();
     this.invalidate();
   }
@@ -556,13 +563,19 @@ export class SceneManager {
     // the adaptive pass) re-simplify them if this tier warrants it.
     this.materialsSimplified = false;
 
-    // A big plan is heavy on ANY tablet, so force the aggressive path — matte
-    // materials + only a few real lights — regardless of the detected tier (but
-    // leave a desktop "high" tier on full PBR).
-    const totalBindings = plan.floors.reduce((n, f) => n + (f.bindings?.length ?? 0), 0);
-    this.heavyPlan = totalBindings > 25 && this.qualityTier !== 'high';
+    // "Heavy" is driven by total GEOMETRY (furniture + rooms + walls), not just
+    // bound devices — a big office is heavy even with few bindings. Such a plan
+    // gets the aggressive path on ANY tablet (matte materials, no shadow pass,
+    // few real lights) at FULL resolution, so it stays smooth AND sharp. A
+    // desktop "high" tier keeps full PBR.
+    const complexity = plan.floors.reduce(
+      (n, f) =>
+        n + (f.furniture?.length ?? 0) + (f.rooms?.length ?? 0) + (f.walls?.length ?? 0) + (f.bindings?.length ?? 0),
+      0,
+    );
+    this.heavyPlan = complexity > 50 && this.qualityTier !== 'high';
     const maxLights = this.heavyPlan
-      ? Math.min(QUALITY_PRESETS[this.qualityTier].maxLights, 4)
+      ? Math.min(QUALITY_PRESETS[this.qualityTier].maxLights, 3)
       : QUALITY_PRESETS[this.qualityTier].maxLights;
 
     plan.floors.forEach((floorDef) => {
