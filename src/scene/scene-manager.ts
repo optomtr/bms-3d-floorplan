@@ -68,6 +68,32 @@ function makeBackdropTexture(base: string): THREE.Texture {
   return tex;
 }
 
+// A matte Lambert twin of a Standard (PBR) material. Standard runs a full PBR
+// BRDF per pixel per light — the dominant fill-rate cost on a weak GPU — while
+// Lambert is a cheap diffuse. For a stylised floor plan the two look nearly
+// identical (no metal/gloss to lose), so swapping lets us keep a SHARP pixel
+// ratio and still stay smooth. Copies every property that affects the look.
+function toLambert(std: THREE.MeshStandardMaterial): THREE.MeshLambertMaterial {
+  const lam = new THREE.MeshLambertMaterial({
+    color: std.color,
+    map: std.map,
+    emissive: std.emissive,
+    emissiveIntensity: std.emissiveIntensity,
+    emissiveMap: std.emissiveMap,
+    transparent: std.transparent,
+    opacity: std.opacity,
+    alphaTest: std.alphaTest,
+    side: std.side,
+    depthWrite: std.depthWrite,
+    vertexColors: std.vertexColors,
+    flatShading: std.flatShading,
+    toneMapped: std.toneMapped,
+  });
+  lam.name = std.name;
+  lam.userData = std.userData;
+  return lam;
+}
+
 // ---------------------------------------------------------------------------
 // Render quality tiers. Weak mobile GPUs (e.g. Adreno 610 in a Redmi Pad SE)
 // choke on the per-frame shadow pass and 2x pixel ratio when a large plan has
@@ -97,10 +123,11 @@ const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
   // capable devices see zero change.
   high: { shadows: true, shadowType: THREE.PCFSoftShadowMap, shadowMap: 1024, pixelRatio: 2, aa: true, maxLights: 16 },
   medium: { shadows: true, shadowType: THREE.PCFShadowMap, shadowMap: 1024, pixelRatio: 1.5, aa: true, maxLights: 8 },
-  // Weak GPUs are almost always fill-rate + light bound, so drop the shadow pass,
-  // render at 1× device pixels, and keep only a few real point lights — the rest
-  // glow emissively for free. This is what keeps a big plan smooth on a tablet.
-  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1, aa: false, maxLights: 3 },
+  // Weak GPUs: drop the shadow pass, keep only a few real point lights (the rest
+  // glow emissively for free), and swap to matte Lambert materials (see
+  // simplifyMaterials). Those cut the per-pixel cost enough to keep a SHARP 1.5×
+  // pixel ratio — so a big plan stays smooth without looking soft.
+  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1.5, aa: false, maxLights: 3 },
 };
 
 const QUALITY_KEY = 'ha3dFloorplanQuality';
@@ -190,7 +217,8 @@ export class SceneManager {
   // pick or a plan reload resets it.
   private frameMs = 16;
   private slowStreak = 0;
-  private autoDegrade = 0; // 0 = none, 1 = shadows off, 2 = + pixelRatio floor
+  private autoDegrade = 0; // 0 = none, 1 = shadows off, 2 = Lambert, 3 = pixelRatio
+  private materialsSimplified = false;
 
   private floors: BuiltFloor[] = [];
   private floorGroups: THREE.Group[] = [];
@@ -344,8 +372,37 @@ export class SceneManager {
       const keep = new Set<THREE.Object3D>(this.bindingManagers[i]?.anchorObjects() ?? []);
       this.mergeStatic(this.floors[i], keep);
     }
+    // Weak GPUs: swap the whole scene to cheap matte materials so it stays smooth
+    // at a sharp pixel ratio. (Stronger tiers keep PBR; if the adaptive pass had
+    // already simplified, keep new scenes simplified too.)
+    if (this.qualityTier === 'low' || this.autoDegrade >= 2) this.simplifyMaterials();
     this.requestShadowUpdate();
     this.invalidate();
+  }
+
+  /** Swap every Standard (PBR) material in the scene for a matte Lambert twin —
+   *  a big per-pixel win with almost no visual change on a stylised plan. A cache
+   *  maps each source material to ONE Lambert, preserving the draw-call batching
+   *  the merge just created. Idempotent; reset on the next loadPlan. */
+  private simplifyMaterials(): void {
+    if (this.materialsSimplified) return;
+    const cache = new Map<THREE.Material, THREE.MeshLambertMaterial>();
+    const conv = (mat: THREE.Material): THREE.Material => {
+      if (!(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) return mat;
+      let lam = cache.get(mat);
+      if (!lam) {
+        lam = toLambert(mat as THREE.MeshStandardMaterial);
+        cache.set(mat, lam);
+      }
+      return lam;
+    };
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material);
+    });
+    this.materialsSimplified = true;
+    this.needsRender = true;
   }
 
   private mergeStatic(floor: BuiltFloor, keepRoots: Set<THREE.Object3D>): void {
@@ -460,6 +517,9 @@ export class SceneManager {
     this.floorRooms = [];
     this.floorZones = [];
     this.floorElev = [];
+    // Fresh meshes are rebuilt with Standard materials; let optimizeForView (or
+    // the adaptive pass) re-simplify them if this tier warrants it.
+    this.materialsSimplified = false;
 
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
@@ -1340,7 +1400,7 @@ export class SceneManager {
     this.frameMs = this.frameMs * 0.9 + ms * 0.1;
     if (this.frameMs > 42) {
       // ~sustained < 24 fps: after ~0.7s of it, drop a rung.
-      if (++this.slowStreak > 40 && this.autoDegrade < 2) {
+      if (++this.slowStreak > 40 && this.autoDegrade < 3) {
         this.stepDownQuality();
         this.slowStreak = 0;
       }
@@ -1349,18 +1409,24 @@ export class SceneManager {
     }
   }
 
-  /** One rung down the adaptive-quality ladder: shadows first (cheap, big win),
-   *  then the pixel ratio (fill rate). Applied live; never auto-upgrades. */
+  /** One rung down the adaptive-quality ladder. Sharpness (pixel ratio) is given
+   *  up LAST — the cheaper, near-invisible cuts (shadows, matte materials) go
+   *  first, so it stays smooth AND sharp. Applied live; never auto-upgrades. */
   private stepDownQuality(): void {
     this.autoDegrade++;
     if (this.autoDegrade === 1) {
+      // 1) Drop the shadow pass — cheap, barely noticeable.
       this.renderer.shadowMap.enabled = false;
       if (this.sun) this.sun.castShadow = false;
       this.scene.traverse((o) => {
         const m = (o as THREE.Mesh).material;
         if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
       });
+    } else if (this.autoDegrade === 2) {
+      // 2) Matte Lambert materials — big per-pixel win, keeps the pixel ratio.
+      this.simplifyMaterials();
     } else {
+      // 3) Last resort: cut the pixel ratio (the only rung that softens the image).
       const cur = this.renderer.getPixelRatio();
       this.renderer.setPixelRatio(Math.max(0.75, Math.min(1, cur)));
     }
