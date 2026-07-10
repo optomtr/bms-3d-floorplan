@@ -20524,17 +20524,28 @@ const Pl = {
   },
   // Hanging swing (arg'imchoq) — a freestanding A-frame with a rope seat.
   swing: (i) => {
-    const t = new H(), e = w(Vt), n = 2, s = 1.5, r = 1.1, o = J(0.05, 0.05, s + 0.15, e, 0, n, 0, 10);
-    o.rotation.z = Math.PI / 2, t.add(o);
-    const a = Math.hypot(n, r / 2), l = Math.atan2(r / 2, n);
-    for (const d of [-1, 1])
-      for (const u of [-1, 1]) {
-        const f = J(0.035, 0.05, a, e, d * (s / 2), n / 2, u * r / 4, 8);
-        f.rotation.x = -u * l, t.add(f);
+    const t = new H(), e = w(9071178, { roughness: 0.75 }), n = 2.05, s = 1.9, r = 1.4, o = Math.hypot(n, r / 2), a = Math.atan2(r / 2, n);
+    for (const y of [-1, 1])
+      for (const _ of [-1, 1]) {
+        const L = J(0.045, 0.06, o, e, y * (s / 2), n / 2, _ * r / 4, 10);
+        L.rotation.x = -_ * a, t.add(L);
       }
-    const c = w(5987163, { roughness: 0.95 }), h = 0.5;
-    for (const d of [-1, 1]) t.add(J(8e-3, 8e-3, n - h, c, d * 0.34, (n + h) / 2, 0, 6));
-    return t.add(D(M(0.85, 0.07, 0.4, w(9071178), 0, h, 0), i)), t;
+    const l = J(0.055, 0.055, s + 0.2, e, 0, n, 0, 10);
+    l.rotation.z = Math.PI / 2, t.add(l);
+    const c = w(8015662, { roughness: 0.85 }), h = s + 0.5, d = n + 0.6, u = n + 0.16, f = r / 2 + 0.28;
+    for (const y of [-1, 1]) {
+      const _ = M(h, 0.05, Math.hypot(d - u, f) + 0.06, c, 0, (d + u) / 2, y * f / 2);
+      _.rotation.x = y * Math.atan2(d - u, f), t.add(D(_, i));
+    }
+    t.add(M(h, 0.07, 0.09, c, 0, d, 0));
+    const p = w(Vt, { roughness: 0.7 }), v = 0.52, m = s - 0.5, g = 0.5;
+    t.add(D(M(m, 0.06, g, p, 0, v, 0.02), i)), t.add(M(m, 0.08, g, w(7227951), 0, v - 0.06, 0.02)), t.add(D(M(m, 0.42, 0.05, p, 0, v + 0.23, -0.22), i));
+    for (const y of [-1, 1]) t.add(M(0.05, 0.22, g, p, y * (m / 2 - 0.03), v + 0.13, 0.02));
+    const x = w(5987163, { roughness: 0.95 });
+    for (const y of [-1, 1])
+      for (const _ of [-1, 1])
+        t.add(J(0.01, 0.01, n - v - 0.1, x, y * (m / 2 - 0.05), (n + v) / 2, 0.02 + _ * (g / 2 - 0.06), 6));
+    return t;
   },
   // Round/oval stone table (travertine look) on two chunky curved feet.
   round_table: (i) => {
@@ -21124,6 +21135,23 @@ const Pl = {
     const t = new H();
     return t.add(D(M(0.7, 2, 0.05, w(Vt), -0.36, 1, 0), i)), t.add(D(M(0.7, 2, 0.05, w(Vt), 0.36, 1, 0), i)), t.add(J(0.025, 0.025, 0.1, w(yt), -0.05, 1, 0.05)), t.add(J(0.025, 0.025, 0.1, w(yt), 0.05, 1, 0.05)), t;
   },
+  // Cottage sectional garage door — opens UPWARD (the panelled door lifts into the
+  // headbox). Reuses the vertical cover hook 'blindPivotV' so a bound `cover`
+  // entity raises/lowers it; closed = down, open = retracted to the top.
+  garage_door: (i) => {
+    const t = new H(), e = 2.6, n = 2.2, s = 0.05, r = w(15131870, { roughness: 0.7 });
+    t.add(M(0.12, n + 0.14, 0.16, r, -1.36, (n + 0.14) / 2, s)), t.add(M(0.12, n + 0.14, 0.16, r, e / 2 + 0.06, (n + 0.14) / 2, s)), t.add(M(e + 0.24, 0.18, 0.18, r, 0, n + 0.09, s));
+    const o = new H();
+    o.name = "blindPivotV", o.position.set(0, n, s);
+    const a = w(15921386, { roughness: 0.6 }), l = w(14342094, { roughness: 0.7 }), c = 5, h = n / c;
+    for (let d = 1; d <= c; d++) {
+      const u = -(d - 0.5) * h;
+      o.add(D(M(e, h - 0.02, 0.06, a, 0, u, 0.02), i));
+      for (const f of [-e / 3, 0, e / 3])
+        o.add(M(e / 3 - 0.16, h - 0.14, 0.02, l, f, u, 0.06));
+    }
+    return o.add(M(0.28, 0.05, 0.05, w(yt), 0, -n + 0.55, 0.07)), t.add(o), t;
+  },
   sliding_door: (i) => {
     const t = new H();
     return t.add(M(1.6, 0.06, 0.08, w(yt), 0, 2.05, 0)), t.add(D(M(0.78, 1.95, 0.04, w(ni, { transparent: !0, opacity: 0.4 }), -0.4, 1, 0), i)), t.add(D(M(0.78, 1.95, 0.04, w(ni, { transparent: !0, opacity: 0.4 }), 0.4, 1, 0.05), i)), t;
@@ -21609,7 +21637,8 @@ const Pl = {
   "curtain_single",
   "urinal",
   "sink_double",
-  "blind_bottomup"
+  "blind_bottomup",
+  "garage_door"
 ];
 function vd(i) {
   return x1.includes(i);
@@ -21638,7 +21667,8 @@ const y1 = [
   "curtain_single",
   "urinal",
   "sink_double",
-  "blind_bottomup"
+  "blind_bottomup",
+  "garage_door"
 ];
 function b1(i) {
   return y1.includes(i);
@@ -21685,6 +21715,7 @@ function _1(i) {
     case "roller_blind":
     case "roman_blind":
     case "blind_bottomup":
+    case "garage_door":
       return ["cover"];
     case "door":
     case "double_door":
@@ -21813,6 +21844,7 @@ const w1 = {
   roller_blind: "#d6dadf",
   roman_blind: "#cdd3da",
   blind_bottomup: "#cbb79c",
+  garage_door: "#f2f0ea",
   towel_rack: "#d0d4d8",
   bathroom_cabinet: "#e8eaec",
   trash_can: "#9aa0a6",
@@ -23412,7 +23444,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.63.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
+const s_ = "0.64.0", Ro = "ha-3d-floorplan-sidebar-item", Cd = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }

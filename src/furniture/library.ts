@@ -242,24 +242,43 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   // Hanging swing (arg'imchoq) — a freestanding A-frame with a rope seat.
   swing: (c) => {
+    // House-shaped garden swing: an A-frame carrying a little pitched ROOF canopy
+    // ("uycha") over a hanging bench seat with a back + arms.
     const g = new THREE.Group();
-    const wood = mat(WOOD);
-    const H = 2.0, span = 1.5, depth = 1.1;
-    const beam = cyl(0.05, 0.05, span + 0.15, wood, 0, H, 0, 10);
-    beam.rotation.z = Math.PI / 2;
-    g.add(beam);
+    const post = mat(0x8a6a4a, { roughness: 0.75 });
+    const H = 2.05, span = 1.9, depth = 1.4;
+    // splayed A-frame legs (two per side)
     const legLen = Math.hypot(H, depth / 2);
     const tilt = Math.atan2(depth / 2, H);
     for (const sx of [-1, 1])
       for (const sz of [-1, 1]) {
-        const leg = cyl(0.035, 0.05, legLen, wood, sx * (span / 2), H / 2, (sz * depth) / 4, 8);
+        const leg = cyl(0.045, 0.06, legLen, post, sx * (span / 2), H / 2, (sz * depth) / 4, 10);
         leg.rotation.x = -sz * tilt;
         g.add(leg);
       }
+    const beam = cyl(0.055, 0.055, span + 0.2, post, 0, H, 0, 10); // top beam the seat hangs from
+    beam.rotation.z = Math.PI / 2;
+    g.add(beam);
+    // pitched roof canopy — two sloped panels meeting at a ridge (the "little house")
+    const roofMat = mat(0x7a4f2e, { roughness: 0.85 });
+    const rLen = span + 0.5, ridgeY = H + 0.6, eaveY = H + 0.16, eaveZ = depth / 2 + 0.28;
+    for (const s of [-1, 1]) {
+      const panel = box(rLen, 0.05, Math.hypot(ridgeY - eaveY, eaveZ) + 0.06, roofMat, 0, (ridgeY + eaveY) / 2, (s * eaveZ) / 2);
+      panel.rotation.x = s * Math.atan2(ridgeY - eaveY, eaveZ);
+      g.add(tint(panel, c));
+    }
+    g.add(box(rLen, 0.07, 0.09, roofMat, 0, ridgeY, 0)); // ridge beam
+    // hanging bench seat: seat + frame + backrest + arms
+    const seatMat = mat(WOOD, { roughness: 0.7 });
+    const seatY = 0.52, sw = span - 0.5, sd = 0.5;
+    g.add(tint(box(sw, 0.06, sd, seatMat, 0, seatY, 0.02), c));
+    g.add(box(sw, 0.08, sd, mat(0x6e4a2f), 0, seatY - 0.06, 0.02));
+    g.add(tint(box(sw, 0.42, 0.05, seatMat, 0, seatY + 0.23, -0.22), c));
+    for (const sx of [-1, 1]) g.add(box(0.05, 0.22, sd, seatMat, sx * (sw / 2 - 0.03), seatY + 0.13, 0.02));
     const rope = mat(0x5b5b5b, { roughness: 0.95 });
-    const seatY = 0.5;
-    for (const sx of [-1, 1]) g.add(cyl(0.008, 0.008, H - seatY, rope, sx * 0.34, (H + seatY) / 2, 0, 6));
-    g.add(tint(box(0.85, 0.07, 0.4, mat(0x8a6a4a), 0, seatY, 0), c));
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1])
+        g.add(cyl(0.01, 0.01, H - seatY - 0.1, rope, sx * (sw / 2 - 0.05), (H + seatY) / 2, 0.02 + sz * (sd / 2 - 0.06), 6));
     return g;
   },
   // Round/oval stone table (travertine look) on two chunky curved feet.
@@ -1227,6 +1246,32 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(cyl(0.025, 0.025, 0.1, mat(METAL), 0.05, 1.0, 0.05));
     return g;
   },
+  // Cottage sectional garage door — opens UPWARD (the panelled door lifts into the
+  // headbox). Reuses the vertical cover hook 'blindPivotV' so a bound `cover`
+  // entity raises/lowers it; closed = down, open = retracted to the top.
+  garage_door: (c) => {
+    const g = new THREE.Group();
+    const W = 2.6, H = 2.2, OFF = 0.05;
+    const frameMat = mat(0xe6e4de, { roughness: 0.7 });
+    g.add(box(0.12, H + 0.14, 0.16, frameMat, -(W / 2 + 0.06), (H + 0.14) / 2, OFF)); // left jamb
+    g.add(box(0.12, H + 0.14, 0.16, frameMat, W / 2 + 0.06, (H + 0.14) / 2, OFF)); // right jamb
+    g.add(box(W + 0.24, 0.18, 0.18, frameMat, 0, H + 0.09, OFF)); // headbox / lintel
+    const pivot = new THREE.Group();
+    pivot.name = 'blindPivotV'; // origin at the TOP; panels hang DOWN → lift up to open
+    pivot.position.set(0, H, OFF);
+    const panelMat = mat(0xf2f0ea, { roughness: 0.6 });
+    const recess = mat(0xdad7ce, { roughness: 0.7 });
+    const rows = 5, ph = H / rows;
+    for (let i = 1; i <= rows; i++) {
+      const yc = -(i - 0.5) * ph;
+      pivot.add(tint(box(W, ph - 0.02, 0.06, panelMat, 0, yc, 0.02), c)); // section slab
+      for (const px of [-W / 3, 0, W / 3]) // three raised-panel recesses per row
+        pivot.add(box(W / 3 - 0.16, ph - 0.14, 0.02, recess, px, yc, 0.06));
+    }
+    pivot.add(box(0.28, 0.05, 0.05, mat(METAL), 0, -H + 0.55, 0.07)); // handle
+    g.add(pivot);
+    return g;
+  },
   sliding_door: (c) => {
     const g = new THREE.Group();
     g.add(box(1.6, 0.06, 0.08, mat(METAL), 0, 2.05, 0)); // rail
@@ -2091,7 +2136,7 @@ export const WALL_MOUNT_KEYS = [
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
-  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
+  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -2104,7 +2149,7 @@ export const SURFACE_MOUNT_KEYS = [
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
-  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
+  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -2160,6 +2205,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'roller_blind':
     case 'roman_blind':
     case 'blind_bottomup':
+    case 'garage_door':
       return ['cover'];
     case 'door':
     case 'double_door':
@@ -2263,7 +2309,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   // Decor / soft furnishings
   plant: '#3f8f4f', rug: '#b5563a', floor_vase: '#b0764a', vase: '#b0764a',
   painting: '#cfc2a8', mirror: '#bcc8cc', wall_clock: '#f0f0f0', whiteboard: '#f4f6f8',
-  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da', blind_bottomup: '#cbb79c',
+  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da', blind_bottomup: '#cbb79c', garage_door: '#f2f0ea',
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
