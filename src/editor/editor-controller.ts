@@ -34,6 +34,13 @@ const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant
   sliding_door: { kind: 'door', width: 1.7, variant: 'sliding' },
 };
 
+/** Wall-mount models that mount IN the wall like a door: placement pierces a
+ *  BARE opening (a real hole) and drops the (still animatable) model flush in it,
+ *  linked via `attach` so deleting the piece removes the hole. */
+const WALL_CUT_MODELS: Record<string, { width: number; top: number }> = {
+  garage_door: { width: 2.6, top: 2.2 },
+};
+
 const SNAP = 0.1; // grid snap, meters
 const CLOSE_DIST = 0.4; // distance to first point that closes a room
 const VERT_SNAP = 0.3; // snap a new point onto an existing wall endpoint
@@ -577,6 +584,33 @@ export class EditorController {
       }
       return;
     }
+    // Wall-cut models (garage door): pierce a bare hole in the nearest wall and
+    // drop the model flush into it, linked so deleting the piece closes the hole.
+    const cutCfg = WALL_CUT_MODELS[this.selectedModel];
+    if (cutCfg) {
+      this.pushUndo();
+      const cut = this.cutForWallModel(p, cutCfg);
+      if (!cut) {
+        this.undoStack.pop(); // nothing changed — drop the redundant snapshot
+        this.onMessage?.('Tap on (or near) a wall to install the garage door');
+        return;
+      }
+      if (!fl.furniture) fl.furniture = [];
+      const wh = fl.wallHeight ?? this.plan.wallHeight ?? 2.6;
+      const id = `f${fl.furniture.length}_${Math.floor(performance.now() % 100000)}`;
+      fl.furniture.push({
+        model: this.selectedModel,
+        position: [cut.x, defaultY(this.selectedModel, wh), cut.z],
+        rotation: cut.rotation,
+        color: defaultColor(this.selectedModel),
+        id,
+        attach: { kind: 'wall', index: cut.wallIndex, opening: cut.openingIndex },
+      });
+      this.rebuild();
+      this.selectFurniture(id);
+      this.onMessage?.('Garage door installed in wall');
+      return;
+    }
     this.pushUndo();
     if (!fl.furniture) fl.furniture = [];
     const wh = fl.wallHeight ?? this.plan.wallHeight ?? 2.6;
@@ -645,6 +679,48 @@ export class EditorController {
     this.selectOpening(best.i, w.openings!.length - 1);
     this.onMessage?.(`${cfg.kind === 'door' ? 'Glass door' : 'Window'} cut into wall`);
     return true;
+  }
+
+  /** Cut a BARE (leaf-less) door opening on the nearest wall for a wall-cut model
+   *  and return the opening's wall/index plus the in-wall placement (centreline
+   *  point + wall angle) so the model can be dropped flush into the hole. */
+  private cutForWallModel(
+    p: THREE.Vector3,
+    cfg: { width: number; top: number },
+  ): { wallIndex: number; openingIndex: number; x: number; z: number; rotation: number } | null {
+    const walls = this.floor().walls ?? [];
+    let best: { i: number; along: number; len: number } | null = null;
+    let bd = 1.0;
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      const ax = w.start[0], az = w.start[1], bx = w.end[0], bz = w.end[1];
+      const dx = bx - ax, dz = bz - az;
+      const l2 = dx * dx + dz * dz;
+      if (l2 < 1e-6) continue;
+      let t = ((p.x - ax) * dx + (p.z - az) * dz) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const cx = ax + dx * t, cz = az + dz * t;
+      const d = Math.hypot(p.x - cx, p.z - cz);
+      if (d < bd) {
+        bd = d;
+        best = { i, along: t * Math.sqrt(l2), len: Math.sqrt(l2) };
+      }
+    }
+    if (!best) return null;
+    const w = walls[best.i];
+    const len = best.len;
+    const width = Math.min(cfg.width, Math.max(0.4, len - 0.1));
+    const position = Math.max(0, Math.min(len - width, best.along - width / 2));
+    (w.openings ??= []).push({ kind: 'door', position, width, sill: 0, top: cfg.top, bare: true });
+    const dxu = (w.end[0] - w.start[0]) / len, dzu = (w.end[1] - w.start[1]) / len;
+    const centre = position + width / 2;
+    return {
+      wallIndex: best.i,
+      openingIndex: w.openings!.length - 1,
+      x: w.start[0] + dxu * centre,
+      z: w.start[1] + dzu * centre,
+      rotation: (-Math.atan2(w.end[1] - w.start[1], w.end[0] - w.start[0]) * 180) / Math.PI,
+    };
   }
 
   /** Nearest point on any wall / shape-room edge, with orientation + normal/side

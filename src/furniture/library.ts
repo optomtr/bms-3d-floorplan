@@ -2149,7 +2149,7 @@ export const SURFACE_MOUNT_KEYS = [
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
-  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
+  'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
