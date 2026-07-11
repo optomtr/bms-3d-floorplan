@@ -281,6 +281,51 @@ const builders: Record<string, FurnitureBuilder> = {
         g.add(cyl(0.01, 0.01, H - seatY - 0.1, rope, sx * (sw / 2 - 0.05), (H + seatY) / 2, 0.02 + sz * (sd / 2 - 0.06), 6));
     return g;
   },
+  // Wooden Montessori-style children's SLIDE (toyinchoq): a raised deck under a
+  // tall rounded arch (a mirror/opening), with a CURVED chute descending to the
+  // floor + side rails. Light natural oak.
+  slide: (c) => {
+    const g = new THREE.Group();
+    const oak = mat(0xdcc5a0, { roughness: 0.72 });
+    const oak2 = mat(0xcab086, { roughness: 0.8 });
+    const chuteMat = mat(0xe0cba6, { roughness: 0.55 });
+    const platH = 0.92, W = 0.9;
+    // raised deck + posts + a back apron under it
+    g.add(tint(box(W, 0.08, 0.85, oak, 0, platH, -0.95), c));
+    for (const sx of [-1, 1])
+      for (const sz of [-0.6, -1.3])
+        g.add(box(0.08, platH, 0.08, oak2, sx * (W / 2 - 0.06), platH / 2, sz));
+    g.add(box(W, platH - 0.1, 0.05, oak2, 0, (platH - 0.1) / 2, -1.32));
+    // tall rounded arch behind the deck (the "little house" arch + inner panel)
+    const arch = mat(0xe6d5b6, { roughness: 0.85 });
+    const aW = W + 0.16, aH = 1.5, az = -1.42;
+    for (const sx of [-1, 1]) g.add(box(0.1, aH, 0.14, arch, sx * (aW / 2 - 0.05), platH + aH / 2 - 0.15, az));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(aW / 2 - 0.05, 0.07, 8, 22, Math.PI), arch);
+    ring.position.set(0, platH + aH - 0.15, az);
+    g.add(ring);
+    g.add(box(aW - 0.34, aH - 0.15, 0.04, mat(0xf1e8d4, { roughness: 0.5 }), 0, platH + (aH - 0.15) / 2 - 0.08, az + 0.06));
+    // curved chute down to the floor + side rails (faceted quarter-curve)
+    const N = 10, z0 = -0.5, z1 = 1.7;
+    const pts: number[][] = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      pts.push([z0 + (z1 - z0) * t, platH * Math.pow(1 - t, 1.7)]);
+    }
+    for (let i = 0; i < N; i++) {
+      const za = pts[i][0], ya = pts[i][1], zb = pts[i + 1][0], yb = pts[i + 1][1];
+      const zc = (za + zb) / 2, yc = (ya + yb) / 2;
+      const dz = zb - za, dy = yb - ya, len = Math.hypot(dz, dy), ang = Math.atan2(dy, dz);
+      const bed = tint(box(W, 0.05, len + 0.03, chuteMat, 0, yc + 0.04, zc), c);
+      bed.rotation.x = -ang;
+      g.add(bed);
+      for (const sx of [-1, 1]) {
+        const r = box(0.06, 0.17, len + 0.03, oak2, sx * (W / 2), yc + 0.11, zc);
+        r.rotation.x = -ang;
+        g.add(r);
+      }
+    }
+    return g;
+  },
   // Round/oval stone table (travertine look) on two chunky curved feet.
   round_table: (c) => {
     const g = new THREE.Group();
@@ -2286,7 +2331,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   table: '#9c6b3f', dining_table: '#9c6b3f', coffee_table: '#9c6b3f',
   console_table: '#9c6b3f', desk: '#9c6b3f', chair: '#9c6b3f', office_chair: '#3a3e44',
   bar_stool: '#9c6b3f', stairs: '#b08a5a', stairs_down: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
-  swing: '#8a6a4a', round_table: '#e9e2d5', roly_chair: '#9aa878',
+  swing: '#8a6a4a', slide: '#dcc5a0', round_table: '#e9e2d5', roly_chair: '#9aa878',
   stairs_switchback: '#b08a5a', stairs_flat: '#9c6b3f', column_sq: '#d8d2c6', column_round: '#d8d2c6',
   elevator: '#e8eaec', reception: '#9c6b3f', canopy: '#d8d8dc', car: '#30506e', porch: '#d7d2c8',
   double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
