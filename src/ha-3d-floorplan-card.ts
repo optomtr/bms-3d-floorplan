@@ -2536,13 +2536,25 @@ export class Ha3dFloorplanCard extends LitElement {
     // the sub carries the measured room temperature ("22,5° сейчас").
     const curStr = cur != null ? Number(cur).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
     const sub = on ? (curStr != null ? `${curStr}° ${this.t('now')}` : this.climateModeLabel(mode)) : this.t('Off');
-    const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'heat', 'auto'];
-    const autoMode = modes.includes('auto') ? 'auto' : 'heat_cool';
-    const isAuto = mode === 'auto' || mode === 'heat_cool';
+    // Only offer the modes the device actually supports — sending an unsupported
+    // mode (e.g. heat_cool / heat to a cool-only AC) errors in HA. Active modes
+    // first, "off" last. A fan-speed row appears when the unit exposes fan_modes.
+    const modes: string[] =
+      (ent?.attributes?.hvac_modes as string[] | undefined)?.length
+        ? (ent!.attributes!.hvac_modes as string[])
+        : ['off'];
+    const active = modes.filter((m) => m !== 'off');
+    const onMode = active[0] ?? 'heat';
+    const segModes = [...active, ...(modes.includes('off') ? ['off'] : [])];
+    const toggleIcon = climateModeIconName(on ? mode : onMode) ?? 'power';
+    const fanModes = (ent?.attributes?.fan_modes as string[] | undefined) ?? [];
+    const fanMode = ent?.attributes?.fan_mode as string | undefined;
+    const fanLabel = (f: string) =>
+      this.t(({ low: 'Low', mid: 'Medium', medium: 'Medium', high: 'High', auto: 'Auto' } as Record<string, string>)[f] ?? f);
     return html`<div class="card ${on ? 'on cool' : ''}">
       <div class="crow">
         <button type="button" class="cicon ${on ? 'lit' : ''}" title="Toggle"
-          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: on ? 'off' : 'heat' }, id, on ? 'off' : 'heat')}>${this.ic('heat')}</button>
+          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: on ? 'off' : onMode }, id, on ? 'off' : onMode)}>${this.ic(toggleIcon)}</button>
         <div class="cgrow">
           <div class="clabel">${this.cardName(id, title)}</div>
           <div class="csub">${sub}</div>
@@ -2554,13 +2566,19 @@ export class Ha3dFloorplanCard extends LitElement {
         </div>
       </div>
       <div class="seg">
-        <button type="button" class="segb ${mode === 'heat' ? 'on' : ''}"
-          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: 'heat' }, id, 'heat')}>${this.t('Heat mode')}</button>
-        <button type="button" class="segb ${isAuto ? 'on' : ''}"
-          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: autoMode }, id, autoMode)}>${this.t('Auto mode')}</button>
-        <button type="button" class="segb ${!on ? 'on' : ''}"
-          @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: 'off' }, id, 'off')}>${this.t('Off mode')}</button>
+        ${segModes.map(
+          (m) => html`<button type="button" class="segb ${mode === m ? 'on' : ''}"
+            @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id, m)}>${m === 'off' ? this.t('Off mode') : this.climateModeLabel(m)}</button>`,
+        )}
       </div>
+      ${fanModes.length && on
+        ? html`<div class="seg fan">
+            ${fanModes.map(
+              (f) => html`<button type="button" class="segb ${fanMode === f ? 'on' : ''}" title=${'Fan: ' + f}
+                @click=${() => this.svc('climate', 'set_fan_mode', { fan_mode: f }, id)}>${fanLabel(f)}</button>`,
+            )}
+          </div>`
+        : nothing}
     </div>`;
   }
 
