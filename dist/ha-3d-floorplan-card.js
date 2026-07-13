@@ -23473,7 +23473,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.67.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
+const s_ = "0.68.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28024,15 +28024,18 @@ dt.styles = qd`
       background: var(--card2);
       color: var(--tx);
     }
-    /* Climate mode segmented control. */
+    /* Climate mode chips — wrap onto more rows so a unit with many modes
+       (auto/fan/dry/cool/heat/off) is never squashed or clipped. */
     .seg {
       display: flex;
-      gap: 4px;
+      flex-wrap: wrap;
+      gap: 6px;
       margin-top: 14px;
     }
     .segb {
-      flex: 1;
-      padding: 10px 0;
+      flex: 1 1 auto;
+      min-width: 72px;
+      padding: 10px 8px;
       border-radius: 11px;
       border: 1px solid var(--brd);
       background: rgba(255, 255, 255, 0.05);
@@ -28041,6 +28044,7 @@ dt.styles = qd`
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      white-space: nowrap;
       -webkit-tap-highlight-color: transparent;
     }
     .segb.on {
