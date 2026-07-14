@@ -162,7 +162,10 @@ export class BindingManager {
     }
 
     if (
-      behavior === 'climate' ||
+      // NOTE: 'climate' intentionally omitted — the floating "cur° → target°"
+      // indicator floated up high (worst on upper floors, where the AC has no
+      // placed model so it anchors to the floor centre). Climate stays fully
+      // controllable via its room marker + the room panel.
       behavior === 'sensor' ||
       behavior === 'binary_sensor' ||
       behavior === 'lock' ||
