@@ -23497,7 +23497,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.71.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
+const s_ = "0.72.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28323,10 +28323,19 @@ dt.styles = qd`
     .rp-body {
       flex: 1;
       overflow-y: auto;
+      /* Only ever scroll vertically. Without this, overflow-y:auto makes the X
+         axis 'auto' too, so any hair of horizontal overflow (a wide light grid,
+         a long name) turns into a left-right drag/wobble. Clip it instead. */
+      overflow-x: hidden;
       padding: 6px 20px 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
+    }
+    /* Let cards + their grid tiles shrink to the panel width instead of forcing
+       a horizontal overflow (flex/grid items default to min-width:auto). */
+    .rp-body > .card {
+      min-width: 0;
     }
     .rp-body::-webkit-scrollbar {
       width: 0;
@@ -28428,6 +28437,7 @@ dt.styles = qd`
       flex-direction: column;
       align-items: center;
       gap: 8px;
+      min-width: 0;
       padding: 12px 6px 10px;
       border-radius: 14px;
       border: 1px solid var(--brd);

@@ -4166,10 +4166,19 @@ export class Ha3dFloorplanCard extends LitElement {
     .rp-body {
       flex: 1;
       overflow-y: auto;
+      /* Only ever scroll vertically. Without this, overflow-y:auto makes the X
+         axis 'auto' too, so any hair of horizontal overflow (a wide light grid,
+         a long name) turns into a left-right drag/wobble. Clip it instead. */
+      overflow-x: hidden;
       padding: 6px 20px 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
+    }
+    /* Let cards + their grid tiles shrink to the panel width instead of forcing
+       a horizontal overflow (flex/grid items default to min-width:auto). */
+    .rp-body > .card {
+      min-width: 0;
     }
     .rp-body::-webkit-scrollbar {
       width: 0;
@@ -4271,6 +4280,7 @@ export class Ha3dFloorplanCard extends LitElement {
       flex-direction: column;
       align-items: center;
       gap: 8px;
+      min-width: 0;
       padding: 12px 6px 10px;
       border-radius: 14px;
       border: 1px solid var(--brd);
