@@ -591,6 +591,17 @@ export class Ha3dFloorplanCard extends LitElement {
     return modes.includes('color_temp') || a.color_temp_kelvin != null || a.min_color_temp_kelvin != null;
   }
 
+  /** Whether a light can be dimmed. On/off-only lights (['onoff']) return false,
+   *  so no bogus brightness slider is shown for them. */
+  private lightSupportsBrightness(id: string): boolean {
+    const a = this.hass?.states[id]?.attributes ?? {};
+    const modes: string[] = a.supported_color_modes ?? [];
+    return (
+      modes.some((m) => ['brightness', 'color_temp', 'hs', 'rgb', 'xy', 'rgbw', 'rgbww'].includes(m)) ||
+      a.brightness != null
+    );
+  }
+
   private closeControl = (): void => {
     // A touch tap fires a synthesized "ghost" click ~300ms later that lands on
     // the freshly-rendered backdrop; ignore closes within that window so the
@@ -2160,6 +2171,20 @@ export class Ha3dFloorplanCard extends LitElement {
     return undefined;
   }
 
+  /** Whole-home humidity = average of every humidity sensor in HA (not just the
+   *  ones bound to a room). Humidity sensors are usually auxiliary AC readings
+   *  that aren't placed in the 3D scene, so a room-only lookup shows nothing. */
+  private homeHumidity(): string {
+    const vals: number[] = [];
+    for (const st of Object.values(this.hass?.states ?? {})) {
+      if ((st as HassEntity).attributes?.device_class === 'humidity') {
+        const v = Number((st as HassEntity).state);
+        if (Number.isFinite(v)) vals.push(v);
+      }
+    }
+    return vals.length ? `${Math.round(vals.reduce((s, v) => s + v, 0) / vals.length)}%` : '—';
+  }
+
   /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
   private onSliderDown(e: PointerEvent, id: string, cb: (pct: number) => void): void {
     if (e.cancelable) e.preventDefault();
@@ -2259,7 +2284,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   /** Whole-home rollup for the screensaver: avg temp/humidity, lights on, lock. */
   private homeSummary(): { temp: string; hum: string; on: string; secIcon: string; secLabel: string } {
-    let tSum = 0, tN = 0, hSum = 0, hN = 0, on = 0;
+    let tSum = 0, tN = 0, on = 0;
     const locks: string[] = [];
     for (const room of this.rooms) {
       const t = this.roomSensor(room, 'temperature', ['°C', '°F']);
@@ -2270,8 +2295,6 @@ export class Ha3dFloorplanCard extends LitElement {
         tv = cur != null ? Number(cur) : undefined;
       }
       if (tv != null && Number.isFinite(tv)) { tSum += tv; tN++; }
-      const h = this.roomSensor(room, 'humidity', ['%']);
-      if (h) { const hv = Number(h.state); if (Number.isFinite(hv)) { hSum += hv; hN++; } }
       on += this.roomLights(room).ids.filter((id) => this.effState(id) === 'on').length;
       for (const e of room.entities) if (e.behavior === 'lock') locks.push(e.entity_id);
     }
@@ -2282,7 +2305,7 @@ export class Ha3dFloorplanCard extends LitElement {
       secIcon = allLocked ? 'lockClosed' : 'lockOpen';
       secLabel = allLocked ? this.t('Locked') : this.t('Unlocked');
     }
-    return { temp: tN ? `${fT(tSum / tN)}°` : '—', hum: hN ? `${Math.round(hSum / hN)}%` : '—', on: String(on), secIcon, secLabel };
+    return { temp: tN ? `${fT(tSum / tN)}°` : '—', hum: this.homeHumidity(), on: String(on), secIcon, secLabel };
   }
 
   private renderScreensaver() {
@@ -2456,15 +2479,21 @@ export class Ha3dFloorplanCard extends LitElement {
     return n || (st?.attributes?.friendly_name as string) || id;
   }
 
-  /** One "Свет" card for ALL of a room's lights — toggle/brightness/colour-temp
-   *  apply to every light together (matches the design's single light card). */
+  /** A room's lights: a header (count on + master all-toggle) over a wrapping
+   *  grid of per-light tiles, so each light is controlled individually. The
+   *  brightness/colour-temp sliders only appear when a light is actually dimmable
+   *  (on/off-only lights don't get a slider that snaps back to 100%). */
   private renderLightCard(ids: string[]) {
-    const on = ids.some((id) => this.effState(id) === 'on');
-    const repId = ids.find((id) => this.effState(id) === 'on') ?? ids[0];
-    const rawBri = this.hass?.states[repId]?.attributes?.brightness;
+    const onCount = ids.filter((id) => this.effState(id) === 'on').length;
+    const anyOn = onCount > 0;
+    const dimIds = ids.filter((id) => this.lightSupportsBrightness(id));
+    const dimmable = dimIds.length > 0;
+    const repId = dimIds.find((id) => this.effState(id) === 'on') ?? dimIds[0];
+    const rawBri = repId ? this.hass?.states[repId]?.attributes?.brightness : undefined;
     const briReal = rawBri != null ? Math.round((rawBri / 255) * 100) : 100;
     const briKey = ids[0];
     const bri = this.sliderValue(briKey, briReal);
+    const setAllBri = (p: number) => { for (const id of dimIds) this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'); };
     // Colour temperature (warm↔cold) from the lights that expose it.
     const ctIds = ids.filter((id) => this.lightSupportsCT(id));
     const ctRep = ctIds.find((id) => this.effState(id) === 'on') ?? ctIds[0];
@@ -2475,19 +2504,30 @@ export class Ha3dFloorplanCard extends LitElement {
     const ctReal = Number.isFinite(curK) ? Math.round(((curK - minK) / (maxK - minK)) * 100) : 50;
     const ctKey = `${ids[0]}#ct`;
     const ct = this.sliderValue(ctKey, Math.max(0, Math.min(100, ctReal)));
-    const setAllBri = (p: number) => { for (const id of ids) this.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'); };
     const setAllCT = (p: number) => { for (const id of ctIds) this.setLightCT(id, p); };
-    return html`<div class="card ${on ? 'on' : ''}">
+    return html`<div class="card lights ${anyOn ? 'on' : ''}">
       <div class="crow">
-        <div class="cicon ${on ? 'lit' : ''}">${this.ic('bulb')}</div>
+        <div class="cicon ${anyOn ? 'lit' : ''}">${this.ic('bulb')}</div>
         <div class="cgrow">
           <div class="clabel">${this.t('Light')}</div>
-          <div class="csub">${on ? `${this.t('On')} · ${bri}%` : this.t('Off')}</div>
+          <div class="csub">${onCount} / ${ids.length}${anyOn && dimmable ? ` · ${bri}%` : ''}</div>
         </div>
-        <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+        <button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle all"
           @click=${() => this.onToggleAll(ids.map((id) => ({ entity_id: id, behavior: 'light' })))}><span class="sw-k"></span></button>
       </div>
-      ${on
+      ${ids.length > 1
+        ? html`<div class="lgrid">
+            ${ids.map((id) => {
+              const lon = this.effState(id) === 'on';
+              return html`<button type="button" class="ltile ${lon ? 'on' : ''}" title=${this.cardName(id)}
+                @click=${() => this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on')}>
+                <span class="lti ${lon ? 'lit' : ''}">${this.ic('bulb')}</span>
+                <span class="ltn">${this.cardName(id)}</span>
+              </button>`;
+            })}
+          </div>`
+        : nothing}
+      ${anyOn && dimmable
         ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, briKey, setAllBri)}>
               <div class="slider-fill" style="width:${bri}%"></div>
               <div class="slider-lab"><span>${this.t('Brightness')}</span><span>${bri}%</span></div>
@@ -2612,35 +2652,62 @@ export class Ha3dFloorplanCard extends LitElement {
   private renderMediaCard(id: string, title?: string) {
     const ent = this.hass!.states[id];
     const state = this.effState(id);
+    const on = state !== 'off' && state !== 'unavailable' && state !== 'unknown' && state !== 'standby';
     const playing = state === 'playing';
+    // Only show controls the device actually supports (a TV usually has power +
+    // volume up/down/mute, no play/pause and no volume slider).
+    const sf = Number(ent?.attributes?.supported_features) || 0;
+    const can = (b: number) => (sf & b) === b;
+    const powerable = can(128) || can(256); // TURN_ON | TURN_OFF
+    const hasPlayPause = can(1) || can(16384); // PAUSE | PLAY
+    const hasPrev = can(16), hasNext = can(32);
+    const volSet = can(4), volStep = can(1024), volMute = can(8); // SET | STEP | MUTE
+    const muted = !!ent?.attributes?.is_volume_muted;
     const volReal = Math.round((Number(ent?.attributes?.volume_level) || 0) * 100);
     const vol = this.sliderValue(id, volReal);
     const track = ent?.attributes?.media_title ?? this.cardName(id, title);
     const artist = ent?.attributes?.media_artist ?? '';
-    return html`<div class="card ${playing ? 'on' : ''}">
+    return html`<div class="card ${on ? 'on' : ''}">
       <div class="crow">
-        <div class="cicon ${playing ? 'lit' : ''}">${this.ic('tv')}</div>
+        <div class="cicon ${on ? 'lit' : ''}">${this.ic('tv')}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(id, title)}</div>
-          <div class="csub">${playing ? this.t('Playing now') : this.t('Paused')}</div>
+          <div class="csub">${playing ? this.t('Playing now') : on ? this.t('On') : this.t('Off')}</div>
         </div>
+        ${powerable
+          ? html`<button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+              @click=${() => this.svc('media_player', on ? 'turn_off' : 'turn_on', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>`
+          : nothing}
       </div>
-      <div class="mp">
-        <div class="mpart">${this.ic('album')}</div>
-        <div class="mptxt"><div class="mptrack">${track}</div><div class="mpartist">${artist}</div></div>
-        <div class="mpctl">
-          <button type="button" class="mpb" title="Previous"
-            @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>${this.ic('skipPrev')}</button>
-          <button type="button" class="mpb play" title="Play/Pause"
-            @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
-          <button type="button" class="mpb" title="Next"
-            @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>${this.ic('skipNext')}</button>
-        </div>
-      </div>
-      <div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('media_player', 'volume_set', { volume_level: p / 100 }, id))}>
-        <div class="slider-fill" style="width:${vol}%"></div>
-        <div class="slider-lab"><span>${this.t('Volume')}</span><span>${vol}%</span></div>
-      </div>
+      ${hasPlayPause
+        ? html`<div class="mp">
+            <div class="mpart">${this.ic('album')}</div>
+            <div class="mptxt"><div class="mptrack">${track}</div><div class="mpartist">${artist}</div></div>
+            <div class="mpctl">
+              ${hasPrev ? html`<button type="button" class="mpb" title="Previous"
+                @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>${this.ic('skipPrev')}</button>` : nothing}
+              <button type="button" class="mpb play" title="Play/Pause"
+                @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
+              ${hasNext ? html`<button type="button" class="mpb" title="Next"
+                @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>${this.ic('skipNext')}</button>` : nothing}
+            </div>
+          </div>`
+        : nothing}
+      ${volSet
+        ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('media_player', 'volume_set', { volume_level: p / 100 }, id))}>
+            <div class="slider-fill" style="width:${vol}%"></div>
+            <div class="slider-lab"><span>${this.t('Volume')}</span><span>${vol}%</span></div>
+          </div>`
+        : volStep || volMute
+          ? html`<div class="seg vol">
+              ${volMute ? html`<button type="button" class="segb ${muted ? 'on' : ''}" title="Mute"
+                @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${this.ic('mute')}</button>` : nothing}
+              ${volStep ? html`<button type="button" class="segb" title="Volume down"
+                @click=${() => this.svc('media_player', 'volume_down', {}, id)}>${this.ic('volDown')}</button>
+              <button type="button" class="segb" title="Volume up"
+                @click=${() => this.svc('media_player', 'volume_up', {}, id)}>${this.ic('volUp')}</button>` : nothing}
+            </div>`
+          : nothing}
     </div>`;
   }
 
@@ -2786,7 +2853,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   /** Whole-home status for the Обзор status row (heating / blinds / hum / lock). */
   private houseStatus(): { heat: string; heatLabel: string; blinds: string; hum: string; secIcon: string; secLabel: string } {
-    let heatN = 0, bTotal = 0, bOpen = 0, hSum = 0, hN = 0;
+    let heatN = 0, bTotal = 0, bOpen = 0;
     const locks: string[] = [];
     for (const room of this.rooms) {
       const c = room.entities.find((e) => e.behavior === 'climate');
@@ -2803,8 +2870,6 @@ export class Ha3dFloorplanCard extends LitElement {
         }
         if (e.behavior === 'lock') locks.push(e.entity_id);
       }
-      const h = this.roomSensor(room, 'humidity', ['%']);
-      if (h) { const hv = Number(h.state); if (Number.isFinite(hv)) { hSum += hv; hN++; } }
     }
     let secIcon = 'room', secLabel = this.t('At home');
     if (locks.length) {
@@ -2816,7 +2881,7 @@ export class Ha3dFloorplanCard extends LitElement {
       heat: String(heatN),
       heatLabel: this.ruPlural(heatN, 'комната греется', 'комнаты греются', 'комнат греются'),
       blinds: `${bOpen} ${this.t('of')} ${bTotal}`,
-      hum: hN ? `${Math.round(hSum / hN)}%` : '—',
+      hum: this.homeHumidity(),
       secIcon,
       secLabel,
     };
@@ -4192,6 +4257,74 @@ export class Ha3dFloorplanCard extends LitElement {
     .card.on.cool .cicon.lit {
       background: rgba(91, 184, 232, 0.16);
       color: var(--cool);
+    }
+    /* Per-light tiles: a wrapping grid so each light is controlled on its own,
+       with bigger icons and long names clamped to two lines (never overflow). */
+    .lgrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .ltile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 6px 10px;
+      border-radius: 14px;
+      border: 1px solid var(--brd);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--mut);
+      font: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ltile.on {
+      background: rgba(243, 168, 60, 0.14);
+      border-color: rgba(243, 168, 60, 0.4);
+      color: var(--tx);
+    }
+    .lti {
+      width: 48px;
+      height: 48px;
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--mut);
+    }
+    .lti.lit {
+      background: rgba(243, 168, 60, 0.18);
+      color: var(--accent);
+    }
+    .lti .icn {
+      width: 26px;
+      height: 26px;
+    }
+    .ltn {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      text-align: center;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      max-width: 100%;
+      word-break: break-word;
+    }
+    /* Media volume buttons for devices without a volume slider (icon chips). */
+    .seg.vol .segb {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 0;
+    }
+    .seg.vol .segb .icn {
+      width: 20px;
+      height: 20px;
     }
     .cgrow {
       flex: 1;
