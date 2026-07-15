@@ -3458,6 +3458,7 @@ export class Ha3dFloorplanCard extends LitElement {
       gap: 2px;
       max-height: 34vh;
       overflow-y: auto;
+      overflow-x: hidden;
       background: rgba(255, 255, 255, 0.04);
       border-radius: 8px;
       padding: 5px 7px;
@@ -3557,6 +3558,7 @@ export class Ha3dFloorplanCard extends LitElement {
       max-width: min(320px, 84%);
       max-height: 90%;
       overflow-y: auto;
+      overflow-x: hidden;
       background: rgba(20, 22, 26, 0.62);
       border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 12px;
@@ -4786,6 +4788,7 @@ export class Ha3dFloorplanCard extends LitElement {
       bottom: 26px;
       z-index: 5;
       overflow-y: auto;
+      overflow-x: hidden; /* vertical scroll only — never a left-right wobble */
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 14px;
@@ -4801,6 +4804,7 @@ export class Ha3dFloorplanCard extends LitElement {
       padding: 15px 16px 14px;
       display: flex;
       flex-direction: column;
+      min-width: 0; /* shrink to the grid column instead of overflowing it */
       animation: rp-rise 0.36s both;
     }
     .rcard.on {
@@ -5068,12 +5072,16 @@ export class Ha3dFloorplanCard extends LitElement {
     .dbody {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden; /* vertical scroll only — never a left-right wobble */
       padding: 6px 26px 24px;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       grid-auto-rows: min-content;
       gap: 14px;
       align-content: start;
+    }
+    .dbody > * {
+      min-width: 0; /* shrink to the grid column instead of overflowing it */
     }
     .dbody::-webkit-scrollbar {
       width: 0;
