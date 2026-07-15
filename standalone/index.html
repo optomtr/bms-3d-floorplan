@@ -334,7 +334,7 @@
         lastPlanJson = JSON.stringify(plan);
         if (card) return card;
         card = document.createElement('ha-3d-floorplan-card');
-        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
+        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', idleMinutes: 2, plan });
         document.body.appendChild(card);
         return card;
       }
@@ -349,7 +349,7 @@
         if (!card) { ensureCard(plan); return true; }
         currentPlan = plan;
         lastPlanJson = json;
-        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', plan });
+        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', idleMinutes: 2, plan });
         return true;
       }
 
