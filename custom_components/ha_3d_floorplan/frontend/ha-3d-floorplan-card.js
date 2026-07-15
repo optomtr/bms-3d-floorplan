@@ -23080,10 +23080,12 @@ class $1 {
     }
     const e = t.markerData(), n = this.floorRooms[this.activeFloor] ?? [], s = this.floorZones[this.activeFloor] ?? [], r = this.floorElev[this.activeFloor] ?? 0, o = new Map(e.map((u) => [u.entity_id, u.behavior])), a = /* @__PURE__ */ new Set();
     for (const u of s) {
-      const f = (u.entities ?? []).filter((g) => o.has(g) && !a.has(g));
+      const f = (u.entities ?? []).filter(
+        (g) => !a.has(g) && (o.has(g) || !this.lastHass || !!this.lastHass.states?.[g])
+      );
       if (!f.length) continue;
       for (const g of f) a.add(g);
-      const m = this.makeMarkerSprite("room", u.x, r + 1.6, u.z), v = f.map((g) => ({ entity_id: g, behavior: o.get(g) })), p = `${u.id ?? u.name ?? "zone"}#${this.activeRooms.length}`;
+      const m = this.makeMarkerSprite("room", u.x, r + 1.6, u.z), v = f.map((g) => ({ entity_id: g, behavior: o.get(g) ?? g.split(".")[0] })), p = `${u.id ?? u.name ?? "zone"}#${this.activeRooms.length}`;
       m.userData = {
         roomMarker: !0,
         roomKey: p,
@@ -23142,8 +23144,24 @@ class $1 {
     this.needsRender = !0, this.invalidate();
   }
   /** Whether a toggle device counts as "on" (drives the blue marker tint). */
-  isOnLight(t, e) {
-    return (t === "light" || t === "switch" || t === "fan" || t === "input_boolean") && e === "on";
+  /** Whether a device counts as "active" for a marker to glow — ANY controllable
+   *  device that is on / running, not only lights. Covers (open/closed) and locks
+   *  have no on/off "running" state, so they don't drive the glow. */
+  isDeviceActive(t, e) {
+    if (!e || e === "unavailable" || e === "unknown") return !1;
+    switch (t) {
+      case "light":
+      case "switch":
+      case "input_boolean":
+      case "fan":
+        return e === "on";
+      case "climate":
+        return e !== "off";
+      case "media_player":
+        return e === "playing" || e === "on";
+      default:
+        return !1;
+    }
   }
   /** Tint a marker: the selected room's pin is accent-orange; other room pins
    *  glow soft-amber when any of their lights are on; loose device markers turn
@@ -23155,11 +23173,11 @@ class $1 {
         t.material.color.setHex(15968316);
         return;
       }
-      const r = (n.roomEntities || []).some((o) => this.isOnLight(o.behavior, e?.states?.[o.entity_id]?.state));
+      const r = (n.roomEntities || []).some((o) => this.isDeviceActive(o.behavior, e?.states?.[o.entity_id]?.state));
       t.material.color.setHex(r ? 16173450 : 16777215);
       return;
     }
-    const s = this.isOnLight(n.markerBehavior, e?.states?.[n.markerEntity]?.state);
+    const s = this.isDeviceActive(n.markerBehavior, e?.states?.[n.markerEntity]?.state);
     t.material.color.setHex(s ? 5088255 : 16777215);
   }
   refreshAllMarkerColors(t) {
@@ -23479,7 +23497,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.70.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
+const s_ = "0.71.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }

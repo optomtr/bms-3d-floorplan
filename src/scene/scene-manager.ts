@@ -942,12 +942,18 @@ export class SceneManager {
     const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
     const claimed = new Set<string>();
     for (const z of zones) {
-      // First zone to list an entity wins it (no duplicate markers).
-      const ents = (z.entities ?? []).filter((id) => behaviorOf.has(id) && !claimed.has(id));
+      // First zone to list an entity wins it (no duplicate markers). A zone is an
+      // EXPLICIT device list, so keep every entity the user checked — not only the
+      // ones that happen to be bound to a 3D furniture object (behaviorOf). For an
+      // unbound entity the behaviour is taken from its domain; the panel filters
+      // out any that no longer exist in hass at render time.
+      const ents = (z.entities ?? []).filter(
+        (id) => !claimed.has(id) && (behaviorOf.has(id) || !this.lastHass || !!this.lastHass.states?.[id]),
+      );
       if (!ents.length) continue;
       for (const id of ents) claimed.add(id);
       const sp = this.makeMarkerSprite('room', z.x, elev + 1.6, z.z);
-      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id)! }));
+      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0] }));
       const key = `${z.id ?? z.name ?? 'zone'}#${this.activeRooms.length}`;
       sp.userData = {
         roomMarker: true,
@@ -1043,11 +1049,24 @@ export class SceneManager {
   }
 
   /** Whether a toggle device counts as "on" (drives the blue marker tint). */
-  private isOnLight(behavior?: string, state?: string): boolean {
-    return (
-      (behavior === 'light' || behavior === 'switch' || behavior === 'fan' || behavior === 'input_boolean') &&
-      state === 'on'
-    );
+  /** Whether a device counts as "active" for a marker to glow — ANY controllable
+   *  device that is on / running, not only lights. Covers (open/closed) and locks
+   *  have no on/off "running" state, so they don't drive the glow. */
+  private isDeviceActive(behavior?: string, state?: string): boolean {
+    if (!state || state === 'unavailable' || state === 'unknown') return false;
+    switch (behavior) {
+      case 'light':
+      case 'switch':
+      case 'input_boolean':
+      case 'fan':
+        return state === 'on';
+      case 'climate':
+        return state !== 'off';
+      case 'media_player':
+        return state === 'playing' || state === 'on';
+      default:
+        return false;
+    }
   }
 
   /** Tint a marker: the selected room's pin is accent-orange; other room pins
@@ -1060,11 +1079,11 @@ export class SceneManager {
         (sp.material as THREE.SpriteMaterial).color.setHex(0xf3a83c);
         return;
       }
-      const anyOn = (ud.roomEntities || []).some((e: any) => this.isOnLight(e.behavior, hass?.states?.[e.entity_id]?.state));
+      const anyOn = (ud.roomEntities || []).some((e: any) => this.isDeviceActive(e.behavior, hass?.states?.[e.entity_id]?.state));
       (sp.material as THREE.SpriteMaterial).color.setHex(anyOn ? 0xf6c98a : 0xffffff);
       return;
     }
-    const on = this.isOnLight(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
+    const on = this.isDeviceActive(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
     (sp.material as THREE.SpriteMaterial).color.setHex(on ? 0x4da3ff : 0xffffff);
   }
 
