@@ -23653,7 +23653,7 @@ function a_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const l_ = "0.82.0", Po = "ha-3d-floorplan-sidebar-item", Dd = "ha-3d-floorplan-overlay";
+const l_ = "0.83.0", Po = "ha-3d-floorplan-sidebar-item", Dd = "ha-3d-floorplan-overlay";
 function c_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26798,6 +26798,15 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }
     return i.length ? i.reduce((t, e) => t + e, 0) / i.length : null;
   }
+  /** Whole-home count of lights that are on — every light.* entity in HA, not
+   *  just the ones assigned to a room on the active floor (a room-only count
+   *  shows 0 when the on-lights live on other floors / aren't zoned). */
+  homeLightsOn() {
+    let i = 0;
+    for (const t of Object.keys(this.hass?.states ?? {}))
+      t.startsWith("light.") && this.effState(t) === "on" && i++;
+    return i;
+  }
   /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
   onSliderDown(i, t, e) {
     i.cancelable && i.preventDefault();
@@ -26868,8 +26877,8 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   /** Whole-home rollup for the screensaver: avg temp/humidity, lights on, lock. */
   homeSummary() {
-    let i = 0, t = 0, e = 0;
-    const n = [];
+    let i = 0, t = 0;
+    const e = [];
     for (const l of this.rooms) {
       const c = this.roomSensor(l, "temperature", ["°C", "°F"]);
       let h = c ? Number(c.state) : void 0;
@@ -26877,17 +26886,17 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         const d = l.entities.find((f) => f.behavior === "climate"), u = d ? this.hass?.states[d.entity_id]?.attributes?.current_temperature : void 0;
         h = u != null ? Number(u) : void 0;
       }
-      h != null && Number.isFinite(h) && (i += h, t++), e += this.roomLights(l).ids.filter((d) => this.effState(d) === "on").length;
-      for (const d of l.entities) d.behavior === "lock" && n.push(d.entity_id);
+      h != null && Number.isFinite(h) && (i += h, t++);
+      for (const d of l.entities) d.behavior === "lock" && e.push(d.entity_id);
     }
-    const s = (l) => l.toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const n = this.homeLightsOn(), s = (l) => l.toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     let r = "room", o = this.t("At home");
-    if (n.length) {
-      const l = n.every((c) => this.effState(c) === "locked");
+    if (e.length) {
+      const l = e.every((c) => this.effState(c) === "locked");
       r = l ? "lockClosed" : "lockOpen", o = l ? this.t("Locked") : this.t("Unlocked");
     }
     const a = t ? i / t : this.homeTemperature();
-    return { temp: a != null ? `${s(a)}°` : "—", hum: this.homeHumidity(), on: String(e), secIcon: r, secLabel: o };
+    return { temp: a != null ? `${s(a)}°` : "—", hum: this.homeHumidity(), on: String(n), secIcon: r, secLabel: o };
   }
   renderScreensaver() {
     const i = this.homeSummary();
@@ -27218,9 +27227,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     return { ids: t, lightId: n, anyOn: e, bri: s };
   }
   overviewStats() {
-    let i = 0, t = 0, e = 0;
+    const i = this.homeLightsOn();
+    let t = 0, e = 0;
     for (const s of this.rooms) {
-      i += this.roomLights(s).ids.filter((a) => this.effState(a) === "on").length;
       const r = this.roomSensor(s, "temperature", ["°C", "°F"]);
       let o = r ? Number(r.state) : void 0;
       if (o == null || !Number.isFinite(o)) {

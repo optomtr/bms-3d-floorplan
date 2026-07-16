@@ -2216,6 +2216,17 @@ export class Ha3dFloorplanCard extends LitElement {
     return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
   }
 
+  /** Whole-home count of lights that are on — every light.* entity in HA, not
+   *  just the ones assigned to a room on the active floor (a room-only count
+   *  shows 0 when the on-lights live on other floors / aren't zoned). */
+  private homeLightsOn(): number {
+    let n = 0;
+    for (const id of Object.keys(this.hass?.states ?? {})) {
+      if (id.startsWith('light.') && this.effState(id) === 'on') n++;
+    }
+    return n;
+  }
+
   /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
   private onSliderDown(e: PointerEvent, id: string, cb: (pct: number) => void): void {
     if (e.cancelable) e.preventDefault();
@@ -2315,7 +2326,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   /** Whole-home rollup for the screensaver: avg temp/humidity, lights on, lock. */
   private homeSummary(): { temp: string; hum: string; on: string; secIcon: string; secLabel: string } {
-    let tSum = 0, tN = 0, on = 0;
+    let tSum = 0, tN = 0;
     const locks: string[] = [];
     for (const room of this.rooms) {
       const t = this.roomSensor(room, 'temperature', ['°C', '°F']);
@@ -2326,9 +2337,9 @@ export class Ha3dFloorplanCard extends LitElement {
         tv = cur != null ? Number(cur) : undefined;
       }
       if (tv != null && Number.isFinite(tv)) { tSum += tv; tN++; }
-      on += this.roomLights(room).ids.filter((id) => this.effState(id) === 'on').length;
       for (const e of room.entities) if (e.behavior === 'lock') locks.push(e.entity_id);
     }
+    const on = this.homeLightsOn();
     const fT = (v: number) => v.toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     let secIcon = 'room', secLabel = this.t('At home');
     if (locks.length) {
@@ -2836,12 +2847,10 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private overviewStats(): { onCount: number; avgTemp: string; roomCount: number } {
-    let onCount = 0;
+    const onCount = this.homeLightsOn(); // whole-home, not just the active floor's rooms
     let sum = 0;
     let n = 0;
     for (const room of this.rooms) {
-      // Count every light source that is on (not just rooms with a light on).
-      onCount += this.roomLights(room).ids.filter((id) => this.effState(id) === 'on').length;
       const t = this.roomSensor(room, 'temperature', ['°C', '°F']);
       let tv = t ? Number(t.state) : undefined;
       if (tv == null || !Number.isFinite(tv)) {
