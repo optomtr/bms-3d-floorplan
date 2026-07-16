@@ -2510,3 +2510,19 @@ export function buildFurniture(model: string, color?: string, opts?: BuildOpts):
   group.userData.model = model;
   return group;
 }
+
+const _backZCache = new Map<string, number>();
+/** The model's back-most local Z (its front faces +Z). A wall-mounted piece is
+ *  offset by -this so its BACK sits flush on the wall surface instead of the
+ *  fixed offset letting a deep cabinet punch through the wall. */
+export function modelBackZ(model: string): number {
+  let z = _backZCache.get(model);
+  if (z === undefined) {
+    const g = buildFurniture(model);
+    g.updateMatrixWorld(true);
+    z = new THREE.Box3().setFromObject(g).min.z;
+    if (!Number.isFinite(z)) z = 0;
+    _backZCache.set(model, z);
+  }
+  return z;
+}

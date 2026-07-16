@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS } from '../furniture/library';
+import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS, modelBackZ } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
 
@@ -782,7 +782,10 @@ export class EditorController {
     p: { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number },
   ): { x: number; z: number; rotation: number } {
     if (!isSurfaceMount(model)) return { x: p.x, z: p.z, rotation: p.rotation };
-    const off = p.thickness / 2 + 0.04;
+    // Offset by the wall half-thickness PLUS how far the model reaches behind its
+    // origin, so its back sits flush on the wall surface (a deep cabinet no longer
+    // punches through the wall). +5 mm keeps it just off the surface.
+    const off = p.thickness / 2 - modelBackZ(model) + 0.005;
     const x = p.x + p.nx * off;
     const z = p.z + p.nz * off;
     // Rotation so the model's front (+Z local) faces the room (the normal).

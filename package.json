@@ -1,6 +1,6 @@
 {
   "name": "ha-3d-floorplan-card",
-  "version": "0.77.0",
+  "version": "0.78.0",
   "description": "Interactive true-3D floor plan custom Lovelace card for Home Assistant, with live entity bindings and touch-hardened controls.",
   "type": "module",
   "main": "dist/ha-3d-floorplan-card.js",
