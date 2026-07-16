@@ -983,7 +983,22 @@ export class SceneManager {
         wy: elev + 1.6,
         wz: z.z,
       };
-      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], sprite: sp });
+      // A manual zone inherits the design photo of the geometric room its icon
+      // sits inside — so a per-room backdrop works whether the user focuses the
+      // auto-grouped room OR a hand-placed zone in that same room. Smallest
+      // containing room wins (most specific), mirroring device grouping.
+      let zoneBg: string | undefined;
+      let zoneBgArea = Infinity;
+      for (const r of rooms) {
+        if (r.bgImage && pointInPoly(z.x, z.z, r.poly)) {
+          const a = polyArea(r.poly);
+          if (a < zoneBgArea) {
+            zoneBgArea = a;
+            zoneBg = r.bgImage;
+          }
+        }
+      }
+      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, sprite: sp });
       for (const id of ents) this.markerByEntity.set(id, sp);
     }
     // 2) Auto-group the remaining (unclaimed) devices by their room polygon.
