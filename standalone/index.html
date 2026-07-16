@@ -570,16 +570,16 @@
                 for (const s of res || []) next[s.entity_id] = s;
                 states = next; // rebuild → prunes entities removed since last connect
                 syncFails = 0;
-                if (!planLoaded) {
-                  // Live plan from HA, else an optional plan.json. applyPlan (not
-                  // ensureCard) so a live plan replaces any stale cached one shown
-                  // at boot.
+                // Re-fetch the saved plan on EVERY (re)connect — not just the
+                // first — so a reconnect always refreshes it. applyPlan is a
+                // no-op when the plan is unchanged, so this is cheap.
+                {
                   const plan = (await fetchUserPlan()) || (await fetchFilePlan());
                   if (!current()) return;
                   if (plan) {
                     applyPlan(plan);
                     planLoaded = true; // only latch once a REAL plan is shown
-                  } else {
+                  } else if (!planLoaded) {
                     setStatus('connected · no plan saved for this account', true);
                   }
                 }
@@ -631,12 +631,19 @@
         // Plan auto-sync: HA has no push event for the saved plan, so poll it
         // and rebuild the 3D only when it actually changed — edits made in HA
         // (devices added / removed / moved, rooms renamed…) appear on the tablet
-        // within ~15s, no reload. Skips while offline (fetchUserPlan → null).
+        // within ~10s, no reload. Skips while offline (fetchUserPlan → null).
+        // NOTE: the plan is stored PER HA USER (frontend/get_user_data), so this
+        // only reflects edits made by the SAME account the tablet's token belongs
+        // to. A tablet token from a different account sees that account's plan.
         setInterval(async () => {
           if (!ws || ws.readyState !== WebSocket.OPEN || !planLoaded) return;
           const plan = await fetchUserPlan();
-          if (plan && applyPlan(plan)) cacheSave(); // also refresh offline snapshot
-        }, 15000);
+          if (plan && applyPlan(plan)) {
+            cacheSave(); // also refresh offline snapshot
+            setStatus('план обновлён', true);
+            setTimeout(() => setStatus('', false), 2500);
+          }
+        }, 10000);
       }
 
       boot();
