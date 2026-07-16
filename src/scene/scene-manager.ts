@@ -190,6 +190,9 @@ export interface RoomInfo {
   entities: { entity_id: string; behavior: string }[];
   /** World-space centre of the room's marker (metres). */
   center: [number, number, number];
+  /** Optional per-room design photo (URL/`/local/` path) used as the 3D
+   *  backdrop while this room is focused in view mode. */
+  bgImage?: string;
 }
 
 export class SceneManager {
@@ -268,7 +271,7 @@ export class SceneManager {
   private lastHass?: any;
   /** Per-floor room outlines (world XZ) + name + elevation, for grouping the
    *  floating markers by room ("one icon per room"). */
-  private floorRooms: { name?: string; poly: [number, number][]; elev: number }[][] = [];
+  private floorRooms: { name?: string; poly: [number, number][]; elev: number; bgImage?: string }[][] = [];
   /** Per-floor manual zones (hand-placed room icons + explicit membership). */
   private floorZones: ZoneDef[][] = [];
   private floorElev: number[] = [];
@@ -277,6 +280,17 @@ export class SceneManager {
   private activeRooms: (RoomInfo & { sprite: THREE.Sprite })[] = [];
   /** Key of the room the card currently has selected (drives the accent pin). */
   private selectedRoomKey: string | null = null;
+  /** The default gradient backdrop, kept so a per-room photo can be swapped in
+   *  and then restored. Assigned in the constructor. */
+  private defaultBackdrop!: THREE.Texture;
+  /** The focused room's design-photo URL + its loaded texture (view mode only).
+   *  null when no room bg is wanted; disposed/replaced on each change. */
+  private roomBgUrl: string | null = null;
+  private roomBgTex: THREE.Texture | null = null;
+  /** Origin used to resolve root-relative asset paths (e.g. `/local/photo.jpg`).
+   *  Empty in the same-origin HA frontend; set to the HA URL in the file://
+   *  kiosk, where a bare `/local/...` would otherwise hit the APK's assets. */
+  private imageBase = '';
   /** Fired after markers rebuild so the card can refresh its room list. */
   private onRoomsChanged?: (rooms: RoomInfo[]) => void;
   /** Edit-mode dots showing where each zone's icon sits. */
@@ -320,7 +334,8 @@ export class SceneManager {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = makeBackdropTexture(background);
+    this.defaultBackdrop = makeBackdropTexture(background);
+    this.scene.background = this.defaultBackdrop;
     this.scene.add(this.previewGroup);
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
@@ -517,6 +532,8 @@ export class SceneManager {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    // Re-fit the room-photo backdrop's cover-crop to the new aspect.
+    if (this.roomBgTex) this.updateBackdropCover();
     this.needsRender = true;
     // setSize() clears the WebGL buffer, so with render-on-demand the canvas
     // would flash black for a frame until the next rAF. This matters when the
@@ -608,7 +625,7 @@ export class SceneManager {
         (floorDef.rooms ?? [])
           .map((room) => {
             const poly = (isShapeRoom(room) ? roomPolygon(room) : room.polygon) ?? [];
-            return { name: room.name, poly: poly as [number, number][], elev };
+            return { name: room.name, poly: poly as [number, number][], elev, bgImage: room.bgImage };
           })
           .filter((r) => r.poly.length >= 3),
       );
@@ -868,6 +885,8 @@ export class SceneManager {
   setEditMode(on: boolean, elevation = 0): void {
     this.editing = on;
     this.groundPlane.constant = -elevation;
+    // A per-room design photo must never show while editing; restore it on exit.
+    this.applyBackdrop();
     if (on) {
       if (!this.gridHelper) {
         this.gridHelper = new THREE.GridHelper(40, 80, 0x4aa3ff, 0x2a3340);
@@ -1005,7 +1024,7 @@ export class SceneManager {
         wy: room.elev + 1.6,
         wz: cz,
       };
-      this.activeRooms.push({ key, name: room.name, entities: roomEntities, center: [cx, room.elev + 1.6, cz], sprite: sp });
+      this.activeRooms.push({ key, name: room.name, entities: roomEntities, center: [cx, room.elev + 1.6, cz], bgImage: room.bgImage, sprite: sp });
       for (const d of ds) this.markerByEntity.set(d.entity_id, sp);
     }
     for (const d of loose) {
@@ -1026,6 +1045,12 @@ export class SceneManager {
     if (this.selectedRoomKey && !this.activeRooms.some((r) => r.key === this.selectedRoomKey)) {
       this.selectedRoomKey = null;
     }
+    // Re-apply the focused room's backdrop — its photo may have changed (a live
+    // edit / plan sync) or the selection may have just been dropped.
+    const selRoom = this.selectedRoomKey
+      ? this.activeRooms.find((r) => r.key === this.selectedRoomKey)
+      : null;
+    this.setRoomBackdrop(selRoom?.bgImage ?? null);
     this.onRoomsChanged?.(this.getRooms());
   }
 
@@ -1036,16 +1061,85 @@ export class SceneManager {
 
   /** Rooms on the active floor, in build order (zones first, then auto-grouped). */
   getRooms(): RoomInfo[] {
-    return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center }));
+    return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center, bgImage: r.bgImage }));
   }
 
   /** Highlight one room's pin (accent) and neutralise the rest. */
   selectRoom(key: string | null): void {
     this.selectedRoomKey = key;
+    // Show the focused room's design photo behind the 3D (view mode only).
+    const room = key ? this.activeRooms.find((r) => r.key === key) : null;
+    this.setRoomBackdrop(room?.bgImage ?? null);
     if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
     else for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, this.lastHass);
     this.needsRender = true;
     this.invalidate();
+  }
+
+  /** Set the focused room's design photo as the 3D backdrop. Pass null to want
+   *  no photo. The photo is only actually shown in view mode — applyBackdrop()
+   *  falls back to the gradient while editing so it never disturbs the editor. */
+  setRoomBackdrop(url: string | null): void {
+    if (url !== this.roomBgUrl) {
+      this.roomBgUrl = url;
+      // Dispose the previous room texture (never the shared default backdrop).
+      if (this.roomBgTex) {
+        this.roomBgTex.dispose();
+        this.roomBgTex = null;
+      }
+      if (url) {
+        const tex = new THREE.TextureLoader().load(this.resolveAsset(url), () => {
+          // Once the image's real dimensions are known, crop it to "cover" the
+          // viewport (no stretching), then repaint.
+          this.updateBackdropCover();
+          this.needsRender = true;
+          this.invalidate();
+        });
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.center.set(0.5, 0.5); // crop around the middle
+        this.roomBgTex = tex;
+      }
+    }
+    this.applyBackdrop();
+  }
+
+  /** Crop the room-photo backdrop to cover the viewport without distortion —
+   *  scale the shorter axis to fill and centre-crop the overflow. Re-run on
+   *  resize and once the image loads. */
+  private updateBackdropCover(): void {
+    const tex = this.roomBgTex;
+    const img = tex?.image as { width?: number; height?: number } | undefined;
+    if (!tex || !img?.width || !img?.height) return;
+    const va = (this.container.clientWidth || 1) / (this.container.clientHeight || 1);
+    const ia = img.width / img.height;
+    if (va > ia) tex.repeat.set(1, ia / va); // viewport wider → crop top/bottom
+    else tex.repeat.set(va / ia, 1); // viewport taller → crop sides
+    tex.updateMatrix();
+  }
+
+  /** Origin for resolving root-relative asset paths (see `imageBase`). */
+  setImageBase(base: string): void {
+    this.imageBase = base || '';
+  }
+
+  /** Turn a room-photo reference into a loadable URL: data/blob/absolute URLs
+   *  pass through; a root-relative `/local/...` path is prefixed with the HA
+   *  origin so it resolves off the file:// kiosk too. */
+  private resolveAsset(u: string): string {
+    if (/^(data:|blob:|https?:)/i.test(u)) return u;
+    if (u.startsWith('/') && this.imageBase) return this.imageBase + u;
+    return u;
+  }
+
+  /** Choose which backdrop is visible: the room photo in view mode, otherwise
+   *  (overview, no photo, or editing) the default gradient. */
+  private applyBackdrop(): void {
+    const next = !this.editing && this.roomBgTex ? this.roomBgTex : this.defaultBackdrop;
+    if (this.scene.background !== next) {
+      this.scene.background = next;
+      this.needsRender = true;
+      this.invalidate();
+    }
   }
 
   /** Whether a toggle device counts as "on" (drives the blue marker tint). */

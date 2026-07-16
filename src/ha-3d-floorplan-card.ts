@@ -347,6 +347,9 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private applyHass(hass: HomeAssistant): void {
     if (!this.sceneManager) return;
+    // Keep the scene's asset origin current so `/local/...` room photos resolve
+    // against Home Assistant (needed on the file:// kiosk).
+    this.sceneManager.setImageBase(this.assetBase(hass));
     // Reconcile optimistic overrides: once HA re-reports an entity (its state
     // object reference changed), the real value is authoritative — drop the
     // override so we don't fight it.
@@ -361,6 +364,21 @@ export class Ha3dFloorplanCard extends LitElement {
     this.lastHass = hass;
     this.pushEffective(hass);
     if (this.controlOpen) this.requestUpdate();
+  }
+
+  /** Origin for resolving root-relative asset paths (e.g. a room's `/local/…`
+   *  design photo). Same-origin in the HA frontend (returns ''), the HA URL in
+   *  the kiosk — read from `hass.hassUrl`, which both surfaces expose. */
+  private assetBase(hass?: HomeAssistant): string {
+    const h = hass as unknown as { hassUrl?: (p?: string) => string } | undefined;
+    if (h?.hassUrl) {
+      try {
+        return String(h.hassUrl('/')).replace(/\/+$/, '');
+      } catch {
+        /* fall through to same-origin */
+      }
+    }
+    return '';
   }
 
   /** hass with optimistic overrides layered on top (fresh objects for overridden
@@ -1218,6 +1236,54 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.setRoomField(field, (e.target as HTMLInputElement).value);
   }
 
+  /** Set the focused room's design photo from a typed URL / `/local/` path. */
+  private onSetRoomBg(e: Event): void {
+    this.editor?.setRoomBgImage((e.target as HTMLInputElement).value);
+  }
+
+  private onClearRoomBg(): void {
+    this.editor?.setRoomBgImage('');
+  }
+
+  /** Upload a room design photo from the device. The picture is downscaled and
+   *  re-encoded before it goes into the plan, so the per-user plan JSON (synced
+   *  to the tablet every ~10s) doesn't balloon with a full-resolution photo. */
+  private onUploadRoomBg(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !this.editor) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result || '');
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1280; // cap the long edge
+        const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        let data = src;
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            data = canvas.toDataURL('image/jpeg', 0.82);
+          } catch {
+            data = src; // tainted/oversized — fall back to the original
+          }
+        }
+        this.editor?.setRoomBgImage(data);
+      };
+      img.onerror = () => this.showToast('Не удалось прочитать изображение');
+      img.src = src;
+    };
+    reader.onerror = () => this.showToast('Не удалось прочитать файл');
+    reader.readAsDataURL(file);
+    input.value = ''; // allow re-picking the same file
+  }
+
   private trackShift = (e: KeyboardEvent) => {
     if (this.editor) this.editor.shiftHeld = e.shiftKey;
     // Undo/redo shortcuts while editing.
@@ -1858,6 +1924,28 @@ export class Ha3dFloorplanCard extends LitElement {
                           </div>`,
                         )}`
                     : nothing}`
+              : nothing}
+            ${kind === 'room' && this.editRoom
+              ? html`<div class="panel-group">Фон комнаты (виден на планшете при выборе)</div>
+                  <div class="toolrow">
+                    <input class="name-input" type="text" placeholder="URL или /local/room.jpg"
+                      .value=${
+                        this.editRoom.bgImage && !this.editRoom.bgImage.startsWith('data:')
+                          ? this.editRoom.bgImage
+                          : ''
+                      }
+                      @change=${this.onSetRoomBg} />
+                  </div>
+                  <div class="toolrow">
+                    <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
+                      type="file" accept="image/*" style="display:none" @change=${this.onUploadRoomBg} /></label>
+                    ${
+                      this.editRoom.bgImage
+                        ? html`<button class="btn" title="Убрать фон" @click=${this.onClearRoomBg}>🗑</button>
+                            <span class="hint">${this.editRoom.bgImage.startsWith('data:') ? 'фото загружено' : 'задан URL'}</span>`
+                        : html`<span class="hint">не задан</span>`
+                    }
+                  </div>`
               : nothing}
             ${isFurniture && this.hass
               ? (() => {

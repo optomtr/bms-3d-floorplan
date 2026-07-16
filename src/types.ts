@@ -85,6 +85,10 @@ export interface RoomDef {
   openings?: RoomOpening[];
   /** Parent room id (re-parenting / nesting). */
   parentId?: string;
+  /** Optional design photo (URL or HA `/local/...` path) shown as the 3D
+   *  backdrop ONLY when this room is focused in view mode — not in the
+   *  overview and never while editing. Set per room in the integration. */
+  bgImage?: string;
 }
 
 /** An opening on a shape-room's perimeter, addressed by edge + distance. */

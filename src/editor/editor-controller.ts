@@ -1010,6 +1010,18 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Set (or clear, on empty) the room's design-photo URL/`/local/` path. No
+   *  rebuild: the photo is a view-mode backdrop, invisible in the editor. */
+  setRoomBgImage(value: string): void {
+    const room = this.currentRoom();
+    if (!room) return;
+    this.pushUndo();
+    const v = String(value).trim();
+    if (v) room.bgImage = v;
+    else delete room.bgImage;
+    this.onChange?.();
+  }
+
   private buildGizmo(): void {
     this.sm.clearGizmo();
     const room = this.currentRoom();

@@ -377,7 +377,19 @@
         pushQueued = true;
         requestAnimationFrame(() => {
           pushQueued = false;
-          if (card) card.hass = { states: { ...states }, callService, callWS };
+          if (card)
+            card.hass = {
+              states: { ...states },
+              callService,
+              callWS,
+              // Resolve `/local/...` (e.g. a room's design photo) against THIS
+              // Home Assistant — the kiosk page's own origin is file://.
+              hassUrl: (p) => {
+                const b = (haUrl || location.origin).replace(/\/+$/, '');
+                const s = p == null ? '' : String(p);
+                return b + (s.startsWith('/') ? s : '/' + s);
+              },
+            };
         });
       }
 
