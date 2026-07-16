@@ -2193,6 +2193,29 @@ export class Ha3dFloorplanCard extends LitElement {
     return vals.length ? `${Math.round(vals.reduce((s, v) => s + v, 0) / vals.length)}%` : '—';
   }
 
+  /** Whole-home temperature (°) = average of every temperature sensor in HA,
+   *  else the climate units' current_temperature. Same reasoning as homeHumidity:
+   *  the temp sensors often aren't bound to a room, and some climates report no
+   *  current_temperature, so a room-only lookup shows "—". Returns null if none. */
+  private homeTemperature(): number | null {
+    const vals: number[] = [];
+    for (const st of Object.values(this.hass?.states ?? {})) {
+      if ((st as HassEntity).attributes?.device_class === 'temperature') {
+        const v = Number((st as HassEntity).state);
+        if (Number.isFinite(v)) vals.push(v);
+      }
+    }
+    if (!vals.length) {
+      for (const [id, st] of Object.entries(this.hass?.states ?? {})) {
+        if (id.startsWith('climate.')) {
+          const cur = Number((st as HassEntity).attributes?.current_temperature);
+          if (Number.isFinite(cur)) vals.push(cur);
+        }
+      }
+    }
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  }
+
   /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
   private onSliderDown(e: PointerEvent, id: string, cb: (pct: number) => void): void {
     if (e.cancelable) e.preventDefault();
@@ -2313,7 +2336,8 @@ export class Ha3dFloorplanCard extends LitElement {
       secIcon = allLocked ? 'lockClosed' : 'lockOpen';
       secLabel = allLocked ? this.t('Locked') : this.t('Unlocked');
     }
-    return { temp: tN ? `${fT(tSum / tN)}°` : '—', hum: this.homeHumidity(), on: String(on), secIcon, secLabel };
+    const homeT = tN ? tSum / tN : this.homeTemperature();
+    return { temp: homeT != null ? `${fT(homeT)}°` : '—', hum: this.homeHumidity(), on: String(on), secIcon, secLabel };
   }
 
   private renderScreensaver() {
@@ -2827,7 +2851,8 @@ export class Ha3dFloorplanCard extends LitElement {
       }
       if (tv != null && Number.isFinite(tv)) { sum += tv; n++; }
     }
-    return { onCount, avgTemp: n ? `${Math.round(sum / n)}°` : '—', roomCount: this.rooms.length };
+    const avgT = n ? sum / n : this.homeTemperature();
+    return { onCount, avgTemp: avgT != null ? `${Math.round(avgT)}°` : '—', roomCount: this.rooms.length };
   }
 
   /** Master "everything off" across the whole home (overview). */

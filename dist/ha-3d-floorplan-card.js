@@ -23632,7 +23632,7 @@ function r_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const o_ = "0.80.0", Po = "ha-3d-floorplan-sidebar-item", Id = "ha-3d-floorplan-overlay";
+const o_ = "0.81.0", Po = "ha-3d-floorplan-sidebar-item", Id = "ha-3d-floorplan-overlay";
 function a_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26757,6 +26757,26 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       }
     return i.length ? `${Math.round(i.reduce((t, e) => t + e, 0) / i.length)}%` : "—";
   }
+  /** Whole-home temperature (°) = average of every temperature sensor in HA,
+   *  else the climate units' current_temperature. Same reasoning as homeHumidity:
+   *  the temp sensors often aren't bound to a room, and some climates report no
+   *  current_temperature, so a room-only lookup shows "—". Returns null if none. */
+  homeTemperature() {
+    const i = [];
+    for (const t of Object.values(this.hass?.states ?? {}))
+      if (t.attributes?.device_class === "temperature") {
+        const e = Number(t.state);
+        Number.isFinite(e) && i.push(e);
+      }
+    if (!i.length) {
+      for (const [t, e] of Object.entries(this.hass?.states ?? {}))
+        if (t.startsWith("climate.")) {
+          const n = Number(e.attributes?.current_temperature);
+          Number.isFinite(n) && i.push(n);
+        }
+    }
+    return i.length ? i.reduce((t, e) => t + e, 0) / i.length : null;
+  }
   /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
   onSliderDown(i, t, e) {
     i.cancelable && i.preventDefault();
@@ -26829,23 +26849,24 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   homeSummary() {
     let i = 0, t = 0, e = 0;
     const n = [];
-    for (const a of this.rooms) {
-      const l = this.roomSensor(a, "temperature", ["°C", "°F"]);
-      let c = l ? Number(l.state) : void 0;
-      if (c == null || !Number.isFinite(c)) {
-        const h = a.entities.find((u) => u.behavior === "climate"), d = h ? this.hass?.states[h.entity_id]?.attributes?.current_temperature : void 0;
-        c = d != null ? Number(d) : void 0;
+    for (const l of this.rooms) {
+      const c = this.roomSensor(l, "temperature", ["°C", "°F"]);
+      let h = c ? Number(c.state) : void 0;
+      if (h == null || !Number.isFinite(h)) {
+        const d = l.entities.find((f) => f.behavior === "climate"), u = d ? this.hass?.states[d.entity_id]?.attributes?.current_temperature : void 0;
+        h = u != null ? Number(u) : void 0;
       }
-      c != null && Number.isFinite(c) && (i += c, t++), e += this.roomLights(a).ids.filter((h) => this.effState(h) === "on").length;
-      for (const h of a.entities) h.behavior === "lock" && n.push(h.entity_id);
+      h != null && Number.isFinite(h) && (i += h, t++), e += this.roomLights(l).ids.filter((d) => this.effState(d) === "on").length;
+      for (const d of l.entities) d.behavior === "lock" && n.push(d.entity_id);
     }
-    const s = (a) => a.toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const s = (l) => l.toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     let r = "room", o = this.t("At home");
     if (n.length) {
-      const a = n.every((l) => this.effState(l) === "locked");
-      r = a ? "lockClosed" : "lockOpen", o = a ? this.t("Locked") : this.t("Unlocked");
+      const l = n.every((c) => this.effState(c) === "locked");
+      r = l ? "lockClosed" : "lockOpen", o = l ? this.t("Locked") : this.t("Unlocked");
     }
-    return { temp: t ? `${s(i / t)}°` : "—", hum: this.homeHumidity(), on: String(e), secIcon: r, secLabel: o };
+    const a = t ? i / t : this.homeTemperature();
+    return { temp: a != null ? `${s(a)}°` : "—", hum: this.homeHumidity(), on: String(e), secIcon: r, secLabel: o };
   }
   renderScreensaver() {
     const i = this.homeSummary();
@@ -27177,17 +27198,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   overviewStats() {
     let i = 0, t = 0, e = 0;
-    for (const n of this.rooms) {
-      i += this.roomLights(n).ids.filter((o) => this.effState(o) === "on").length;
-      const s = this.roomSensor(n, "temperature", ["°C", "°F"]);
-      let r = s ? Number(s.state) : void 0;
-      if (r == null || !Number.isFinite(r)) {
-        const o = n.entities.find((l) => l.behavior === "climate"), a = o ? this.hass?.states[o.entity_id]?.attributes?.current_temperature : void 0;
-        r = a != null ? Number(a) : void 0;
+    for (const s of this.rooms) {
+      i += this.roomLights(s).ids.filter((a) => this.effState(a) === "on").length;
+      const r = this.roomSensor(s, "temperature", ["°C", "°F"]);
+      let o = r ? Number(r.state) : void 0;
+      if (o == null || !Number.isFinite(o)) {
+        const a = s.entities.find((c) => c.behavior === "climate"), l = a ? this.hass?.states[a.entity_id]?.attributes?.current_temperature : void 0;
+        o = l != null ? Number(l) : void 0;
       }
-      r != null && Number.isFinite(r) && (t += r, e++);
+      o != null && Number.isFinite(o) && (t += o, e++);
     }
-    return { onCount: i, avgTemp: e ? `${Math.round(t / e)}°` : "—", roomCount: this.rooms.length };
+    const n = e ? t / e : this.homeTemperature();
+    return { onCount: i, avgTemp: n != null ? `${Math.round(n)}°` : "—", roomCount: this.rooms.length };
   }
   /** Master "everything off" across the whole home (overview). */
   allOffHouse() {
