@@ -1,11 +1,7 @@
 {
   "domain": "ha_3d_floorplan",
   "name": "3D Floor Plan",
-<<<<<<< HEAD
-  "version": "0.79.0",
-=======
-  "version": "0.79.0",
->>>>>>> 050e973 (Kiosk plan sync: refresh on every reconnect + faster poll + visible cue (v0.75.0))
+  "version": "0.80.0",
   "documentation": "https://github.com/Abdunazar7/bms-3d-floorplan",
   "issue_tracker": "https://github.com/Abdunazar7/bms-3d-floorplan/issues",
   "codeowners": ["@Abdunazar7"],

@@ -1558,6 +1558,35 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(W - 0.1, 0.06, D - 0.06, mat(0x3a2f26), 0, 0.03, 0)); // toe kick
     return g;
   },
+  // Climbing / bouldering wall — a tan panel studded with colourful holds.
+  // Deterministic pseudo-random layout (no Math.random, so it's stable).
+  climbing_wall: (c) => {
+    const g = new THREE.Group();
+    const W = 2.4, H = 2.6, OFF = 0.03;
+    g.add(tint(box(W, H, 0.04, mat(0xcbb089, { roughness: 0.95 }), 0, H / 2, OFF - 0.02), c)); // board
+    const colors = [0xd0544a, 0x4a7dd0, 0x4caf6a, 0x8a5fb0, 0xe6e6e6, 0xe08a3a, 0x333333, 0xd8c840, 0x30b0b0];
+    const hash = (n: number) => {
+      const s = Math.sin(n * 12.9898) * 43758.5453;
+      return s - Math.floor(s);
+    };
+    const cols = 6, rows = 7;
+    let k = 0;
+    for (let r = 0; r < rows; r++)
+      for (let cxi = 0; cxi < cols; cxi++) {
+        k++;
+        const x = -W / 2 + (W / cols) * (cxi + 0.5) + (hash(k) - 0.5) * (W / cols) * 0.7;
+        const y = (H / rows) * (r + 0.5) + (hash(k + 100) - 0.5) * (H / rows) * 0.7;
+        const sz = 0.055 + hash(k + 20) * 0.075;
+        const col = colors[Math.floor(hash(k + 50) * colors.length) % colors.length];
+        const hold = new THREE.Mesh(new THREE.IcosahedronGeometry(sz, 0), mat(col, { roughness: 0.55, flatShading: true }));
+        hold.position.set(x, y, OFF + sz * 0.5);
+        hold.scale.z = 0.55; // flatten against the wall
+        hold.rotation.set(hash(k) * 3, hash(k + 1) * 3, hash(k + 2) * 3);
+        hold.castShadow = true;
+        g.add(hold);
+      }
+    return g;
+  },
 
   // ---- Kitchen ----
   oven: (c) => {
@@ -2295,7 +2324,7 @@ export const WALL_MOUNT_KEYS = [
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
-  'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full',
+  'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -2309,7 +2338,7 @@ export const SURFACE_MOUNT_KEYS = [
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
-  'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full',
+  'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -2481,7 +2510,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
   warm_floor: '#b98f7d', convector: '#9aa0a6',
   window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
-  terrace_window_full: '#2c3138', tall_cabinet: '#9c6b3f', tv_console: '#9c6b3f',
+  terrace_window_full: '#2c3138', tall_cabinet: '#9c6b3f', tv_console: '#9c6b3f', climbing_wall: '#cbb089',
   // Lighting (warm shades)
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
   ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',
