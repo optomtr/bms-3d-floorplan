@@ -1282,6 +1282,74 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(strip, c));
     return g;
   },
+  // Twin parallel linear ceiling lights (the two parallel LED lines on the
+  // ceiling). Bindable — the 'emissive' strips glow when linked to a light.
+  track_double: (c) => {
+    const g = new THREE.Group();
+    const L = 2.0, sep = 0.5;
+    for (const z of [-sep / 2, sep / 2]) {
+      g.add(box(L, 0.04, 0.07, mat(DARK, { roughness: 0.7 }), 0, 0, z)); // recessed channel
+      const strip = box(L - 0.06, 0.02, 0.035, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.02, z);
+      strip.name = 'emissive';
+      g.add(tint(strip, c));
+    }
+    return g;
+  },
+  // Vertical wall backlight — a tall glowing reveal in a dark channel (the
+  // "vertikal podsvetka"). Bindable to a light; mounts on the wall surface.
+  wall_backlight: (c) => {
+    const g = new THREE.Group();
+    const H = 2.3, y0 = 0.15;
+    g.add(box(0.09, H + 0.06, 0.03, mat(0x2f2620, { roughness: 0.9 }), 0, y0 + H / 2, 0)); // channel
+    const strip = box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), 0, y0 + H / 2, 0.02);
+    strip.name = 'emissive';
+    g.add(tint(strip, c));
+    return g;
+  },
+  // Vertical fluted wood wall panel (реечная панель) — battens on a backing
+  // board, floor-to-ceiling; sits flush on the wall surface.
+  wood_slat_panel: (c) => {
+    const g = new THREE.Group();
+    const W = 1.2, H = 2.6, OFF = 0.02;
+    g.add(box(W, H, 0.02, mat(0x6e4a2f, { roughness: 0.85 }), 0, H / 2, OFF - 0.012)); // backing
+    const n = 16, gap = W / n;
+    for (let i = 0; i < n; i++)
+      g.add(tint(box(gap * 0.55, H, 0.045, mat(WOOD, { roughness: 0.7 }), -W / 2 + gap * (i + 0.5), H / 2, OFF + 0.02), c));
+    return g;
+  },
+  // Built-in TV media wall — wood cabinet + marble centre with a mounted TV,
+  // a fluted-wood top border, and a brass-framed glass display niche.
+  tv_wall: (c) => {
+    const g = new THREE.Group();
+    const W = 3.6, H = 2.6, D = 0.4, F = -D / 2;
+    const wood = mat(WOOD, { roughness: 0.6 });
+    g.add(tint(box(W, 0.55, D, wood, 0, 0.275, 0), c)); // low cabinet base
+    g.add(box(W, 0.03, D + 0.02, mat(0xece7dd, { roughness: 0.5 }), 0, 0.565, 0)); // stone top
+    const marble = mat(0xf0eee9, { roughness: 0.35 });
+    g.add(box(1.8, 1.9, 0.05, marble, -0.4, 1.5, F + 0.05)); // centre marble panel
+    g.add(box(1.3, 0.78, 0.05, mat(0x0e0e10, { roughness: 0.25 }), -0.4, 1.62, F + 0.11)); // TV
+    const nT = 22, gT = W / nT; // fluted-wood top border
+    for (let i = 0; i < nT; i++)
+      g.add(tint(box(gT * 0.5, 0.5, 0.05, wood, -W / 2 + gT * (i + 0.5), H - 0.25, F + 0.03), c));
+    const glass = mat(GLASS, { transparent: true, opacity: 0.22, roughness: 0.1 });
+    g.add(box(0.86, 1.9, 0.03, glass, 1.15, 1.5, F + 0.06)); // glass niche
+    for (const x of [0.7, 1.6]) g.add(box(0.03, 1.9, 0.07, mat(0xb8932e, { metalness: 0.6, roughness: 0.4 }), x, 1.5, F + 0.09));
+    for (const y of [1.05, 1.55, 2.05]) g.add(box(0.82, 0.03, 0.22, mat(0x6e4a2f, { roughness: 0.7 }), 1.15, y, F + 0.14));
+    return g;
+  },
+  // Modern L-shaped executive (director's) desk — sculptural solid body with a
+  // dark-wood top and a lower side return.
+  boss_desk: (c) => {
+    const g = new THREE.Group();
+    const body = mat(0xcfc9bd, { roughness: 0.5 });
+    const top = mat(0x5b3f28, { roughness: 0.4 });
+    g.add(box(2.0, 0.05, 0.95, top, 0, 0.76, 0)); // main dark top
+    g.add(tint(box(2.1, 0.72, 1.0, body, 0, 0.36, 0.02), c)); // solid body
+    g.add(box(1.0, 0.62, 0.05, mat(0x2b2f36, { roughness: 0.8 }), 0, 0.33, -0.42)); // kneehole recess
+    g.add(box(1.0, 0.05, 0.6, top, -1.4, 0.66, -0.15)); // L return top
+    g.add(tint(box(1.0, 0.62, 0.6, body, -1.4, 0.31, -0.15), c)); // L return body
+    return g;
+  },
 
   double_door: (c) => {
     const g = new THREE.Group();
@@ -2182,6 +2250,7 @@ export const WALL_MOUNT_KEYS = [
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
+  'wood_slat_panel', 'wall_backlight',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -2195,6 +2264,7 @@ export const SURFACE_MOUNT_KEYS = [
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
+  'wood_slat_panel', 'wall_backlight',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -2218,6 +2288,8 @@ export const LIGHT_KEYS = [
   'led_backlight',
   'track_bar',
   'wall_sconce',
+  'track_double',
+  'wall_backlight',
 ];
 
 /**
@@ -2294,7 +2366,8 @@ export function defaultY(model: string, wallHeight = 2.6): number {
     model === 'track_light' ||
     model === 'spotlight_bar' ||
     model === 'led_backlight' ||
-    model === 'track_bar'
+    model === 'track_bar' ||
+    model === 'track_double'
   )
     return wallHeight - 0.02;
   if (model === 'wall_sconce') return 1.6;
@@ -2369,6 +2442,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
+  track_double: '#fff4d6', wall_backlight: '#fff0d0', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
