@@ -1182,9 +1182,33 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(lens);
     return g;
   },
+  // Panel radiator (радиатор отопления) — sits low against a wall. The front
+  // panel is the 'emissive' face: it glows warm when the bound thermostat (or
+  // relay switch) is actively heating (hvac_action = heating / switch on).
   radiator: (c) => {
     const g = new THREE.Group();
-    for (let i = 0; i < 8; i++) g.add(tint(box(0.06, 0.6, 0.1, mat(WHITE), -0.35 + i * 0.1, 0.4, 0), c));
+    const W = 0.9, H = 0.55, D = 0.09;
+    const yc = 0.16 + H / 2; // lifted off the floor on feet
+    const shell = mat(WHITE, { roughness: 0.55, metalness: 0.1 });
+    g.add(tint(box(W, H, D * 0.45, shell, 0, yc, -D * 0.22), c)); // back plate
+    const front = box(W, H, D * 0.45, mat(WHITE, { roughness: 0.5, emissive: 0x000000 }), 0, yc, D * 0.22);
+    front.name = 'emissive'; // glows warm when heating
+    g.add(tint(front, c));
+    // Vertical fluting ribs across the front for the classic panel look.
+    const rib = mat(0xe6e6e6, { roughness: 0.5 });
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const x = -W / 2 + 0.05 + (i / (n - 1)) * (W - 0.1);
+      g.add(box(0.014, H - 0.06, 0.02, rib, x, yc, D * 0.22 + 0.025));
+    }
+    g.add(tint(box(W, 0.03, D, mat(0xf2f2f2), 0, yc + H / 2, 0), c)); // top cap
+    g.add(tint(box(W, 0.03, D, mat(0xf2f2f2), 0, yc - H / 2, 0), c)); // bottom cap
+    const leg = mat(METAL, { metalness: 0.5, roughness: 0.4 });
+    g.add(box(0.035, 0.16, D, leg, -W / 2 + 0.1, 0.08, 0)); // feet
+    g.add(box(0.035, 0.16, D, leg, W / 2 - 0.1, 0.08, 0));
+    // Inlet pipe + thermostatic valve on the right.
+    g.add(cyl(0.014, 0.014, 0.16, leg, W / 2 - 0.03, 0.08, 0, 12));
+    g.add(cyl(0.032, 0.032, 0.06, mat(0xcf4040, { roughness: 0.5, metalness: 0.2 }), W / 2 - 0.03, 0.17, 0, 14));
     return g;
   },
 
@@ -2415,6 +2439,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'convector':
       return ['climate', 'fan', 'switch'];
     case 'warm_floor':
+    case 'radiator':
       return ['climate', 'switch'];
     case 'ceiling_fan':
     case 'ceiling_vent':

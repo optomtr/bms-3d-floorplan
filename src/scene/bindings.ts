@@ -234,13 +234,16 @@ export class BindingManager {
         break;
       }
       case 'climate': {
-        const cur = ent?.attributes?.current_temperature;
-        const target = ent?.attributes?.temperature;
-        const txt =
-          cur != null
-            ? `${cur}°${target != null ? ` → ${target}°` : ''}`
-            : state;
-        ab.label?.setText(txt, '#9ad0ff');
+        // Drive the model's 'emissive' face from what the thermostat is actually
+        // doing: warm when heating, cool-blue when cooling, dark otherwise. Models
+        // without an emissive mesh (e.g. ac_unit) are unaffected. The floating
+        // "cur° → target°" label is intentionally not created for climate.
+        const action = ent?.attributes?.hvac_action;
+        this.setEmissive(
+          ab,
+          action === 'heating' ? 0xff6a2a : action === 'cooling' ? 0x4fb0ff : 0x000000,
+          action === 'heating' ? 0.85 : action === 'cooling' ? 0.5 : 0,
+        );
         break;
       }
       case 'sensor':
