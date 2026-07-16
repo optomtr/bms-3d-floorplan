@@ -23,6 +23,9 @@ export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'op
 const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant: string; sill?: number; top?: number }> = {
   window_frame: { kind: 'window', width: 1.2, variant: 'single' },
   terrace_window: { kind: 'window', width: 2.4, variant: 'picture' },
+  // Floor-to-ceiling terrace WINDOW (mullioned, no door) — cuts a full-height
+  // glazed opening in the wall.
+  terrace_window_full: { kind: 'window', width: 2.6, variant: 'storefront', sill: 0, top: 2.55 },
   patio_door: { kind: 'door', width: 2.4, variant: 'glass', sill: 0, top: 2.2 },
   // Full-wall floor-to-ceiling terrace glazing (auto-fits the wall) with a door.
   terrace_wall: { kind: 'window', width: 12, variant: 'terrace', sill: 0, top: 2.55 },

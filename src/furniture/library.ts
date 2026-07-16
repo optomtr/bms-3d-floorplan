@@ -1513,6 +1513,51 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.4, metalness: 0.2 }), 0, H / 2, 0));
     return g;
   },
+  // Floor-to-ceiling terrace WINDOW (mullioned, no door) — a black-framed
+  // panoramic window. Placed like the other glazing (cuts a real opening).
+  terrace_window_full: (c) => {
+    const g = new THREE.Group();
+    const fr = mat(0x2c3138, { roughness: 0.5 });
+    const W = 2.6, H = 2.55, fw = 0.08, d = 0.1;
+    g.add(tint(box(W, fw, d, fr, 0, H - fw / 2, 0), c)); // top
+    g.add(box(W, fw, d, fr, 0, fw / 2, 0)); // bottom sill
+    g.add(box(fw, H, d, fr, -W / 2 + fw / 2, H / 2, 0)); // left
+    g.add(box(fw, H, d, fr, W / 2 - fw / 2, H / 2, 0)); // right
+    for (let i = 1; i < 3; i++) g.add(box(0.05, H, d * 0.6, fr, -W / 2 + (W * i) / 3, H / 2, 0)); // vertical mullions
+    g.add(box(W - fw, 0.05, d * 0.6, fr, 0, H * 0.74, 0)); // horizontal transom
+    g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.38, metalness: 0.2 }), 0, H / 2, 0));
+    return g;
+  },
+  // Tall floor-to-ceiling display cabinet — dark tinted glass doors in a
+  // brass-framed wood body (the "uzun shkaf"). Sits flush on the wall.
+  tall_cabinet: (c) => {
+    const g = new THREE.Group();
+    const W = 1.5, H = 2.6, D = 0.42;
+    const wood = mat(WOOD, { roughness: 0.6 });
+    g.add(tint(box(W, H, D, wood, 0, H / 2, 0), c)); // body
+    g.add(box(W - 0.1, H - 0.55, D - 0.08, mat(0x14161a, { roughness: 0.6 }), 0, H / 2 + 0.05, -0.02)); // interior
+    for (let i = 1; i <= 5; i++) g.add(box(W - 0.14, 0.03, D - 0.12, mat(0x2a2d33), 0, 0.35 + i * 0.38, -0.02)); // shelves
+    const glass = mat(0x0e0f12, { transparent: true, opacity: 0.72, roughness: 0.15, metalness: 0.3 });
+    for (const sx of [-1, 1]) g.add(box(W / 2 - 0.06, H - 0.55, 0.02, glass, sx * (W / 4), H / 2 + 0.05, D / 2)); // glass doors
+    const brass = mat(0xcbb26a, { metalness: 0.6, roughness: 0.35 });
+    for (const x of [-W / 2 + 0.05, 0, W / 2 - 0.05]) g.add(box(0.025, H - 0.5, 0.03, brass, x, H / 2 + 0.05, D / 2 + 0.005)); // frame stiles
+    g.add(box(W - 0.06, 0.03, 0.03, brass, 0, H - 0.22, D / 2 + 0.005)); // top rail
+    g.add(box(W - 0.06, 0.03, 0.03, brass, 0, 0.32, D / 2 + 0.005)); // bottom rail
+    g.add(tint(box(W, 0.3, D, wood, 0, 0.15, 0), c)); // wood base
+    return g;
+  },
+  // Low media console under the TV — a wood cabinet with door fronts + a top.
+  tv_console: (c) => {
+    const g = new THREE.Group();
+    const W = 2.0, H = 0.5, D = 0.45;
+    const wood = mat(WOOD, { roughness: 0.6 });
+    g.add(tint(box(W, H, D, wood, 0, H / 2 + 0.05, 0), c)); // carcass
+    g.add(box(W + 0.04, 0.03, D + 0.04, mat(0x6e4a2f, { roughness: 0.5 }), 0, H + 0.065, 0)); // top
+    const n = 4, dw = W / n;
+    for (let i = 0; i < n; i++) g.add(tint(box(dw - 0.02, H - 0.08, 0.02, wood, -W / 2 + dw * (i + 0.5), H / 2 + 0.05, D / 2 + 0.005), c)); // door fronts
+    g.add(box(W - 0.1, 0.06, D - 0.06, mat(0x3a2f26), 0, 0.03, 0)); // toe kick
+    return g;
+  },
 
   // ---- Kitchen ----
   oven: (c) => {
@@ -2250,7 +2295,7 @@ export const WALL_MOUNT_KEYS = [
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
-  'wood_slat_panel', 'wall_backlight',
+  'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -2264,7 +2309,7 @@ export const SURFACE_MOUNT_KEYS = [
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
-  'wood_slat_panel', 'wall_backlight',
+  'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -2436,6 +2481,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
   warm_floor: '#b98f7d', convector: '#9aa0a6',
   window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
+  terrace_window_full: '#2c3138', tall_cabinet: '#9c6b3f', tv_console: '#9c6b3f',
   // Lighting (warm shades)
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
   ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',

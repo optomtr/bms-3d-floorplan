@@ -19,7 +19,7 @@ const DEFAULT_THICKNESS = 0.12;
 
 /** Selectable style variants for door / window openings. */
 export const DOOR_VARIANTS = ['single', 'double', 'glass', 'sliding'];
-export const WINDOW_VARIANTS = ['single', 'double', 'picture', 'sliding', 'terrace'];
+export const WINDOW_VARIANTS = ['single', 'double', 'picture', 'sliding', 'terrace', 'storefront'];
 
 export interface BuiltFloor {
   group: THREE.Group;
@@ -215,6 +215,15 @@ function buildWall(
         const dx = opStart + (opEnd - opStart) / panes;
         span(opStart + fw, dx, sill, sill + 0.06, thickness * 1.1, winFrameMat); // bottom rail
         handle(dx - 0.14, 1.05);
+      } else if (v === 'storefront') {
+        // Full-height mullioned glazing WITHOUT a door (a terrace/picture window).
+        const panes = Math.max(2, Math.round((opEnd - opStart) / 0.9));
+        for (let i = 1; i < panes; i++) {
+          const x = opStart + ((opEnd - opStart) * i) / panes;
+          span(x - 0.03, x + 0.03, sill + fw, top - fw, thickness * 1.05, winFrameMat);
+        }
+        const ty = sill + (top - sill) * 0.74; // one horizontal transom near the top
+        span(opStart + fw, opEnd - fw, ty - 0.03, ty + 0.03, thickness * 1.05, winFrameMat);
       }
       // 'picture' → no mullions (clean pane).
     }
