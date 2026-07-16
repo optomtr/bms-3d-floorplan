@@ -76,6 +76,30 @@ function tint(mesh: THREE.Mesh, color: THREE.Color): THREE.Mesh {
   return mesh;
 }
 
+/** "BMS" in white on black, as an emissive texture for a TV screen — so a bound
+ *  TV lights up its brand when it turns on (and stays dark when off). Cached. */
+let _bmsScreenTex: THREE.CanvasTexture | null = null;
+function bmsScreenTexture(): THREE.CanvasTexture | null {
+  if (_bmsScreenTex) return _bmsScreenTex;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 288;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 150px system-ui, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('BMS', canvas.width / 2, canvas.height / 2 + 6);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  _bmsScreenTex = tex;
+  return tex;
+}
+
 /**
  * A hollow rectangle of light (glowing frame, open centre) built from 4 thin
  * bars MERGED into a single emissive mesh — one draw call regardless of size.
@@ -380,7 +404,19 @@ const builders: Record<string, FurnitureBuilder> = {
     // at local z=0 so it can be offset to rest flush on the wall surface.
     const g = new THREE.Group();
     g.add(tint(box(1.3, 0.78, 0.06, mat(DARK), 0, 0, 0.03), c)); // bezel
-    g.add(box(1.18, 0.66, 0.02, mat(0x0a0a0a, { emissive: 0x111417 }), 0, 0, 0.07)); // screen
+    // Screen: dark when off; when bound to a media_player and ON, its emissive
+    // lifts and the white "BMS" texture lights up (named 'emissive' so it binds).
+    const screen = box(
+      1.18,
+      0.66,
+      0.02,
+      mat(0x0a0a0a, { emissive: 0xffffff, emissiveMap: bmsScreenTexture(), emissiveIntensity: 0 }),
+      0,
+      0,
+      0.07,
+    );
+    screen.name = 'emissive';
+    g.add(screen);
     return g;
   },
   fridge: (c) => {

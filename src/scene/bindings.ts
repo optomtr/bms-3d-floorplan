@@ -287,7 +287,10 @@ export class BindingManager {
     for (const mesh of ab.emissiveMeshes) {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       if (!mat || !('emissive' in mat)) continue;
-      mat.emissive.setHex(color);
+      // A mesh with an emissiveMap (e.g. the TV's white "BMS" screen) keeps its
+      // own emissive colour — we only fade it in/out. Plain meshes take the
+      // state colour (warm for lights, green for media).
+      if (!mat.emissiveMap) mat.emissive.setHex(color);
       mat.emissiveIntensity = intensity;
       mat.needsUpdate = false; // color/intensity changes don't need recompile
     }
