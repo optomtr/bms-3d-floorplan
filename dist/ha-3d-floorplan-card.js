@@ -23602,7 +23602,7 @@ function i_(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const s_ = "0.76.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
+const s_ = "0.77.0", Co = "ha-3d-floorplan-sidebar-item", Ld = "ha-3d-floorplan-overlay";
 function r_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -24216,6 +24216,15 @@ class x_ {
   setOpeningVariant(t) {
     const e = this.selectedOpeningData;
     e && (this.pushUndo(), e.variant = t, this.rebuild(), this.reselect(), this.onChange?.());
+  }
+  /** Slide the selected opening (door / window / terrace) LEFT/RIGHT along its
+   *  wall by `delta` meters, clamped so it stays fully within the wall span. */
+  nudgeOpeningPosition(t) {
+    if (this.selectedKind !== "opening") return;
+    const e = this.floor().walls?.[this.selectedOpeningWall], n = this.selectedOpeningData;
+    if (!e || !n) return;
+    const s = Math.hypot(e.end[0] - e.start[0], e.end[1] - e.start[1]), r = n.width ?? 0.9;
+    this.pushUndo(), n.position = Math.max(0, Math.min(s - r, (n.position ?? 0) + t)), this.rebuild(), this.reselect(), this.onChange?.();
   }
   /** Swap a selected opening between door / window / opening. */
   setOpeningKind(t) {
@@ -25955,6 +25964,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   onNudgeHeight(i) {
     this.editor?.nudgeHeight(i);
   }
+  onSlideOpening(i) {
+    this.editor?.nudgeOpeningPosition(i);
+  }
   onSetWallLength(i) {
     const t = parseFloat(i.target.value);
     !Number.isNaN(t) && t > 0 && this.editor?.setWallLength(t);
@@ -26333,6 +26345,8 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               ${r ? K`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>` : nt}
+              ${n === "opening" ? K`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
+                    <button class="btn" title="Slide right along the wall" @click=${() => this.onSlideOpening(0.1)}>Right ▶</button>` : nt}
               <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>
             ${r && this.editIsLight ? K`<div class="toolrow">

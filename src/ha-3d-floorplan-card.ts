@@ -1135,6 +1135,10 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.nudgeHeight(delta);
   }
 
+  private onSlideOpening(delta: number): void {
+    this.editor?.nudgeOpeningPosition(delta);
+  }
+
   private onSetWallLength(e: Event): void {
     const v = parseFloat((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v) && v > 0) this.editor?.setWallLength(v);
@@ -1691,6 +1695,10 @@ export class Ha3dFloorplanCard extends LitElement {
                 ? html`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>`
+                : nothing}
+              ${kind === 'opening'
+                ? html`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
+                    <button class="btn" title="Slide right along the wall" @click=${() => this.onSlideOpening(0.1)}>Right ▶</button>`
                 : nothing}
               <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>

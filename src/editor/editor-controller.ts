@@ -859,6 +859,22 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Slide the selected opening (door / window / terrace) LEFT/RIGHT along its
+   *  wall by `delta` meters, clamped so it stays fully within the wall span. */
+  nudgeOpeningPosition(delta: number): void {
+    if (this.selectedKind !== 'opening') return;
+    const wall = this.floor().walls?.[this.selectedOpeningWall];
+    const op = this.selectedOpeningData;
+    if (!wall || !op) return;
+    const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]);
+    const w = op.width ?? 0.9;
+    this.pushUndo();
+    op.position = Math.max(0, Math.min(len - w, (op.position ?? 0) + delta));
+    this.rebuild();
+    this.reselect();
+    this.onChange?.();
+  }
+
   /** Swap a selected opening between door / window / opening. */
   setOpeningKind(kind: OpeningKind): void {
     const op = this.selectedOpeningData;
