@@ -511,21 +511,50 @@
         let authFailed = false; // a bad token must NOT trigger an endless retry loop
         let syncFails = 0; // consecutive post-auth sync failures → back off
         const wsUrl = haUrl.replace(/^http/, 'ws').replace(/\/+$/, '') + '/api/websocket';
-        // The saved plan — pulled from the SAME per-user store the in-app editor
-        // writes to, so the kiosk always shows what was last saved in the app.
-        async function fetchUserPlan() {
+        // Pick the active (or first valid) project out of a {active, projects} set.
+        function pickProject(data) {
+          if (!data || !data.projects) return null;
+          let id = data.active;
+          if (!(id && validPlan(data.projects[id]))) {
+            id = Object.keys(data.projects).find((k) => validPlan(data.projects[k]));
+          }
+          return id ? data.projects[id] : null;
+        }
+
+        // The INSTALL-WIDE plan the integration serves. Preferred over the
+        // per-user store because it does not depend on which account this
+        // device's token belongs to — the editor mirrors every save here, so a
+        // tablet signed in as any account still sees the latest edits.
+        // null when the integration is older (no endpoint) or nothing saved yet.
+        async function fetchSharedPlan() {
           try {
-            const res = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
-            const data = res && res.value;
-            if (!data || !data.projects) return null;
-            let id = data.active;
-            if (!(id && validPlan(data.projects[id]))) {
-              id = Object.keys(data.projects).find((k) => validPlan(data.projects[k]));
-            }
-            return id ? data.projects[id] : null;
+            const tk = useSession ? await getSessionToken() : token;
+            if (!tk) return null;
+            const r = await fetch(haUrl.replace(/\/+$/, '') + '/api/ha3d_floorplan/plan', {
+              headers: { Authorization: 'Bearer ' + tk },
+              cache: 'no-cache',
+            });
+            if (!r.ok) return null;
+            return pickProject(await r.json());
           } catch {
             return null;
           }
+        }
+
+        // Fallback: this account's own per-user store (what the editor also
+        // writes). Used when the shared endpoint isn't there yet.
+        async function fetchUserPlan() {
+          try {
+            const res = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
+            return pickProject(res && res.value);
+          } catch {
+            return null;
+          }
+        }
+
+        /** The plan to show: shared first, then this user's, then a bundled file. */
+        async function fetchAnyPlan() {
+          return (await fetchSharedPlan()) || (await fetchUserPlan()) || (await fetchFilePlan());
         }
         function open() {
           setStatus('connecting…');
@@ -586,7 +615,7 @@
                 // first — so a reconnect always refreshes it. applyPlan is a
                 // no-op when the plan is unchanged, so this is cheap.
                 {
-                  const plan = (await fetchUserPlan()) || (await fetchFilePlan());
+                  const plan = await fetchAnyPlan();
                   if (!current()) return;
                   if (plan) {
                     applyPlan(plan);
@@ -642,14 +671,14 @@
 
         // Plan auto-sync: HA has no push event for the saved plan, so poll it
         // and rebuild the 3D only when it actually changed — edits made in HA
-        // (devices added / removed / moved, rooms renamed…) appear on the tablet
-        // within ~10s, no reload. Skips while offline (fetchUserPlan → null).
-        // NOTE: the plan is stored PER HA USER (frontend/get_user_data), so this
-        // only reflects edits made by the SAME account the tablet's token belongs
-        // to. A tablet token from a different account sees that account's plan.
+        // (devices added / removed / moved, rooms renamed, a room's design
+        // photo…) appear on the tablet within ~10s, no reload. Skips while
+        // offline (both fetches → null). The shared endpoint is tried first, so
+        // this no longer depends on the tablet's token belonging to the same
+        // account that made the edit (it previously saw that account's plan).
         setInterval(async () => {
           if (!ws || ws.readyState !== WebSocket.OPEN || !planLoaded) return;
-          const plan = await fetchUserPlan();
+          const plan = (await fetchSharedPlan()) || (await fetchUserPlan());
           if (plan && applyPlan(plan)) {
             cacheSave(); // also refresh offline snapshot
             setStatus('план обновлён', true);

@@ -278,6 +278,9 @@ export interface HomeAssistant {
     data?: Record<string, any>,
   ) => Promise<unknown>;
   callWS?: (msg: Record<string, any>) => Promise<any>;
+  /** REST call against HA's `/api/<path>` with this session's auth — used for
+   *  the integration's shared-plan endpoint. Absent on non-HA hosts. */
+  callApi?: <T = any>(method: string, path: string, parameters?: any) => Promise<T>;
   language?: string;
   locale?: { language: string };
   themes?: any;

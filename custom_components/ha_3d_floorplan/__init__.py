@@ -18,7 +18,7 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from . import standalone_server
+from . import plan_api, standalone_server
 from .const import (
     DOMAIN,
     MODULE_URL,
@@ -87,6 +87,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             store["kiosk_view"] = True
         except Exception as err:  # noqa: BLE001 - best effort
             _LOGGER.debug("kiosk view registration failed: %s", err)
+
+    # One shared plan for the whole install, so a tablet using a different
+    # account's token stops reading that account's (stale) per-user copy.
+    if not store.get("plan_view"):
+        try:
+            plan_store = plan_api.PlanStore(hass)
+            hass.http.register_view(plan_api.PlanView(plan_store))
+            store["plan_store"] = plan_store
+            store["plan_view"] = True
+        except Exception as err:  # noqa: BLE001 - best effort
+            _LOGGER.debug("plan view registration failed: %s", err)
 
     return True
 

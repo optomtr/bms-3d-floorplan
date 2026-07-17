@@ -15,6 +15,10 @@ import type { FloorPlan, HomeAssistant } from './types';
 const HA_KEY = 'ha3d_floorplans';
 const LS_KEY = 'ha3d-floorplans-set'; // full {active, projects} set
 const LS_LEGACY = 'ha3d-floorplan-default'; // older single-plan key (migration)
+// The integration's install-wide copy (custom_components/…/plan_api.py). `callApi`
+// prefixes /api/. Per-user data alone meant a wall tablet holding another
+// account's long-lived token read that account's stale plan and never saw edits.
+const PLAN_API = 'ha3d_floorplan/plan';
 
 export interface StoredProjects {
   active?: string;
@@ -52,24 +56,63 @@ async function readHA(hass: HomeAssistant): Promise<StoredProjects | null> {
   return null;
 }
 
+/** The install-wide copy served by the integration. null when the endpoint is
+ *  missing (older integration / non-HA host) or nothing is stored yet. */
+async function readShared(hass: HomeAssistant): Promise<StoredProjects | null> {
+  try {
+    const data: any = await hass.callApi?.('GET', PLAN_API);
+    if (data && data.projects) return data as StoredProjects;
+  } catch {
+    /* endpoint not available — fall back to the per-user store */
+  }
+  return null;
+}
+
+/** Mirror the set to the install-wide copy. Best effort: an older integration
+ *  has no such endpoint, and the per-user store still holds the plan. */
+async function writeShared(hass: HomeAssistant, data: StoredProjects): Promise<boolean> {
+  try {
+    await hass.callApi?.('POST', PLAN_API, data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Load the full project set.
  *
- *  Inside Home Assistant (a live WS connection) the per-user store is the ONLY
- *  source of truth — we deliberately do NOT fall back to localStorage there.
- *  localStorage is shared across same-origin URLs, so two HA instances reached
- *  at the same host:port (e.g. both `homeassistant.local:8123`) would otherwise
- *  show each other's projects. localStorage is used only with no HA connection
- *  at all (a manually-served standalone page). */
+ *  Inside Home Assistant the INSTALL-WIDE copy wins, so every user and device —
+ *  including a wall tablet whose long-lived token belongs to another account —
+ *  converges on one plan. It falls back to this user's per-user store (and seeds
+ *  the shared copy from it, so existing plans carry over without a manual save).
+ *
+ *  We deliberately do NOT fall back to localStorage while connected to HA:
+ *  localStorage is shared across same-origin URLs, so two HA instances reached at
+ *  the same host:port (e.g. both `homeassistant.local:8123`) would otherwise show
+ *  each other's projects. localStorage is used only with no HA connection at all
+ *  (a manually-served standalone page). */
 export async function loadProjects(hass?: HomeAssistant): Promise<StoredProjects> {
   if (hass?.callWS) {
-    return (await readHA(hass)) ?? { projects: {} };
+    const shared = await readShared(hass);
+    if (shared) return shared;
+    const mine = await readHA(hass);
+    if (mine) {
+      // First load after the upgrade: publish this user's plan so other devices
+      // pick it up straight away rather than waiting for the next save.
+      await writeShared(hass, mine);
+      return mine;
+    }
+    return { projects: {} };
   }
   return loadLocalSet() ?? { projects: {} };
 }
 
-/** Persist the full project set. Inside HA it goes to the per-user store only;
- *  localStorage is written just as a fallback when there's no HA connection or
- *  the HA write fails — never as a shadow copy that could leak between instances. */
+/** Persist the full project set. Inside HA it is written to BOTH the
+ *  install-wide copy (so the kiosk/tablet sees this edit no matter which account
+ *  its token belongs to) and this user's per-user store (kept so nothing is lost
+ *  if the shared endpoint is unavailable). localStorage is written just as a
+ *  fallback when there's no HA connection or the HA write fails — never as a
+ *  shadow copy that could leak between instances. */
 export async function saveProjects(
   data: StoredProjects,
   hass?: HomeAssistant,
@@ -78,6 +121,7 @@ export async function saveProjects(
     saveLocalSet(data);
     return { ha: false };
   }
+  await writeShared(hass, data);
   try {
     await hass.callWS({ type: 'frontend/set_user_data', key: HA_KEY, value: data });
     return { ha: true };
