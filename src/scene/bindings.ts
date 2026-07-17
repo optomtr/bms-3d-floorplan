@@ -267,13 +267,17 @@ export class BindingManager {
         break;
       }
       case 'cover': {
-        // Position attr (0-100) when present, else open/closed. A settled
-        // "closed" outranks the position: some motors leave current_position
-        // stale at 100 after shutting, which would draw a shut curtain open.
+        // The state string outranks current_position, and "closing"/"opening"
+        // count as their destination. These curtain motors leave the position
+        // stale at 100 even once shut — and can sit in "closing" for good — so
+        // reading the position would draw a shut curtain wide open. Position
+        // still refines a settled "open" (e.g. a blind stopped half way).
         const pos = ent?.attributes?.current_position;
-        const open = state === 'closed' ? 0
-          : typeof pos === 'number' ? pos / 100
-          : (state === 'open' || state === 'opening') ? 1 : 0;
+        const open =
+          state === 'closed' || state === 'closing' ? 0
+            : state === 'opening' ? 1
+              : state === 'open' ? (typeof pos === 'number' ? pos / 100 : 1)
+                : typeof pos === 'number' ? pos / 100 : 0;
         if ((ab.curtains && ab.curtains.length) || (ab.blindsV && ab.blindsV.length)) {
           ab.coverOpen = open; // curtains slide / blinds lift in animate()
         } else {

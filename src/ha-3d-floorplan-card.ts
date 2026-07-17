@@ -121,6 +121,9 @@ const RU_STRINGS: Record<string, string> = {
   'Off mode': 'Выкл',
   'Close blind': 'Закрыть',
   'Open blind': 'Открыть',
+  'Stop blind': 'Стоп',
+  Opening: 'Открывается',
+  Closing: 'Закрывается',
   Warm: 'Тёплый',
   Cool: 'Холодный',
   now: 'сейчас',
@@ -241,6 +244,13 @@ export class Ha3dFloorplanCard extends LitElement {
    *  optimistic state chosen by a rapid re-tap. */
   private optimistic = new Map<string, { state: string; timer: ReturnType<typeof setTimeout>; gen: number }>();
   private optGen = 0;
+  /** Pending climate setpoints: entity_id -> the target we asked for, plus the
+   *  value HA reported when we asked (`base`). The Tuya thermostats here obey
+   *  set_temperature — the wall unit moves — but don't report the new target
+   *  back for a long time (measured: not within 20s), so reading HA alone
+   *  leaves ± looking dead on a stale number. Cleared once HA reports our value
+   *  (confirmed) or any other value (someone used the wall unit — that wins). */
+  private optTemp = new Map<string, { temp: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -371,6 +381,21 @@ export class Ha3dFloorplanCard extends LitElement {
         }
       }
     }
+    // A pending setpoint stands until HA reports OUR value (confirmed) or some
+    // other value (changed at the wall unit — that's authoritative). It must
+    // NOT clear just because the entity object changed: these thermostats
+    // re-report current_temperature long before the target, which would snap
+    // the number back to the stale setpoint mid-press.
+    if (this.optTemp.size) {
+      for (const [id, ov] of [...this.optTemp]) {
+        const t = hass.states[id]?.attributes?.temperature;
+        if (typeof t !== 'number') continue;
+        if (t === ov.temp || t !== ov.base) {
+          clearTimeout(ov.timer);
+          this.optTemp.delete(id);
+        }
+      }
+    }
     this.lastHass = hass;
     this.pushEffective(hass);
     if (this.controlOpen) this.requestUpdate();
@@ -447,6 +472,46 @@ export class Ha3dFloorplanCard extends LitElement {
     clearTimeout(ov.timer);
     this.optimistic.delete(id);
     if (this.hass) this.pushEffective(this.hass);
+    this.requestUpdate();
+  }
+
+  /** Nudge a climate setpoint by `d` steps: snap to the step grid, clamp to the
+   *  device's own min/max, show it at once, then send it. Stepping from the
+   *  EFFECTIVE target (not HA's) is what lets ± tap repeatedly — 22 → 23 → 24 —
+   *  while HA is still sitting on the old value. */
+  private stepTemp(id: string, ent: HassEntity | undefined, target: number, step: number, d: number): void {
+    const inv = step > 0 ? 1 / step : 2;
+    let next = Math.round((target + d) * inv) / inv;
+    const lo = Number(ent?.attributes?.min_temp);
+    const hi = Number(ent?.attributes?.max_temp);
+    if (Number.isFinite(lo)) next = Math.max(lo, next);
+    if (Number.isFinite(hi)) next = Math.min(hi, next);
+    if (next === target) return;
+    this.setOptimisticTemp(id, next);
+    this.svc('climate', 'set_temperature', { temperature: next }, id);
+  }
+
+  /** The setpoint to show and to step from: the pending one if we have an
+   *  unconfirmed set_temperature in flight, else whatever HA reports. */
+  private effTarget(id: string): number | undefined {
+    const ov = this.optTemp.get(id);
+    if (ov) return ov.temp;
+    const v = this.hass?.states[id]?.attributes?.temperature;
+    return typeof v === 'number' ? v : undefined;
+  }
+
+  /** Show `temp` as the setpoint until HA catches up (see optTemp). The window
+   *  is generous because these thermostats can take far longer than a normal
+   *  device to report; if HA never confirms, we fall back to its truth. */
+  private setOptimisticTemp(id: string, temp: number): void {
+    const prev = this.optTemp.get(id);
+    if (prev) clearTimeout(prev.timer);
+    const base = this.hass?.states[id]?.attributes?.temperature;
+    const timer = setTimeout(() => {
+      this.optTemp.delete(id);
+      this.requestUpdate();
+    }, 60000);
+    this.optTemp.set(id, { temp, base: typeof base === 'number' ? base : undefined, timer });
     this.requestUpdate();
   }
 
@@ -2176,15 +2241,12 @@ export class Ha3dFloorplanCard extends LitElement {
         @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id, on ? 'locked' : 'unlocked')}>${this.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
     } else if (domain === 'climate') {
       // Compact AC remote: temperature ± and the HVAC mode chips, inline.
-      const target = ent?.attributes?.temperature as number | undefined;
+      const target = this.effTarget(id);
       const cur = ent?.attributes?.current_temperature as number | undefined;
       const step = climateStep(ent);
       const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'cool', 'heat', 'auto'];
       const setTemp = (d: number) => {
-        if (typeof target === 'number') {
-          const inv = step > 0 ? 1 / step : 2;
-          this.svc('climate', 'set_temperature', { temperature: Math.round((target + d) * inv) / inv }, id);
-        }
+        if (typeof target === 'number') this.stepTemp(id, ent, target, step, d);
       };
       controls = html`<div class="ctl-col">
         <div class="ctl-row">
@@ -2596,7 +2658,7 @@ export class Ha3dFloorplanCard extends LitElement {
     // "Кондиционер" — exactly the ones that tell two heaters in a room apart.
     climates.forEach((e) => out.push(this.renderClimateCard(e.entity_id)));
     fans.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'fan')));
-    covers.forEach((e) => out.push(this.renderCoverCard(e.entity_id, covers.length === 1 ? this.t('Curtains') : undefined)));
+    covers.forEach((e) => out.push(this.renderCoverCard(e.entity_id)));
     medias.forEach((e) => out.push(this.renderMediaCard(e.entity_id, medias.length === 1 ? this.t('Media') : undefined)));
     locks.forEach((e) => out.push(this.renderLockCard(e.entity_id)));
     infos.forEach((e) => out.push(this.renderInfoCard(e.entity_id)));
@@ -2705,12 +2767,11 @@ export class Ha3dFloorplanCard extends LitElement {
     const ent = this.hass!.states[id];
     const mode = this.effState(id);
     const on = mode !== 'off' && mode !== 'unavailable' && mode !== 'unknown';
-    const target = ent?.attributes?.temperature as number | undefined;
+    const target = this.effTarget(id);
     const step = climateStep(ent);
     const setTemp = (d: number) => {
       if (typeof target !== 'number') return;
-      const inv = step > 0 ? 1 / step : 2;
-      this.svc('climate', 'set_temperature', { temperature: Math.round((target + d) * inv) / inv }, id);
+      this.stepTemp(id, ent, target, step, d);
     };
     const cur = ent?.attributes?.current_temperature as number | undefined;
     // The setpoint shows in the stepper and the mode in the segments below, so
@@ -2763,29 +2824,40 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  private renderCoverCard(id: string, title?: string) {
+  /** Open / Stop / Close, mirroring the wall panel. No position slider: these
+   *  curtain motors advertise SET_POSITION but report current_position stale at
+   *  100 even once shut, so a slider (and an "opened to 100%" readout) just
+   *  states something false. The state string is the honest signal. */
+  private renderCoverCard(id: string) {
     const ent = this.hass!.states[id];
-    const posAttr = ent?.attributes?.current_position;
     const state = this.effState(id);
-    const real = typeof posAttr === 'number' ? posAttr : state === 'open' || state === 'opening' ? 100 : 0;
-    const pos = this.sliderValue(id, real);
-    const sub = pos > 0 ? `${this.t('opened to')} ${pos}%` : this.t('Closed');
+    const feat = Number(ent?.attributes?.supported_features ?? 0);
+    const sub =
+      state === 'closed' ? this.t('Closed')
+        : state === 'opening' ? this.t('Opening')
+          : state === 'closing' ? this.t('Closing')
+            : this.t('Open');
     return html`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic('curtain')}</div>
         <div class="cgrow">
-          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="clabel">${this.cardName(id)}</div>
           <div class="csub">${sub}</div>
         </div>
       </div>
-      <div class="slider cover" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('cover', 'set_cover_position', { position: p }, id, p > 0 ? 'open' : 'closed'))}>
-        <div class="slider-fill white" style="width:${pos}%"></div>
-        <div class="slider-lab"><span>${this.t('Closed')}</span><span>${this.t('Open')}</span></div>
-      </div>
       <div class="qbtns">
-        <button type="button" class="qb" @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.t('Close blind')}</button>
-        <button type="button" class="qb" @click=${() => this.svc('cover', 'set_cover_position', { position: 50 }, id, 'open')}>50%</button>
-        <button type="button" class="qb" @click=${() => this.svc('cover', 'open_cover', {}, id, 'open')}>${this.t('Open blind')}</button>
+        ${feat & 1
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('cover', 'open_cover', {}, id, 'open')}>${this.t('Open blind')}</button>`
+          : nothing}
+        ${feat & 8
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('cover', 'stop_cover', {}, id)}>${this.t('Stop blind')}</button>`
+          : nothing}
+        ${feat & 2
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.t('Close blind')}</button>`
+          : nothing}
       </div>
     </div>`;
   }
