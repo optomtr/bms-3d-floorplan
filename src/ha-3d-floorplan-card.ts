@@ -3400,12 +3400,14 @@ export class Ha3dFloorplanCard extends LitElement {
     ha-card.has-photo .viewport {
       background: transparent;
     }
-    /* Over a photo the panel is glass, not a wall that crops it. */
+    /* Over a photo the panel is glass, not a wall that crops it. Light blur:
+       enough to keep white text legible over a bright photo, little enough that
+       the room still reads through it. */
     ha-card.has-photo .room-panel {
-      background: rgba(18, 19, 23, 0.52);
-      backdrop-filter: blur(18px) saturate(1.1);
-      -webkit-backdrop-filter: blur(18px) saturate(1.1);
-      border-left-color: rgba(255, 255, 255, 0.16);
+      background: rgba(16, 17, 21, 0.36);
+      backdrop-filter: blur(7px) saturate(1.18);
+      -webkit-backdrop-filter: blur(7px) saturate(1.18);
+      border-left-color: rgba(255, 255, 255, 0.2);
     }
     .overlay {
       position: absolute;
