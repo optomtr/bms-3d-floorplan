@@ -351,6 +351,12 @@ export class SceneManager {
     this.renderer = new THREE.WebGLRenderer({ antialias: preset.aa, alpha: true, powerPreference: 'high-performance' });
     this.staticPR = preset.pixelRatio;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
+    // Filmic tone mapping — the flat linear default crushes bright walls to a
+    // dead grey and clips lamp highlights. ACES rolls the highlights off and
+    // deepens the mids, which is what reads as an "expensive" render; the slight
+    // exposure lift keeps it from darkening the room. Nearly free on the GPU.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
     this.renderer.shadowMap.enabled = preset.shadows;
     this.renderer.shadowMap.type = preset.shadowType;
     // Shadows are cast only by the fixed sun, so the shadow map is static. Stop
@@ -529,11 +535,14 @@ export class SceneManager {
   }
 
   private setupLights(): void {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+    // Warm key + softly warm ambient, with a cooler ground bounce — the warm/cool
+    // split is what stops an interior looking flat and fluorescent. Pure-white
+    // light on warm walls just greys them back out.
+    const ambient = new THREE.AmbientLight(0xfff4e6, 0.5);
     this.scene.add(ambient);
 
     const preset = QUALITY_PRESETS[this.qualityTier];
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    const dir = new THREE.DirectionalLight(0xfff0dc, 0.95);
     dir.position.set(10, 18, 8);
     dir.castShadow = preset.shadows;
     dir.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
@@ -547,7 +556,7 @@ export class SceneManager {
     this.scene.add(dir);
     this.sun = dir;
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x444455, 0.4);
+    const hemi = new THREE.HemisphereLight(0xfff2e0, 0x3a3f4a, 0.4);
     this.scene.add(hemi);
   }
 
