@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
+import { normalizeAssetRef } from '../scene/scene-manager';
 import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS, modelBackZ } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
@@ -55,6 +56,7 @@ const ALIGN_TOL = 0.25; // align the first point's x/z with an existing endpoint
 
 const snap = (v: number) => Math.round(v / SNAP) * SNAP;
 const sameVertex = (a: Vec2, b: Vec2) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-4;
+
 const rotateVec = (x: number, z: number, deg: number): Vec2 => {
   const r = (deg * Math.PI) / 180;
   const c = Math.cos(r);
@@ -1332,7 +1334,7 @@ export class EditorController {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
     this.pushUndo();
-    const v = String(value).trim();
+    const v = normalizeAssetRef(String(value));
     if (v) z.bgImage = v;
     else delete z.bgImage;
     this.onChange?.();

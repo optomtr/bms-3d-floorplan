@@ -183,6 +183,32 @@ export interface ClickResult {
   roomKey?: string;
 }
 
+/**
+ * Clean up an image reference before it's stored or loaded.
+ *
+ * The obvious way to get a URL for a picture dropped in `config/www` is to copy
+ * it out of the File editor add-on — but that hands you an ingress link:
+ *
+ *   /api/hassio_ingress/<session-token>/api/file?filename=/homeassistant/config/www/x.jpg
+ *
+ * That's the add-on's private read-a-file API, authorised by the ingress session
+ * of the browser that copied it. It renders perfectly for that person and 404s
+ * on every other device — a wall tablet just shows nothing, and no error
+ * surfaces anywhere. HA already serves `config/www` at `/local`, so rewrite it
+ * to the path that works for every device. Applied when saving AND when loading,
+ * so plans that already hold a raw link start working without re-entering it.
+ * Anything else (data URL, /local path, plain absolute URL) is left alone.
+ */
+export function normalizeAssetRef(value: string): string {
+  const s = String(value).trim();
+  const q = /[?&]filename=([^&]+)/.exec(s);
+  if (q) {
+    const www = /(?:^|\/)(?:config\/)?www\/(.+)$/.exec(decodeURIComponent(q[1]));
+    if (www) return '/local/' + www[1];
+  }
+  return s;
+}
+
 /** A room surfaced to the card for the pills + right-side control panel. */
 export interface RoomInfo {
   key: string;
@@ -1175,9 +1201,13 @@ export class SceneManager {
    *  pass through; a root-relative `/local/...` path is prefixed with the HA
    *  origin so it resolves off the file:// kiosk too. */
   private resolveAsset(u: string): string {
-    if (/^(data:|blob:|https?:)/i.test(u)) return u;
-    if (u.startsWith('/') && this.imageBase) return this.imageBase + u;
-    return u;
+    // Rewrite a File-editor ingress link to the /local path it maps to. Plans
+    // saved before the editor started doing this at input time still hold the
+    // raw link, and it only ever renders for the session that copied it.
+    const ref = normalizeAssetRef(u);
+    if (/^(data:|blob:|https?:)/i.test(ref)) return ref;
+    if (ref.startsWith('/') && this.imageBase) return this.imageBase + ref;
+    return ref;
   }
 
   /** Choose which backdrop is visible: the room photo in view mode, otherwise
