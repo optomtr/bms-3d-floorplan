@@ -38,11 +38,11 @@ function wallMaterial(color?: string, material?: string): THREE.MeshStandardMate
   // Baked materials (wood/marble) carry their own colour → show on white so the
   // rich tone reads through; a user-chosen colour still tints if set.
   //
-  // Unpainted walls are warm ivory, not neutral grey. A wall at R=G=B takes light
-  // back flat and dead — the room reads cheap however good the geometry is.
-  // Nudging red above blue lets the lamps land warm on it, which is most of what
-  // makes an interior look expensive.
-  const base = color ?? (isBakedMaterial(material) ? '#ffffff' : '#eae2d4');
+  // Unpainted walls default to champagne, not neutral grey. A wall at R=G=B takes
+  // light back flat and dead — the room reads cheap however good the geometry is.
+  // Champagne's red sitting well above its blue lets the lamps land warm on it,
+  // which is most of what makes an interior look expensive.
+  const base = color ?? (isBakedMaterial(material) ? '#ffffff' : '#dcc3a0');
   return new THREE.MeshStandardMaterial({
     color: base,
     roughness: 0.9,

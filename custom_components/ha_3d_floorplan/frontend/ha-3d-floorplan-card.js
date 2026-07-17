@@ -22617,7 +22617,7 @@ function q1(i, t, e) {
 }
 const X1 = 2.6, cf = 0.12, K1 = ["single", "double", "glass", "sliding"], Y1 = ["single", "double", "picture", "sliding", "terrace", "storefront"];
 function Z1(i, t) {
-  const e = i ?? (rf(t) ? "#ffffff" : "#eae2d4");
+  const e = i ?? (rf(t) ? "#ffffff" : "#dcc3a0");
   return new _n({
     color: e,
     roughness: 0.9,
@@ -24027,7 +24027,7 @@ function kd(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const p_ = "0.101.0", Io = "ha-3d-floorplan-sidebar-item", Od = "ha-3d-floorplan-overlay";
+const p_ = "0.102.0", Io = "ha-3d-floorplan-sidebar-item", Od = "ha-3d-floorplan-overlay";
 function m_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26959,7 +26959,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                   <input
                     class="color"
                     type="color"
-                    .value=${this.editSelectedColor ?? (n === "room" ? "#c6a87e" : n === "wall" ? "#eae2d4" : "#ffffff")}
+                    .value=${this.editSelectedColor ?? (n === "room" ? "#c6a87e" : n === "wall" ? "#dcc3a0" : "#ffffff")}
                     @input=${this.onSetColor}
                   />
                   ${n === "wall" || n === "room" ? j`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
