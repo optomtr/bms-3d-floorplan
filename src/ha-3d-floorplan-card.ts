@@ -1246,19 +1246,6 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.setRoomField(field, (e.target as HTMLInputElement).value);
   }
 
-  /** Set the focused room's design photo from a typed URL / `/local/` path. */
-  private onSetRoomBg(e: Event): void {
-    this.editor?.setRoomBgImage((e.target as HTMLInputElement).value);
-  }
-
-  private onClearRoomBg(): void {
-    this.editor?.setRoomBgImage('');
-  }
-
-  private onUploadRoomBg(e: Event): void {
-    this.pickDesignPhoto(e, (data) => this.editor?.setRoomBgImage(data));
-  }
-
   /** Set the focused manual room's (zone's) design photo from a typed URL. */
   private onSetZoneBg(id: string, e: Event): void {
     this.editor?.setZoneBgImage(id, (e.target as HTMLInputElement).value);
@@ -1967,28 +1954,6 @@ export class Ha3dFloorplanCard extends LitElement {
                           </div>`,
                         )}`
                     : nothing}`
-              : nothing}
-            ${kind === 'room' && this.editRoom
-              ? html`<div class="panel-group">Фон комнаты (виден на планшете при выборе)</div>
-                  <div class="toolrow">
-                    <input class="name-input" type="text" placeholder="URL или /local/room.jpg"
-                      .value=${
-                        this.editRoom.bgImage && !this.editRoom.bgImage.startsWith('data:')
-                          ? this.editRoom.bgImage
-                          : ''
-                      }
-                      @change=${this.onSetRoomBg} />
-                  </div>
-                  <div class="toolrow">
-                    <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
-                      type="file" accept="image/*" style="display:none" @change=${this.onUploadRoomBg} /></label>
-                    ${
-                      this.editRoom.bgImage
-                        ? html`<button class="btn" title="Убрать фон" @click=${this.onClearRoomBg}>🗑</button>
-                            <span class="hint">${this.editRoom.bgImage.startsWith('data:') ? 'фото загружено' : 'задан URL'}</span>`
-                        : html`<span class="hint">не задан</span>`
-                    }
-                  </div>`
               : nothing}
             ${isFurniture && this.hass
               ? (() => {

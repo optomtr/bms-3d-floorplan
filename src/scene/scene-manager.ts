@@ -983,26 +983,12 @@ export class SceneManager {
         wy: elev + 1.6,
         wz: z.z,
       };
-      // A zone's OWN photo wins. Several zones can sit inside one geometric room
-      // (e.g. a Санузел and a Холл icon both inside the same floor polygon), and
-      // then the polygon's photo can't tell them apart — every such zone would
-      // show the same picture. Falling back to the containing room keeps plans
-      // that only ever set a photo on the room shape working. Smallest
-      // containing room wins (most specific), mirroring device grouping.
-      let zoneBg: string | undefined = z.bgImage;
-      if (!zoneBg) {
-        let zoneBgArea = Infinity;
-        for (const r of rooms) {
-          if (r.bgImage && pointInPoly(z.x, z.z, r.poly)) {
-            const a = polyArea(r.poly);
-            if (a < zoneBgArea) {
-              zoneBgArea = a;
-              zoneBg = r.bgImage;
-            }
-          }
-        }
-      }
-      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, sprite: sp });
+      // A zone shows ONLY its own photo — it deliberately does not fall back to
+      // the geometric room it sits in. Several zones commonly share one floor
+      // polygon (a Санузел and a Холл icon inside the same shape), and the
+      // polygon's photo can't tell them apart: falling back put one room's
+      // picture behind every other room in that shape.
+      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: z.bgImage, sprite: sp });
       for (const id of ents) this.markerByEntity.set(id, sp);
     }
     // 2) Auto-group the remaining (unclaimed) devices by their room polygon.

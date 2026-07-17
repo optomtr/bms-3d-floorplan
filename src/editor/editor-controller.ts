@@ -1010,18 +1010,6 @@ export class EditorController {
     this.onChange?.();
   }
 
-  /** Set (or clear, on empty) the room's design-photo URL/`/local/` path. No
-   *  rebuild: the photo is a view-mode backdrop, invisible in the editor. */
-  setRoomBgImage(value: string): void {
-    const room = this.currentRoom();
-    if (!room) return;
-    this.pushUndo();
-    const v = String(value).trim();
-    if (v) room.bgImage = v;
-    else delete room.bgImage;
-    this.onChange?.();
-  }
-
   private buildGizmo(): void {
     this.sm.clearGizmo();
     const room = this.currentRoom();
@@ -1336,9 +1324,10 @@ export class EditorController {
     this.onChange?.();
   }
 
-  /** Set (or clear, on empty) a manual room's design photo. Mirrors
-   *  setRoomBgImage, but per zone — see ZoneDef.bgImage for why zones need
-   *  their own picture instead of borrowing the floor polygon's. */
+  /** Set (or clear, on empty) a manual room's design photo — a URL/`/local/`
+   *  path or an uploaded data URL. See ZoneDef.bgImage for why each zone needs
+   *  its own picture instead of borrowing the floor polygon's. No rebuild: the
+   *  photo is a view-mode backdrop, invisible in the editor. */
   setZoneBgImage(id: string, value: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
