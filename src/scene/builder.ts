@@ -37,7 +37,12 @@ export interface BuiltFloor {
 function wallMaterial(color?: string, material?: string): THREE.MeshStandardMaterial {
   // Baked materials (wood/marble) carry their own colour → show on white so the
   // rich tone reads through; a user-chosen colour still tints if set.
-  const base = color ?? (isBakedMaterial(material) ? '#ffffff' : '#e6e6e6');
+  //
+  // Unpainted walls are warm ivory, not neutral grey. A wall at R=G=B takes light
+  // back flat and dead — the room reads cheap however good the geometry is.
+  // Nudging red above blue lets the lamps land warm on it, which is most of what
+  // makes an interior look expensive.
+  const base = color ?? (isBakedMaterial(material) ? '#ffffff' : '#eae2d4');
   return new THREE.MeshStandardMaterial({
     color: base,
     roughness: 0.9,
@@ -265,7 +270,9 @@ function buildFloor(
   const mesh = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
-      color: room.color ?? (isBakedMaterial(room.material) ? '#ffffff' : '#cfc7ba'),
+      // Honey oak, not greige: a floor darker and warmer than the walls is what
+      // gives a room depth. Equal-toned walls and floor read as a model, not a home.
+      color: room.color ?? (isBakedMaterial(room.material) ? '#ffffff' : '#c6a87e'),
       roughness: 0.9,
       metalness: 0,
       side: THREE.DoubleSide,

@@ -1928,7 +1928,7 @@ export class Ha3dFloorplanCard extends LitElement {
                   <input
                     class="color"
                     type="color"
-                    .value=${this.editSelectedColor ?? (kind === 'room' ? '#cfc7ba' : kind === 'wall' ? '#e6e6e6' : '#ffffff')}
+                    .value=${this.editSelectedColor ?? (kind === 'room' ? '#c6a87e' : kind === 'wall' ? '#eae2d4' : '#ffffff')}
                     @input=${this.onSetColor}
                   />
                   ${kind === 'wall' || kind === 'room'
