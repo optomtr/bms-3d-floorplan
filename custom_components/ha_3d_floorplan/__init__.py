@@ -99,8 +99,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.http.register_view(plan_api.PlanView(plan_store))
             store["plan_store"] = plan_store
             store["plan_view"] = True
-        except Exception as err:  # noqa: BLE001 - best effort
-            _LOGGER.debug("plan view registration failed: %s", err)
+            _LOGGER.info("Shared plan API ready (ws: %s)", plan_api.WS_GET)
+        except Exception:
+            # Loud: without this the kiosk silently falls back to per-user data
+            # and a tablet keeps showing another account's stale plan.
+            _LOGGER.exception("Shared plan API failed to register")
 
     return True
 

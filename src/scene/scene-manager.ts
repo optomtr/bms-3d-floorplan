@@ -983,12 +983,28 @@ export class SceneManager {
         wy: elev + 1.6,
         wz: z.z,
       };
-      // A zone shows ONLY its own photo — it deliberately does not fall back to
-      // the geometric room it sits in. Several zones commonly share one floor
-      // polygon (a Санузел and a Холл icon inside the same shape), and the
-      // polygon's photo can't tell them apart: falling back put one room's
-      // picture behind every other room in that shape.
-      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: z.bgImage, sprite: sp });
+      // A zone's OWN photo always wins. With none set it borrows the photo of
+      // the geometric room it sits in, but ONLY where that room holds exactly
+      // one zone. Rooms often share a floor polygon, and borrowing there is what
+      // put one room's picture behind all its neighbours; a one-zone room is
+      // unambiguous, so plans whose photo was set on the room shape keep working.
+      let zoneBg: string | undefined = z.bgImage;
+      if (!zoneBg) {
+        let host: (typeof rooms)[number] | null = null;
+        let hostArea = Infinity;
+        for (const r of rooms) {
+          if (!r.bgImage || !pointInPoly(z.x, z.z, r.poly)) continue;
+          const a = polyArea(r.poly); // smallest containing room = most specific
+          if (a < hostArea) {
+            hostArea = a;
+            host = r;
+          }
+        }
+        if (host && zones.filter((o) => pointInPoly(o.x, o.z, host!.poly)).length === 1) {
+          zoneBg = host.bgImage;
+        }
+      }
+      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, sprite: sp });
       for (const id of ents) this.markerByEntity.set(id, sp);
     }
     // 2) Auto-group the remaining (unclaimed) devices by their room polygon.

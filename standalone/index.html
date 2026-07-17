@@ -323,6 +323,22 @@
       // socket, so the 3D renders from cache with no network and taps simulate
       // locally. A live connection, when it comes up, overrides both.
       let card, currentPlan = null, lastPlanJson = null;
+      // Where the shown plan came from, and how many rooms carry a design photo.
+      // Surfaced on screen after each load: this page can only fall back silently
+      // (shared -> own -> bundled file), so without it there is no way to tell a
+      // stale plan from a missing photo when the backdrop doesn't appear.
+      let planSource = '—';
+      function planInfo(plan) {
+        let rooms = 0;
+        let photos = 0;
+        for (const f of (plan && plan.floors) || []) {
+          for (const z of f.zones || []) {
+            rooms++;
+            if (z.bgImage) photos++;
+          }
+        }
+        return `план: ${planSource} · комнат: ${rooms} · с фото: ${photos}`;
+      }
       let states = {};
       let ws = null;
       let reqId = 10;
@@ -532,8 +548,12 @@
         // command) or when nothing is saved yet.
         async function fetchSharedPlan() {
           try {
-            return pickProject(await request({ type: 'ha_3d_floorplan/plan/get' }));
+            const p = pickProject(await request({ type: 'ha_3d_floorplan/plan/get' }));
+            if (p) planSource = 'общий';
+            return p;
           } catch {
+            // Older integration (unknown command) or HA not restarted after the
+            // update — the caller falls back to this account's own copy.
             return null;
           }
         }
@@ -543,7 +563,9 @@
         async function fetchUserPlan() {
           try {
             const res = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
-            return pickProject(res && res.value);
+            const p = pickProject(res && res.value);
+            if (p) planSource = 'свой';
+            return p;
           } catch {
             return null;
           }
@@ -617,6 +639,11 @@
                   if (plan) {
                     applyPlan(plan);
                     planLoaded = true; // only latch once a REAL plan is shown
+                    // Say which copy this is and whether it carries photos — the
+                    // fallbacks are silent, so this is the only way to see that
+                    // a stale plan (not a broken backdrop) is the problem.
+                    setStatus(planInfo(plan), true);
+                    setTimeout(() => setStatus('', false), 6000);
                   } else if (!planLoaded) {
                     setStatus('connected · no plan saved for this account', true);
                   }
@@ -678,8 +705,8 @@
           const plan = (await fetchSharedPlan()) || (await fetchUserPlan());
           if (plan && applyPlan(plan)) {
             cacheSave(); // also refresh offline snapshot
-            setStatus('план обновлён', true);
-            setTimeout(() => setStatus('', false), 2500);
+            setStatus('план обновлён · ' + planInfo(plan), true);
+            setTimeout(() => setStatus('', false), 4000);
           }
         }, 10000);
       }
