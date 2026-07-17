@@ -309,10 +309,12 @@ export class SceneManager {
   /** The default gradient backdrop, kept so a per-room photo can be swapped in
    *  and then restored. Assigned in the constructor. */
   private defaultBackdrop!: THREE.Texture;
-  /** The focused room's design-photo URL + its loaded texture (view mode only).
-   *  null when no room bg is wanted; disposed/replaced on each change. */
+  /** The focused room's design photo: `roomBgUrl` is what the plan asked for,
+   *  `roomPhoto` the URL that actually loaded (null = show the gradient). The
+   *  picture itself is painted by the card, not the scene — see setPhoto. */
   private roomBgUrl: string | null = null;
-  private roomBgTex: THREE.Texture | null = null;
+  private roomPhoto: string | null = null;
+  private onBackdrop?: (url: string | null) => void;
   /** Origin used to resolve root-relative asset paths (e.g. `/local/photo.jpg`).
    *  Empty in the same-origin HA frontend; set to the HA URL in the file://
    *  kiosk, where a bare `/local/...` would otherwise hit the APK's assets. */
@@ -343,7 +345,10 @@ export class SceneManager {
     this.qualityTier = this.qualityChoice === 'auto' ? detectTier() : this.qualityChoice;
     const preset = QUALITY_PRESETS[this.qualityTier];
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: preset.aa, alpha: false, powerPreference: 'high-performance' });
+    // alpha: the canvas goes transparent while a room's design photo is up, so
+    // the photo can be one CSS layer spanning the whole card (behind the side
+    // panel too) instead of stopping at the canvas edge.
+    this.renderer = new THREE.WebGLRenderer({ antialias: preset.aa, alpha: true, powerPreference: 'high-performance' });
     this.staticPR = preset.pixelRatio;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
     this.renderer.shadowMap.enabled = preset.shadows;
@@ -558,8 +563,6 @@ export class SceneManager {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    // Re-fit the room-photo backdrop's cover-crop to the new aspect.
-    if (this.roomBgTex) this.updateBackdropCover();
     this.needsRender = true;
     // setSize() clears the WebGL buffer, so with render-on-demand the canvas
     // would flash black for a frame until the next rAF. This matters when the
@@ -1135,67 +1138,49 @@ export class SceneManager {
 
     // No photo for this room: drop straight to the gradient.
     if (!url) {
-      if (this.roomBgTex) {
-        this.roomBgTex.dispose();
-        this.roomBgTex = null;
-      }
-      this.applyBackdrop();
+      this.setPhoto(null);
       return;
     }
 
-    // Decode the new picture BEFORE swapping it in. Handing the renderer a
-    // still-loading texture blanked the backdrop for as long as the decode took,
-    // so every room switch flashed dark; what's on screen now stays until the
-    // replacement is actually ready. Candidates are tried in order, so a photo
-    // that doesn't sit where its link implies still ends up on screen.
-    const prev = this.roomBgTex;
+    // Decode the picture BEFORE handing it over, so what's on screen stays put
+    // until the replacement is ready rather than flashing. Candidates are tried
+    // in order, so a photo that isn't where its link implies still shows up.
     const tries = this.assetCandidates(url);
     const attempt = (i: number): void => {
       if (this.roomBgUrl !== url) return; // room changed while we were loading
       if (i >= tries.length) {
         console.warn('[3d-floorplan] could not load room photo:', tries.join(' | '));
         this.roomBgUrl = null;
-        if (prev) prev.dispose();
-        this.roomBgTex = null;
-        this.applyBackdrop(); // gradient, rather than a black backdrop
+        this.setPhoto(null); // gradient, rather than a blank backdrop
         return;
       }
-      new THREE.TextureLoader().load(
-        tries[i],
-        (tex) => {
-          if (this.roomBgUrl !== url) {
-            tex.dispose(); // the room changed again while this was decoding
-            return;
-          }
-          tex.colorSpace = THREE.SRGBColorSpace;
-          tex.center.set(0.5, 0.5); // crop around the middle
-          this.roomBgTex = tex;
-          if (prev) prev.dispose();
-          this.updateBackdropCover(); // now that the real dimensions are known
-          this.applyBackdrop();
-          this.needsRender = true;
-          this.invalidate();
-        },
-        undefined,
-        () => attempt(i + 1),
-      );
+      const img = new Image();
+      img.onload = () => {
+        if (this.roomBgUrl !== url) return; // superseded mid-decode
+        this.setPhoto(tries[i]);
+      };
+      img.onerror = () => attempt(i + 1);
+      img.src = tries[i];
     };
     attempt(0);
   }
 
-  /** Crop the room-photo backdrop to cover the viewport without distortion —
-   *  scale the shorter axis to fill and centre-crop the overflow. Re-run on
-   *  resize and once the image loads. */
-  private updateBackdropCover(): void {
-    const tex = this.roomBgTex;
-    const img = tex?.image as { width?: number; height?: number } | undefined;
-    if (!tex || !img?.width || !img?.height) return;
-    const va = (this.container.clientWidth || 1) / (this.container.clientHeight || 1);
-    const ia = img.width / img.height;
-    if (va > ia) tex.repeat.set(1, ia / va); // viewport wider → crop top/bottom
-    else tex.repeat.set(va / ia, 1); // viewport taller → crop sides
-    tex.updateMatrix();
+  /** Hand the resolved photo to the card, which paints it as one CSS layer
+   *  across the whole card — the canvas stops at the side panel, so a backdrop
+   *  drawn inside the scene could never reach behind it. */
+  private setPhoto(url: string | null): void {
+    if (this.roomPhoto === url) return;
+    this.roomPhoto = url;
+    this.onBackdrop?.(url);
+    this.applyBackdrop();
   }
+
+  /** Register the card's photo-layer setter. */
+  setBackdropHandler(fn: (url: string | null) => void): void {
+    this.onBackdrop = fn;
+    fn(this.roomPhoto);
+  }
+
 
   /** Origin for resolving root-relative asset paths (see `imageBase`). */
   setImageBase(base: string): void {
@@ -1227,12 +1212,15 @@ export class SceneManager {
     return out;
   }
 
-  /** Choose which backdrop is visible: the room photo in view mode, otherwise
-   *  (overview, no photo, or editing) the default gradient. */
+  /** Choose what's behind the 3D: with a room photo up the scene goes
+   *  transparent so the card's photo layer shows through (and reaches behind the
+   *  side panel); otherwise the default gradient fills the canvas as before. */
   private applyBackdrop(): void {
-    const next = !this.editing && this.roomBgTex ? this.roomBgTex : this.defaultBackdrop;
+    const photo = !this.editing && this.roomPhoto;
+    const next = photo ? null : this.defaultBackdrop;
     if (this.scene.background !== next) {
       this.scene.background = next;
+      this.renderer.setClearAlpha(photo ? 0 : 1);
       this.needsRender = true;
       this.invalidate();
     }

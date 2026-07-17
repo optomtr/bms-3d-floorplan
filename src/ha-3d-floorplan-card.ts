@@ -191,6 +191,10 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private viewMode: 'room' | 'overview' = 'room';
   /** Rooms on the active floor (from the scene), for the pills + right panel. */
   @state() private rooms: RoomInfo[] = [];
+  /** The focused room's design photo, once the scene has confirmed it loads.
+   *  Painted as a CSS layer across the whole card (the canvas can't reach behind
+   *  the side panel), with the canvas transparent over it. */
+  @state() private roomPhoto: string | null = null;
   /** The room whose devices fill the right-side panel. */
   @state() private activeRoomKey: string | null = null;
   /** Overview (1B): the room opened in the full-screen detail slide-over. */
@@ -525,6 +529,9 @@ export class Ha3dFloorplanCard extends LitElement {
     if (this.config?.cameraDistance) this.sceneManager.setCameraDistance(this.config.cameraDistance);
     this.sceneManager.setPickHandler((r) => this.handlePick(r));
     this.sceneManager.setRoomsHandler((rooms) => this.onRoomsChanged(rooms));
+    this.sceneManager.setBackdropHandler((url) => {
+      this.roomPhoto = url;
+    });
     this.sceneManager.start();
     this.loadActiveProject();
   }
@@ -3210,9 +3217,12 @@ export class Ha3dFloorplanCard extends LitElement {
       <ha-card
         class=${this.editing
           ? 'editing'
-          : `view ${this.viewMode}${this.viewMode === 'room' && this.activeRoom ? ' has-room' : ''}${this.idle ? ' idle' : ''}`}
+          : `view ${this.viewMode}${this.viewMode === 'room' && this.activeRoom ? ' has-room' : ''}${this.roomPhoto ? ' has-photo' : ''}${this.idle ? ' idle' : ''}`}
         style=${this.editing ? '' : `height:${height}`}
       >
+        ${this.roomPhoto
+          ? html`<div class="roombg" style=${`background-image:url("${this.roomPhoto.replace(/"/g, '%22')}")`}></div>`
+          : nothing}
         <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
 
         ${this.loadError
@@ -3371,6 +3381,31 @@ export class Ha3dFloorplanCard extends LitElement {
       touch-action: none;
       overscroll-behavior: contain;
       background: #1b1d22;
+    }
+    /* The focused room's design photo, spanning the WHOLE card — the canvas
+       stops at the side panel, so a backdrop drawn inside the scene could never
+       reach behind it. The canvas goes transparent while this is up. */
+    .roombg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      animation: fade-in 0.32s ease both;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    ha-card.has-photo .viewport {
+      background: transparent;
+    }
+    /* Over a photo the panel is glass, not a wall that crops it. */
+    ha-card.has-photo .room-panel {
+      background: rgba(18, 19, 23, 0.52);
+      backdrop-filter: blur(18px) saturate(1.1);
+      -webkit-backdrop-filter: blur(18px) saturate(1.1);
+      border-left-color: rgba(255, 255, 255, 0.16);
     }
     .overlay {
       position: absolute;
