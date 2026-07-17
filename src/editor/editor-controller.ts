@@ -13,7 +13,6 @@
 import * as THREE from 'three';
 import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { normalizeAssetRef } from '../scene/scene-manager';
 import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS, modelBackZ } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
@@ -1334,7 +1333,10 @@ export class EditorController {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
     this.pushUndo();
-    const v = normalizeAssetRef(String(value));
+    // Stored exactly as given. Rewriting a File-editor link to /local here threw
+    // the original away, so when that guess was wrong the photo was gone for
+    // good; the loader tries both instead (see assetCandidates).
+    const v = String(value).trim();
     if (v) z.bgImage = v;
     else delete z.bgImage;
     this.onChange?.();

@@ -1146,36 +1146,41 @@ export class SceneManager {
     // Decode the new picture BEFORE swapping it in. Handing the renderer a
     // still-loading texture blanked the backdrop for as long as the decode took,
     // so every room switch flashed dark; what's on screen now stays until the
-    // replacement is actually ready.
+    // replacement is actually ready. Candidates are tried in order, so a photo
+    // that doesn't sit where its link implies still ends up on screen.
     const prev = this.roomBgTex;
-    new THREE.TextureLoader().load(
-      this.resolveAsset(url),
-      (tex) => {
-        if (this.roomBgUrl !== url) {
-          tex.dispose(); // the room changed again while this was decoding
-          return;
-        }
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.center.set(0.5, 0.5); // crop around the middle
-        this.roomBgTex = tex;
-        if (prev) prev.dispose();
-        this.updateBackdropCover(); // now that the real dimensions are known
-        this.applyBackdrop();
-        this.needsRender = true;
-        this.invalidate();
-      },
-      undefined,
-      () => {
-        // Unreadable photo (bad path, gone from /local/…): show the gradient
-        // rather than a black backdrop, and don't strand the old room's picture.
-        if (this.roomBgUrl !== url) return;
-        console.warn('[3d-floorplan] could not load room photo:', url.slice(0, 80));
+    const tries = this.assetCandidates(url);
+    const attempt = (i: number): void => {
+      if (this.roomBgUrl !== url) return; // room changed while we were loading
+      if (i >= tries.length) {
+        console.warn('[3d-floorplan] could not load room photo:', tries.join(' | '));
         this.roomBgUrl = null;
         if (prev) prev.dispose();
         this.roomBgTex = null;
-        this.applyBackdrop();
-      },
-    );
+        this.applyBackdrop(); // gradient, rather than a black backdrop
+        return;
+      }
+      new THREE.TextureLoader().load(
+        tries[i],
+        (tex) => {
+          if (this.roomBgUrl !== url) {
+            tex.dispose(); // the room changed again while this was decoding
+            return;
+          }
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.center.set(0.5, 0.5); // crop around the middle
+          this.roomBgTex = tex;
+          if (prev) prev.dispose();
+          this.updateBackdropCover(); // now that the real dimensions are known
+          this.applyBackdrop();
+          this.needsRender = true;
+          this.invalidate();
+        },
+        undefined,
+        () => attempt(i + 1),
+      );
+    };
+    attempt(0);
   }
 
   /** Crop the room-photo backdrop to cover the viewport without distortion —
@@ -1201,13 +1206,25 @@ export class SceneManager {
    *  pass through; a root-relative `/local/...` path is prefixed with the HA
    *  origin so it resolves off the file:// kiosk too. */
   private resolveAsset(u: string): string {
-    // Rewrite a File-editor ingress link to the /local path it maps to. Plans
-    // saved before the editor started doing this at input time still hold the
-    // raw link, and it only ever renders for the session that copied it.
-    const ref = normalizeAssetRef(u);
-    if (/^(data:|blob:|https?:)/i.test(ref)) return ref;
-    if (ref.startsWith('/') && this.imageBase) return this.imageBase + ref;
-    return ref;
+    if (/^(data:|blob:|https?:)/i.test(u)) return u;
+    if (u.startsWith('/') && this.imageBase) return this.imageBase + u;
+    return u;
+  }
+
+  /** URLs to try for a room photo, best first.
+   *
+   *  A File-editor ingress link only renders for the session that copied it, so
+   *  the /local path HA serves the same file from is tried first — that's the one
+   *  a tablet can load. But `www` isn't always where the link implies (add-on
+   *  mounts differ), and guessing wrong took away a photo that had been working,
+   *  so the original link stays as a fallback rather than a replacement. */
+  private assetCandidates(u: string): string[] {
+    const raw = String(u).trim();
+    const out: string[] = [];
+    const local = normalizeAssetRef(raw);
+    if (local !== raw) out.push(this.resolveAsset(local));
+    out.push(this.resolveAsset(raw));
+    return out;
   }
 
   /** Choose which backdrop is visible: the room photo in view mode, otherwise
