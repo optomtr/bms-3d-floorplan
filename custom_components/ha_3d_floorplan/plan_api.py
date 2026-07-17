@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import logging
 
+import voluptuous as vol
 from aiohttp import web
 
+from homeassistant.components import websocket_api
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
@@ -29,6 +31,14 @@ _LOGGER = logging.getLogger(__name__)
 
 STORAGE_KEY = f"{DOMAIN}.plan"
 STORAGE_VERSION = 1
+
+# WebSocket commands are the primary transport. The kiosk page runs from
+# file:///android_asset inside the tablet's WebView, so a cross-origin REST fetch
+# to HA is at the mercy of the same-origin policy — but the socket it already
+# uses for states works from that origin. The REST view below stays for any
+# same-origin caller.
+WS_GET = f"{DOMAIN}/plan/get"
+WS_SET = f"{DOMAIN}/plan/set"
 
 
 class PlanStore:
@@ -53,6 +63,32 @@ class PlanStore:
         self._data = data
         self._loaded = True
         await self._store.async_save(data)
+
+
+def async_register_ws(hass: HomeAssistant, store: PlanStore) -> None:
+    """Expose the shared plan over the WebSocket API (works cross-origin)."""
+
+    @websocket_api.websocket_command({vol.Required("type"): WS_GET})
+    @websocket_api.async_response
+    async def ws_get(hass_, connection, msg):
+        data = await store.async_load()
+        connection.send_result(msg["id"], data or {})
+
+    @websocket_api.websocket_command(
+        {vol.Required("type"): WS_SET, vol.Required("value"): dict}
+    )
+    @websocket_api.async_response
+    async def ws_set(hass_, connection, msg):
+        try:
+            await store.async_save(msg["value"])
+        except Exception as err:  # noqa: BLE001 - report, don't drop the socket
+            _LOGGER.error("Could not save the shared plan: %s", err)
+            connection.send_error(msg["id"], "save_failed", str(err))
+            return
+        connection.send_result(msg["id"], {"ok": True})
+
+    websocket_api.async_register_command(hass, ws_get)
+    websocket_api.async_register_command(hass, ws_set)
 
 
 class PlanView(HomeAssistantView):

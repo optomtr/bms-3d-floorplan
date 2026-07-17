@@ -93,6 +93,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not store.get("plan_view"):
         try:
             plan_store = plan_api.PlanStore(hass)
+            # WebSocket first: it's what the tablet's file:// kiosk page can
+            # actually reach. The REST view is for same-origin callers.
+            plan_api.async_register_ws(hass, plan_store)
             hass.http.register_view(plan_api.PlanView(plan_store))
             store["plan_store"] = plan_store
             store["plan_view"] = True

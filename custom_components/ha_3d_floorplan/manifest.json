@@ -1,11 +1,11 @@
 {
   "domain": "ha_3d_floorplan",
   "name": "3D Floor Plan",
-  "version": "0.90.0",
+  "version": "0.91.0",
   "documentation": "https://github.com/Abdunazar7/bms-3d-floorplan",
   "issue_tracker": "https://github.com/Abdunazar7/bms-3d-floorplan/issues",
   "codeowners": ["@Abdunazar7"],
-  "dependencies": ["http", "frontend", "panel_custom"],
+  "dependencies": ["http", "frontend", "panel_custom", "websocket_api"],
   "requirements": [],
   "config_flow": true,
   "integration_type": "service",

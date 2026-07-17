@@ -15,10 +15,12 @@ import type { FloorPlan, HomeAssistant } from './types';
 const HA_KEY = 'ha3d_floorplans';
 const LS_KEY = 'ha3d-floorplans-set'; // full {active, projects} set
 const LS_LEGACY = 'ha3d-floorplan-default'; // older single-plan key (migration)
-// The integration's install-wide copy (custom_components/…/plan_api.py). `callApi`
-// prefixes /api/. Per-user data alone meant a wall tablet holding another
-// account's long-lived token read that account's stale plan and never saw edits.
-const PLAN_API = 'ha3d_floorplan/plan';
+// The integration's install-wide copy (custom_components/…/plan_api.py), reached
+// over the WebSocket so the same commands work from the tablet's file:// kiosk
+// page. Per-user data alone meant a wall tablet holding another account's
+// long-lived token read that account's stale plan and never saw edits.
+const PLAN_WS_GET = 'ha_3d_floorplan/plan/get';
+const PLAN_WS_SET = 'ha_3d_floorplan/plan/set';
 
 export interface StoredProjects {
   active?: string;
@@ -56,23 +58,23 @@ async function readHA(hass: HomeAssistant): Promise<StoredProjects | null> {
   return null;
 }
 
-/** The install-wide copy served by the integration. null when the endpoint is
- *  missing (older integration / non-HA host) or nothing is stored yet. */
+/** The install-wide copy served by the integration. null when the command is
+ *  unknown (older integration / non-HA host) or nothing is stored yet. */
 async function readShared(hass: HomeAssistant): Promise<StoredProjects | null> {
   try {
-    const data: any = await hass.callApi?.('GET', PLAN_API);
+    const data: any = await hass.callWS?.({ type: PLAN_WS_GET });
     if (data && data.projects) return data as StoredProjects;
   } catch {
-    /* endpoint not available — fall back to the per-user store */
+    /* command not available — fall back to the per-user store */
   }
   return null;
 }
 
 /** Mirror the set to the install-wide copy. Best effort: an older integration
- *  has no such endpoint, and the per-user store still holds the plan. */
+ *  doesn't know the command, and the per-user store still holds the plan. */
 async function writeShared(hass: HomeAssistant, data: StoredProjects): Promise<boolean> {
   try {
-    await hass.callApi?.('POST', PLAN_API, data);
+    await hass.callWS?.({ type: PLAN_WS_SET, value: data });
     return true;
   } catch {
     return false;

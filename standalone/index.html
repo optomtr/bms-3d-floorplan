@@ -525,17 +525,14 @@
         // per-user store because it does not depend on which account this
         // device's token belongs to — the editor mirrors every save here, so a
         // tablet signed in as any account still sees the latest edits.
-        // null when the integration is older (no endpoint) or nothing saved yet.
+        // Fetched over the WEBSOCKET, not REST: in the Android app this page is
+        // loaded from file:///android_asset, so a cross-origin fetch to HA is at
+        // the mercy of the same-origin policy, while this socket is already
+        // authenticated and working. null on an older integration (unknown
+        // command) or when nothing is saved yet.
         async function fetchSharedPlan() {
           try {
-            const tk = useSession ? await getSessionToken() : token;
-            if (!tk) return null;
-            const r = await fetch(haUrl.replace(/\/+$/, '') + '/api/ha3d_floorplan/plan', {
-              headers: { Authorization: 'Bearer ' + tk },
-              cache: 'no-cache',
-            });
-            if (!r.ok) return null;
-            return pickProject(await r.json());
+            return pickProject(await request({ type: 'ha_3d_floorplan/plan/get' }));
           } catch {
             return null;
           }
