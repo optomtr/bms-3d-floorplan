@@ -22924,7 +22924,7 @@ class s_ {
         break;
       }
       case "cover": {
-        const r = e?.attributes?.current_position, o = typeof r == "number" ? r / 100 : n === "open" || n === "opening" ? 1 : 0;
+        const r = e?.attributes?.current_position, o = n === "closed" ? 0 : typeof r == "number" ? r / 100 : n === "open" || n === "opening" ? 1 : 0;
         t.curtains && t.curtains.length || t.blindsV && t.blindsV.length ? t.coverOpen = o : this.setEmissive(t, o > 0.5 ? 5230698 : 0, o > 0.5 ? 0.4 : 0);
         break;
       }
@@ -23991,7 +23991,7 @@ function Od(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const f_ = "0.92.0", Io = "ha-3d-floorplan-sidebar-item", Fd = "ha-3d-floorplan-overlay";
+const f_ = "0.93.0", Io = "ha-3d-floorplan-sidebar-item", Fd = "ha-3d-floorplan-overlay";
 function p_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27433,7 +27433,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const e = this.hass;
     if (!e) return [];
     const n = i.entities.filter((v) => e.states[v.entity_id] && !t.has(v.entity_id)), s = (...v) => n.filter((p) => v.includes(p.behavior)), r = s("light"), o = s("switch", "input_boolean"), a = s("climate"), l = s("fan"), c = s("cover"), h = s("media_player"), d = s("lock"), f = /* @__PURE__ */ new Set(["light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "lock"]), u = n.filter((v) => !f.has(v.behavior)), m = [];
-    return r.length && m.push(this.renderLightCard(r.map((v) => v.entity_id))), o.forEach((v) => m.push(this.renderToggleCard(v.entity_id, "power"))), a.forEach((v) => m.push(this.renderClimateCard(v.entity_id, a.length === 1 ? this.t("Climate") : void 0))), l.forEach((v) => m.push(this.renderToggleCard(v.entity_id, "fan"))), c.forEach((v) => m.push(this.renderCoverCard(v.entity_id, c.length === 1 ? this.t("Curtains") : void 0))), h.forEach((v) => m.push(this.renderMediaCard(v.entity_id, h.length === 1 ? this.t("Media") : void 0))), d.forEach((v) => m.push(this.renderLockCard(v.entity_id))), u.forEach((v) => m.push(this.renderInfoCard(v.entity_id))), m;
+    return r.length && m.push(this.renderLightCard(r.map((v) => v.entity_id))), o.forEach((v) => m.push(this.renderToggleCard(v.entity_id, "power"))), a.forEach((v) => m.push(this.renderClimateCard(v.entity_id))), l.forEach((v) => m.push(this.renderToggleCard(v.entity_id, "fan"))), c.forEach((v) => m.push(this.renderCoverCard(v.entity_id, c.length === 1 ? this.t("Curtains") : void 0))), h.forEach((v) => m.push(this.renderMediaCard(v.entity_id, h.length === 1 ? this.t("Media") : void 0))), d.forEach((v) => m.push(this.renderLockCard(v.entity_id))), u.forEach((v) => m.push(this.renderInfoCard(v.entity_id))), m;
   }
   cardName(i, t) {
     return t ?? this.hass?.states[i]?.attributes?.friendly_name ?? i;
@@ -27505,36 +27505,36 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>
     </div>`;
   }
-  renderClimateCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown", r = e?.attributes?.temperature, o = Jd(e), a = (x) => {
-      if (typeof r != "number") return;
-      const M = o > 0 ? 1 / o : 2;
-      this.svc("climate", "set_temperature", { temperature: Math.round((r + x) * M) / M }, i);
-    }, l = e?.attributes?.current_temperature, c = l != null ? Number(l).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, h = s ? c != null ? `${c}° ${this.t("now")}` : this.climateModeLabel(n) : this.t("Off"), d = e?.attributes?.hvac_modes?.length ? e.attributes.hvac_modes : ["off"], f = d.filter((x) => x !== "off"), u = f[0] ?? "heat", m = [...f, ...d.includes("off") ? ["off"] : []], v = Ud(s ? n : u) ?? "power", p = e?.attributes?.fan_modes ?? [], g = e?.attributes?.fan_mode, y = (x) => this.t({ low: "Low", mid: "Medium", medium: "Medium", high: "High", auto: "Auto" }[x] ?? x);
-    return K`<div class="card ${s ? "on cool" : ""}">
+  renderClimateCard(i) {
+    const t = this.hass.states[i], e = this.effState(i), n = e !== "off" && e !== "unavailable" && e !== "unknown", s = t?.attributes?.temperature, r = Jd(t), o = (y) => {
+      if (typeof s != "number") return;
+      const x = r > 0 ? 1 / r : 2;
+      this.svc("climate", "set_temperature", { temperature: Math.round((s + y) * x) / x }, i);
+    }, a = t?.attributes?.current_temperature, l = a != null ? Number(a).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, c = n ? l != null ? `${l}° ${this.t("now")}` : this.climateModeLabel(e) : this.t("Off"), h = t?.attributes?.hvac_modes?.length ? t.attributes.hvac_modes : ["off"], d = h.filter((y) => y !== "off"), f = d[0] ?? "heat", u = [...d, ...h.includes("off") ? ["off"] : []], m = Ud(n ? e : f) ?? "power", v = t?.attributes?.fan_modes ?? [], p = t?.attributes?.fan_mode, g = (y) => this.t({ low: "Low", mid: "Medium", medium: "Medium", high: "High", auto: "Auto" }[y] ?? y);
+    return K`<div class="card ${n ? "on cool" : ""}">
       <div class="crow">
-        <button type="button" class="cicon ${s ? "lit" : ""}" title="Toggle"
-          @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: s ? "off" : u }, i, s ? "off" : u)}>${this.ic(v)}</button>
+        <button type="button" class="cicon ${n ? "lit" : ""}" title="Toggle"
+          @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: n ? "off" : f }, i, n ? "off" : f)}>${this.ic(m)}</button>
         <div class="cgrow">
-          <div class="clabel">${this.cardName(i, t)}</div>
-          <div class="csub">${h}</div>
+          <div class="clabel">${this.cardName(i)}</div>
+          <div class="csub">${c}</div>
         </div>
         <div class="stepper">
-          <button type="button" class="stbtn" title="Cooler" @click=${() => a(-o)}>${this.ic("minus")}</button>
-          <div class="tval">${r != null ? `${r}°` : "—"}</div>
-          <button type="button" class="stbtn" title="Warmer" @click=${() => a(o)}>${this.ic("plus")}</button>
+          <button type="button" class="stbtn" title="Cooler" @click=${() => o(-r)}>${this.ic("minus")}</button>
+          <div class="tval">${s != null ? `${s}°` : "—"}</div>
+          <button type="button" class="stbtn" title="Warmer" @click=${() => o(r)}>${this.ic("plus")}</button>
         </div>
       </div>
       <div class="seg">
-        ${m.map(
-      (x) => K`<button type="button" class="segb ${n === x ? "on" : ""}"
-            @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: x }, i, x)}>${x === "off" ? this.t("Off mode") : this.climateModeLabel(x)}</button>`
+        ${u.map(
+      (y) => K`<button type="button" class="segb ${e === y ? "on" : ""}"
+            @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: y }, i, y)}>${y === "off" ? this.t("Off mode") : this.climateModeLabel(y)}</button>`
     )}
       </div>
-      ${p.length && s ? K`<div class="seg fan">
-            ${p.map(
-      (x) => K`<button type="button" class="segb ${g === x ? "on" : ""}" title=${"Fan: " + x}
-                @click=${() => this.svc("climate", "set_fan_mode", { fan_mode: x }, i)}>${y(x)}</button>`
+      ${v.length && n ? K`<div class="seg fan">
+            ${v.map(
+      (y) => K`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
+                @click=${() => this.svc("climate", "set_fan_mode", { fan_mode: y }, i)}>${g(y)}</button>`
     )}
           </div>` : ot}
     </div>`;

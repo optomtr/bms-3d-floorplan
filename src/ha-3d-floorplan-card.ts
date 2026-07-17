@@ -2590,7 +2590,11 @@ export class Ha3dFloorplanCard extends LitElement {
     // per-light on/off stays available via the overview segment buttons.
     if (lights.length) out.push(this.renderLightCard(lights.map((e) => e.entity_id)));
     switches.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'power')));
-    climates.forEach((e) => out.push(this.renderClimateCard(e.entity_id, climates.length === 1 ? this.t('Climate') : undefined)));
+    // Always label a climate card with the device's own HA name. A room with a
+    // single climate device used to be labelled with the generic category
+    // ("Климат"), which hid the real names — "Тёплый пол", "Радиатор",
+    // "Кондиционер" — exactly the ones that tell two heaters in a room apart.
+    climates.forEach((e) => out.push(this.renderClimateCard(e.entity_id)));
     fans.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'fan')));
     covers.forEach((e) => out.push(this.renderCoverCard(e.entity_id, covers.length === 1 ? this.t('Curtains') : undefined)));
     medias.forEach((e) => out.push(this.renderMediaCard(e.entity_id, medias.length === 1 ? this.t('Media') : undefined)));
@@ -2697,7 +2701,7 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  private renderClimateCard(id: string, title?: string) {
+  private renderClimateCard(id: string) {
     const ent = this.hass!.states[id];
     const mode = this.effState(id);
     const on = mode !== 'off' && mode !== 'unavailable' && mode !== 'unknown';
@@ -2733,7 +2737,7 @@ export class Ha3dFloorplanCard extends LitElement {
         <button type="button" class="cicon ${on ? 'lit' : ''}" title="Toggle"
           @click=${() => this.svc('climate', 'set_hvac_mode', { hvac_mode: on ? 'off' : onMode }, id, on ? 'off' : onMode)}>${this.ic(toggleIcon)}</button>
         <div class="cgrow">
-          <div class="clabel">${this.cardName(id, title)}</div>
+          <div class="clabel">${this.cardName(id)}</div>
           <div class="csub">${sub}</div>
         </div>
         <div class="stepper">
