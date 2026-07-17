@@ -1101,27 +1101,55 @@ export class SceneManager {
    *  no photo. The photo is only actually shown in view mode — applyBackdrop()
    *  falls back to the gradient while editing so it never disturbs the editor. */
   setRoomBackdrop(url: string | null): void {
-    if (url !== this.roomBgUrl) {
-      this.roomBgUrl = url;
-      // Dispose the previous room texture (never the shared default backdrop).
+    if (url === this.roomBgUrl) {
+      this.applyBackdrop();
+      return;
+    }
+    this.roomBgUrl = url;
+
+    // No photo for this room: drop straight to the gradient.
+    if (!url) {
       if (this.roomBgTex) {
         this.roomBgTex.dispose();
         this.roomBgTex = null;
       }
-      if (url) {
-        const tex = new THREE.TextureLoader().load(this.resolveAsset(url), () => {
-          // Once the image's real dimensions are known, crop it to "cover" the
-          // viewport (no stretching), then repaint.
-          this.updateBackdropCover();
-          this.needsRender = true;
-          this.invalidate();
-        });
+      this.applyBackdrop();
+      return;
+    }
+
+    // Decode the new picture BEFORE swapping it in. Handing the renderer a
+    // still-loading texture blanked the backdrop for as long as the decode took,
+    // so every room switch flashed dark; what's on screen now stays until the
+    // replacement is actually ready.
+    const prev = this.roomBgTex;
+    new THREE.TextureLoader().load(
+      this.resolveAsset(url),
+      (tex) => {
+        if (this.roomBgUrl !== url) {
+          tex.dispose(); // the room changed again while this was decoding
+          return;
+        }
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.center.set(0.5, 0.5); // crop around the middle
         this.roomBgTex = tex;
-      }
-    }
-    this.applyBackdrop();
+        if (prev) prev.dispose();
+        this.updateBackdropCover(); // now that the real dimensions are known
+        this.applyBackdrop();
+        this.needsRender = true;
+        this.invalidate();
+      },
+      undefined,
+      () => {
+        // Unreadable photo (bad path, gone from /local/…): show the gradient
+        // rather than a black backdrop, and don't strand the old room's picture.
+        if (this.roomBgUrl !== url) return;
+        console.warn('[3d-floorplan] could not load room photo:', url.slice(0, 80));
+        this.roomBgUrl = null;
+        if (prev) prev.dispose();
+        this.roomBgTex = null;
+        this.applyBackdrop();
+      },
+    );
   }
 
   /** Crop the room-photo backdrop to cover the viewport without distortion —
