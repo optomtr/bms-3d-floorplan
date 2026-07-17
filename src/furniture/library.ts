@@ -1212,6 +1212,96 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  // Built-in arched bookcase wall with a window seat (арочные ниши + скамья).
+  // Two arched niches — open cubbies over wood cabinets — flanking a cushioned
+  // bench nook with drawers. The face is ONE slab with the arches and the bench
+  // nook cut out of it, so the openings read as real reveals; everything else
+  // lives behind that face and is occluded by it.
+  arch_shelf_wall: (c) => {
+    const g = new THREE.Group();
+    const W = 4.8, H = 2.5, D = 0.42;
+    const FZ = D / 2 - 0.06; // front slab spans z FZ .. D/2
+    const NX = 1.5;          // niche centre offset
+    const R = 0.625;         // niche half-width == arch radius
+    const NY0 = 0.05;        // niche opening bottom
+    const NY1 = 2.2;         // arch crown
+    const YS = NY1 - R;      // arch spring line
+    const BW = 1.75, BH = 1.02; // bench nook
+    const IZ = -0.03, ID = 0.34; // interior parts: centre z + depth (stay behind FZ)
+    const white = mat(WHITE, { roughness: 0.75 });
+    const wood = mat(0xa9764a, { roughness: 0.6 });
+    const metal = mat(METAL, { metalness: 0.6, roughness: 0.3 });
+    const knob = (x: number, y: number, z: number, r = 0.016) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), metal);
+      m.position.set(x, y, z);
+      return m;
+    };
+
+    const face = new THREE.Shape();
+    face.moveTo(-W / 2, 0);
+    face.lineTo(W / 2, 0);
+    face.lineTo(W / 2, H);
+    face.lineTo(-W / 2, H);
+    face.closePath();
+    const archHole = (cx: number) => {
+      const p = new THREE.Path();
+      p.moveTo(cx - R, NY0);
+      p.lineTo(cx - R, YS);
+      p.absarc(cx, YS, R, Math.PI, 0, true); // clockwise PI→0 = the TOP semicircle
+      p.lineTo(cx + R, NY0);
+      p.closePath();
+      return p;
+    };
+    const benchHole = new THREE.Path();
+    benchHole.moveTo(-BW / 2, 0);
+    benchHole.lineTo(BW / 2, 0);
+    benchHole.lineTo(BW / 2, BH);
+    benchHole.lineTo(-BW / 2, BH);
+    benchHole.closePath();
+    face.holes.push(archHole(-NX), archHole(NX), benchHole);
+    const front = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(face, { depth: 0.06, bevelEnabled: false }),
+      white,
+    );
+    front.position.z = FZ;
+    g.add(tint(front, c));
+
+    // Niches: back, sides, wood cabinet, three rows of cubbies split in two.
+    const CT = 0.72; // cabinet top
+    for (const cx of [-NX, NX]) {
+      g.add(tint(box(R * 2, NY1 - NY0, 0.02, white, cx, (NY0 + NY1) / 2, -D / 2 + 0.01), c));
+      for (const s of [-1, 1]) {
+        g.add(tint(box(0.02, NY1 - NY0, 0.36, white, cx + s * R, (NY0 + NY1) / 2, IZ), c));
+        g.add(box(R - 0.05, CT - NY0 - 0.04, 0.02, wood, cx + s * (R / 2), (NY0 + CT) / 2, D / 2 - 0.08));
+        g.add(knob(cx + s * 0.06, CT - 0.14, D / 2 - 0.06));
+      }
+      g.add(tint(box(R * 2, 0.03, ID, white, cx, CT, IZ), c));
+      for (const sy of [1.2, 1.68]) g.add(tint(box(R * 2 - 0.04, 0.025, ID, white, cx, sy, IZ), c));
+      g.add(tint(box(0.025, 1.68 - CT, ID, white, cx, (CT + 1.68) / 2, IZ), c));
+    }
+
+    // Bench nook: back, side returns, drawers, seat, striped cushion, pillows.
+    g.add(tint(box(BW, BH, 0.02, white, 0, BH / 2, -D / 2 + 0.01), c));
+    for (const s of [-1, 1]) g.add(tint(box(0.02, BH, 0.36, white, s * (BW / 2), BH / 2, IZ), c));
+    for (const dx of [-0.55, 0, 0.55]) {
+      g.add(box(0.5, 0.36, 0.02, wood, dx, 0.24, D / 2 - 0.08));
+      g.add(knob(dx, 0.24, D / 2 - 0.06, 0.018));
+    }
+    const SY = 0.46;
+    g.add(tint(box(BW - 0.04, 0.04, ID, white, 0, SY, IZ), c));
+    g.add(box(BW - 0.14, 0.09, 0.3, mat(0xdfe3e8, { roughness: 0.9 }), 0, SY + 0.065, IZ));
+    const stripe = mat(0x8b95a4, { roughness: 0.9 });
+    for (let i = 0; i < 9; i++) {
+      g.add(box(0.02, 0.092, 0.302, stripe, -0.7 + i * 0.175, SY + 0.065, IZ));
+    }
+    for (const s of [-1, 1]) {
+      g.add(box(0.3, 0.15, 0.12, mat(WHITE, { roughness: 0.95 }), s * 0.6, SY + 0.18, -0.12));
+    }
+
+    g.add(tint(box(W, 0.07, D + 0.05, white, 0, H - 0.035, 0.02), c)); // crown
+    return g;
+  },
+
   // ---- Lighting (освещение) — each has an 'emissive' mesh + reads as a lamp ----
   floor_lamp: (c) => {
     const g = new THREE.Group();
@@ -2566,7 +2656,8 @@ const DEFAULT_COLORS: Record<string, string> = {
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
-  radiator: '#eeeeee', tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
+  radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee',
+  tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
   warm_floor: '#b98f7d', convector: '#9aa0a6',
