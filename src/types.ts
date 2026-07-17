@@ -207,6 +207,10 @@ export interface ZoneDef {
   z: number;
   /** entity_ids controlled from this room icon. */
   entities: string[];
+  /** Optional design photo, exactly like RoomDef.bgImage. A zone owns its own
+   *  photo: several zones can sit inside one floor polygon, so the polygon's
+   *  photo can't tell them apart (that made two zones share one picture). */
+  bgImage?: string;
 }
 
 /** A building groups floors. Optional — a plan with top-level `floors` is

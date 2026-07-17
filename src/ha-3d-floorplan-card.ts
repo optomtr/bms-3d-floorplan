@@ -36,6 +36,16 @@ import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
 import { ICON_PATHS, climateModeIconName } from './scene/icons';
 import { FONT_FACE_CSS } from './scene/fonts';
 
+/** Step for a climate ±: whole degrees, never finer. A Generic Thermostat
+ *  reports target_temp_step 0.1 (Celsius default precision, not settable from
+ *  its helper flow), which makes ± crawl 21.0 → 21.1 and land on values like
+ *  21.9. Round the device's own step up to a whole degree; entities that already
+ *  step by 1° (ACs, the Tuya floor thermostats) are unaffected. */
+function climateStep(ent?: HassEntity): number {
+  const s = Number(ent?.attributes?.target_temp_step);
+  return Number.isFinite(s) && s >= 1 ? Math.round(s) : 1;
+}
+
 /** Device categories shown when a room marker is tapped (only present ones).
  *  Fans/ventilation live under Climate (not Lights). */
 const DEVICE_CATEGORIES: { key: string; label: string; icon: string; behaviors: string[] }[] = [
@@ -1245,10 +1255,28 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.setRoomBgImage('');
   }
 
-  /** Upload a room design photo from the device. The picture is downscaled and
-   *  re-encoded before it goes into the plan, so the per-user plan JSON (synced
-   *  to the tablet every ~10s) doesn't balloon with a full-resolution photo. */
   private onUploadRoomBg(e: Event): void {
+    this.pickDesignPhoto(e, (data) => this.editor?.setRoomBgImage(data));
+  }
+
+  /** Set the focused manual room's (zone's) design photo from a typed URL. */
+  private onSetZoneBg(id: string, e: Event): void {
+    this.editor?.setZoneBgImage(id, (e.target as HTMLInputElement).value);
+  }
+
+  private onClearZoneBg(id: string): void {
+    this.editor?.setZoneBgImage(id, '');
+  }
+
+  private onUploadZoneBg(id: string, e: Event): void {
+    this.pickDesignPhoto(e, (data) => this.editor?.setZoneBgImage(id, data));
+  }
+
+  /** Read a design photo picked from the device and hand the encoded image to
+   *  `apply`. The picture is downscaled and re-encoded first, so the per-user
+   *  plan JSON (synced to the tablet every ~10s) doesn't balloon with a
+   *  full-resolution photo. */
+  private pickDesignPhoto(e: Event, apply: (data: string) => void): void {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file || !this.editor) return;
@@ -1274,7 +1302,7 @@ export class Ha3dFloorplanCard extends LitElement {
             data = src; // tainted/oversized — fall back to the original
           }
         }
-        this.editor?.setRoomBgImage(data);
+        apply(data);
       };
       img.onerror = () => this.showToast('Не удалось прочитать изображение');
       img.src = src;
@@ -1688,6 +1716,21 @@ export class Ha3dFloorplanCard extends LitElement {
               <button class="btn ${this.editZonePlacing ? 'active' : ''}" title="Then tap the floor"
                 @click=${this.onZonePlace}>📍 ${this.editZonePlacing ? 'Tap the floor…' : 'Place icon'}</button>
               <button class="btn" title="Delete this room" @click=${() => this.onDeleteZone(z.id)}>🗑 Delete</button>
+            </div>
+            <div class="panel-group">Фон комнаты (виден на планшете при выборе)</div>
+            <div class="toolrow">
+              <input class="name-input" type="text" placeholder="URL или /local/room.jpg"
+                .value=${z.bgImage && !z.bgImage.startsWith('data:') ? z.bgImage : ''}
+                @change=${(e: Event) => this.onSetZoneBg(z.id, e)} />
+            </div>
+            <div class="toolrow">
+              <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
+                type="file" accept="image/*" style="display:none"
+                @change=${(e: Event) => this.onUploadZoneBg(z.id, e)} /></label>
+              ${z.bgImage
+                ? html`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(z.id)}>🗑</button>
+                    <span class="hint">${z.bgImage.startsWith('data:') ? 'фото загружено' : 'задан URL'}</span>`
+                : html`<span class="hint">не задан</span>`}
             </div>
             ${ents.length
               ? html`<span class="hint">Devices in this room (${z.entities.length}):</span>
@@ -2170,12 +2213,10 @@ export class Ha3dFloorplanCard extends LitElement {
       // Compact AC remote: temperature ± and the HVAC mode chips, inline.
       const target = ent?.attributes?.temperature as number | undefined;
       const cur = ent?.attributes?.current_temperature as number | undefined;
-      const step = (ent?.attributes?.target_temp_step as number) || 0.5;
+      const step = climateStep(ent);
       const modes: string[] = ent?.attributes?.hvac_modes ?? ['off', 'cool', 'heat', 'auto'];
       const setTemp = (d: number) => {
         if (typeof target === 'number') {
-          // Snap to the device's own step (1°, 0.5°, 0.1°, …) — not a fixed
-          // 0.5 grid, which would send off-grid values to 0.1°-step thermostats.
           const inv = step > 0 ? 1 / step : 2;
           this.svc('climate', 'set_temperature', { temperature: Math.round((target + d) * inv) / inv }, id);
         }
@@ -2696,7 +2737,7 @@ export class Ha3dFloorplanCard extends LitElement {
     const mode = this.effState(id);
     const on = mode !== 'off' && mode !== 'unavailable' && mode !== 'unknown';
     const target = ent?.attributes?.temperature as number | undefined;
-    const step = (ent?.attributes?.target_temp_step as number) || 0.5;
+    const step = climateStep(ent);
     const setTemp = (d: number) => {
       if (typeof target !== 'number') return;
       const inv = step > 0 ? 1 / step : 2;

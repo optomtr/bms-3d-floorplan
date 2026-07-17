@@ -1336,6 +1336,19 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Set (or clear, on empty) a manual room's design photo. Mirrors
+   *  setRoomBgImage, but per zone — see ZoneDef.bgImage for why zones need
+   *  their own picture instead of borrowing the floor polygon's. */
+  setZoneBgImage(id: string, value: string): void {
+    const z = this.zones.find((x) => x.id === id);
+    if (!z) return;
+    this.pushUndo();
+    const v = String(value).trim();
+    if (v) z.bgImage = v;
+    else delete z.bgImage;
+    this.onChange?.();
+  }
+
   setZoneName(id: string, name: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;

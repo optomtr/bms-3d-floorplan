@@ -983,18 +983,22 @@ export class SceneManager {
         wy: elev + 1.6,
         wz: z.z,
       };
-      // A manual zone inherits the design photo of the geometric room its icon
-      // sits inside — so a per-room backdrop works whether the user focuses the
-      // auto-grouped room OR a hand-placed zone in that same room. Smallest
+      // A zone's OWN photo wins. Several zones can sit inside one geometric room
+      // (e.g. a Санузел and a Холл icon both inside the same floor polygon), and
+      // then the polygon's photo can't tell them apart — every such zone would
+      // show the same picture. Falling back to the containing room keeps plans
+      // that only ever set a photo on the room shape working. Smallest
       // containing room wins (most specific), mirroring device grouping.
-      let zoneBg: string | undefined;
-      let zoneBgArea = Infinity;
-      for (const r of rooms) {
-        if (r.bgImage && pointInPoly(z.x, z.z, r.poly)) {
-          const a = polyArea(r.poly);
-          if (a < zoneBgArea) {
-            zoneBgArea = a;
-            zoneBg = r.bgImage;
+      let zoneBg: string | undefined = z.bgImage;
+      if (!zoneBg) {
+        let zoneBgArea = Infinity;
+        for (const r of rooms) {
+          if (r.bgImage && pointInPoly(z.x, z.z, r.poly)) {
+            const a = polyArea(r.poly);
+            if (a < zoneBgArea) {
+              zoneBgArea = a;
+              zoneBg = r.bgImage;
+            }
           }
         }
       }
