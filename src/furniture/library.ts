@@ -1302,6 +1302,70 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  // Backlit niche display wall (ниши с подсветкой + стеклянные полки). Two tall
+  // rectangular niches with a stone back, dark floating glass shelves and a
+  // vertical cove-light strip down each inner edge; a framed TV panel between
+  // them over a low fluted black console. The light strips are 'emissive', so
+  // binding the room's подсветка light glows them. 4.6 x 2.5 x 0.4 m.
+  niche_shelf_wall: (c) => {
+    const g = new THREE.Group();
+    const W = 4.6, H = 2.5, D = 0.4;
+    const FZ = D / 2 - 0.06;      // front slab front face
+    const NX = 1.5, R = 0.48;     // niche centre offset + half-width
+    const NY0 = 0.06, NY1 = 2.25; // niche opening bottom / top
+    const IZ = -0.02, ID = 0.32;  // interior parts: centre z + depth (behind FZ)
+    const white = mat(WHITE, { roughness: 0.8 });
+    const stone = mat(0x8d8f92, { roughness: 0.85 });
+    const glass = mat(0x23262b, { roughness: 0.25, metalness: 0.35, transparent: true, opacity: 0.72 });
+    const dark = mat(0x1b1d20, { roughness: 0.5, metalness: 0.2 });
+
+    // Front slab with two rectangular niche cut-outs.
+    const face = new THREE.Shape();
+    face.moveTo(-W / 2, 0); face.lineTo(W / 2, 0); face.lineTo(W / 2, H); face.lineTo(-W / 2, H); face.closePath();
+    const rectHole = (cx: number) => {
+      const p = new THREE.Path();
+      p.moveTo(cx - R, NY0); p.lineTo(cx + R, NY0); p.lineTo(cx + R, NY1); p.lineTo(cx - R, NY1); p.closePath();
+      return p;
+    };
+    face.holes.push(rectHole(-NX), rectHole(NX));
+    const front = new THREE.Mesh(new THREE.ExtrudeGeometry(face, { depth: 0.06, bevelEnabled: false }), white);
+    front.position.z = FZ;
+    g.add(tint(front, c));
+
+    // Niches: stone back, side reveals, cove-light strips, dark glass shelves.
+    for (const cx of [-NX, NX]) {
+      g.add(tint(box(R * 2, NY1 - NY0, 0.02, stone, cx, (NY0 + NY1) / 2, -D / 2 + 0.01), c));
+      for (const s of [-1, 1]) {
+        g.add(tint(box(0.02, NY1 - NY0, ID, white, cx + s * R, (NY0 + NY1) / 2, IZ), c));
+        const strip = box(0.03, NY1 - NY0 - 0.1, 0.04, mat(0xfff1d8, { emissive: 0x000000 }),
+          cx + s * (R - 0.05), (NY0 + NY1) / 2, IZ + ID / 2 - 0.03);
+        strip.name = 'emissive';
+        g.add(strip);
+      }
+      for (let i = 0; i < 4; i++) {
+        g.add(box(R * 2 - 0.08, 0.02, ID - 0.04, glass, cx, 0.5 + i * 0.48, IZ));
+      }
+    }
+
+    // Centre: a framed TV panel over a low fluted console.
+    const frameZ = FZ + 0.045, fx = 0.72, fy0 = 0.62, fy1 = 2.15, ft = 0.03;
+    g.add(tint(box(fx * 2, ft, 0.03, white, 0, fy1, frameZ), c));
+    g.add(tint(box(fx * 2, ft, 0.03, white, 0, fy0, frameZ), c));
+    g.add(tint(box(ft, fy1 - fy0, 0.03, white, -fx, (fy0 + fy1) / 2, frameZ), c));
+    g.add(tint(box(ft, fy1 - fy0, 0.03, white, fx, (fy0 + fy1) / 2, frameZ), c));
+    const CW = 1.7, CH = 0.5, CD = 0.34, cz = D / 2 - CD / 2 + 0.02;
+    g.add(box(CW, CH, CD, dark, 0, CH / 2 + 0.02, cz));
+    g.add(box(CW + 0.04, 0.04, CD + 0.03, mat(0x121316, { roughness: 0.4 }), 0, CH + 0.04, cz)); // top slab
+    const rib = mat(0x2a2d31, { roughness: 0.55, metalness: 0.15 });
+    for (let i = 0; i < 16; i++) {
+      g.add(box(0.022, CH - 0.06, 0.02, rib, -CW / 2 + 0.06 + i * ((CW - 0.12) / 15), CH / 2 + 0.02, cz + CD / 2));
+    }
+
+    g.add(tint(box(W, 0.08, D + 0.05, white, 0, H - 0.04, 0.02), c)); // crown
+    g.add(tint(box(W, 0.1, D + 0.02, white, 0, 0.05, 0.01), c));      // skirting
+    return g;
+  },
+
   // ---- Lighting (освещение) — each has an 'emissive' mesh + reads as a lamp ----
   floor_lamp: (c) => {
     const g = new THREE.Group();
@@ -2531,6 +2595,9 @@ export function entityDomainsFor(model: string): string[] {
     case 'warm_floor':
     case 'radiator':
       return ['climate', 'switch'];
+    case 'niche_shelf_wall':
+      return ['light', 'switch']; // the cove-light strips glow when bound
+
     case 'ceiling_fan':
     case 'ceiling_vent':
       return ['fan', 'switch'];
@@ -2656,7 +2723,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
-  radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee',
+  radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee', niche_shelf_wall: '#f0eee9',
   tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
