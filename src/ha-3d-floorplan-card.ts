@@ -3245,10 +3245,10 @@ export class Ha3dFloorplanCard extends LitElement {
       <ha-card
         class=${this.editing
           ? 'editing'
-          : `view ${this.viewMode}${this.viewMode === 'room' && this.activeRoom ? ' has-room' : ''}${this.roomPhoto ? ' has-photo' : ''}${this.idle ? ' idle' : ''}`}
+          : `view ${this.viewMode}${this.viewMode === 'room' && this.activeRoom ? ' has-room' : ''}${this.viewMode === 'room' && this.roomPhoto ? ' has-photo' : ''}${this.idle ? ' idle' : ''}`}
         style=${this.editing ? '' : `height:${height}`}
       >
-        ${this.roomPhoto
+        ${this.viewMode === 'room' && this.roomPhoto
           ? html`<div class="roombg" style=${`background-image:url("${this.roomPhoto.replace(/"/g, '%22')}")`}></div>`
           : nothing}
         <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
@@ -3419,6 +3419,10 @@ export class Ha3dFloorplanCard extends LitElement {
       z-index: 0;
       background-size: cover;
       background-position: center;
+      /* A gentle blur so the busy wallpaper doesn't fight the panel/markers on
+         top; scale up a touch so the blur's soft edge never reveals the card. */
+      filter: blur(6px) brightness(0.92);
+      transform: scale(1.06);
       animation: fade-in 0.32s ease both;
     }
     @keyframes fade-in {
