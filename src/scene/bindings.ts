@@ -169,8 +169,10 @@ export class BindingManager {
       behavior === 'sensor' ||
       behavior === 'binary_sensor' ||
       behavior === 'lock' ||
-      behavior === 'media_player' ||
       behavior === 'label'
+      // 'media_player' intentionally omitted — no floating playing/paused/idle
+      // text; the speaker still glows green when playing and stays controllable
+      // from its room marker + panel.
     ) {
       const label = new TextLabel(1.2);
       const lift = ab.anchor ? 0.6 : 0;
@@ -228,9 +230,6 @@ export class BindingManager {
       case 'media_player': {
         const on = state === 'on' || state === 'playing' || state === 'home';
         this.setEmissive(ab, on ? 0x4fd06a : 0x000000, on ? 0.6 : 0);
-        if (ab.label && ab.behavior === 'media_player') {
-          ab.label.setText(state, on ? '#7CFC8A' : '#cccccc');
-        }
         break;
       }
       case 'climate': {

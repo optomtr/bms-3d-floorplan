@@ -22961,7 +22961,7 @@ class o_ {
       // indicator floated up high (worst on upper floors, where the AC has no
       // placed model so it anchors to the floor centre). Climate stays fully
       // controllable via its room marker + the room panel.
-      n === "sensor" || n === "binary_sensor" || n === "lock" || n === "media_player" || n === "label"
+      n === "sensor" || n === "binary_sensor" || n === "lock" || n === "label"
     ) {
       const r = new ff(1.2), o = t.anchor ? 0.6 : 0;
       r.setPosition(s.x, s.y + o + 0.4, s.z), this.root.add(r.sprite), e.labels.push(r), t.label = r;
@@ -22996,7 +22996,7 @@ class o_ {
       case "switch":
       case "media_player": {
         const r = n === "on" || n === "playing" || n === "home";
-        this.setEmissive(t, r ? 5230698 : 0, r ? 0.6 : 0), t.label && t.behavior === "media_player" && t.label.setText(n, r ? "#7CFC8A" : "#cccccc");
+        this.setEmissive(t, r ? 5230698 : 0, r ? 0.6 : 0);
         break;
       }
       case "climate": {
@@ -24178,7 +24178,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.109.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.110.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
