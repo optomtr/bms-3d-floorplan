@@ -1142,6 +1142,49 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(ledFrame(1.5 * s, 0.22, 0.045, 0xfff4d6), c));
     return g;
   },
+  // Double wall light SET — a pair (default) of modern up/down wall luminaires.
+  // `count` fixtures, `spread` sets the GAP between them WITHOUT resizing any of
+  // them. Each fixture's up + down glow panels are 'emissive', so binding a
+  // light/switch lights the pair together.
+  wall_light_double: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 0.95 * spread; // centre-to-centre at spread 1
+    for (let i = 0; i < count; i++) {
+      const u = new THREE.Group();
+      u.add(box(0.09, 0.34, 0.07, mat(0x2b2f36, { metalness: 0.5, roughness: 0.4 }), 0, 0, 0)); // slim body
+      for (const sy of [0.19, -0.19]) {
+        const gl = box(0.06, 0.03, 0.055, mat(0xfff2d6, { emissive: 0x000000 }), 0, sy, 0.02);
+        gl.name = 'emissive';
+        u.add(tint(gl, c));
+      }
+      u.position.x = (i - (count - 1) / 2) * gap; // spaced apart, never scaled
+      g.add(u);
+    }
+    return g;
+  },
+  // Classic wall-sconce SET ("бра") — a pair (default) of brass sconces with an
+  // upward shade. `count` fixtures, `spread` sets the GAP; each keeps its size.
+  sconce_pair: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 0.9 * spread;
+    const brass = mat(0xb8935a, { metalness: 0.6, roughness: 0.35 });
+    for (let i = 0; i < count; i++) {
+      const u = new THREE.Group();
+      u.add(box(0.11, 0.12, 0.03, brass, 0, -0.08, 0.015)); // backplate on the wall
+      u.add(box(0.03, 0.03, 0.12, brass, 0, -0.04, 0.08));  // arm out into the room
+      u.add(box(0.02, 0.16, 0.02, brass, 0, 0.04, 0.13));   // upright stem
+      const shade = cyl(0.09, 0.055, 0.14, mat(0xfff4d6, { emissive: 0x000000, transparent: true, opacity: 0.92 }), 0, 0.16, 0.13, 16);
+      shade.name = 'emissive';
+      u.add(tint(shade, c));
+      u.position.x = (i - (count - 1) / 2) * gap;
+      g.add(u);
+    }
+    return g;
+  },
   // Rectangular wall sconce ("bra") — a slim vertical luminous bar on the wall.
   wall_sconce: (c) => {
     const g = new THREE.Group();
@@ -2539,6 +2582,7 @@ export const WALL_MOUNT_KEYS = [
   'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
+  'wall_light_double', 'sconce_pair',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -2553,6 +2597,7 @@ export const SURFACE_MOUNT_KEYS = [
   'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
+  'wall_light_double', 'sconce_pair',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -2578,6 +2623,8 @@ export const LIGHT_KEYS = [
   'wall_sconce',
   'track_double',
   'wall_backlight',
+  'wall_light_double',
+  'sconce_pair',
 ];
 
 /**
@@ -2662,7 +2709,8 @@ export function defaultY(model: string, wallHeight = 2.6): number {
     model === 'track_double'
   )
     return wallHeight - 0.02;
-  if (model === 'wall_sconce') return 1.6;
+  if (model === 'wall_sconce' || model === 'sconce_pair') return 1.6;
+  if (model === 'wall_light_double') return 1.8;
   if (model === 'ceiling_fan') return wallHeight - 0.25;
   if (model === 'ceiling_vent') return wallHeight - 0.02;
   if (model === 'wall_cabinet') return 1.55;
@@ -2736,6 +2784,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
+  wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
   track_double: '#fff4d6', wall_backlight: '#fff0d0', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
@@ -2746,7 +2795,7 @@ export function defaultColor(model: string): string {
 }
 
 /** Light "set" models whose Spread/Count are adjustable (spacing, not stretch). */
-export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar'];
+export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair'];
 export function isLightSet(model: string): boolean {
   return SET_LIGHT_KEYS.includes(model);
 }
