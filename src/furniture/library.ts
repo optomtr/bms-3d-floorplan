@@ -125,6 +125,20 @@ function ledFrame(W: number, D: number, t: number, colorHex: number): THREE.Mesh
   return mesh;
 }
 
+/** One flush ceiling speaker (потолочная колонка) — a round grille facing down.
+ *  Shared by the single and double models. The tiny status LED is 'emissive',
+ *  so it lights when the bound media_player is playing. */
+function ceilingSpeakerUnit(c: THREE.Color): THREE.Group {
+  const u = new THREE.Group();
+  u.add(tint(cyl(0.15, 0.15, 0.022, mat(WHITE, { roughness: 0.6 }), 0, -0.011, 0, 28), c)); // white bezel
+  u.add(cyl(0.125, 0.125, 0.02, mat(0x26292e, { roughness: 0.85, metalness: 0.15 }), 0, -0.024, 0, 28)); // dark grille
+  u.add(cyl(0.045, 0.045, 0.016, mat(0x15171a, { roughness: 0.9 }), 0, -0.032, 0, 18)); // centre dome
+  const led = cyl(0.008, 0.008, 0.006, mat(0x2fd06a, { emissive: 0x000000 }), 0.105, -0.02, 0, 10);
+  led.name = 'emissive';
+  u.add(led);
+  return u;
+}
+
 const builders: Record<string, FurnitureBuilder> = {
   sofa: (c) => {
     const g = new THREE.Group();
@@ -1214,6 +1228,23 @@ const builders: Record<string, FurnitureBuilder> = {
     const g = new THREE.Group();
     g.add(tint(box(0.25, 0.4, 0.25, mat(DARK), 0, 0.2, 0), c));
     g.add(cyl(0.08, 0.08, 0.01, mat(0x111111), 0, 0.26, 0.13).rotateX(Math.PI / 2) as unknown as THREE.Mesh);
+    return g;
+  },
+  // Flush ceiling speaker (потолочная колонка) — a round grille facing down.
+  // Binds to a media_player (or switch); its LED glows when playing.
+  ceiling_speaker: (c) => ceilingSpeakerUnit(c),
+  // Ceiling-speaker SET — a pair by default; `spread` sets the GAP between the
+  // units WITHOUT resizing them, `count` how many.
+  ceiling_speaker_double: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 1.0 * spread;
+    for (let i = 0; i < count; i++) {
+      const u = ceilingSpeakerUnit(c);
+      u.position.x = (i - (count - 1) / 2) * gap;
+      g.add(u);
+    }
     return g;
   },
   security_camera: (c) => {
@@ -2654,7 +2685,9 @@ export function entityDomainsFor(model: string): string[] {
     case 'tv_stand':
       return ['media_player', 'switch'];
     case 'speaker':
-      return ['media_player'];
+    case 'ceiling_speaker':
+    case 'ceiling_speaker_double':
+      return ['media_player', 'switch'];
     case 'curtain':
     case 'curtain_single':
     case 'curtain_sheer':
@@ -2706,7 +2739,9 @@ export function defaultY(model: string, wallHeight = 2.6): number {
     model === 'spotlight_bar' ||
     model === 'led_backlight' ||
     model === 'track_bar' ||
-    model === 'track_double'
+    model === 'track_double' ||
+    model === 'ceiling_speaker' ||
+    model === 'ceiling_speaker_double'
   )
     return wallHeight - 0.02;
   if (model === 'wall_sconce' || model === 'sconce_pair') return 1.6;
@@ -2773,7 +2808,8 @@ const DEFAULT_COLORS: Record<string, string> = {
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
   radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee', niche_shelf_wall: '#f0eee9',
   tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
-  speaker: '#2b2f36', ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
+  speaker: '#2b2f36', ceiling_speaker: '#eef0f2', ceiling_speaker_double: '#eef0f2',
+  ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
   warm_floor: '#b98f7d', convector: '#9aa0a6',
   window_frame: '#e8e8e8', terrace_window: '#e8e8e8', patio_door: '#e8e8e8', terrace_wall: '#dfe6ea',
@@ -2795,7 +2831,7 @@ export function defaultColor(model: string): string {
 }
 
 /** Light "set" models whose Spread/Count are adjustable (spacing, not stretch). */
-export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair'];
+export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double'];
 export function isLightSet(model: string): boolean {
   return SET_LIGHT_KEYS.includes(model);
 }
