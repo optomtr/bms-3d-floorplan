@@ -1123,6 +1123,74 @@ export class SceneManager {
     return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center, bgImage: r.bgImage }));
   }
 
+  /** Room grouping for ANY floor, WITHOUT touching the active-floor markers —
+   *  the whole-home Обзор needs every floor's rooms at once. Mirrors the zone +
+   *  auto-group logic buildMarkers() runs for the active floor; keep the two in
+   *  sync. Returns pure data (no sprites), so it's cheap to call per render. */
+  private computeFloorRooms(floor: number): RoomInfo[] {
+    const bm = this.bindingManagers[floor];
+    if (!bm) return [];
+    const allDevices = bm.markerData();
+    const rooms = this.floorRooms[floor] ?? [];
+    const zones = this.floorZones[floor] ?? [];
+    const elev = this.floorElev[floor] ?? 0;
+    const out: RoomInfo[] = [];
+    const keyOf = (base: string) => `f${floor}::${base}#${out.length}`;
+
+    const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
+    const claimed = new Set<string>();
+    for (const z of zones) {
+      const ents = (z.entities ?? []).filter(
+        (id) => !claimed.has(id) && (behaviorOf.has(id) || !this.lastHass || !!this.lastHass.states?.[id]),
+      );
+      if (!ents.length) continue;
+      for (const id of ents) claimed.add(id);
+      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0] }));
+      let zoneBg: string | undefined = z.bgImage;
+      if (!zoneBg) {
+        let host: (typeof rooms)[number] | null = null;
+        let hostArea = Infinity;
+        for (const r of rooms) {
+          if (!r.bgImage || !pointInPoly(z.x, z.z, r.poly)) continue;
+          const a = polyArea(r.poly);
+          if (a < hostArea) {
+            hostArea = a;
+            host = r;
+          }
+        }
+        if (host && zones.filter((o) => pointInPoly(o.x, o.z, host!.poly)).length === 1) zoneBg = host.bgImage;
+      }
+      out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg });
+    }
+    const devices = allDevices.filter((d) => !claimed.has(d.entity_id));
+    const perRoom = new Map<number, typeof devices>();
+    const roomAreas = rooms.map((r) => polyArea(r.poly));
+    for (const d of devices) {
+      let ri = -1;
+      let bestArea = Infinity;
+      for (let i = 0; i < rooms.length; i++) {
+        if (pointInPoly(d.pos[0], d.pos[2], rooms[i].poly) && roomAreas[i] < bestArea) {
+          bestArea = roomAreas[i];
+          ri = i;
+        }
+      }
+      if (ri >= 0) (perRoom.get(ri) ?? perRoom.set(ri, []).get(ri)!).push(d);
+    }
+    for (const [ri, ds] of perRoom) {
+      const room = rooms[ri];
+      const [cx, cz] = polyCentroid(room.poly);
+      out.push({ key: keyOf(room.name ?? 'room'), name: room.name, entities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior })), center: [cx, room.elev + 1.6, cz], bgImage: room.bgImage });
+    }
+    return out;
+  }
+
+  /** Every floor's rooms (index = floor), for the whole-home Обзор dashboard.
+   *  Room keys are floor-qualified (`f{n}::…`) so they stay unique across
+   *  floors — the active-floor getRooms() keys never contain "::". */
+  roomsByFloor(): RoomInfo[][] {
+    return this.floors.map((_, fi) => this.computeFloorRooms(fi));
+  }
+
   /** Highlight one room's pin (accent) and neutralise the rest. */
   selectRoom(key: string | null): void {
     this.selectedRoomKey = key;

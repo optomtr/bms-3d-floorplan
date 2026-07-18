@@ -199,6 +199,9 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private activeRoomKey: string | null = null;
   /** Overview (1B): the room opened in the full-screen detail slide-over. */
   @state() private detailRoomKey: string | null = null;
+  /** Every floor's rooms keyed by their floor-qualified key, rebuilt each Обзор
+   *  render — the detail slide-over resolves a card from any floor through it. */
+  private overviewRoomByKey = new Map<string, RoomInfo>();
   /** Live clock for the panel header (ticks every 10s). */
   @state() private now = new Date();
   private clockTimer?: number;
@@ -645,7 +648,10 @@ export class Ha3dFloorplanCard extends LitElement {
     if (this.activeRoomKey && !rooms.some((r) => r.key === this.activeRoomKey)) {
       this.activeRoomKey = null;
     }
-    if (this.detailRoomKey && !rooms.some((r) => r.key === this.detailRoomKey)) {
+    // The Обзор detail uses floor-qualified keys ("f{n}::…"), which never match
+    // the active-floor list here — those are validated against the whole-home
+    // map at render time (renderDetail returns nothing if a room vanished).
+    if (this.detailRoomKey && !this.detailRoomKey.includes('::') && !rooms.some((r) => r.key === this.detailRoomKey)) {
       this.detailRoomKey = null;
     }
     this.sceneManager?.selectRoom(this.activeRoomKey);
@@ -672,7 +678,8 @@ export class Ha3dFloorplanCard extends LitElement {
     this.requestUpdate();
   }
   private get detailRoom(): RoomInfo | undefined {
-    return this.detailRoomKey ? this.rooms.find((r) => r.key === this.detailRoomKey) : undefined;
+    if (!this.detailRoomKey) return undefined;
+    return this.overviewRoomByKey.get(this.detailRoomKey) ?? this.rooms.find((r) => r.key === this.detailRoomKey);
   }
 
   /** Set a light's colour temperature from a 0..100 slider (0 = warm, 100 = cold). */
@@ -3134,11 +3141,27 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="bstat good"><div class="bstat-ic">${this.ic(st.secIcon)}</div><div><div class="bstat-v">${st.secLabel}</div><div class="bstat-l">${this.t('front door')}</div></div></div>
       </div>
       <div class="ov-grid">
-        ${this.rooms.length
-          ? this.rooms.map((r) => this.renderOverviewCard(r, num))
-          : html`<div class="rp-empty">${this.t('No devices in this room')}</div>`}
+        ${this.renderOverviewRooms(num)}
       </div>
     `;
+  }
+
+  /** All rooms of the home, grouped by floor with a heading per floor (headings
+   *  span the grid). One scrolling list top-to-bottom, so the whole house is
+   *  reachable from Обзор without switching floors first. */
+  private renderOverviewRooms(num: (v: any, d: number) => string) {
+    const floors = this.sceneManager?.roomsByFloor() ?? [this.rooms];
+    this.overviewRoomByKey.clear();
+    for (const rs of floors) for (const r of rs) this.overviewRoomByKey.set(r.key, r);
+    const multi = this.floorNames.length > 1;
+    const anyRoom = floors.some((rs) => rs.length);
+    if (!anyRoom) return html`<div class="rp-empty">${this.t('No devices in this room')}</div>`;
+    return floors.map((rs, fi) =>
+      rs.length
+        ? html`${multi ? html`<div class="ov-floor-h">${this.floorNames[fi] ?? ''}</div>` : nothing}
+            ${rs.map((r) => this.renderOverviewCard(r, num))}`
+        : nothing,
+    );
   }
 
   private renderOverviewCard(room: RoomInfo, num: (v: any, d: number) => string) {
@@ -5042,6 +5065,23 @@ export class Ha3dFloorplanCard extends LitElement {
       grid-template-columns: repeat(3, 1fr);
       gap: 14px;
       align-content: start;
+    }
+    /* Floor heading spans the whole grid row so the cards below it flow back to
+       the first column — one continuous scroll, split into floors. */
+    .ov-floor-h {
+      grid-column: 1 / -1;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.62);
+      text-transform: uppercase;
+      padding: 6px 2px 0;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ov-floor-h:first-child {
+      margin-top: 0;
+      border-top: none;
     }
     .ov-grid::-webkit-scrollbar {
       width: 0;
