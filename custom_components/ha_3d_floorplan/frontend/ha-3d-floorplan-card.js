@@ -24155,7 +24155,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const p_ = "0.106.0", Uo = "ha-3d-floorplan-sidebar-item", Fd = "ha-3d-floorplan-overlay";
+const p_ = "0.107.0", Uo = "ha-3d-floorplan-sidebar-item", Fd = "ha-3d-floorplan-overlay";
 function m_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27422,11 +27422,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  current_temperature, so a room-only lookup shows "—". Returns null if none. */
   homeTemperature() {
     const i = [];
-    for (const t of Object.values(this.hass?.states ?? {}))
-      if (t.attributes?.device_class === "temperature") {
-        const e = Number(t.state);
-        Number.isFinite(e) && i.push(e);
-      }
+    for (const t of Object.values(this.hass?.states ?? {})) {
+      const e = t.attributes;
+      if (e?.device_class !== "temperature" || e.unit_of_measurement !== "°C" && e.unit_of_measurement !== "°F") continue;
+      const n = Number(t.state);
+      Number.isFinite(n) && n >= -60 && n <= 160 && i.push(n);
+    }
     if (!i.length) {
       for (const [t, e] of Object.entries(this.hass?.states ?? {}))
         if (t.startsWith("climate.")) {

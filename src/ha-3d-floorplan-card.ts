@@ -2370,10 +2370,15 @@ export class Ha3dFloorplanCard extends LitElement {
   private homeTemperature(): number | null {
     const vals: number[] = [];
     for (const st of Object.values(this.hass?.states ?? {})) {
-      if ((st as HassEntity).attributes?.device_class === 'temperature') {
-        const v = Number((st as HassEntity).state);
-        if (Number.isFinite(v)) vals.push(v);
-      }
+      const a = (st as HassEntity).attributes;
+      if (a?.device_class !== 'temperature') continue;
+      // Only real air-temperature readings. The Tuya floor thermostats expose a
+      // unit-less raw floor-probe value (~220-290) as device_class temperature;
+      // averaging that in dragged the whole-home mean to absurd numbers (110°).
+      // Require a °C/°F unit and a sane range so a mis-scaled probe can't skew it.
+      if (a.unit_of_measurement !== '°C' && a.unit_of_measurement !== '°F') continue;
+      const v = Number((st as HassEntity).state);
+      if (Number.isFinite(v) && v >= -60 && v <= 160) vals.push(v);
     }
     if (!vals.length) {
       for (const [id, st] of Object.entries(this.hass?.states ?? {})) {
