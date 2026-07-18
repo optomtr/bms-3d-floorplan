@@ -24178,7 +24178,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.110.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.111.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27787,7 +27787,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   renderMediaCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", r = n === "playing", o = Number(e?.attributes?.supported_features) || 0, a = (M) => (o & M) === M, l = a(128) || a(256), c = a(1) || a(16384), h = a(16), d = a(32), f = a(4), u = a(1024), m = a(8), v = !!e?.attributes?.is_volume_muted, p = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), g = this.sliderValue(i, p), b = e?.attributes?.media_title ?? this.cardName(i, t), x = e?.attributes?.media_artist ?? "";
+    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", r = n === "playing", o = Number(e?.attributes?.supported_features) || 0, a = (x) => (o & x) === x, l = a(128) || a(256), c = a(1) || a(16384), h = a(16), d = a(32), f = a(4), u = a(1024), m = a(8), v = !!e?.attributes?.is_volume_muted, p = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), b = e?.attributes?.media_artist ?? "";
     return j`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
@@ -27800,7 +27800,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>
       ${c ? j`<div class="mp">
             <div class="mpart">${this.ic("album")}</div>
-            <div class="mptxt"><div class="mptrack">${b}</div><div class="mpartist">${x}</div></div>
+            <div class="mptxt"><div class="mptrack">${g}</div><div class="mpartist">${b}</div></div>
             <div class="mpctl">
               ${h ? j`<button type="button" class="mpb" title="Previous"
                 @click=${() => this.svc("media_player", "media_previous_track", {}, i)}>${this.ic("skipPrev")}</button>` : nt}
@@ -27808,20 +27808,30 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 @click=${() => this.svc("media_player", "media_play_pause", {}, i, r ? "paused" : "playing")}>${this.ic(r ? "pause" : "play")}</button>
               ${d ? j`<button type="button" class="mpb" title="Next"
                 @click=${() => this.svc("media_player", "media_next_track", {}, i)}>${this.ic("skipNext")}</button>` : nt}
+              ${a(4096) ? j`<button type="button" class="mpb" title="Stop"
+                @click=${() => this.svc("media_player", "media_stop", {}, i, "idle")}>${this.ic("stop")}</button>` : nt}
             </div>
           </div>` : nt}
-      ${f ? j`<div class="slider" @pointerdown=${(M) => this.onSliderDown(M, i, (R) => this.svc("media_player", "volume_set", { volume_level: R / 100 }, i))}>
-            <div class="slider-fill" style="width:${g}%"></div>
-            <div class="slider-lab"><span>${this.t("Volume")}</span><span>${g}%</span></div>
-          </div>` : u || m ? j`<div class="seg vol">
-              ${m ? j`<button type="button" class="segb ${v ? "on" : ""}" title="Mute"
-                @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !v }, i)}>${this.ic("mute")}</button>` : nt}
-              ${u ? j`<button type="button" class="segb" title="Volume down"
-                @click=${() => this.svc("media_player", "volume_down", {}, i)}>${this.ic("volDown")}</button>
-              <button type="button" class="segb" title="Volume up"
-                @click=${() => this.svc("media_player", "volume_up", {}, i)}>${this.ic("volUp")}</button>` : nt}
-            </div>` : nt}
+      ${f || u || m ? j`<div class="seg vol">
+            ${m ? j`<button type="button" class="segb ${v ? "on" : ""}" title="Mute"
+              @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !v }, i)}>${this.ic("mute")}</button>` : nt}
+            <button type="button" class="segb" title="Volume down"
+              @click=${() => this.mediaVolStep(i, e, u, -1)}>${this.ic("volDown")}</button>
+            <div class="volind">${p}%</div>
+            <button type="button" class="segb" title="Volume up"
+              @click=${() => this.mediaVolStep(i, e, u, 1)}>${this.ic("volUp")}</button>
+          </div>` : nt}
     </div>`;
+  }
+  /** Nudge a media player's volume: volume_up/down when it supports stepping,
+   *  else a ±5% volume_set. Buttons + a % readout replace the slider. */
+  mediaVolStep(i, t, e, n) {
+    if (e) {
+      this.svc("media_player", n > 0 ? "volume_up" : "volume_down", {}, i);
+      return;
+    }
+    const s = Number(t?.attributes?.volume_level) || 0;
+    this.svc("media_player", "volume_set", { volume_level: Math.max(0, Math.min(1, s + n * 0.05)) }, i);
   }
   renderLockCard(i) {
     const t = this.effState(i) === "locked";
@@ -29406,6 +29416,17 @@ gt.styles = eu`
     .seg.vol .segb .icn {
       width: 20px;
       height: 20px;
+    }
+    /* Volume % readout between the − / + chips (replaces the slider). */
+    .seg.vol .volind {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--txt);
     }
     .cgrow {
       flex: 1;

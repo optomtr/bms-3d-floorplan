@@ -2896,7 +2896,6 @@ export class Ha3dFloorplanCard extends LitElement {
     const volSet = can(4), volStep = can(1024), volMute = can(8); // SET | STEP | MUTE
     const muted = !!ent?.attributes?.is_volume_muted;
     const volReal = Math.round((Number(ent?.attributes?.volume_level) || 0) * 100);
-    const vol = this.sliderValue(id, volReal);
     const track = ent?.attributes?.media_title ?? this.cardName(id, title);
     const artist = ent?.attributes?.media_artist ?? '';
     return html`<div class="card ${on ? 'on' : ''}">
@@ -2922,25 +2921,34 @@ export class Ha3dFloorplanCard extends LitElement {
                 @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
               ${hasNext ? html`<button type="button" class="mpb" title="Next"
                 @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>${this.ic('skipNext')}</button>` : nothing}
+              ${can(4096) ? html`<button type="button" class="mpb" title="Stop"
+                @click=${() => this.svc('media_player', 'media_stop', {}, id, 'idle')}>${this.ic('stop')}</button>` : nothing}
             </div>
           </div>`
         : nothing}
-      ${volSet
-        ? html`<div class="slider" @pointerdown=${(e: PointerEvent) => this.onSliderDown(e, id, (p) => this.svc('media_player', 'volume_set', { volume_level: p / 100 }, id))}>
-            <div class="slider-fill" style="width:${vol}%"></div>
-            <div class="slider-lab"><span>${this.t('Volume')}</span><span>${vol}%</span></div>
+      ${volSet || volStep || volMute
+        ? html`<div class="seg vol">
+            ${volMute ? html`<button type="button" class="segb ${muted ? 'on' : ''}" title="Mute"
+              @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${this.ic('mute')}</button>` : nothing}
+            <button type="button" class="segb" title="Volume down"
+              @click=${() => this.mediaVolStep(id, ent, volStep, -1)}>${this.ic('volDown')}</button>
+            <div class="volind">${volReal}%</div>
+            <button type="button" class="segb" title="Volume up"
+              @click=${() => this.mediaVolStep(id, ent, volStep, 1)}>${this.ic('volUp')}</button>
           </div>`
-        : volStep || volMute
-          ? html`<div class="seg vol">
-              ${volMute ? html`<button type="button" class="segb ${muted ? 'on' : ''}" title="Mute"
-                @click=${() => this.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${this.ic('mute')}</button>` : nothing}
-              ${volStep ? html`<button type="button" class="segb" title="Volume down"
-                @click=${() => this.svc('media_player', 'volume_down', {}, id)}>${this.ic('volDown')}</button>
-              <button type="button" class="segb" title="Volume up"
-                @click=${() => this.svc('media_player', 'volume_up', {}, id)}>${this.ic('volUp')}</button>` : nothing}
-            </div>`
-          : nothing}
+        : nothing}
     </div>`;
+  }
+
+  /** Nudge a media player's volume: volume_up/down when it supports stepping,
+   *  else a ±5% volume_set. Buttons + a % readout replace the slider. */
+  private mediaVolStep(id: string, ent: HassEntity | undefined, volStep: boolean, dir: number): void {
+    if (volStep) {
+      this.svc('media_player', dir > 0 ? 'volume_up' : 'volume_down', {}, id);
+      return;
+    }
+    const cur = Number(ent?.attributes?.volume_level) || 0;
+    this.svc('media_player', 'volume_set', { volume_level: Math.max(0, Math.min(1, cur + dir * 0.05)) }, id);
   }
 
   private renderLockCard(id: string) {
@@ -4618,6 +4626,17 @@ export class Ha3dFloorplanCard extends LitElement {
     .seg.vol .segb .icn {
       width: 20px;
       height: 20px;
+    }
+    /* Volume % readout between the − / + chips (replaces the slider). */
+    .seg.vol .volind {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--txt);
     }
     .cgrow {
       flex: 1;
