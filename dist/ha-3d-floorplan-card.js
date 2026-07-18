@@ -24193,7 +24193,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.113.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.114.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27826,7 +27826,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               ${a(4096) ? j`<button type="button" class="mpb" title="Stop"
                 @click=${() => this.svc("media_player", "media_stop", {}, i, "idle")}>${this.ic("stop")}</button>` : nt}
               ${x && R.length ? j`<button type="button" class="mpb ${M ? "on" : ""}" title=${M ? "Unsync speakers" : "Sync speakers"}
-                    @click=${() => M ? this.svc("media_player", "unjoin", {}, i) : this.svc("media_player", "join", { group_members: R }, i)}>${this.ic("link")}</button>` : nt}
+                    @click=${() => M ? this.svc("media_player", "unjoin", {}, i) : this.syncSpeakers(i, e, R)}>${this.ic("link")}</button>` : nt}
             </div>
           </div>` : nt}
       ${f || u || m ? j`<div class="seg vol">
@@ -27849,6 +27849,15 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }
     const s = Number(t?.attributes?.volume_level) || 0;
     this.svc("media_player", "volume_set", { volume_level: Math.max(0, Math.min(1, s + n * 0.05)) }, i);
+  }
+  /** Group `targets` under `id` and level their volume to `id`'s — so syncing
+   *  from the upstairs speaker pulls the others to the upstairs volume, and from
+   *  downstairs to the downstairs volume (the initiating speaker sets the level). */
+  syncSpeakers(i, t, e) {
+    this.svc("media_player", "join", { group_members: e }, i);
+    const n = Number(t?.attributes?.volume_level);
+    if (Number.isFinite(n))
+      for (const s of e) this.svc("media_player", "volume_set", { volume_level: n }, s);
   }
   /** Other speakers in the plan (any room) that support HA grouping — the
    *  targets for a "sync speakers" join. Grouping-capable set only, so the TV

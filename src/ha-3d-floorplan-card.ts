@@ -2933,7 +2933,7 @@ export class Ha3dFloorplanCard extends LitElement {
                 ? html`<button type="button" class="mpb ${grouped ? 'on' : ''}" title=${grouped ? 'Unsync speakers' : 'Sync speakers'}
                     @click=${() => grouped
                       ? this.svc('media_player', 'unjoin', {}, id)
-                      : this.svc('media_player', 'join', { group_members: groupTargets }, id)}>${this.ic('link')}</button>`
+                      : this.syncSpeakers(id, ent, groupTargets)}>${this.ic('link')}</button>`
                 : nothing}
             </div>
           </div>`
@@ -2961,6 +2961,17 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     const cur = Number(ent?.attributes?.volume_level) || 0;
     this.svc('media_player', 'volume_set', { volume_level: Math.max(0, Math.min(1, cur + dir * 0.05)) }, id);
+  }
+
+  /** Group `targets` under `id` and level their volume to `id`'s — so syncing
+   *  from the upstairs speaker pulls the others to the upstairs volume, and from
+   *  downstairs to the downstairs volume (the initiating speaker sets the level). */
+  private syncSpeakers(id: string, ent: HassEntity | undefined, targets: string[]): void {
+    this.svc('media_player', 'join', { group_members: targets }, id);
+    const vol = Number(ent?.attributes?.volume_level);
+    if (Number.isFinite(vol)) {
+      for (const t of targets) this.svc('media_player', 'volume_set', { volume_level: vol }, t);
+    }
   }
 
   /** Other speakers in the plan (any room) that support HA grouping — the
