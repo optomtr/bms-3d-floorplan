@@ -21338,6 +21338,16 @@ const Fl = {
     );
     return e.name = "emissive", t.add(D(e, i)), t;
   },
+  // Rectangular tower air purifier (очиститель воздуха) — floor-standing. The
+  // display panel is 'emissive' so it lights when the bound fan/switch is on.
+  air_purifier: (i) => {
+    const t = new O(), e = 0.3, n = 0.9, s = 0.22;
+    t.add(_(e + 0.02, 0.03, s + 0.02, w(14212320, { roughness: 0.6 }), 0, 0.015, 0)), t.add(D(_(e, n, s, w(ne, { roughness: 0.5, metalness: 0.1 }), 0, 0.03 + n / 2, 0), i));
+    const r = w(3817285, { roughness: 0.9 });
+    t.add(_(e - 0.05, n * 0.5, 6e-3, r, 0, 0.03 + n * 0.33, s / 2)), t.add(_(6e-3, n * 0.5, s - 0.05, r, -e / 2, 0.03 + n * 0.33, 0)), t.add(_(6e-3, n * 0.5, s - 0.05, r, e / 2, 0.03 + n * 0.33, 0)), t.add(D(_(e, 0.04, s, w(15921906, { roughness: 0.5 }), 0, 0.03 + n + 0.02, 0), i)), t.add(_(e - 0.08, 0.02, s - 0.08, w(2764081, { roughness: 0.8 }), 0, 0.03 + n + 0.045, 0));
+    const o = _(0.1, 0.06, 6e-3, w(3133695, { emissive: 0 }), 0, 0.03 + n * 0.82, s / 2 + 2e-3);
+    return o.name = "emissive", t.add(o), t;
+  },
   // Generic fallback marker so an unknown model key still renders something.
   painting: (i) => {
     const t = new O();
@@ -22248,6 +22258,8 @@ function U1(i) {
     case "ceiling_speaker":
     case "ceiling_speaker_double":
       return ["media_player", "switch"];
+    case "air_purifier":
+      return ["fan", "switch"];
     case "curtain":
     case "curtain_single":
     case "curtain_sheer":
@@ -22402,6 +22414,7 @@ const k1 = {
   speaker: "#2b2f36",
   ceiling_speaker: "#eef0f2",
   ceiling_speaker_double: "#eef0f2",
+  air_purifier: "#f2f2f2",
   ac_unit: "#f0f2f4",
   security_camera: "#d8dce0",
   intercom: "#d8dce0",
@@ -24180,7 +24193,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.112.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.113.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }

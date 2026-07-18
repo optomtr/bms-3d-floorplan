@@ -1217,6 +1217,28 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  // Rectangular tower air purifier (очиститель воздуха) — floor-standing. The
+  // display panel is 'emissive' so it lights when the bound fan/switch is on.
+  air_purifier: (c) => {
+    const g = new THREE.Group();
+    const W = 0.3, H = 0.9, D = 0.22;
+    g.add(box(W + 0.02, 0.03, D + 0.02, mat(0xd8dce0, { roughness: 0.6 }), 0, 0.015, 0)); // base
+    g.add(tint(box(W, H, D, mat(WHITE, { roughness: 0.5, metalness: 0.1 }), 0, 0.03 + H / 2, 0), c)); // body
+    // Intake mesh on the lower front + both sides.
+    const mesh = mat(0x3a3f45, { roughness: 0.9 });
+    g.add(box(W - 0.05, H * 0.5, 0.006, mesh, 0, 0.03 + H * 0.33, D / 2));
+    g.add(box(0.006, H * 0.5, D - 0.05, mesh, -W / 2, 0.03 + H * 0.33, 0));
+    g.add(box(0.006, H * 0.5, D - 0.05, mesh, W / 2, 0.03 + H * 0.33, 0));
+    // Top: cap + recessed outlet grille.
+    g.add(tint(box(W, 0.04, D, mat(0xf2f2f2, { roughness: 0.5 }), 0, 0.03 + H + 0.02, 0), c));
+    g.add(box(W - 0.08, 0.02, D - 0.08, mat(0x2a2d31, { roughness: 0.8 }), 0, 0.03 + H + 0.045, 0));
+    // Control display — glows when running.
+    const disp = box(0.1, 0.06, 0.006, mat(0x2fd0ff, { emissive: 0x000000 }), 0, 0.03 + H * 0.82, D / 2 + 0.002);
+    disp.name = 'emissive';
+    g.add(disp);
+    return g;
+  },
+
   // Generic fallback marker so an unknown model key still renders something.
   painting: (c) => {
     const g = new THREE.Group();
@@ -2688,6 +2710,8 @@ export function entityDomainsFor(model: string): string[] {
     case 'ceiling_speaker':
     case 'ceiling_speaker_double':
       return ['media_player', 'switch'];
+    case 'air_purifier':
+      return ['fan', 'switch'];
     case 'curtain':
     case 'curtain_single':
     case 'curtain_sheer':
@@ -2808,7 +2832,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
   radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee', niche_shelf_wall: '#f0eee9',
   tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
-  speaker: '#2b2f36', ceiling_speaker: '#eef0f2', ceiling_speaker_double: '#eef0f2',
+  speaker: '#2b2f36', ceiling_speaker: '#eef0f2', ceiling_speaker_double: '#eef0f2', air_purifier: '#f2f2f2',
   ac_unit: '#f0f2f4', security_camera: '#d8dce0', intercom: '#d8dce0',
   wall_panel: '#d8d2c6', arch: '#d8d2c6', ceiling_fan: '#d8d8d8', ceiling_vent: '#eaecee',
   warm_floor: '#b98f7d', convector: '#9aa0a6',
