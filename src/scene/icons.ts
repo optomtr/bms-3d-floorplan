@@ -38,6 +38,8 @@ export const ICON_PATHS: Record<string, string[]> = {
   pause: ['M9 5v14', 'M15 5v14'],
   skipPrev: ['M7 6v12', 'M18 6l-8 6 8 6z'],
   skipNext: ['M17 6v12', 'M6 6l8 6-8 6z'],
+  // Chain link — the speaker-group ("sync these speakers together") button.
+  link: ['M9.5 14.5l5-5', 'M8.2 11.8l-1.7 1.7a3 3 0 0 0 4.24 4.24l1.7-1.7', 'M15.8 12.2l1.7-1.7a3 3 0 0 0-4.24-4.24l-1.7 1.7'],
   album: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
   grid: ['M5.5 5.5h4v4h-4z', 'M14.5 5.5h4v4h-4z', 'M5.5 14.5h4v4h-4z', 'M14.5 14.5h4v4h-4z'],
   moon: ['M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z'],

@@ -2898,6 +2898,12 @@ export class Ha3dFloorplanCard extends LitElement {
     const volReal = Math.round((Number(ent?.attributes?.volume_level) || 0) * 100);
     const track = ent?.attributes?.media_title ?? this.cardName(id, title);
     const artist = ent?.attributes?.media_artist ?? '';
+    // Speaker grouping (HA media_player.join): sync this speaker with the home's
+    // other groupable speakers so they play in step. Shown only when the device
+    // supports GROUPING and there's another speaker in the plan to sync with.
+    const canGroup = can(524288); // GROUPING
+    const grouped = ((ent?.attributes?.group_members as string[] | undefined)?.length ?? 0) > 1;
+    const groupTargets = canGroup ? this.planGroupSpeakers(id) : [];
     return html`<div class="card ${on ? 'on' : ''}">
       <div class="crow">
         <div class="cicon ${on ? 'lit' : ''}">${this.ic('tv')}</div>
@@ -2923,6 +2929,12 @@ export class Ha3dFloorplanCard extends LitElement {
                 @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>${this.ic('skipNext')}</button>` : nothing}
               ${can(4096) ? html`<button type="button" class="mpb" title="Stop"
                 @click=${() => this.svc('media_player', 'media_stop', {}, id, 'idle')}>${this.ic('stop')}</button>` : nothing}
+              ${canGroup && groupTargets.length
+                ? html`<button type="button" class="mpb ${grouped ? 'on' : ''}" title=${grouped ? 'Unsync speakers' : 'Sync speakers'}
+                    @click=${() => grouped
+                      ? this.svc('media_player', 'unjoin', {}, id)
+                      : this.svc('media_player', 'join', { group_members: groupTargets }, id)}>${this.ic('link')}</button>`
+                : nothing}
             </div>
           </div>`
         : nothing}
@@ -2949,6 +2961,27 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     const cur = Number(ent?.attributes?.volume_level) || 0;
     this.svc('media_player', 'volume_set', { volume_level: Math.max(0, Math.min(1, cur + dir * 0.05)) }, id);
+  }
+
+  /** Other speakers in the plan (any room) that support HA grouping — the
+   *  targets for a "sync speakers" join. Grouping-capable set only, so the TV
+   *  (no GROUPING feature) is never swept in. */
+  private planGroupSpeakers(exceptId: string): string[] {
+    const floors = this.sceneManager?.roomsByFloor() ?? [this.rooms];
+    const out: string[] = [];
+    const seen = new Set<string>([exceptId]);
+    for (const rs of floors) {
+      for (const r of rs) {
+        for (const e of r.entities) {
+          const eid = e.entity_id;
+          if (!eid.startsWith('media_player.') || seen.has(eid)) continue;
+          seen.add(eid);
+          const sf = Number(this.hass?.states[eid]?.attributes?.supported_features) || 0;
+          if (sf & 524288) out.push(eid); // GROUPING
+        }
+      }
+    }
+    return out;
   }
 
   private renderLockCard(id: string) {
@@ -4826,6 +4859,11 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .mpb.play {
       background: #fff;
+      color: #17181c;
+    }
+    /* Speakers currently synced together: the link button lights accent. */
+    .mpb.on {
+      background: var(--accent, #f3a83c);
       color: #17181c;
     }
     .mpb .icn {

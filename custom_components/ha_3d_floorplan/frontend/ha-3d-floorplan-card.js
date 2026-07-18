@@ -23173,6 +23173,8 @@ const No = {
   pause: ["M9 5v14", "M15 5v14"],
   skipPrev: ["M7 6v12", "M18 6l-8 6 8 6z"],
   skipNext: ["M17 6v12", "M6 6l8 6-8 6z"],
+  // Chain link — the speaker-group ("sync these speakers together") button.
+  link: ["M9.5 14.5l5-5", "M8.2 11.8l-1.7 1.7a3 3 0 0 0 4.24 4.24l1.7-1.7", "M15.8 12.2l1.7-1.7a3 3 0 0 0-4.24-4.24l-1.7 1.7"],
   album: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"],
   grid: ["M5.5 5.5h4v4h-4z", "M14.5 5.5h4v4h-4z", "M5.5 14.5h4v4h-4z", "M14.5 14.5h4v4h-4z"],
   moon: ["M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"],
@@ -24178,7 +24180,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.111.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.112.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27787,7 +27789,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   renderMediaCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", r = n === "playing", o = Number(e?.attributes?.supported_features) || 0, a = (x) => (o & x) === x, l = a(128) || a(256), c = a(1) || a(16384), h = a(16), d = a(32), f = a(4), u = a(1024), m = a(8), v = !!e?.attributes?.is_volume_muted, p = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), b = e?.attributes?.media_artist ?? "";
+    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", r = n === "playing", o = Number(e?.attributes?.supported_features) || 0, a = (A) => (o & A) === A, l = a(128) || a(256), c = a(1) || a(16384), h = a(16), d = a(32), f = a(4), u = a(1024), m = a(8), v = !!e?.attributes?.is_volume_muted, p = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), b = e?.attributes?.media_artist ?? "", x = a(524288), M = (e?.attributes?.group_members?.length ?? 0) > 1, R = x ? this.planGroupSpeakers(i) : [];
     return j`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
@@ -27810,6 +27812,8 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 @click=${() => this.svc("media_player", "media_next_track", {}, i)}>${this.ic("skipNext")}</button>` : nt}
               ${a(4096) ? j`<button type="button" class="mpb" title="Stop"
                 @click=${() => this.svc("media_player", "media_stop", {}, i, "idle")}>${this.ic("stop")}</button>` : nt}
+              ${x && R.length ? j`<button type="button" class="mpb ${M ? "on" : ""}" title=${M ? "Unsync speakers" : "Sync speakers"}
+                    @click=${() => M ? this.svc("media_player", "unjoin", {}, i) : this.svc("media_player", "join", { group_members: R }, i)}>${this.ic("link")}</button>` : nt}
             </div>
           </div>` : nt}
       ${f || u || m ? j`<div class="seg vol">
@@ -27832,6 +27836,20 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }
     const s = Number(t?.attributes?.volume_level) || 0;
     this.svc("media_player", "volume_set", { volume_level: Math.max(0, Math.min(1, s + n * 0.05)) }, i);
+  }
+  /** Other speakers in the plan (any room) that support HA grouping — the
+   *  targets for a "sync speakers" join. Grouping-capable set only, so the TV
+   *  (no GROUPING feature) is never swept in. */
+  planGroupSpeakers(i) {
+    const t = this.sceneManager?.roomsByFloor() ?? [this.rooms], e = [], n = /* @__PURE__ */ new Set([i]);
+    for (const s of t)
+      for (const r of s)
+        for (const o of r.entities) {
+          const a = o.entity_id;
+          if (!a.startsWith("media_player.") || n.has(a)) continue;
+          n.add(a), (Number(this.hass?.states[a]?.attributes?.supported_features) || 0) & 524288 && e.push(a);
+        }
+    return e;
   }
   renderLockCard(i) {
     const t = this.effState(i) === "locked";
@@ -29616,6 +29634,11 @@ gt.styles = eu`
     }
     .mpb.play {
       background: #fff;
+      color: #17181c;
+    }
+    /* Speakers currently synced together: the link button lights accent. */
+    .mpb.on {
+      background: var(--accent, #f3a83c);
       color: #17181c;
     }
     .mpb .icn {
