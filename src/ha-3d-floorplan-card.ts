@@ -5565,6 +5565,29 @@ export class Ha3dFloorplanCard extends LitElement {
         font-size: 48px;
       }
     }
+
+    /* ---- Touch devices (wall tablets) ----------------------------------
+       backdrop-filter re-blurs whatever sits behind it every time that
+       backdrop repaints — and behind these panels is the 3D, which repaints
+       on every drag. On a tablet that is the single biggest thing competing
+       with the scene for the frame, and it buys a glass effect nobody studies
+       while the plan is moving. Spending that budget on the 3D instead is the
+       better trade: the panels stay translucent (just via opacity), and the
+       scene keeps its full material quality rather than being auto-degraded
+       to matte because the device looked slow. Desktop keeps the glass. */
+    @media (pointer: coarse) {
+      ha-card *,
+      ha-card *::before,
+      ha-card *::after {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      /* Slightly more opaque to make up for the lost blur, so white text over a
+         bright room photo stays as legible as it was. */
+      ha-card.has-photo .room-panel {
+        background: rgba(16, 17, 21, 0.72);
+      }
+    }
   `;
 }
 
