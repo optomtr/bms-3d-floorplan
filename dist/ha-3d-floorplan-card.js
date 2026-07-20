@@ -23334,6 +23334,8 @@ const No = {
   curtain: ["M3.5 4h17", "M5.5 4v16", "M9.2 4v16", "M12 4v16", "M14.8 4v16", "M18.5 4v16"],
   gauge: ["M4.5 17.5a8 8 0 1 1 15 0", "M12 15l4.5-3.2"],
   camera: ["M3 8h3.5l1.5-2h6l1.5 2H21v10H3z", "M12 16.5a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"],
+  eye: ["M2 12s3.6-6.5 10-6.5 10 6.5 10 6.5-3.6 6.5-10 6.5S2 12 2 12z", "M12 9.3a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z"],
+  doorOpen: ["M13 21V3.6L5 5.2V21", "M4 21h13", "M17 21V6l3 1.2V21", "M10.6 12.4v1.6"],
   dot: ["M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0"],
   // Room / house (used by the per-room grouped marker).
   room: ["M4 11l8-6 8 6", "M6 10v9h12v-9", "M10.5 19v-5h3v5"],
@@ -24326,7 +24328,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.118.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.119.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -27880,36 +27882,27 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }
     return null;
   }
-  /** A camera snapshot URL (attributes.entity_picture) resolved so it also loads
-   *  off the file:// kiosk — root-relative /api/camera_proxy paths get the HA
-   *  origin prepended (same trick as room photos). */
-  resolveCameraUrl(i) {
-    if (!i) return null;
-    if (/^(https?:|data:)/i.test(i)) return i;
-    const t = this.assetBase(this.hass);
-    return i.startsWith("/") && t ? t + i : i;
-  }
-  /** One card for the whole intercom: the door camera + Просмотр(Звук) + Открыть
+  /** One card for the whole intercom: Просмотр(Звук) + Открыть
    *  дверь. The live two-way CALL is intentionally left to the integration's own
    *  auto pop-up (it needs the HTTPS mic window and appears on any dashboard);
    *  here it's just "peek at the door + open it", per the agreed design. */
   renderIntercomCard(i) {
-    const t = this.hass.states, e = i.camera ? this.resolveCameraUrl(t[i.camera]?.attributes?.entity_picture) : null, n = this.effState(i.prosmotr) === "on", s = t[i.vyzov]?.attributes?.call_state, r = s === "ringing" || s == null && this.effState(i.vyzov) === "on", o = r ? this.t("Ringing") : n ? this.t("Viewing") : this.t("Idle");
-    return j`<div class="card intercom ${r ? "ring" : ""}">
+    const t = this.hass.states, e = this.effState(i.prosmotr) === "on", n = t[i.vyzov]?.attributes?.call_state, s = n === "ringing" || n == null && this.effState(i.vyzov) === "on", r = s ? this.t("Ringing") : e ? this.t("Viewing") : this.t("Idle");
+    return j`<div class="card intercom ${s ? "ring" : ""}">
       <div class="crow">
-        <div class="cicon ${r || n ? "lit" : ""}">${this.ic("camera")}</div>
+        <div class="cicon ${s || e ? "lit" : ""}">${this.ic("camera")}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(i.camera ?? i.vyzov, this.t("Intercom"))}</div>
-          <div class="csub">${o}</div>
+          <div class="csub">${r}</div>
         </div>
       </div>
-      ${e ? j`<div class="intercom-cam"><img src=${e} alt="" referrerpolicy="no-referrer" /></div>` : nt}
-      <div class="qbtns">
-        <button type="button" class="qb ${n ? "on" : ""}"
-          @click=${() => this.svc("switch", n ? "turn_off" : "turn_on", {}, i.prosmotr, n ? "off" : "on")}>
-          ${this.ic("camera")} ${this.t("View")}</button>
-        ${i.open ? j`<button type="button" class="qb"
-              @click=${() => this.svc("button", "press", {}, i.open)}>${this.ic("door")} ${this.t("Open door")}</button>` : nt}
+      <div class="qbtns intercom-btns">
+        <button type="button" class="qb ${e ? "on" : ""}"
+          @click=${() => this.svc("switch", e ? "turn_off" : "turn_on", {}, i.prosmotr, e ? "off" : "on")}>
+          <span class="qb-ic">${this.ic("eye")}</span><span>${this.t("View")}</span></button>
+        ${i.open ? j`<button type="button" class="qb primary"
+              @click=${() => this.svc("button", "press", {}, i.open)}>
+              <span class="qb-ic">${this.ic("doorOpen")}</span><span>${this.t("Open door")}</span></button>` : nt}
       </div>
     </div>`;
   }
@@ -29319,19 +29312,39 @@ gt.styles = eu`
       gap: 8px;
       margin-top: 12px;
     }
-    /* Intercom door-camera preview. */
-    .intercom-cam {
-      margin-top: 12px;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #0b0c0e;
-      aspect-ratio: 16 / 10;
+    /* Intercom: two big pill buttons, icon over label. */
+    .intercom-btns {
+      gap: 10px;
     }
-    .intercom-cam img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
+    .intercom-btns .qb {
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px 0;
+      font-size: 14px;
+      border-radius: 14px;
+      transition: background 0.15s ease;
+    }
+    .intercom-btns .qb-ic {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .intercom-btns .qb-ic .icn {
+      width: 25px;
+      height: 25px;
+    }
+    .intercom-btns .qb.on {
+      background: var(--accent, #f3a83c);
+      color: #17181c;
+      border-color: transparent;
+    }
+    .intercom-btns .qb.primary {
+      background: #2e7d5b;
+      color: #fff;
+      border-color: transparent;
+    }
+    .intercom-btns .qb.primary:hover {
+      background: #34926a;
     }
     .card.intercom.ring .cicon {
       background: #d64545;

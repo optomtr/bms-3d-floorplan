@@ -2795,23 +2795,12 @@ export class Ha3dFloorplanCard extends LitElement {
     return null;
   }
 
-  /** A camera snapshot URL (attributes.entity_picture) resolved so it also loads
-   *  off the file:// kiosk — root-relative /api/camera_proxy paths get the HA
-   *  origin prepended (same trick as room photos). */
-  private resolveCameraUrl(pic: string | undefined): string | null {
-    if (!pic) return null;
-    if (/^(https?:|data:)/i.test(pic)) return pic;
-    const base = this.assetBase(this.hass);
-    return pic.startsWith('/') && base ? base + pic : pic;
-  }
-
-  /** One card for the whole intercom: the door camera + Просмотр(Звук) + Открыть
+  /** One card for the whole intercom: Просмотр(Звук) + Открыть
    *  дверь. The live two-way CALL is intentionally left to the integration's own
    *  auto pop-up (it needs the HTTPS mic window and appears on any dashboard);
    *  here it's just "peek at the door + open it", per the agreed design. */
   private renderIntercomCard(g: IntercomGroup) {
     const st = this.hass!.states;
-    const pic = g.camera ? this.resolveCameraUrl(st[g.camera]?.attributes?.entity_picture) : null;
     const viewing = this.effState(g.prosmotr) === 'on';
     const callState = st[g.vyzov]?.attributes?.call_state;
     const ringing = callState === 'ringing' || (callState == null && this.effState(g.vyzov) === 'on');
@@ -2824,16 +2813,14 @@ export class Ha3dFloorplanCard extends LitElement {
           <div class="csub">${sub}</div>
         </div>
       </div>
-      ${pic
-        ? html`<div class="intercom-cam"><img src=${pic} alt="" referrerpolicy="no-referrer" /></div>`
-        : nothing}
-      <div class="qbtns">
+      <div class="qbtns intercom-btns">
         <button type="button" class="qb ${viewing ? 'on' : ''}"
           @click=${() => this.svc('switch', viewing ? 'turn_off' : 'turn_on', {}, g.prosmotr, viewing ? 'off' : 'on')}>
-          ${this.ic('camera')} ${this.t('View')}</button>
+          <span class="qb-ic">${this.ic('eye')}</span><span>${this.t('View')}</span></button>
         ${g.open
-          ? html`<button type="button" class="qb"
-              @click=${() => this.svc('button', 'press', {}, g.open!)}>${this.ic('door')} ${this.t('Open door')}</button>`
+          ? html`<button type="button" class="qb primary"
+              @click=${() => this.svc('button', 'press', {}, g.open!)}>
+              <span class="qb-ic">${this.ic('doorOpen')}</span><span>${this.t('Open door')}</span></button>`
           : nothing}
       </div>
     </div>`;
@@ -4449,19 +4436,39 @@ export class Ha3dFloorplanCard extends LitElement {
       gap: 8px;
       margin-top: 12px;
     }
-    /* Intercom door-camera preview. */
-    .intercom-cam {
-      margin-top: 12px;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #0b0c0e;
-      aspect-ratio: 16 / 10;
+    /* Intercom: two big pill buttons, icon over label. */
+    .intercom-btns {
+      gap: 10px;
     }
-    .intercom-cam img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
+    .intercom-btns .qb {
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px 0;
+      font-size: 14px;
+      border-radius: 14px;
+      transition: background 0.15s ease;
+    }
+    .intercom-btns .qb-ic {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .intercom-btns .qb-ic .icn {
+      width: 25px;
+      height: 25px;
+    }
+    .intercom-btns .qb.on {
+      background: var(--accent, #f3a83c);
+      color: #17181c;
+      border-color: transparent;
+    }
+    .intercom-btns .qb.primary {
+      background: #2e7d5b;
+      color: #fff;
+      border-color: transparent;
+    }
+    .intercom-btns .qb.primary:hover {
+      background: #34926a;
     }
     .card.intercom.ring .cicon {
       background: #d64545;
