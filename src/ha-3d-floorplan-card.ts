@@ -195,6 +195,10 @@ export class Ha3dFloorplanCard extends LitElement {
    *  Painted as a CSS layer across the whole card (the canvas can't reach behind
    *  the side panel), with the canvas transparent over it. */
   @state() private roomPhoto: string | null = null;
+  /** The room photo with its softening already baked in — see bakeRoomPhoto.
+   *  null until baking finishes (or if it can't run), when the raw photo is
+   *  shown with the equivalent CSS filter instead. */
+  @state() private roomPhotoBaked: string | null = null;
   /** The room whose devices fill the right-side panel. */
   @state() private activeRoomKey: string | null = null;
   /** Overview (1B): the room opened in the full-screen detail slide-over. */
@@ -534,9 +538,53 @@ export class Ha3dFloorplanCard extends LitElement {
     this.sceneManager.setRoomsHandler((rooms) => this.onRoomsChanged(rooms));
     this.sceneManager.setBackdropHandler((url) => {
       this.roomPhoto = url;
+      this.roomPhotoBaked = null;
+      if (url) this.bakeRoomPhoto(url);
     });
     this.sceneManager.start();
     this.loadActiveProject();
+  }
+
+  /** Render the room photo once with its blur/dim already applied, so the card
+   *  can show a plain bitmap instead of a live CSS filter.
+   *
+   *  The filter version is re-evaluated by the compositor whenever the backdrop
+   *  behind it repaints — which, with the 3D sitting on top, is every frame of
+   *  every drag. Baking is the identical picture for a one-off cost. The photo
+   *  is capped at 1280px on upload, so this is a single small draw.
+   *
+   *  Falls back to the raw photo (with the CSS filter) if anything here can't
+   *  run: no 2D context, a cross-origin URL that taints the canvas, or a photo
+   *  that fails to decode. */
+  private bakeRoomPhoto(url: string): void {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // needed for /local/… to stay exportable
+    img.onload = () => {
+      if (this.roomPhoto !== url) return; // room changed while decoding
+      try {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (!w || !h) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        // Same look as the CSS rule this replaces. The scale-up compensates for
+        // the blur softening the edges, exactly as the transform did.
+        ctx.filter = 'blur(6px) brightness(0.92)';
+        const over = 0.06;
+        ctx.drawImage(img, -w * over * 0.5, -h * over * 0.5, w * (1 + over), h * (1 + over));
+        const baked = canvas.toDataURL('image/jpeg', 0.86);
+        if (this.roomPhoto === url) this.roomPhotoBaked = baked;
+      } catch {
+        /* tainted canvas or out of memory — the raw photo + CSS filter stands in */
+      }
+    };
+    img.onerror = () => {
+      /* the scene already validated it loads; nothing to do but keep the raw one */
+    };
+    img.src = url;
   }
 
   private async loadActiveProject(): Promise<void> {
@@ -3301,7 +3349,10 @@ export class Ha3dFloorplanCard extends LitElement {
         style=${this.editing ? '' : `height:${height}`}
       >
         ${this.viewMode === 'room' && this.roomPhoto
-          ? html`<div class="roombg" style=${`background-image:url("${this.roomPhoto.replace(/"/g, '%22')}")`}></div>`
+          ? html`<div
+              class="roombg${this.roomPhotoBaked ? '' : ' raw'}"
+              style=${`background-image:url("${(this.roomPhotoBaked ?? this.roomPhoto).replace(/"/g, '%22')}")`}
+            ></div>`
           : nothing}
         <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
 
@@ -3471,11 +3522,18 @@ export class Ha3dFloorplanCard extends LitElement {
       z-index: 0;
       background-size: cover;
       background-position: center;
-      /* A gentle blur so the busy wallpaper doesn't fight the panel/markers on
-         top; scale up a touch so the blur's soft edge never reveals the card. */
+      /* The softening is baked into the bitmap once (see bakeRoomPhoto) rather
+         than applied as a live CSS filter: a filter on a full-card layer is
+         re-evaluated by the compositor as the 3D repaints behind it, which is
+         pure cost on a tablet for a picture that never changes. Same look, none
+         of the per-frame work. contain keeps it off the 3D's repaint path. */
+      contain: strict;
+      animation: fade-in 0.32s ease both;
+    }
+    /* Fallback for the un-baked original (canvas unavailable / cross-origin). */
+    .roombg.raw {
       filter: blur(6px) brightness(0.92);
       transform: scale(1.06);
-      animation: fade-in 0.32s ease both;
     }
     @keyframes fade-in {
       from { opacity: 0; }
