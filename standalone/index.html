@@ -335,10 +335,9 @@
         location.reload();
       };
 
-      // --- Card, live state + offline cache -------------------------------
-      // These are shared with the live client below AND used before/without any
-      // socket, so the 3D renders from cache with no network and taps simulate
-      // locally. A live connection, when it comes up, overrides both.
+      // --- Card + live state ----------------------------------------------
+      // The kiosk is online-only: the 3D is rendered from the plan HA serves and
+      // devices are driven live over the socket (no offline cache / simulation).
       let card, currentPlan = null, lastPlanJson = null;
       // Where the shown plan came from, and how many rooms carry a design photo.
       // Surfaced on screen after each load: this page can only fall back silently
@@ -394,24 +393,6 @@
         lastPlanJson = json;
         card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', idleMinutes: 2, plan });
         return true;
-      }
-
-      // Offline cache: after a live sync we stash the plan + last states, so the
-      // app opens and shows the 3D with NO network at all (a local demo). Taps
-      // then simulate the service locally (callService below) and stick.
-      const CACHE_KEY = 'ha3d_cache';
-      function cacheSave() {
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ plan: currentPlan, states })); } catch {}
-      }
-      function cacheLoad() {
-        try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch { return null; }
-      }
-      let cacheAt = 0;
-      function cacheSaveThrottled() {
-        const t = performance.now();
-        if (t - cacheAt < 8000) return;
-        cacheAt = t;
-        cacheSave();
       }
 
       // Push the current state map into the card (batched to one per frame).
@@ -529,50 +510,14 @@
         }
       }
 
-      // Drive a device. Online → real HA service call. Offline → simulate the
-      // result on the local state map, so a tap "turns on right there" and stays
-      // on (the card's optimistic update never gets a rejection to revert).
+      // Drive a device via a real HA service call. Rejects if the socket isn't
+      // open, so the card's optimistic UI reverts instead of sticking.
       function callService(domain, service, data) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          const p = request({ type: 'call_service', domain, service, service_data: data || {} });
-          p.catch(() => {});
-          return p;
-        }
-        applyLocalService(domain, service, data);
-        cacheSave();
-        pushHass();
-        return Promise.resolve();
+        const p = request({ type: 'call_service', domain, service, service_data: data || {} });
+        p.catch(() => {});
+        return p;
       }
 
-      // A minimal local model of the services the card calls, so offline taps
-      // visibly change state: on/off/toggle for lights, switches, covers, locks;
-      // hvac mode; and any attributes passed (brightness, colour, temperature…).
-      function applyLocalService(domain, service, data) {
-        data = data || {};
-        const ids = Array.isArray(data.entity_id)
-          ? data.entity_id
-          : data.entity_id ? [data.entity_id] : [];
-        const attrs = { ...data };
-        delete attrs.entity_id;
-        const offish = (s) => ['off', 'closed', 'locked', 'unavailable', 'unknown', '', undefined, null].includes(s);
-        for (const id of ids) {
-          const cur = states[id] || { entity_id: id, state: 'off', attributes: {} };
-          let ns = null;
-          if (service === 'toggle') ns = offish(cur.state) ? 'on' : 'off';
-          else if (service === 'turn_on') ns = 'on';
-          else if (service === 'turn_off') ns = 'off';
-          else if (service === 'open_cover') ns = 'open';
-          else if (service === 'close_cover') ns = 'closed';
-          else if (service === 'lock') ns = 'locked';
-          else if (service === 'unlock') ns = 'unlocked';
-          else if (service === 'set_hvac_mode' && attrs.hvac_mode != null) ns = String(attrs.hvac_mode);
-          states[id] = {
-            ...cur,
-            state: ns !== null ? ns : cur.state,
-            attributes: { ...(cur.attributes || {}), ...attrs },
-          };
-        }
-      }
       const validPlan = (p) => !!p && Array.isArray(p.floors) && p.floors.length > 0;
       async function fetchFilePlan() {
         try {
@@ -596,19 +541,10 @@
           return;
         }
 
-        // Offline-first: if a plan was cached from a previous live session, show
-        // the 3D immediately with NO network and let taps simulate locally. If a
-        // live connection then comes up, it overrides with real states + control.
-        const cached = cacheLoad();
-        if (cached && validPlan(cached.plan)) {
-          ensureCard(cached.plan);
-          states = cached.states || {};
-          pushHass();
-        }
-
         if (useSession || (haUrl && token)) {
           connectLive();
-        } else if (!(cached && validPlan(cached.plan))) {
+        } else {
+          // No credentials — show a view-only 3D from a bundled plan.json, if any.
           const plan = await fetchFilePlan();
           if (plan) ensureCard(plan);
           const hint = inj ? 'log in to Home Assistant' : 'tap ⚙ to connect';
@@ -618,8 +554,7 @@
 
       // --- Live Home Assistant WebSocket client ---------------------------
       // states / ws / pending / request / callService / callWS / pushHass are
-      // module-scoped above (shared with the offline path). connectLive only
-      // drives the socket and updates them live.
+      // module-scoped above. connectLive drives the socket and updates them live.
       function connectLive() {
         let planLoaded = false;
         let authFailed = false; // a bad token must NOT trigger an endless retry loop
@@ -752,7 +687,6 @@
                   }
                 }
                 pushHass();
-                cacheSave(); // stash plan + fresh states for the offline demo
                 await request({ type: 'subscribe_events', event_type: 'state_changed' });
               } catch (e) {
                 if (!current()) return;
@@ -775,7 +709,6 @@
               if (d.new_state) states[d.entity_id] = d.new_state;
               else delete states[d.entity_id];
               pushHass();
-              cacheSaveThrottled(); // keep the offline snapshot reasonably fresh
             }
           };
           sock.onclose = () => {
@@ -812,7 +745,6 @@
           if (!ws || ws.readyState !== WebSocket.OPEN || !planLoaded) return;
           const plan = (await fetchSharedPlan()) || (await fetchUserPlan());
           if (plan && applyPlan(plan)) {
-            cacheSave(); // also refresh offline snapshot
             showPlanInfo(plan);
           }
         }, 10000);
