@@ -24326,7 +24326,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.117.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
+const m_ = "0.118.0", Uo = "ha-3d-floorplan-sidebar-item", Bd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26200,6 +26200,13 @@ const $d = [
   Unlocked: "Отперто",
   "Front door": "Входная дверь",
   "Turn everything off": "Выключить всё",
+  // Intercom (домофон)
+  Intercom: "Домофон",
+  View: "Просмотр",
+  "Open door": "Открыть дверь",
+  Ringing: "Входящий вызов",
+  Viewing: "Просмотр включён",
+  Idle: "Готов",
   "opened to": "Открыто на",
   "No devices in this room": "В этой комнате нет устройств",
   "Select a room": "Выберите комнату",
@@ -27837,11 +27844,74 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   roomCards(i, t) {
     const e = this.hass;
     if (!e) return [];
-    const n = i.entities.filter((v) => e.states[v.entity_id] && !t.has(v.entity_id)), s = (...v) => n.filter((p) => v.includes(p.behavior)), r = s("light"), o = s("switch", "input_boolean"), a = s("climate"), l = s("fan"), c = s("cover"), h = s("media_player"), d = s("lock"), u = /* @__PURE__ */ new Set(["light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "lock"]), f = n.filter((v) => !u.has(v.behavior)), m = [];
-    return r.length && m.push(this.renderLightCard(r.map((v) => v.entity_id))), o.forEach((v) => m.push(this.renderToggleCard(v.entity_id, "power"))), a.forEach((v) => m.push(this.renderClimateCard(v.entity_id))), l.forEach((v) => m.push(this.renderToggleCard(v.entity_id, "fan"))), c.forEach((v) => m.push(this.renderCoverCard(v.entity_id))), h.forEach((v) => m.push(this.renderMediaCard(v.entity_id, h.length === 1 ? this.t("Media") : void 0))), d.forEach((v) => m.push(this.renderLockCard(v.entity_id))), f.forEach((v) => m.push(this.renderInfoCard(v.entity_id))), m;
+    const n = i.entities.filter((g) => e.states[g.entity_id] && !t.has(g.entity_id)), s = this.detectIntercom(n), r = s ? n.filter((g) => !s.ids.has(g.entity_id)) : n, o = (...g) => r.filter((y) => g.includes(y.behavior)), a = o("light"), l = o("switch", "input_boolean"), c = o("climate"), h = o("fan"), d = o("cover"), u = o("media_player"), f = o("lock"), m = /* @__PURE__ */ new Set(["light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "lock"]), v = r.filter((g) => !m.has(g.behavior)), p = [];
+    return s && p.push(this.renderIntercomCard(s)), a.length && p.push(this.renderLightCard(a.map((g) => g.entity_id))), l.forEach((g) => p.push(this.renderToggleCard(g.entity_id, "power"))), c.forEach((g) => p.push(this.renderClimateCard(g.entity_id))), h.forEach((g) => p.push(this.renderToggleCard(g.entity_id, "fan"))), d.forEach((g) => p.push(this.renderCoverCard(g.entity_id))), u.forEach((g) => p.push(this.renderMediaCard(g.entity_id, u.length === 1 ? this.t("Media") : void 0))), f.forEach((g) => p.push(this.renderLockCard(g.entity_id))), v.forEach((g) => p.push(this.renderInfoCard(g.entity_id))), p;
   }
   cardName(i, t) {
     return t ?? this.hass?.states[i]?.attributes?.friendly_name ?? i;
+  }
+  /** Spot a BMS Intercom in a room's entities. Its objects share a base name
+   *  ("<base>_video", "<base>_vyzov", "<base>_prosmotr", "<base>_otkryt_dver",
+   *  …); any one of them being present (usually the camera bound to the intercom
+   *  model) pulls in the siblings from hass, so the user only binds ONE entity. */
+  detectIntercom(i) {
+    const t = this.hass?.states ?? {}, e = {
+      camera: "_video",
+      switch: "_prosmotr",
+      binary_sensor: "_vyzov",
+      button: "_otkryt_dver"
+    };
+    for (const n of i) {
+      const s = n.entity_id.indexOf("."), r = n.entity_id.slice(0, s), o = n.entity_id.slice(s + 1), a = e[r];
+      if (!a || !o.endsWith(a)) continue;
+      const l = o.slice(0, -a.length), c = `switch.${l}_prosmotr`, h = `binary_sensor.${l}_vyzov`;
+      if (!t[c] || !t[h]) continue;
+      const d = (f) => t[f] ? f : void 0, u = {
+        base: l,
+        prosmotr: c,
+        vyzov: h,
+        camera: d(`camera.${l}_video`),
+        open: d(`button.${l}_otkryt_dver`),
+        answer: d(`button.${l}_otvetit`),
+        reset: d(`button.${l}_sbrosit`),
+        ids: /* @__PURE__ */ new Set()
+      };
+      return [u.camera, u.vyzov, u.prosmotr, u.open, u.answer, u.reset].forEach((f) => f && u.ids.add(f)), u;
+    }
+    return null;
+  }
+  /** A camera snapshot URL (attributes.entity_picture) resolved so it also loads
+   *  off the file:// kiosk — root-relative /api/camera_proxy paths get the HA
+   *  origin prepended (same trick as room photos). */
+  resolveCameraUrl(i) {
+    if (!i) return null;
+    if (/^(https?:|data:)/i.test(i)) return i;
+    const t = this.assetBase(this.hass);
+    return i.startsWith("/") && t ? t + i : i;
+  }
+  /** One card for the whole intercom: the door camera + Просмотр(Звук) + Открыть
+   *  дверь. The live two-way CALL is intentionally left to the integration's own
+   *  auto pop-up (it needs the HTTPS mic window and appears on any dashboard);
+   *  here it's just "peek at the door + open it", per the agreed design. */
+  renderIntercomCard(i) {
+    const t = this.hass.states, e = i.camera ? this.resolveCameraUrl(t[i.camera]?.attributes?.entity_picture) : null, n = this.effState(i.prosmotr) === "on", s = t[i.vyzov]?.attributes?.call_state, r = s === "ringing" || s == null && this.effState(i.vyzov) === "on", o = r ? this.t("Ringing") : n ? this.t("Viewing") : this.t("Idle");
+    return j`<div class="card intercom ${r ? "ring" : ""}">
+      <div class="crow">
+        <div class="cicon ${r || n ? "lit" : ""}">${this.ic("camera")}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(i.camera ?? i.vyzov, this.t("Intercom"))}</div>
+          <div class="csub">${o}</div>
+        </div>
+      </div>
+      ${e ? j`<div class="intercom-cam"><img src=${e} alt="" referrerpolicy="no-referrer" /></div>` : nt}
+      <div class="qbtns">
+        <button type="button" class="qb ${n ? "on" : ""}"
+          @click=${() => this.svc("switch", n ? "turn_off" : "turn_on", {}, i.prosmotr, n ? "off" : "on")}>
+          ${this.ic("camera")} ${this.t("View")}</button>
+        ${i.open ? j`<button type="button" class="qb"
+              @click=${() => this.svc("button", "press", {}, i.open)}>${this.ic("door")} ${this.t("Open door")}</button>` : nt}
+      </div>
+    </div>`;
   }
   /** Short label for a light segment — the HA name with the room prefix stripped
    *  (e.g. "Гостиная · Люстра" → "Люстра"). Truncation is done in CSS. */
@@ -29248,6 +29318,29 @@ gt.styles = eu`
       display: flex;
       gap: 8px;
       margin-top: 12px;
+    }
+    /* Intercom door-camera preview. */
+    .intercom-cam {
+      margin-top: 12px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0b0c0e;
+      aspect-ratio: 16 / 10;
+    }
+    .intercom-cam img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .card.intercom.ring .cicon {
+      background: #d64545;
+      color: #fff;
+      animation: pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
     }
     .qb {
       flex: 1;

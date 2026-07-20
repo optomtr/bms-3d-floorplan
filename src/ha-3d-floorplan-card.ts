@@ -46,6 +46,18 @@ function climateStep(ent?: HassEntity): number {
   return Number.isFinite(s) && s >= 1 ? Math.round(s) : 1;
 }
 
+/** A BMS Intercom's related entities, discovered by their shared base name. */
+interface IntercomGroup {
+  base: string;
+  prosmotr: string; // switch — Просмотр (live view / sound)
+  vyzov: string; // binary_sensor — Вызов (call state)
+  camera?: string; // camera — Видео
+  open?: string; // button — Открыть дверь
+  answer?: string; // button — Ответить (integration pop-up handles the call)
+  reset?: string; // button — Сбросить
+  ids: Set<string>; // all of the above, to hide from the per-domain cards
+}
+
 /** Device categories shown when a room marker is tapped (only present ones).
  *  Fans/ventilation live under Climate (not Lights). */
 const DEVICE_CATEGORIES: { key: string; label: string; icon: string; behaviors: string[] }[] = [
@@ -98,6 +110,13 @@ const RU_STRINGS: Record<string, string> = {
   Unlocked: 'Отперто',
   'Front door': 'Входная дверь',
   'Turn everything off': 'Выключить всё',
+  // Intercom (домофон)
+  Intercom: 'Домофон',
+  View: 'Просмотр',
+  'Open door': 'Открыть дверь',
+  Ringing: 'Входящий вызов',
+  Viewing: 'Просмотр включён',
+  Idle: 'Готов',
   'opened to': 'Открыто на',
   'No devices in this room': 'В этой комнате нет устройств',
   'Select a room': 'Выберите комнату',
@@ -2702,7 +2721,12 @@ export class Ha3dFloorplanCard extends LitElement {
   private roomCards(room: RoomInfo, skip: Set<string>) {
     const hass = this.hass;
     if (!hass) return [];
-    const ents = room.entities.filter((e) => hass.states[e.entity_id] && !skip.has(e.entity_id));
+    const ents0 = room.entities.filter((e) => hass.states[e.entity_id] && !skip.has(e.entity_id));
+    // A BMS Intercom (домофон) exposes camera/vyzov/prosmotr/open/… sharing a
+    // base name. Collapse them into ONE intercom card and hide the members from
+    // the normal per-domain cards.
+    const intercom = this.detectIntercom(ents0);
+    const ents = intercom ? ents0.filter((e) => !intercom.ids.has(e.entity_id)) : ents0;
     const of = (...b: string[]) => ents.filter((e) => b.includes(e.behavior));
     const lights = of('light');
     const switches = of('switch', 'input_boolean');
@@ -2715,6 +2739,7 @@ export class Ha3dFloorplanCard extends LitElement {
     const infos = ents.filter((e) => !known.has(e.behavior));
 
     const out: unknown[] = [];
+    if (intercom) out.push(this.renderIntercomCard(intercom));
     // All of a room's lights collapse into ONE "Свет" card (matches the design);
     // per-light on/off stays available via the overview segment buttons.
     if (lights.length) out.push(this.renderLightCard(lights.map((e) => e.entity_id)));
@@ -2734,6 +2759,84 @@ export class Ha3dFloorplanCard extends LitElement {
 
   private cardName(id: string, fallback?: string): string {
     return fallback ?? this.hass?.states[id]?.attributes?.friendly_name ?? id;
+  }
+
+  /** Spot a BMS Intercom in a room's entities. Its objects share a base name
+   *  ("<base>_video", "<base>_vyzov", "<base>_prosmotr", "<base>_otkryt_dver",
+   *  …); any one of them being present (usually the camera bound to the intercom
+   *  model) pulls in the siblings from hass, so the user only binds ONE entity. */
+  private detectIntercom(ents: { entity_id: string }[]): IntercomGroup | null {
+    const st = this.hass?.states ?? {};
+    const suffix: Record<string, string> = {
+      camera: '_video', switch: '_prosmotr', binary_sensor: '_vyzov', button: '_otkryt_dver',
+    };
+    for (const e of ents) {
+      const dot = e.entity_id.indexOf('.');
+      const dom = e.entity_id.slice(0, dot);
+      const obj = e.entity_id.slice(dot + 1);
+      const suf = suffix[dom];
+      if (!suf || !obj.endsWith(suf)) continue;
+      const base = obj.slice(0, -suf.length);
+      const prosmotr = `switch.${base}_prosmotr`;
+      const vyzov = `binary_sensor.${base}_vyzov`;
+      if (!st[prosmotr] || !st[vyzov]) continue; // not an intercom base
+      const pick = (id: string) => (st[id] ? id : undefined);
+      const g: IntercomGroup = {
+        base, prosmotr, vyzov,
+        camera: pick(`camera.${base}_video`),
+        open: pick(`button.${base}_otkryt_dver`),
+        answer: pick(`button.${base}_otvetit`),
+        reset: pick(`button.${base}_sbrosit`),
+        ids: new Set<string>(),
+      };
+      [g.camera, g.vyzov, g.prosmotr, g.open, g.answer, g.reset].forEach((id) => id && g.ids.add(id));
+      return g;
+    }
+    return null;
+  }
+
+  /** A camera snapshot URL (attributes.entity_picture) resolved so it also loads
+   *  off the file:// kiosk — root-relative /api/camera_proxy paths get the HA
+   *  origin prepended (same trick as room photos). */
+  private resolveCameraUrl(pic: string | undefined): string | null {
+    if (!pic) return null;
+    if (/^(https?:|data:)/i.test(pic)) return pic;
+    const base = this.assetBase(this.hass);
+    return pic.startsWith('/') && base ? base + pic : pic;
+  }
+
+  /** One card for the whole intercom: the door camera + Просмотр(Звук) + Открыть
+   *  дверь. The live two-way CALL is intentionally left to the integration's own
+   *  auto pop-up (it needs the HTTPS mic window and appears on any dashboard);
+   *  here it's just "peek at the door + open it", per the agreed design. */
+  private renderIntercomCard(g: IntercomGroup) {
+    const st = this.hass!.states;
+    const pic = g.camera ? this.resolveCameraUrl(st[g.camera]?.attributes?.entity_picture) : null;
+    const viewing = this.effState(g.prosmotr) === 'on';
+    const callState = st[g.vyzov]?.attributes?.call_state;
+    const ringing = callState === 'ringing' || (callState == null && this.effState(g.vyzov) === 'on');
+    const sub = ringing ? this.t('Ringing') : viewing ? this.t('Viewing') : this.t('Idle');
+    return html`<div class="card intercom ${ringing ? 'ring' : ''}">
+      <div class="crow">
+        <div class="cicon ${ringing || viewing ? 'lit' : ''}">${this.ic('camera')}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(g.camera ?? g.vyzov, this.t('Intercom'))}</div>
+          <div class="csub">${sub}</div>
+        </div>
+      </div>
+      ${pic
+        ? html`<div class="intercom-cam"><img src=${pic} alt="" referrerpolicy="no-referrer" /></div>`
+        : nothing}
+      <div class="qbtns">
+        <button type="button" class="qb ${viewing ? 'on' : ''}"
+          @click=${() => this.svc('switch', viewing ? 'turn_off' : 'turn_on', {}, g.prosmotr, viewing ? 'off' : 'on')}>
+          ${this.ic('camera')} ${this.t('View')}</button>
+        ${g.open
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('button', 'press', {}, g.open!)}>${this.ic('door')} ${this.t('Open door')}</button>`
+          : nothing}
+      </div>
+    </div>`;
   }
 
   /** Short label for a light segment — the HA name with the room prefix stripped
@@ -4345,6 +4448,29 @@ export class Ha3dFloorplanCard extends LitElement {
       display: flex;
       gap: 8px;
       margin-top: 12px;
+    }
+    /* Intercom door-camera preview. */
+    .intercom-cam {
+      margin-top: 12px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0b0c0e;
+      aspect-ratio: 16 / 10;
+    }
+    .intercom-cam img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .card.intercom.ring .cicon {
+      background: #d64545;
+      color: #fff;
+      animation: pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
     }
     .qb {
       flex: 1;
