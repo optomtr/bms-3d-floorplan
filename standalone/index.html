@@ -368,7 +368,9 @@
       let ws = null;
       let reqId = 10;
       const pending = new Map();
+      const subs = new Map(); // id -> callback, for WS command subscriptions (WebRTC)
       let pushQueued = false;
+      let haConfig = {}; // HA config (external/internal_url) for the intercom mic toast
 
       function ensureCard(plan) {
         currentPlan = plan;
@@ -455,6 +457,77 @@
       }
       // Card ↔ HA per-user store (saved projects + edit PIN). Rejects offline.
       const callWS = (msg) => request(msg);
+
+      // Subscribe to a WS command stream (used by the intercom pop-up for the
+      // camera WebRTC signalling: camera/webrtc/offer → session/answer/candidate).
+      // Mirrors hass.connection.subscribeMessage(cb, msg): the callback gets each
+      // event payload; resolves to an unsubscribe function.
+      function subscribe(cb, msg) {
+        return new Promise((res, rej) => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            rej(new Error('socket not open'));
+            return;
+          }
+          const id = ++reqId;
+          subs.set(id, cb);
+          pending.set(id, {
+            res: () =>
+              res(() => {
+                subs.delete(id);
+                return request({ type: 'unsubscribe_events', subscription: id }).catch(() => {});
+              }),
+            rej: (e) => {
+              subs.delete(id);
+              rej(e);
+            },
+          });
+          try {
+            ws.send(JSON.stringify({ ...msg, id }));
+          } catch (e) {
+            subs.delete(id);
+            pending.delete(id);
+            rej(e);
+          }
+        });
+      }
+
+      // --- BMS Intercom pop-up bridge -------------------------------------
+      // The intercom's call/view pop-up is a module the integration auto-loads
+      // into the FULL Home Assistant frontend. This standalone 3D page isn't that
+      // frontend, so the домофон never opened here. Fix: host the SAME module —
+      // give it the <home-assistant>.hass it looks for (states + callService + a
+      // connection with sendMessagePromise/subscribeMessage), then load it from
+      // HA. Video + two-way audio ride WebRTC and the socket, so nothing else is
+      // needed. Live-only; a no-op offline, and it never touches the 3D card.
+      let haShellEl = null;
+      let intercomLoaded = false;
+      function updateIntercomBridge() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return; // live connection only
+        if (!haShellEl) {
+          haShellEl = document.querySelector('home-assistant') || document.createElement('home-assistant');
+          haShellEl.style.display = 'none';
+          if (!haShellEl.isConnected) document.body.appendChild(haShellEl);
+        }
+        // The module reads <home-assistant>.hass fresh on its own 400ms timer.
+        haShellEl.hass = {
+          states,
+          config: haConfig,
+          callService,
+          connection: { sendMessagePromise: request, subscribeMessage: subscribe },
+        };
+        if (!intercomLoaded) {
+          intercomLoaded = true;
+          const base = (useSession ? location.origin : haUrl).replace(/\/+$/, '');
+          const s = document.createElement('script');
+          s.src = base + '/bms_intercom_static/bms_intercom_card.js';
+          s.async = true;
+          // Not installed / HA unreachable → allow a later retry (no hard failure).
+          s.onerror = () => {
+            intercomLoaded = false;
+          };
+          document.head.appendChild(s);
+        }
+      }
 
       // Drive a device. Online → real HA service call. Offline → simulate the
       // result on the local state map, so a tap "turns on right there" and stays
@@ -655,6 +728,12 @@
                 for (const s of res || []) next[s.entity_id] = s;
                 states = next; // rebuild → prunes entities removed since last connect
                 syncFails = 0;
+                // Wire up (or refresh, after a reconnect) the intercom pop-up:
+                // fetch HA config for its mic-HTTPS hint, then hand it the live
+                // hass and load the module once. Failure here must not break sync.
+                try { haConfig = await request({ type: 'get_config' }); } catch (e) { /* keep last */ }
+                if (!current()) return;
+                updateIntercomBridge();
                 // Re-fetch the saved plan on EVERY (re)connect — not just the
                 // first — so a reconnect always refreshes it. applyPlan is a
                 // no-op when the plan is unchanged, so this is cheap.
@@ -687,6 +766,10 @@
                 pending.delete(m.id);
                 m.success ? p.res(m.result) : p.rej(m.error || new Error('call failed'));
               }
+            } else if (m.type === 'event' && subs.has(m.id)) {
+              // A WS command subscription (intercom WebRTC signalling).
+              const cb = subs.get(m.id);
+              if (cb) cb(m.event);
             } else if (m.type === 'event' && m.event && m.event.event_type === 'state_changed') {
               const d = m.event.data;
               if (d.new_state) states[d.entity_id] = d.new_state;
@@ -699,6 +782,7 @@
             if (!current()) return;
             pending.forEach((p) => p.rej(new Error('socket closed')));
             pending.clear();
+            subs.clear();
             if (authFailed) {
               setStatus(useSession ? 'Home Assistant login expired — reload the page' : 'auth failed — check the token (⚙)', true);
               return; // don't hammer HA with a wrong token
