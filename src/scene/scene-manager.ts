@@ -238,6 +238,9 @@ export class SceneManager {
   // `editing` flag to force continuous rendering.)
   private needsRender = true;
   private resizeObserver?: ResizeObserver;
+  /** Last size the drawing buffer was fitted to — see resize(). */
+  private lastW = -1;
+  private lastH = -1;
 
   // Adaptive quality: if sustained interaction (orbit/pan) runs slow, step the
   // renderer down — drop the shadow pass, then the pixel ratio — so the view
@@ -567,12 +570,21 @@ export class SceneManager {
   private setupResize(): void {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
-    this.resize();
+    this.resize(true);
   }
 
-  private resize(): void {
+  /** @param force re-fit even at an unchanged size — the pixel-ratio and quality
+   *  paths change the buffer's resolution, not the element's box, so they must
+   *  not be skipped by the same-size guard below. */
+  private resize(force = false): void {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
+    // ResizeObserver also fires on observation start and on layout passes that
+    // left the box the same size. Reallocating the drawing buffer for a size
+    // that didn't change is pure cost on a tablet GPU.
+    if (!force && w === this.lastW && h === this.lastH) return;
+    this.lastW = w;
+    this.lastH = h;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -597,7 +609,7 @@ export class SceneManager {
     const clamped = allowSupersample ? Math.min(pr, 3) : Math.min(window.devicePixelRatio, pr);
     if (Math.abs(this.renderer.getPixelRatio() - clamped) < 0.001) return;
     this.renderer.setPixelRatio(clamped);
-    this.resize(); // re-fits the buffer and draws one frame at the new ratio
+    this.resize(true); // re-fits the buffer and draws one frame at the new ratio
   }
 
   /** Idle (still-image) resolution: at least 2x and super-sampled for a crisp,
@@ -819,7 +831,7 @@ export class SceneManager {
     this.slowStreak = 0;
     this.frameMs = 16;
     this.requestShadowUpdate();
-    this.resize();
+    this.resize(true);
     return prevAA !== p.aa;
   }
 

@@ -4444,7 +4444,12 @@ export class Ha3dFloorplanCard extends LitElement {
       width: auto;
       height: auto;
       background: transparent;
-      transition: right 0.28s ease;
+      /* Deliberately NOT animated. Easing the right edge resizes the WebGL
+         canvas on every frame of the transition, and each resize reallocates
+         the drawing buffer and forces a synchronous draw (see
+         SceneManager.resize) — which is what made opening a room stutter on the
+         tablets. The canvas now resizes once and the panel slides over it on
+         transform alone. */
     }
     /* A room is in focus → make room for the right-side panel. */
     ha-card.view.room.has-room .viewport {
