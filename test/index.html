@@ -66,6 +66,7 @@
         <button id="bump-temp">Bump climate temp</button>
         <button id="bump-sensor">Bump kitchen sensor</button>
         <button id="toggle-leak">Toggle water leak</button>
+        <button id="toggle-valve">Toggle valve (automation)</button>
       </div>
       <div id="card-host"></div>
       <p style="font-size: 13px; color: #888">
@@ -105,7 +106,8 @@
         'binary_sensor.bathroom_motion': { entity_id: 'binary_sensor.bathroom_motion', state: 'off', attributes: { friendly_name: 'Bathroom Motion' } },
         // Water leak: the card finds these by device_class + name, not by config.
         'binary_sensor.water_leak_sensor': { entity_id: 'binary_sensor.water_leak_sensor', state: 'off', attributes: { friendly_name: 'Датчик протечки', device_class: 'moisture' } },
-        'switch.smart_water_valve_updated_2_switch_1': { entity_id: 'switch.smart_water_valve_updated_2_switch_1', state: 'off', attributes: { friendly_name: 'Кран' } },
+        // Normal state is OPEN — a closed water main is itself the alarm condition.
+        'switch.smart_water_valve_updated_2_switch_1': { entity_id: 'switch.smart_water_valve_updated_2_switch_1', state: 'on', attributes: { friendly_name: 'Кран' } },
       };
 
       function makeHass() {
@@ -156,6 +158,8 @@
         push();
       };
       document.getElementById('toggle-leak').onclick = () => flip('binary_sensor.water_leak_sensor', 'on', 'off');
+      // Stands in for the Home Assistant automation that shuts the supply.
+      document.getElementById('toggle-valve').onclick = () => flip('switch.smart_water_valve_updated_2_switch_1', 'on', 'off');
       document.getElementById('bump-sensor').onclick = () => {
         const e = states['sensor.kitchen_temperature'];
         states['sensor.kitchen_temperature'] = { ...e, state: (parseFloat(e.state) + 0.5).toFixed(1) };

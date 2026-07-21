@@ -64,6 +64,8 @@ interface IntercomGroup {
 interface LeakAlarm {
   sensors: string[];
   valve?: string;
+  /** A sensor is wet right now, as opposed to the supply merely still being shut. */
+  wet: boolean;
 }
 
 /** Device categories shown when a room marker is tapped (only present ones).
@@ -98,6 +100,9 @@ const RU_STRINGS: Record<string, string> = {
   'Water leak!': 'Протечка воды!',
   'Water detected': 'Обнаружена вода',
   'Open the valve': 'Открыть кран',
+  'Water is shut off': 'Вода перекрыта',
+  Close: 'Закрыть',
+  'Fix the leak, then open the valve': 'Устраните протечку и откройте кран',
   'Valve is open': 'Кран открыт',
   Show: 'Показать',
   'Place this sensor on the plan to see the room': 'Разместите датчик на плане, чтобы видеть комнату',
@@ -384,6 +389,11 @@ export class Ha3dFloorplanCard extends LitElement {
     // render() so the scene hears about it only when the set actually changes.
     if (this.sceneManager && !this.editing) {
       const leak = this.leak;
+      // Re-arm once the house is genuinely back to normal, so a later leak isn't
+      // swallowed by an X someone tapped hours ago.
+      if (!leak && this.leakAck) this.leakAck = false;
+      // The pin keeps flashing even after the X — closing the panel acknowledges
+      // the alarm, it doesn't mean the water stopped.
       this.sceneManager.setAlarmRooms(
         leak
           ? leak.sensors.map((id) => this.roomOfEntity(id)?.key).filter((k): k is string => !!k)
@@ -2781,6 +2791,11 @@ export class Ha3dFloorplanCard extends LitElement {
     return out;
   }
 
+  /** Set when someone closes the alarm with the X. Cleared the moment the house
+   *  is back to normal (dry and the supply open), so the NEXT leak alarms again
+   *  — an acknowledgement must not silence the sensor for good. */
+  @state() private leakAck = false;
+
   private leakCache?: { hass: unknown; leak: LeakAlarm | null };
 
   /** The leak as of the latest state push. Recomputed once per hass object, not
@@ -2804,7 +2819,20 @@ export class Ha3dFloorplanCard extends LitElement {
       if (st[id]?.attributes?.device_class !== 'moisture') continue;
       if (this.effState(id) === 'on') sensors.push(id);
     }
-    return sensors.length ? { sensors, valve: this.waterValve() } : null;
+    const valve = this.waterValve();
+    // The alarm outlives the puddle. Once the automation has shut the supply it
+    // stays up until someone opens it again, so nobody can walk past a panel
+    // that looks calm while the house is still without water.
+    const shut = !!valve && this.valveShut(valve);
+    if (!sensors.length && !shut) return null;
+    return { sensors, valve, wet: sensors.length > 0 };
+  }
+
+  /** Shut only on a definite closed state: 'unknown' and 'unavailable' must not
+   *  put a full-screen alarm on the wall just because HA hasn't reported yet. */
+  private valveShut(valve: string): boolean {
+    const s = this.effState(valve);
+    return valve.startsWith('valve.') ? s === 'closed' : s === 'off';
   }
 
   /** The shut-off to reopen by hand once the leak is dealt with. Closing it is
@@ -2829,19 +2857,24 @@ export class Ha3dFloorplanCard extends LitElement {
    *  sensor dries out, not when someone taps it away. */
   private renderLeakAlert() {
     const leak = this.leak;
-    if (!leak) return nothing;
-    const room = this.roomOfEntity(leak.sensors[0]);
+    if (!leak || this.leakAck) return nothing;
+    const room = leak.wet ? this.roomOfEntity(leak.sensors[0]) : undefined;
     const names = leak.sensors.map((id) => this.cardName(id)).join(', ');
     const valve = leak.valve;
-    const vdom = valve ? valve.slice(0, valve.indexOf('.')) : '';
-    const open = valve ? this.effState(valve) === (vdom === 'valve' ? 'open' : 'on') : false;
+    const open = valve ? !this.valveShut(valve) : true;
     return html`<div class="leak-alert">
+      <button type="button" class="leak-x" title=${this.t('Close')}
+        @click=${() => (this.leakAck = true)}>✕</button>
       <div class="leak-ic">${this.ic('drop')}</div>
-      <div class="leak-txt">
-        <div class="leak-title">${this.t('Water leak!')}</div>
-        <div class="leak-sub">${room?.name ? `${room.name} · ${names}` : names}</div>
-        ${room ? nothing : html`<div class="leak-hint">${this.t('Place this sensor on the plan to see the room')}</div>`}
+      <div class="leak-title">${leak.wet ? this.t('Water leak!') : this.t('Water is shut off')}</div>
+      <div class="leak-sub">
+        ${leak.wet
+          ? room?.name ? `${room.name} · ${names}` : names
+          : this.t('Fix the leak, then open the valve')}
       </div>
+      ${leak.wet && !room
+        ? html`<div class="leak-hint">${this.t('Place this sensor on the plan to see the room')}</div>`
+        : nothing}
       <div class="leak-btns">
         ${room
           ? html`<button type="button" class="leak-b" @click=${() => this.selectRoom(room.key)}>
@@ -2850,7 +2883,7 @@ export class Ha3dFloorplanCard extends LitElement {
         ${valve
           ? html`<button type="button" class="leak-b primary" ?disabled=${open}
               @click=${() =>
-                vdom === 'valve'
+                valve.startsWith('valve.')
                   ? this.svc('valve', 'open_valve', {}, valve, 'open')
                   : this.svc('switch', 'turn_on', {}, valve, 'on')}>
               ${open ? this.t('Valve is open') : this.t('Open the valve')}</button>`
@@ -4116,54 +4149,61 @@ export class Ha3dFloorplanCard extends LitElement {
     .leak-alert {
       position: absolute;
       z-index: 60;
-      top: 0;
-      left: 0;
-      right: 0;
+      inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      text-align: center;
       color: #fff;
-      background: linear-gradient(180deg, rgba(200, 30, 24, 0.97), rgba(150, 20, 16, 0.95));
-      border-bottom: 1px solid rgba(255, 255, 255, 0.22);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      background: radial-gradient(ellipse at center, rgba(206, 38, 30, 0.98), rgba(120, 14, 11, 0.99));
       animation: leak-flash 1.1s ease-in-out infinite;
     }
     @keyframes leak-flash {
       0%, 100% { filter: brightness(1); }
       50% { filter: brightness(1.35); }
     }
+    .leak-x {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      appearance: none;
+      cursor: pointer;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 24px;
+      line-height: 1;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.34);
+    }
     .leak-ic {
-      flex: 0 0 auto;
       display: grid;
       place-items: center;
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      width: 84px;
+      height: 84px;
+      border-radius: 26px;
       background: rgba(255, 255, 255, 0.18);
     }
-    .leak-ic .icn { width: 24px; height: 24px; }
-    .leak-txt { flex: 1 1 auto; min-width: 0; }
-    .leak-title { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; }
-    .leak-sub {
-      font-size: 13px;
-      opacity: 0.92;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .leak-hint { font-size: 12px; opacity: 0.75; margin-top: 2px; }
-    .leak-btns { flex: 0 0 auto; display: flex; gap: 8px; }
+    .leak-ic .icn { width: 46px; height: 46px; }
+    .leak-title { font-size: 34px; font-weight: 800; letter-spacing: 0.3px; }
+    .leak-sub { font-size: 18px; opacity: 0.95; max-width: 80%; }
+    .leak-hint { font-size: 14px; opacity: 0.78; }
+    .leak-btns { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+    /* Deliberately large: this gets tapped in a hurry, sometimes with wet hands. */
     .leak-b {
       appearance: none;
       cursor: pointer;
       color: #fff;
       background: rgba(255, 255, 255, 0.16);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 14px;
+      padding: 16px 28px;
+      font-size: 18px;
+      font-weight: 700;
     }
     .leak-b.primary { color: #8f1410; background: #fff; border-color: #fff; }
     .leak-b[disabled] { opacity: 0.55; cursor: default; }
