@@ -65,6 +65,7 @@
         <button id="toggle-lock">Toggle lock.front_door</button>
         <button id="bump-temp">Bump climate temp</button>
         <button id="bump-sensor">Bump kitchen sensor</button>
+        <button id="toggle-leak">Toggle water leak</button>
       </div>
       <div id="card-host"></div>
       <p style="font-size: 13px; color: #888">
@@ -102,6 +103,9 @@
         'sensor.kitchen_temperature': { entity_id: 'sensor.kitchen_temperature', state: '22.5', attributes: { friendly_name: 'Kitchen Temp', unit_of_measurement: '°C' } },
         'lock.front_door': { entity_id: 'lock.front_door', state: 'locked', attributes: { friendly_name: 'Front Door' } },
         'binary_sensor.bathroom_motion': { entity_id: 'binary_sensor.bathroom_motion', state: 'off', attributes: { friendly_name: 'Bathroom Motion' } },
+        // Water leak: the card finds these by device_class + name, not by config.
+        'binary_sensor.water_leak_sensor': { entity_id: 'binary_sensor.water_leak_sensor', state: 'off', attributes: { friendly_name: 'Датчик протечки', device_class: 'moisture' } },
+        'switch.smart_water_valve_updated_2_switch_1': { entity_id: 'switch.smart_water_valve_updated_2_switch_1', state: 'off', attributes: { friendly_name: 'Кран' } },
       };
 
       function makeHass() {
@@ -116,6 +120,10 @@
               states[id] = { ...states[id], state: states[id].state === 'on' ? 'off' : 'on' };
             } else if (domain === 'lock') {
               states[id] = { ...states[id], state: service === 'lock' ? 'locked' : 'unlocked' };
+            } else if (service === 'turn_on' || service === 'turn_off') {
+              states[id] = { ...states[id], state: service === 'turn_on' ? 'on' : 'off' };
+            } else if (service === 'open_valve' || service === 'close_valve') {
+              states[id] = { ...states[id], state: service === 'open_valve' ? 'open' : 'closed' };
             }
             push();
           },
@@ -123,7 +131,9 @@
       }
 
       const card = document.createElement('ha-3d-floorplan-card');
-      const plan = await (await fetch('../examples/home.json')).json();
+      // Cache-busted: a browser-cached plan silently keeps testing the OLD
+      // layout after you edit the example, which reads as "my change did nothing".
+      const plan = await (await fetch('../examples/home.json', { cache: 'no-store' })).json();
       card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '520px', plan });
       document.getElementById('card-host').appendChild(card);
 
@@ -145,6 +155,7 @@
         states['climate.living_room'] = { ...e, attributes: { ...e.attributes, current_temperature: e.attributes.current_temperature + 1 } };
         push();
       };
+      document.getElementById('toggle-leak').onclick = () => flip('binary_sensor.water_leak_sensor', 'on', 'off');
       document.getElementById('bump-sensor').onclick = () => {
         const e = states['sensor.kitchen_temperature'];
         states['sensor.kitchen_temperature'] = { ...e, state: (parseFloat(e.state) + 0.5).toFixed(1) };

@@ -36,6 +36,7 @@
         { "entity_id": "switch.tv", "anchor_object": "tv1", "behavior": "switch" },
         { "entity_id": "climate.living_room", "anchor_object": "ac1", "behavior": "climate" },
         { "entity_id": "sensor.kitchen_temperature", "anchor_object": "counter1", "behavior": "sensor" },
+        { "entity_id": "binary_sensor.water_leak_sensor", "anchor_object": "sink1", "behavior": "binary_sensor" },
         { "entity_id": "lock.front_door", "anchor": [3.5, 1.0, 6.0], "behavior": "lock" }
       ]
     },

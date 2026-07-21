@@ -293,6 +293,10 @@ export class SceneManager {
   private markerTexCache = new Map<string, THREE.Texture>();
   /** entity_id -> its marker sprite, for O(1) on/off recolor. */
   private markerByEntity = new Map<string, THREE.Sprite>();
+  /** Room keys currently flashing for a water leak — see setAlarmRooms(). */
+  private alarmRooms = new Set<string>();
+  private alarmTimer: number | null = null;
+  private alarmOn = true;
   /** Last hass seen, so markers can colour themselves right after a rebuild. */
   private lastHass?: any;
   /** Per-floor room outlines (world XZ) + name + elevation, for grouping the
@@ -1191,6 +1195,38 @@ export class SceneManager {
     return this.floors.map((_, fi) => this.computeFloorRooms(fi));
   }
 
+  /** Rooms with a live water-leak alarm: their pins flash red. This is the one
+   *  thing allowed to override the selection colour — a leak has to be visible
+   *  from across the room, whatever else the panel is showing.
+   *
+   *  The scene renders on demand (see invalidate()), so a flash needs something
+   *  to drive frames; the timer below does that, and only exists while an alarm
+   *  is up. Passing an empty list stops it. */
+  setAlarmRooms(keys: string[]): void {
+    const next = new Set(keys);
+    const same = next.size === this.alarmRooms.size && [...next].every((k) => this.alarmRooms.has(k));
+    if (same) return;
+    this.alarmRooms = next;
+    if (next.size && this.alarmTimer == null) {
+      this.alarmTimer = window.setInterval(() => {
+        this.alarmOn = !this.alarmOn;
+        this.repaintMarkers();
+      }, 480);
+    } else if (!next.size && this.alarmTimer != null) {
+      clearInterval(this.alarmTimer);
+      this.alarmTimer = null;
+      this.alarmOn = true;
+    }
+    this.repaintMarkers();
+  }
+
+  private repaintMarkers(): void {
+    if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
+    else for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, this.lastHass);
+    this.needsRender = true;
+    this.invalidate();
+  }
+
   /** Highlight one room's pin (accent) and neutralise the rest. */
   selectRoom(key: string | null): void {
     this.selectedRoomKey = key;
@@ -1330,6 +1366,11 @@ export class SceneManager {
   private colorMarker(sp: THREE.Sprite, hass: any): void {
     const ud = sp.userData;
     if (ud.roomMarker) {
+      if (ud.roomKey && this.alarmRooms.has(ud.roomKey)) {
+        // Red ↔ pale red, so the pin reads as flashing rather than just tinted.
+        (sp.material as THREE.SpriteMaterial).color.setHex(this.alarmOn ? 0xff3b30 : 0xffd8d5);
+        return;
+      }
       if (ud.roomKey && ud.roomKey === this.selectedRoomKey) {
         (sp.material as THREE.SpriteMaterial).color.setHex(0xf3a83c);
         return;

@@ -58,6 +58,14 @@ interface IntercomGroup {
   ids: Set<string>; // all of the above, to hide from the per-domain cards
 }
 
+/** A live water leak: the sensors reporting wet, plus the shut-off to reopen
+ *  once the leak has been dealt with. Both are discovered from hass, so adding a
+ *  second sensor later needs no change to the plan or this card's config. */
+interface LeakAlarm {
+  sensors: string[];
+  valve?: string;
+}
+
 /** Device categories shown when a room marker is tapped (only present ones).
  *  Fans/ventilation live under Climate (not Lights). */
 const DEVICE_CATEGORIES: { key: string; label: string; icon: string; behaviors: string[] }[] = [
@@ -87,6 +95,12 @@ const RU_STRINGS: Record<string, string> = {
   Locks: 'Замки',
   Sensors: 'Датчики',
   Other: 'Другое',
+  'Water leak!': 'Протечка воды!',
+  'Water detected': 'Обнаружена вода',
+  'Open the valve': 'Открыть кран',
+  'Valve is open': 'Кран открыт',
+  Show: 'Показать',
+  'Place this sensor on the plan to see the room': 'Разместите датчик на плане, чтобы видеть комнату',
   Room: 'Комната',
   'All on': 'Включить всё',
   'All off': 'Выключить всё',
@@ -365,6 +379,16 @@ export class Ha3dFloorplanCard extends LitElement {
     if (this.pendingHass && this.sceneManager && this.planLoaded && !this.editing) {
       this.applyHass(this.pendingHass);
       this.pendingHass = undefined;
+    }
+    // Flash the pin of any room with a wet sensor. Driven from here rather than
+    // render() so the scene hears about it only when the set actually changes.
+    if (this.sceneManager && !this.editing) {
+      const leak = this.leak;
+      this.sceneManager.setAlarmRooms(
+        leak
+          ? leak.sensors.map((id) => this.roomOfEntity(id)?.key).filter((k): k is string => !!k)
+          : [],
+      );
     }
     // Anchor the control popup once its real height is known so it can never be
     // clipped by the card's overflow:hidden top/bottom edge.
@@ -2757,6 +2781,84 @@ export class Ha3dFloorplanCard extends LitElement {
     return out;
   }
 
+  private leakCache?: { hass: unknown; leak: LeakAlarm | null };
+
+  /** The leak as of the latest state push. Recomputed once per hass object, not
+   *  once per render — render runs far more often, and this scans every entity. */
+  private get leak(): LeakAlarm | null {
+    if (this.leakCache && this.leakCache.hass === this.hass) return this.leakCache.leak;
+    const leak = this.detectLeak();
+    this.leakCache = { hass: this.hass, leak };
+    return leak;
+  }
+
+  /** Wet leak sensors, found by HA's own device_class rather than by name — so a
+   *  sensor added to the house later starts alarming with nothing to configure
+   *  here or in the plan. */
+  private detectLeak(): LeakAlarm | null {
+    const st = this.hass?.states;
+    if (!st) return null;
+    const sensors: string[] = [];
+    for (const id of Object.keys(st)) {
+      if (!id.startsWith('binary_sensor.')) continue;
+      if (st[id]?.attributes?.device_class !== 'moisture') continue;
+      if (this.effState(id) === 'on') sensors.push(id);
+    }
+    return sensors.length ? { sensors, valve: this.waterValve() } : null;
+  }
+
+  /** The shut-off to reopen by hand once the leak is dealt with. Closing it is
+   *  the automation's job; this card only ever opens it, and only when the user
+   *  taps. With several candidates we offer no button at all rather than one
+   *  that might cut the wrong supply. */
+  private waterValve(): string | undefined {
+    const st = this.hass?.states ?? {};
+    const found = Object.keys(st).filter(
+      (id) => /^(valve|switch)\./.test(id) && /(water[_a-z0-9]*valve|valve[_a-z0-9]*water)/i.test(id),
+    );
+    return found.length === 1 ? found[0] : undefined;
+  }
+
+  /** The room a sensor sits in — known only where the plan binds it to one. */
+  private roomOfEntity(id: string): RoomInfo | undefined {
+    return this.rooms.find((r) => r.entities.some((e) => e.entity_id === id));
+  }
+
+  /** A leak has to interrupt whatever is on screen, screensaver included, so
+   *  this renders above everything and isn't dismissible: it clears when the
+   *  sensor dries out, not when someone taps it away. */
+  private renderLeakAlert() {
+    const leak = this.leak;
+    if (!leak) return nothing;
+    const room = this.roomOfEntity(leak.sensors[0]);
+    const names = leak.sensors.map((id) => this.cardName(id)).join(', ');
+    const valve = leak.valve;
+    const vdom = valve ? valve.slice(0, valve.indexOf('.')) : '';
+    const open = valve ? this.effState(valve) === (vdom === 'valve' ? 'open' : 'on') : false;
+    return html`<div class="leak-alert">
+      <div class="leak-ic">${this.ic('drop')}</div>
+      <div class="leak-txt">
+        <div class="leak-title">${this.t('Water leak!')}</div>
+        <div class="leak-sub">${room?.name ? `${room.name} · ${names}` : names}</div>
+        ${room ? nothing : html`<div class="leak-hint">${this.t('Place this sensor on the plan to see the room')}</div>`}
+      </div>
+      <div class="leak-btns">
+        ${room
+          ? html`<button type="button" class="leak-b" @click=${() => this.selectRoom(room.key)}>
+              ${this.t('Show')}</button>`
+          : nothing}
+        ${valve
+          ? html`<button type="button" class="leak-b primary" ?disabled=${open}
+              @click=${() =>
+                vdom === 'valve'
+                  ? this.svc('valve', 'open_valve', {}, valve, 'open')
+                  : this.svc('switch', 'turn_on', {}, valve, 'on')}>
+              ${open ? this.t('Valve is open') : this.t('Open the valve')}</button>`
+          : nothing}
+      </div>
+    </div>`;
+  }
+
   private cardName(id: string, fallback?: string): string {
     return fallback ?? this.hass?.states[id]?.attributes?.friendly_name ?? id;
   }
@@ -3450,6 +3552,8 @@ export class Ha3dFloorplanCard extends LitElement {
           ? html`<div class="error">⚠ ${this.loadError}</div>`
           : nothing}
 
+        ${this.editing ? nothing : this.renderLeakAlert()}
+
         ${this.editing
           ? nothing
           : this.viewMode === 'overview'
@@ -4006,6 +4110,64 @@ export class Ha3dFloorplanCard extends LitElement {
       text-overflow: ellipsis;
       max-width: 68px;
     }
+    /* Water leak. Sits above the screensaver (z-index 40) on purpose: a panel
+       that has dimmed itself to a clock is exactly when a leak most needs to be
+       seen. Not dismissible — it goes when the sensor dries, not when tapped. */
+    .leak-alert {
+      position: absolute;
+      z-index: 60;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(200, 30, 24, 0.97), rgba(150, 20, 16, 0.95));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      animation: leak-flash 1.1s ease-in-out infinite;
+    }
+    @keyframes leak-flash {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.35); }
+    }
+    .leak-ic {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+    .leak-ic .icn { width: 24px; height: 24px; }
+    .leak-txt { flex: 1 1 auto; min-width: 0; }
+    .leak-title { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; }
+    .leak-sub {
+      font-size: 13px;
+      opacity: 0.92;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .leak-hint { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+    .leak-btns { flex: 0 0 auto; display: flex; gap: 8px; }
+    .leak-b {
+      appearance: none;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .leak-b.primary { color: #8f1410; background: #fff; border-color: #fff; }
+    .leak-b[disabled] { opacity: 0.55; cursor: default; }
+
     .toast {
       position: absolute;
       z-index: 4;
