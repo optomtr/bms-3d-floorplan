@@ -4491,7 +4491,11 @@ export class Ha3dFloorplanCard extends LitElement {
       display: flex;
       align-items: center;
       gap: 10px;
-      transition: right 0.28s ease;
+      /* Not animated. Easing the right edge relayouts this row on every frame of
+         the panel animation. A transform would be compositor-only, but --panel-w
+         is a clamp() holding a percentage, and inside transform a percentage
+         resolves against this element's own width rather than the card's — so it
+         lands in the wrong place. Snapping matches .stage-bottom below. */
     }
     ha-card.view.room.has-room .topstat {
       right: calc(var(--panel-w) + 24px);
@@ -4531,7 +4535,10 @@ export class Ha3dFloorplanCard extends LitElement {
       flex-direction: column;
       align-items: flex-start;
       gap: 11px;
-      transition: right 0.28s ease;
+      /* Not animated: this box is pinned on BOTH edges, so easing the right one
+         animates its WIDTH — a relayout of the floor tabs and room pills every
+         frame. Its content is left-aligned, so snapping the edge is invisible
+         unless the pills happen to wrap. */
     }
     ha-card.view.room.has-room .stage-bottom {
       right: calc(var(--panel-w) + 24px);

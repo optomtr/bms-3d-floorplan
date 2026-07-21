@@ -24353,7 +24353,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.123.0", Uo = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const m_ = "0.124.0", Uo = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -29336,7 +29336,11 @@ gt.styles = eu`
       display: flex;
       align-items: center;
       gap: 10px;
-      transition: right 0.28s ease;
+      /* Not animated. Easing the right edge relayouts this row on every frame of
+         the panel animation. A transform would be compositor-only, but --panel-w
+         is a clamp() holding a percentage, and inside transform a percentage
+         resolves against this element's own width rather than the card's — so it
+         lands in the wrong place. Snapping matches .stage-bottom below. */
     }
     ha-card.view.room.has-room .topstat {
       right: calc(var(--panel-w) + 24px);
@@ -29376,7 +29380,10 @@ gt.styles = eu`
       flex-direction: column;
       align-items: flex-start;
       gap: 11px;
-      transition: right 0.28s ease;
+      /* Not animated: this box is pinned on BOTH edges, so easing the right one
+         animates its WIDTH — a relayout of the floor tabs and room pills every
+         frame. Its content is left-aligned, so snapping the edge is invisible
+         unless the pills happen to wrap. */
     }
     ha-card.view.room.has-room .stage-bottom {
       right: calc(var(--panel-w) + 24px);
