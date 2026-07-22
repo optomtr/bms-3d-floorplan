@@ -1181,8 +1181,29 @@ export class Ha3dFloorplanCard extends LitElement {
   private onToggleZoneDevice(id: string, entityId: string): void {
     this.editor?.toggleZoneDevice(id, entityId);
   }
+  private onMoveZone(id: string, dir: -1 | 1): void {
+    this.editor?.moveZone(id, dir);
+  }
+  private onMoveZoneEntity(id: string, entityId: string, dir: -1 | 1): void {
+    this.editor?.moveZoneEntity(id, entityId, dir);
+  }
   private onDeleteZone(id: string): void {
     this.editor?.deleteZone(id);
+  }
+
+  /** Friendly label for an entity in the editor lists (name, else the id). */
+  private entityShort(eid: string): string {
+    return this.hass?.states[eid]?.attributes?.friendly_name ?? eid;
+  }
+
+  /** If this entity is already assigned to a DIFFERENT manual room, that room's
+   *  name — so the picker can flag entities that are already taken (first zone
+   *  to list an entity owns it, so a second assignment is silently ignored). */
+  private boundElsewhere(eid: string, exceptZoneId: string): string | null {
+    for (const z of this.editZones) {
+      if (z.id !== exceptZoneId && (z.entities ?? []).includes(eid)) return z.name || 'Room';
+    }
+    return null;
   }
 
   private onSetOpeningVariant(e: Event): void {
@@ -1871,6 +1892,18 @@ export class Ha3dFloorplanCard extends LitElement {
               </select>`
             : nothing}
         </div>
+        ${this.editSelectedZoneId && this.editZones.length > 1
+          ? (() => {
+              const i = this.editZones.findIndex((z) => z.id === this.editSelectedZoneId);
+              return html`<div class="toolrow">
+                <span class="hint">Room order:</span>
+                <button class="btn" title="Move room up" ?disabled=${i <= 0}
+                  @click=${() => this.onMoveZone(this.editSelectedZoneId!, -1)}>▲ Up</button>
+                <button class="btn" title="Move room down" ?disabled=${i < 0 || i >= this.editZones.length - 1}
+                  @click=${() => this.onMoveZone(this.editSelectedZoneId!, 1)}>▼ Down</button>
+              </div>`;
+            })()
+          : nothing}
         ${(() => {
           const z = this.editZones.find((x) => x.id === this.editSelectedZoneId);
           if (!z) return this.editZones.length
@@ -1901,18 +1934,38 @@ export class Ha3dFloorplanCard extends LitElement {
                     <span class="hint">${z.bgImage.startsWith('data:') ? 'фото загружено' : 'задан URL'}</span>`
                 : html`<span class="hint">не задан</span>`}
             </div>
-            ${ents.length
-              ? html`<span class="hint">Devices in this room (${z.entities.length}):</span>
-                  <div class="zone-devs">
-                    ${ents.map(
-                      (en) => html`<label class="zone-dev">
-                        <input type="checkbox" ?checked=${z.entities.includes(en.entity_id)}
-                          @change=${() => this.onToggleZoneDevice(z.id, en.entity_id)} />
-                        <span>${en.name}</span>
-                      </label>`,
+            ${z.entities.length
+              ? html`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
+                  <div class="zone-order">
+                    ${z.entities.map(
+                      (eid, i) => html`<div class="zrow">
+                        <span class="zname" title=${eid}>${this.entityShort(eid)}</span>
+                        <button class="zbtn" title="Move up" ?disabled=${i === 0}
+                          @click=${() => this.onMoveZoneEntity(z.id, eid, -1)}>▲</button>
+                        <button class="zbtn" title="Move down" ?disabled=${i === z.entities.length - 1}
+                          @click=${() => this.onMoveZoneEntity(z.id, eid, 1)}>▼</button>
+                        <button class="zbtn del" title="Remove from room"
+                          @click=${() => this.onToggleZoneDevice(z.id, eid)}>✕</button>
+                      </div>`,
                     )}
                   </div>`
-              : html`<span class="hint">bind entities to furniture first, then tick them here</span>`}`;
+              : nothing}
+            ${(() => {
+              const add = ents.filter((en) => !z.entities.includes(en.entity_id));
+              if (!add.length) {
+                return ents.length ? nothing : html`<span class="hint">bind entities to furniture first, then add them here</span>`;
+              }
+              return html`<span class="hint">Add device (· room = already assigned):</span>
+                <div class="zone-devs">
+                  ${add.map((en) => {
+                    const taken = this.boundElsewhere(en.entity_id, z.id);
+                    return html`<label class="zone-dev ${taken ? 'taken' : ''}">
+                      <input type="checkbox" @change=${() => this.onToggleZoneDevice(z.id, en.entity_id)} />
+                      <span>${this.entityShort(en.entity_id)}${taken ? html`<em class="taken-tag"> · ${taken}</em>` : nothing}</span>
+                    </label>`;
+                  })}
+                </div>`;
+            })()}`;
         })()}
 
         ${tool === 'wall' || tool === 'floor'
@@ -4093,6 +4146,64 @@ export class Ha3dFloorplanCard extends LitElement {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    /* An entity already assigned to another room is dimmed + tagged. */
+    .zone-dev.taken {
+      opacity: 0.6;
+    }
+    .zone-dev .taken-tag {
+      color: #f3a83c;
+      font-style: normal;
+    }
+    /* Ordered device list for the selected room (reorder ▲▼, ✕ removes). */
+    .zone-order {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: 28vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 5px;
+    }
+    .zrow {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #ddd;
+    }
+    .zrow .zname {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .zbtn {
+      flex: none;
+      width: 26px;
+      height: 24px;
+      border-radius: 6px;
+      border: 1px solid var(--brd);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--tx);
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .zbtn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .zbtn:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .zbtn.del:hover {
+      background: rgba(214, 69, 69, 0.5);
     }
     .palette-group,
     .panel-group {

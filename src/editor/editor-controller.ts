@@ -1369,6 +1369,35 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Reorder rooms: move a zone up/down in the floor's zone list. That order
+   *  drives the room pills + panel order (zones come before auto-grouped rooms). */
+  moveZone(id: string, dir: -1 | 1): void {
+    const fl = this.floor();
+    const zs = fl.zones;
+    if (!zs) return;
+    const i = zs.findIndex((z) => z.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= zs.length) return;
+    this.pushUndo();
+    [zs[i], zs[j]] = [zs[j], zs[i]];
+    this.refreshZones();
+    this.onChange?.();
+  }
+
+  /** Reorder a device within a room — the room panel lists lights (and other
+   *  devices) in this order, so this sets the light order. */
+  moveZoneEntity(id: string, entityId: string, dir: -1 | 1): void {
+    const z = this.zones.find((x) => x.id === id);
+    if (!z) return;
+    const es = z.entities;
+    const i = es.indexOf(entityId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= es.length) return;
+    this.pushUndo();
+    [es[i], es[j]] = [es[j], es[i]];
+    this.onChange?.();
+  }
+
   /** Arm "place" mode — the next floor tap sets the selected zone's icon spot. */
   beginZonePlace(): void {
     if (!this.selectedZoneId) return;
