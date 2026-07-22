@@ -1778,6 +1778,55 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
 
+  // Decorative feature wall (декоративная стена, панно): a floor-to-ceiling
+  // walnut wood-clad backdrop with thin gold plank reveals, a rounded walnut
+  // column, and a tall black-gloss panel in a slim gold frame. The seam between
+  // the column and the black panel carries a warm 'emissive' LED reveal, so a
+  // bound light/switch lights it. Free-standing — slide it flat against a wall
+  // and rotate to face the room. 2.6 x 2.5 x 0.26 m.
+  feature_wall: (c) => {
+    const g = new THREE.Group();
+    const W = 2.6, H = 2.5, D = 0.26;
+    const backZ = -D / 2;           // backing slab hugs the wall
+    const faceZ = D / 2 - 0.02;     // front face of the flat cladding
+    const walnut = mat(0x6f4326, { roughness: 0.4, metalness: 0.12 });
+    const gold = mat(0xc9a24a, { metalness: 0.85, roughness: 0.25 });
+    const black = mat(0x0e0f12, { roughness: 0.12, metalness: 0.6 });
+
+    // Full backing slab (wall side) — tinted, so a recolor hits the wood.
+    g.add(tint(box(W, H, 0.04, walnut, 0, H / 2, backZ + 0.02), c));
+
+    // ---- Left: wood-clad section, vertical planks + thin gold reveals ----
+    const woodX0 = -W / 2, woodX1 = 0.02;
+    const woodW = woodX1 - woodX0, woodCx = (woodX0 + woodX1) / 2;
+    g.add(tint(box(woodW, H - 0.02, 0.05, walnut, woodCx, H / 2, faceZ - 0.03), c));
+    for (let x = woodX0 + 0.44; x < woodX1 - 0.1; x += 0.44) {
+      g.add(box(0.012, H - 0.12, 0.012, gold, x, H / 2, faceZ + 0.008)); // gold plank reveal
+    }
+
+    // ---- Rounded walnut column at the wood/black junction ----
+    const colX = 0.14, colR = 0.16, colZ = faceZ - 0.02; // bulges forward from the panel
+    g.add(tint(cyl(colR, colR, H, walnut, colX, H / 2, colZ, 28), c));
+    g.add(box(0.014, H - 0.06, 0.014, gold, colX, H / 2, colZ + colR + 0.002)); // gold seam down its face
+
+    // ---- Right: tall black-gloss panel in a slim gold frame ----
+    const blkX0 = 0.30, blkX1 = W / 2;
+    const blkW = blkX1 - blkX0, blkCx = (blkX0 + blkX1) / 2;
+    g.add(box(blkW, H - 0.02, 0.03, black, blkCx, H / 2, faceZ - 0.01));
+    const fz = faceZ + 0.014;
+    g.add(box(blkW, 0.02, 0.02, gold, blkCx, H - 0.06, fz));            // frame top
+    g.add(box(blkW, 0.02, 0.02, gold, blkCx, 0.06, fz));               // frame bottom
+    g.add(box(0.02, H - 0.02, 0.02, gold, blkX0 + 0.01, H / 2, fz));    // frame left
+    g.add(box(0.02, H - 0.02, 0.02, gold, blkX1 - 0.01, H / 2, fz));    // frame right
+
+    // ---- Warm LED reveal in the wood/black seam (glows when bound) ----
+    const led = box(0.03, H - 0.22, 0.02, mat(0xffe9c0, { emissive: 0x000000 }), 0.29, H / 2, faceZ + 0.02);
+    led.name = 'emissive';
+    g.add(led);
+
+    return g;
+  },
+
   // ---- Lighting (освещение) — each has an 'emissive' mesh + reads as a lamp ----
   floor_lamp: (c) => {
     const g = new THREE.Group();
@@ -3041,6 +3090,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'radiator':
       return ['climate', 'switch'];
     case 'niche_shelf_wall':
+    case 'feature_wall':
       return ['light', 'switch']; // the cove-light strips glow when bound
 
     case 'ceiling_fan':
@@ -3178,7 +3228,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
-  radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee', niche_shelf_wall: '#f0eee9',
+  radiator: '#eeeeee', arch_shelf_wall: '#f4f2ee', niche_shelf_wall: '#f0eee9', feature_wall: '#6f4326',
   tv: '#15171a', monitor: '#15171a', printer: '#3a3e44',
   speaker: '#2b2f36', ceiling_speaker: '#eef0f2', ceiling_speaker_double: '#eef0f2', air_purifier: '#f2f2f2',
   treadmill: '#454b54', exercise_bike: '#8a8f96', weight_bench: '#8a2f2f', gym_machine: '#5b6470', dumbbell_rack: '#8a8f96', swimming_pool: '#c9c3b3', sauna_bench: '#b5824a', sauna_heater: '#8a8f96', massage_table: '#7b8fa1', barber_chair: '#3f6f8c', prayer_mat: '#3f6d5a',
