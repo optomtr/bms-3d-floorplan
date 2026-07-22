@@ -1812,6 +1812,32 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(glow, c));
     return g;
   },
+  // A PAIR of chandeliers as a set — `count` fixtures, `spread` sets the GAP
+  // between them WITHOUT resizing each (reuses the single-chandelier geometry).
+  chandelier_double: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 1.4 * spread;
+    for (let i = 0; i < count; i++) {
+      const u = builders.chandelier(c, opts);
+      u.position.x = (i - (count - 1) / 2) * gap;
+      g.add(u);
+    }
+    return g;
+  },
+  crystal_chandelier_double: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 1.3 * spread;
+    for (let i = 0; i < count; i++) {
+      const u = builders.crystal_chandelier(c, opts);
+      u.position.x = (i - (count - 1) / 2) * gap;
+      g.add(u);
+    }
+    return g;
+  },
   spotlight: (c) => {
     const g = new THREE.Group();
     g.add(cyl(0.05, 0.07, 0.06, mat(METAL), 0, 0, 0));
@@ -2921,6 +2947,8 @@ export const LIGHT_KEYS = [
   'wall_backlight',
   'wall_light_double',
   'sconce_pair',
+  'chandelier_double',
+  'crystal_chandelier_double',
 ];
 
 /**
@@ -2995,6 +3023,8 @@ export function defaultY(model: string, wallHeight = 2.6): number {
     model === 'ceiling_light' ||
     model === 'chandelier' ||
     model === 'crystal_chandelier' ||
+    model === 'chandelier_double' ||
+    model === 'crystal_chandelier_double' ||
     model === 'pendant_light'
   )
     return wallHeight - 0.05;
@@ -3086,6 +3116,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
   ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',
   chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
+  chandelier_double: '#f3e6c0', crystal_chandelier_double: '#eaf2fb',
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
@@ -3099,7 +3130,7 @@ export function defaultColor(model: string): string {
 }
 
 /** Light "set" models whose Spread/Count are adjustable (spacing, not stretch). */
-export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double'];
+export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double', 'chandelier_double', 'crystal_chandelier_double'];
 export function isLightSet(model: string): boolean {
   return SET_LIGHT_KEYS.includes(model);
 }
