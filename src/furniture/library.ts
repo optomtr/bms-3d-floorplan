@@ -139,6 +139,31 @@ function ceilingSpeakerUnit(c: THREE.Color): THREE.Group {
   return u;
 }
 
+/** One tall dark-gloss display cabinet with a gold-trimmed front and a column of
+ *  backlit glass shelves. The shelf LED strips are 'emissive', so a bound
+ *  light/switch makes the shelves glow. Shared by the cabinet_pair set. */
+function cabinetUnit(c: THREE.Color): THREE.Group {
+  const u = new THREE.Group();
+  const W = 0.62, H = 2.4, D = 0.42;
+  const dark = mat(0x1a1712, { roughness: 0.22, metalness: 0.35 }); // dark glossy wenge/black
+  const gold = mat(0xc9a24a, { metalness: 0.75, roughness: 0.3 });
+  u.add(tint(box(W, H, D, dark, 0, H / 2, 0), c)); // body
+  u.add(box(0.014, H, 0.014, gold, -W / 2 + 0.02, H / 2, D / 2)); // gold trim edges
+  u.add(box(0.014, H, 0.014, gold, W / 2 - 0.02, H / 2, D / 2));
+  u.add(box(W, 0.02, D, gold, 0, H - 0.01, 0)); // top cap trim
+  // Recessed shelf niche with a stone back and backlit glass shelves.
+  u.add(box(W - 0.16, H - 0.24, 0.02, mat(0x2a2521, { roughness: 0.5 }), 0, H / 2, D / 2 - 0.13));
+  const glass = mat(0x2a2d31, { transparent: true, opacity: 0.55, roughness: 0.2, metalness: 0.2 });
+  for (let i = 0; i < 4; i++) {
+    const y = 0.55 + i * 0.5;
+    u.add(box(W - 0.18, 0.02, 0.24, glass, 0, y, D / 2 - 0.15)); // glass shelf
+    const led = box(W - 0.2, 0.015, 0.02, mat(0xfff0d0, { emissive: 0x000000 }), 0, y - 0.02, D / 2 - 0.25);
+    led.name = 'emissive'; // under-shelf backlight
+    u.add(led);
+  }
+  return u;
+}
+
 const builders: Record<string, FurnitureBuilder> = {
   sofa: (c) => {
     const g = new THREE.Group();
@@ -703,10 +728,38 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(cyl(0.2, 0.2, 0.04, mat(DARK), 0, 0.45, 0.31).rotateX(Math.PI / 2) as unknown as THREE.Mesh);
     return g;
   },
+  // Freestanding bath — an open shell (4 walls + floor) so it reads as a real
+  // basin with water, on a slim plinth, with a chrome mixer at one end.
   bathtub: (c) => {
     const g = new THREE.Group();
-    g.add(tint(box(1.6, 0.55, 0.75, mat(WHITE), 0, 0.275, 0), c));
-    g.add(box(1.45, 0.2, 0.6, mat(0xdfeef2), 0, 0.4, 0)); // water/inside
+    const W = 1.7, H = 0.58, D = 0.78, t = 0.09;
+    const shell = mat(WHITE, { roughness: 0.3, metalness: 0.05 });
+    g.add(box(W - 0.04, 0.05, D - 0.04, mat(0xe4e8eb, { roughness: 0.6 }), 0, 0.025, 0)); // plinth
+    g.add(tint(box(W, t, D, shell, 0, 0.05 + t / 2, 0), c)); // tub floor
+    const wallH = H - 0.05 - t, cy = 0.05 + t + wallH / 2;
+    g.add(tint(box(W, wallH, t, shell, 0, cy, D / 2 - t / 2), c));
+    g.add(tint(box(W, wallH, t, shell, 0, cy, -(D / 2 - t / 2)), c));
+    g.add(tint(box(t, wallH, D - 2 * t, shell, W / 2 - t / 2, cy, 0), c));
+    g.add(tint(box(t, wallH, D - 2 * t, shell, -(W / 2 - t / 2), cy, 0), c));
+    g.add(box(W - 2 * t, 0.02, D - 2 * t, mat(0xbfe0ea, { transparent: true, opacity: 0.72, roughness: 0.15 }), 0, H - 0.07, 0)); // water
+    const chrome = mat(METAL, { metalness: 0.8, roughness: 0.2 });
+    g.add(cyl(0.018, 0.022, 0.2, chrome, -W / 2 + 0.16, H + 0.1, -D / 2 + 0.15, 12)); // riser
+    g.add(box(0.14, 0.025, 0.028, chrome, -W / 2 + 0.24, H + 0.185, -D / 2 + 0.15)); // spout
+    return g;
+  },
+  // A PAIR of tall dark display cabinets flanking a feature wall — `count`
+  // cabinets, `spread` sets the GAP between them WITHOUT resizing each. The
+  // backlit glass shelves glow when bound to a light/switch.
+  cabinet_pair: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(6, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 1.7 * spread;
+    for (let i = 0; i < count; i++) {
+      const u = cabinetUnit(c);
+      u.position.x = (i - (count - 1) / 2) * gap;
+      g.add(u);
+    }
     return g;
   },
   shower: (c) => {
@@ -2969,6 +3022,7 @@ export const LIGHT_KEYS = [
   'sconce_pair',
   'chandelier_double',
   'crystal_chandelier_double',
+  'cabinet_pair',
 ];
 
 /**
@@ -3137,7 +3191,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   floor_lamp: '#fff4d6', table_lamp: '#fff4d6', wall_light: '#fff4d6',
   ceiling_light: '#fff4d6', pendant_light: '#fff4d6', lantern: '#fff4d6',
   chandelier: '#f3e6c0', crystal_chandelier: '#eaf2fb', spotlight: '#fff4d6',
-  chandelier_double: '#f3e6c0', crystal_chandelier_double: '#eaf2fb',
+  chandelier_double: '#f3e6c0', crystal_chandelier_double: '#eaf2fb', cabinet_pair: '#1a1712',
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
@@ -3151,7 +3205,7 @@ export function defaultColor(model: string): string {
 }
 
 /** Light "set" models whose Spread/Count are adjustable (spacing, not stretch). */
-export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double', 'chandelier_double', 'crystal_chandelier_double'];
+export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double', 'chandelier_double', 'crystal_chandelier_double', 'cabinet_pair'];
 export function isLightSet(model: string): boolean {
   return SET_LIGHT_KEYS.includes(model);
 }
