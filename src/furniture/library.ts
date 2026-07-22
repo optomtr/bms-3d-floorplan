@@ -991,6 +991,26 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(panel(1));
     return g;
   },
+  // Half sheer: ONE tulle panel that slides to a single side (not centre-split),
+  // the sheer twin of curtain_single.
+  curtain_sheer_single: (c) => {
+    const g = new THREE.Group();
+    const W = 1.6, H = 2.2, OFF = 0.03;
+    const sheer = mat(0xf2efe9, { transparent: true, opacity: 0.5, roughness: 1 });
+    const rod = cyl(0.02, 0.02, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod);
+    const pivot = new THREE.Group();
+    pivot.name = 'curtainPivot';
+    pivot.position.x = -W / 2; // hinge at the left edge → gathers to the left
+    const n = 12, seg = W / n;
+    for (let i = 0; i < n; i++) {
+      const px = (i + 0.5) * seg;
+      pivot.add(tint(box(seg * 0.96, H, 0.03, sheer, px, H / 2, OFF + (i % 2 ? 0.02 : -0.02)), c));
+    }
+    g.add(pivot);
+    return g;
+  },
   roller_blind: (c) => {
     // Window roller blind: a roll at top + a panel that "rolls up" (scale.y) via
     // the curtainPivot hook (anchored at the top).
@@ -2901,7 +2921,7 @@ export const WALL_MOUNT_KEYS = [
   'terrace_window', 'tv', 'painting', 'mirror', 'wall_light', 'wall_clock',
   'ac_unit', 'intercom', 'security_camera', 'curtain', 'range_hood',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf',
-  'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
+  'curtain_sheer', 'curtain_sheer_single', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
   'wall_light_double', 'sconce_pair',
@@ -2916,7 +2936,7 @@ export const SURFACE_MOUNT_KEYS = [
   'tv', 'painting', 'mirror', 'wall_light', 'wall_clock', 'ac_unit',
   'intercom', 'security_camera', 'range_hood', 'terrace_window',
   'towel_rack', 'bathroom_cabinet', 'whiteboard', 'wall_shelf', 'wall_cabinet',
-  'curtain', 'curtain_sheer', 'roller_blind', 'roman_blind', 'wall_sconce',
+  'curtain', 'curtain_sheer', 'curtain_sheer_single', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
   'wall_light_double', 'sconce_pair',
@@ -2986,6 +3006,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'curtain':
     case 'curtain_single':
     case 'curtain_sheer':
+    case 'curtain_sheer_single':
     case 'roller_blind':
     case 'roman_blind':
     case 'blind_bottomup':
@@ -3054,7 +3075,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'terrace_window') return 1.2;
   if (model === 'wall_clock') return 1.7;
   if (model === 'range_hood') return 1.6;
-  if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'roller_blind' || model === 'roman_blind' || model === 'blind_bottomup') return 0.1;
+  if (model === 'curtain' || model === 'curtain_single' || model === 'curtain_sheer' || model === 'curtain_sheer_single' || model === 'roller_blind' || model === 'roman_blind' || model === 'blind_bottomup') return 0.1;
   if (model === 'urinal') return 0.55;
   if (model === 'sink_double') return 0.8;
   return 0;
@@ -3099,7 +3120,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   // Decor / soft furnishings
   plant: '#3f8f4f', rug: '#b5563a', floor_vase: '#b0764a', vase: '#b0764a',
   painting: '#cfc2a8', mirror: '#bcc8cc', wall_clock: '#f0f0f0', whiteboard: '#f4f6f8',
-  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da', blind_bottomup: '#cbb79c', garage_door: '#f2f0ea',
+  curtain: '#cdd3da', curtain_single: '#cdd3da', curtain_sheer: '#e6ecf2', curtain_sheer_single: '#e6ecf2', roller_blind: '#d6dadf', roman_blind: '#cdd3da', blind_bottomup: '#cbb79c', garage_door: '#f2f0ea',
   towel_rack: '#d0d4d8', bathroom_cabinet: '#e8eaec', trash_can: '#9aa0a6',
   // Statement / misc
   piano: '#1b1d22', pool_table: '#2e6b3f', aquarium: '#6fb6c8', fireplace: '#3a3a3a',
