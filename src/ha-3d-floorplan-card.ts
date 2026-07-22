@@ -105,6 +105,8 @@ const RU_STRINGS: Record<string, string> = {
   'Fix the leak, then open the valve': 'Устраните протечку и откройте кран',
   'Valve is open': 'Кран открыт',
   Show: 'Показать',
+  'Sync speakers': 'Объединить колонки',
+  'Unsync speakers': 'Разъединить колонки',
   'Place this sensor on the plan to see the room': 'Разместите датчик на плане, чтобы видеть комнату',
   Room: 'Комната',
   'All on': 'Включить всё',
@@ -3164,19 +3166,24 @@ export class Ha3dFloorplanCard extends LitElement {
     const sf = Number(ent?.attributes?.supported_features) || 0;
     const can = (b: number) => (sf & b) === b;
     const powerable = can(128) || can(256); // TURN_ON | TURN_OFF
-    const hasPlayPause = can(1) || can(16384); // PAUSE | PLAY
-    const hasPrev = can(16), hasNext = can(32);
     const volSet = can(4), volStep = can(1024), volMute = can(8); // SET | STEP | MUTE
     const muted = !!ent?.attributes?.is_volume_muted;
     const volReal = Math.round((Number(ent?.attributes?.volume_level) || 0) * 100);
     const track = ent?.attributes?.media_title ?? this.cardName(id, title);
     const artist = ent?.attributes?.media_artist ?? '';
     // Speaker grouping (HA media_player.join): sync this speaker with the home's
-    // other groupable speakers so they play in step. Shown only when the device
-    // supports GROUPING and there's another speaker in the plan to sync with.
+    // other groupable speakers so they play in step. Transport controls
+    // (play/pause/next/…) were removed on purpose — these panels drive speakers
+    // that play from a phone or an HA automation, and the one thing wanted here
+    // is to bind the pair together, not to skip tracks. Shown only when the
+    // device supports GROUPING and there's another speaker in the plan to join.
     const canGroup = can(524288); // GROUPING
     const grouped = ((ent?.attributes?.group_members as string[] | undefined)?.length ?? 0) > 1;
     const groupTargets = canGroup ? this.planGroupSpeakers(id) : [];
+    const hasSync = groupTargets.length > 0;
+    // Still show the now-playing line when something is on, so the sync button
+    // has context; without either there is nothing for this block to hold.
+    const showMedia = hasSync || playing;
     return html`<div class="card ${on ? 'on' : ''}">
       <div class="crow">
         <div class="cicon ${on ? 'lit' : ''}">${this.ic('tv')}</div>
@@ -3189,26 +3196,19 @@ export class Ha3dFloorplanCard extends LitElement {
               @click=${() => this.svc('media_player', on ? 'turn_off' : 'turn_on', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>`
           : nothing}
       </div>
-      ${hasPlayPause
+      ${showMedia
         ? html`<div class="mp">
             <div class="mpart">${this.ic('album')}</div>
             <div class="mptxt"><div class="mptrack">${track}</div><div class="mpartist">${artist}</div></div>
-            <div class="mpctl">
-              ${hasPrev ? html`<button type="button" class="mpb" title="Previous"
-                @click=${() => this.svc('media_player', 'media_previous_track', {}, id)}>${this.ic('skipPrev')}</button>` : nothing}
-              <button type="button" class="mpb play" title="Play/Pause"
-                @click=${() => this.svc('media_player', 'media_play_pause', {}, id, playing ? 'paused' : 'playing')}>${this.ic(playing ? 'pause' : 'play')}</button>
-              ${hasNext ? html`<button type="button" class="mpb" title="Next"
-                @click=${() => this.svc('media_player', 'media_next_track', {}, id)}>${this.ic('skipNext')}</button>` : nothing}
-              ${can(4096) ? html`<button type="button" class="mpb" title="Stop"
-                @click=${() => this.svc('media_player', 'media_stop', {}, id, 'idle')}>${this.ic('stop')}</button>` : nothing}
-              ${canGroup && groupTargets.length
-                ? html`<button type="button" class="mpb ${grouped ? 'on' : ''}" title=${grouped ? 'Unsync speakers' : 'Sync speakers'}
+            ${hasSync
+              ? html`<div class="mpctl">
+                  <button type="button" class="mpb ${grouped ? 'on' : ''}"
+                    title=${grouped ? this.t('Unsync speakers') : this.t('Sync speakers')}
                     @click=${() => grouped
                       ? this.svc('media_player', 'unjoin', {}, id)
-                      : this.syncSpeakers(id, ent, groupTargets)}>${this.ic('link')}</button>`
-                : nothing}
-            </div>
+                      : this.syncSpeakers(id, ent, groupTargets)}>${this.ic('link')}</button>
+                </div>`
+              : nothing}
           </div>`
         : nothing}
       ${volSet || volStep || volMute

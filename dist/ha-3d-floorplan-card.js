@@ -264,7 +264,7 @@ es.elementStyles = [], es.shadowRootOptions = { mode: "open" }, es[Ys("elementPr
  */
 const Vl = globalThis, Nc = (i) => i, yo = Vl.trustedTypes, Uc = yo ? yo.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, nu = "$lit$", si = `lit$${Math.random().toFixed(9).slice(2)}$`, iu = "?" + si, kf = `<${iu}>`, Ri = document, er = () => Ri.createComment(""), nr = (i) => i === null || typeof i != "object" && typeof i != "function", Gl = Array.isArray, Of = (i) => Gl(i) || typeof i?.[Symbol.iterator] == "function", Yo = `[ 	
 \f\r]`, Ps = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, kc = /-->/g, Oc = />/g, mi = RegExp(`>|${Yo}(?:([^\\s"'>=/]+)(${Yo}*=${Yo}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), Fc = /'/g, zc = /"/g, su = /^(?:script|style|textarea|title)$/i, ru = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), G = ru(1), Ff = ru(2), us = Symbol.for("lit-noChange"), et = Symbol.for("lit-nothing"), Bc = /* @__PURE__ */ new WeakMap(), Ti = Ri.createTreeWalker(Ri, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), Fc = /'/g, zc = /"/g, su = /^(?:script|style|textarea|title)$/i, ru = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), j = ru(1), Ff = ru(2), us = Symbol.for("lit-noChange"), et = Symbol.for("lit-nothing"), Bc = /* @__PURE__ */ new WeakMap(), Ti = Ri.createTreeWalker(Ri, 129);
 function ou(i, t) {
   if (!Gl(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return Uc !== void 0 ? Uc.createHTML(t) : t;
@@ -2718,8 +2718,8 @@ class Zt {
     return this.multiplyMatrices(t, this);
   }
   multiplyMatrices(t, e) {
-    const n = t.elements, s = e.elements, r = this.elements, o = n[0], a = n[4], l = n[8], c = n[12], h = n[1], d = n[5], u = n[9], f = n[13], m = n[2], v = n[6], p = n[10], g = n[14], y = n[3], x = n[7], M = n[11], R = n[15], A = s[0], T = s[4], P = s[8], k = s[12], _ = s[1], S = s[5], H = s[9], U = s[13], z = s[2], q = s[6], W = s[10], ot = s[14], K = s[3], at = s[7], lt = s[11], ut = s[15];
-    return r[0] = o * A + a * _ + l * z + c * K, r[4] = o * T + a * S + l * q + c * at, r[8] = o * P + a * H + l * W + c * lt, r[12] = o * k + a * U + l * ot + c * ut, r[1] = h * A + d * _ + u * z + f * K, r[5] = h * T + d * S + u * q + f * at, r[9] = h * P + d * H + u * W + f * lt, r[13] = h * k + d * U + u * ot + f * ut, r[2] = m * A + v * _ + p * z + g * K, r[6] = m * T + v * S + p * q + g * at, r[10] = m * P + v * H + p * W + g * lt, r[14] = m * k + v * U + p * ot + g * ut, r[3] = y * A + x * _ + M * z + R * K, r[7] = y * T + x * S + M * q + R * at, r[11] = y * P + x * H + M * W + R * lt, r[15] = y * k + x * U + M * ot + R * ut, this;
+    const n = t.elements, s = e.elements, r = this.elements, o = n[0], a = n[4], l = n[8], c = n[12], h = n[1], d = n[5], u = n[9], f = n[13], m = n[2], v = n[6], p = n[10], g = n[14], y = n[3], x = n[7], M = n[11], R = n[15], A = s[0], T = s[4], P = s[8], k = s[12], _ = s[1], S = s[5], H = s[9], U = s[13], z = s[2], q = s[6], G = s[10], ot = s[14], K = s[3], at = s[7], lt = s[11], ut = s[15];
+    return r[0] = o * A + a * _ + l * z + c * K, r[4] = o * T + a * S + l * q + c * at, r[8] = o * P + a * H + l * G + c * lt, r[12] = o * k + a * U + l * ot + c * ut, r[1] = h * A + d * _ + u * z + f * K, r[5] = h * T + d * S + u * q + f * at, r[9] = h * P + d * H + u * G + f * lt, r[13] = h * k + d * U + u * ot + f * ut, r[2] = m * A + v * _ + p * z + g * K, r[6] = m * T + v * S + p * q + g * at, r[10] = m * P + v * H + p * G + g * lt, r[14] = m * k + v * U + p * ot + g * ut, r[3] = y * A + x * _ + M * z + R * K, r[7] = y * T + x * S + M * q + R * at, r[11] = y * P + x * H + M * G + R * lt, r[15] = y * k + x * U + M * ot + R * ut, this;
   }
   multiplyScalar(t) {
     const e = this.elements;
@@ -4513,10 +4513,10 @@ class Sn extends Se {
     let u = 0, f = 0;
     m("z", "y", "x", -1, -1, n, e, t, o, r, 0), m("z", "y", "x", 1, -1, n, e, -t, o, r, 1), m("x", "z", "y", 1, 1, t, n, e, s, o, 2), m("x", "z", "y", 1, -1, t, n, -e, s, o, 3), m("x", "y", "z", 1, -1, t, e, n, s, r, 4), m("x", "y", "z", -1, -1, t, e, -n, s, r, 5), this.setIndex(l), this.setAttribute("position", new ae(c, 3)), this.setAttribute("normal", new ae(h, 3)), this.setAttribute("uv", new ae(d, 2));
     function m(v, p, g, y, x, M, R, A, T, P, k) {
-      const _ = M / T, S = R / P, H = M / 2, U = R / 2, z = A / 2, q = T + 1, W = P + 1;
+      const _ = M / T, S = R / P, H = M / 2, U = R / 2, z = A / 2, q = T + 1, G = P + 1;
       let ot = 0, K = 0;
       const at = new N();
-      for (let lt = 0; lt < W; lt++) {
+      for (let lt = 0; lt < G; lt++) {
         const ut = lt * S - U;
         for (let Ht = 0; Ht < q; Ht++) {
           const se = Ht * _ - H;
@@ -9370,8 +9370,8 @@ function uv(i, t) {
   let r = s, o = !1;
   function a(_, S, H, U, z) {
     let q = !1;
-    const W = d(U, H, S);
-    r !== W && (r = W, c(r.object)), q = f(_, U, H, z), q && m(_, U, H, z), z !== null && t.update(z, i.ELEMENT_ARRAY_BUFFER), (q || o) && (o = !1, M(_, S, H, U), z !== null && i.bindBuffer(i.ELEMENT_ARRAY_BUFFER, t.get(z).buffer));
+    const G = d(U, H, S);
+    r !== G && (r = G, c(r.object)), q = f(_, U, H, z), q && m(_, U, H, z), z !== null && t.update(z, i.ELEMENT_ARRAY_BUFFER), (q || o) && (o = !1, M(_, S, H, U), z !== null && i.bindBuffer(i.ELEMENT_ARRAY_BUFFER, t.get(z).buffer));
   }
   function l() {
     return i.createVertexArray();
@@ -9388,8 +9388,8 @@ function uv(i, t) {
     z === void 0 && (z = {}, n[_.id] = z);
     let q = z[S.id];
     q === void 0 && (q = {}, z[S.id] = q);
-    let W = q[U];
-    return W === void 0 && (W = u(l()), q[U] = W), W;
+    let G = q[U];
+    return G === void 0 && (G = u(l()), q[U] = G), G;
   }
   function u(_) {
     const S = [], H = [], U = [];
@@ -9410,29 +9410,29 @@ function uv(i, t) {
   }
   function f(_, S, H, U) {
     const z = r.attributes, q = S.attributes;
-    let W = 0;
+    let G = 0;
     const ot = H.getAttributes();
     for (const K in ot)
       if (ot[K].location >= 0) {
         const lt = z[K];
         let ut = q[K];
         if (ut === void 0 && (K === "instanceMatrix" && _.instanceMatrix && (ut = _.instanceMatrix), K === "instanceColor" && _.instanceColor && (ut = _.instanceColor)), lt === void 0 || lt.attribute !== ut || ut && lt.data !== ut.data) return !0;
-        W++;
+        G++;
       }
-    return r.attributesNum !== W || r.index !== U;
+    return r.attributesNum !== G || r.index !== U;
   }
   function m(_, S, H, U) {
     const z = {}, q = S.attributes;
-    let W = 0;
+    let G = 0;
     const ot = H.getAttributes();
     for (const K in ot)
       if (ot[K].location >= 0) {
         let lt = q[K];
         lt === void 0 && (K === "instanceMatrix" && _.instanceMatrix && (lt = _.instanceMatrix), K === "instanceColor" && _.instanceColor && (lt = _.instanceColor));
         const ut = {};
-        ut.attribute = lt, lt && lt.data && (ut.data = lt.data), z[K] = ut, W++;
+        ut.attribute = lt, lt && lt.data && (ut.data = lt.data), z[K] = ut, G++;
       }
-    r.attributes = z, r.attributesNum = W, r.index = U;
+    r.attributes = z, r.attributesNum = G, r.index = U;
   }
   function v() {
     const _ = r.newAttributes;
@@ -9451,12 +9451,12 @@ function uv(i, t) {
     for (let H = 0, U = S.length; H < U; H++)
       S[H] !== _[H] && (i.disableVertexAttribArray(H), S[H] = 0);
   }
-  function x(_, S, H, U, z, q, W) {
-    W === !0 ? i.vertexAttribIPointer(_, S, H, z, q) : i.vertexAttribPointer(_, S, H, U, z, q);
+  function x(_, S, H, U, z, q, G) {
+    G === !0 ? i.vertexAttribIPointer(_, S, H, z, q) : i.vertexAttribPointer(_, S, H, U, z, q);
   }
   function M(_, S, H, U) {
     v();
-    const z = U.attributes, q = H.getAttributes(), W = S.defaultAttributeValues;
+    const z = U.attributes, q = H.getAttributes(), G = S.defaultAttributeValues;
     for (const ot in q) {
       const K = q[ot];
       if (K.location >= 0) {
@@ -9505,8 +9505,8 @@ function uv(i, t) {
                 It
               );
           }
-        } else if (W !== void 0) {
-          const lt = W[ot];
+        } else if (G !== void 0) {
+          const lt = G[ot];
           if (lt !== void 0)
             switch (lt.length) {
               case 2:
@@ -10503,8 +10503,8 @@ function Sv(i, t, e) {
       for (let _ = 0; _ < d; _++) {
         const S = p[_], H = g[_], U = y[_], z = M * R * 4 * _;
         for (let q = 0; q < S.count; q++) {
-          const W = q * P;
-          f === !0 && (s.fromBufferAttribute(S, q), A[z + W + 0] = s.x, A[z + W + 1] = s.y, A[z + W + 2] = s.z, A[z + W + 3] = 0), m === !0 && (s.fromBufferAttribute(H, q), A[z + W + 4] = s.x, A[z + W + 5] = s.y, A[z + W + 6] = s.z, A[z + W + 7] = 0), v === !0 && (s.fromBufferAttribute(U, q), A[z + W + 8] = s.x, A[z + W + 9] = s.y, A[z + W + 10] = s.z, A[z + W + 11] = U.itemSize === 4 ? s.w : 1);
+          const G = q * P;
+          f === !0 && (s.fromBufferAttribute(S, q), A[z + G + 0] = s.x, A[z + G + 1] = s.y, A[z + G + 2] = s.z, A[z + G + 3] = 0), m === !0 && (s.fromBufferAttribute(H, q), A[z + G + 4] = s.x, A[z + G + 5] = s.y, A[z + G + 6] = s.z, A[z + G + 7] = 0), v === !0 && (s.fromBufferAttribute(U, q), A[z + G + 8] = s.x, A[z + G + 9] = s.y, A[z + G + 10] = s.z, A[z + G + 11] = U.itemSize === 4 ? s.w : 1);
         }
       }
       u = {
@@ -11493,7 +11493,7 @@ function kx(i, t, e, n) {
   function T(S) {
     if (i.debug.checkShaderErrors) {
       const H = s.getProgramInfoLog(v).trim(), U = s.getShaderInfoLog(R).trim(), z = s.getShaderInfoLog(A).trim();
-      let q = !0, W = !0;
+      let q = !0, G = !0;
       if (s.getProgramParameter(v, s.LINK_STATUS) === !1)
         if (q = !1, typeof i.debug.onShaderError == "function")
           i.debug.onShaderError(s, v, R, A);
@@ -11510,8 +11510,8 @@ Program Info Log: ` + H + `
 ` + K
           );
         }
-      else H !== "" ? console.warn("THREE.WebGLProgram: Program Info Log:", H) : (U === "" || z === "") && (W = !1);
-      W && (S.diagnostics = {
+      else H !== "" ? console.warn("THREE.WebGLProgram: Program Info Log:", H) : (U === "" || z === "") && (G = !1);
+      G && (S.diagnostics = {
         runnable: q,
         programLog: H,
         vertexShader: {
@@ -11605,18 +11605,18 @@ function Bx(i, t, e, n, s, r, o) {
     return c.add(_), _ === 0 ? "uv" : `uv${_}`;
   }
   function g(_, S, H, U, z) {
-    const q = U.fog, W = z.geometry, ot = _.isMeshStandardMaterial ? U.environment : null, K = (_.isMeshStandardMaterial ? e : t).get(_.envMap || ot), at = K && K.mapping === zo ? K.image.height : null, lt = v[_.type];
+    const q = U.fog, G = z.geometry, ot = _.isMeshStandardMaterial ? U.environment : null, K = (_.isMeshStandardMaterial ? e : t).get(_.envMap || ot), at = K && K.mapping === zo ? K.image.height : null, lt = v[_.type];
     _.precision !== null && (m = s.getMaxPrecision(_.precision), m !== _.precision && console.warn("THREE.WebGLProgram.getParameters:", _.precision, "not supported, using", m, "instead."));
-    const ut = W.morphAttributes.position || W.morphAttributes.normal || W.morphAttributes.color, Ht = ut !== void 0 ? ut.length : 0;
+    const ut = G.morphAttributes.position || G.morphAttributes.normal || G.morphAttributes.color, Ht = ut !== void 0 ? ut.length : 0;
     let se = 0;
-    W.morphAttributes.position !== void 0 && (se = 1), W.morphAttributes.normal !== void 0 && (se = 2), W.morphAttributes.color !== void 0 && (se = 3);
+    G.morphAttributes.position !== void 0 && (se = 1), G.morphAttributes.normal !== void 0 && (se = 2), G.morphAttributes.color !== void 0 && (se = 3);
     let Q, ht, It, wt;
     if (lt) {
       const Ye = An[lt];
       Q = Ye.vertexShader, ht = Ye.fragmentShader;
     } else
       Q = _.vertexShader, ht = _.fragmentShader, l.update(_), It = l.getVertexShaderID(_), wt = l.getFragmentShaderID(_);
-    const jt = i.getRenderTarget(), Wt = z.isInstancedMesh === !0, Jt = z.isBatchedMesh === !0, ne = !!_.map, it = !!_.matcap, D = !!K, vt = !!_.aoMap, mt = !!_.lightMap, ct = !!_.bumpMap, xt = !!_.normalMap, Ft = !!_.displacementMap, At = !!_.emissiveMap, L = !!_.metalnessMap, E = !!_.roughnessMap, j = _.anisotropy > 0, $ = _.clearcoat > 0, st = _.dispersion > 0, tt = _.iridescence > 0, Nt = _.sheen > 0, yt = _.transmission > 0, Ct = j && !!_.anisotropyMap, re = $ && !!_.clearcoatMap, dt = $ && !!_.clearcoatNormalMap, Pt = $ && !!_.clearcoatRoughnessMap, Kt = tt && !!_.iridescenceMap, Yt = tt && !!_.iridescenceThicknessMap, Lt = Nt && !!_.sheenColorMap, oe = Nt && !!_.sheenRoughnessMap, Qt = !!_.specularMap, xe = !!_.specularColorMap, F = !!_.specularIntensityMap, Tt = yt && !!_.transmissionMap, J = yt && !!_.thicknessMap, rt = !!_.gradientMap, St = !!_.alphaMap, Rt = _.alphaTest > 0, le = !!_.alphaHash, Te = !!_.extensions;
+    const jt = i.getRenderTarget(), Wt = z.isInstancedMesh === !0, Jt = z.isBatchedMesh === !0, ne = !!_.map, it = !!_.matcap, D = !!K, vt = !!_.aoMap, mt = !!_.lightMap, ct = !!_.bumpMap, xt = !!_.normalMap, Ft = !!_.displacementMap, At = !!_.emissiveMap, L = !!_.metalnessMap, E = !!_.roughnessMap, W = _.anisotropy > 0, $ = _.clearcoat > 0, st = _.dispersion > 0, tt = _.iridescence > 0, Nt = _.sheen > 0, yt = _.transmission > 0, Ct = W && !!_.anisotropyMap, re = $ && !!_.clearcoatMap, dt = $ && !!_.clearcoatNormalMap, Pt = $ && !!_.clearcoatRoughnessMap, Kt = tt && !!_.iridescenceMap, Yt = tt && !!_.iridescenceThicknessMap, Lt = Nt && !!_.sheenColorMap, oe = Nt && !!_.sheenRoughnessMap, Qt = !!_.specularMap, xe = !!_.specularColorMap, F = !!_.specularIntensityMap, Tt = yt && !!_.transmissionMap, J = yt && !!_.thicknessMap, rt = !!_.gradientMap, St = !!_.alphaMap, Rt = _.alphaTest > 0, le = !!_.alphaHash, Te = !!_.extensions;
     let Ke = hi;
     _.toneMapped && (jt === null || jt.isXRRenderTarget === !0) && (Ke = i.toneMapping);
     const he = {
@@ -11654,7 +11654,7 @@ function Bx(i, t, e, n, s, r, o) {
       normalMapTangentSpace: xt && _.normalMapType === ec,
       metalnessMap: L,
       roughnessMap: E,
-      anisotropy: j,
+      anisotropy: W,
       anisotropyMap: Ct,
       clearcoat: $,
       clearcoatMap: re,
@@ -11704,10 +11704,10 @@ function Bx(i, t, e, n, s, r, o) {
       thicknessMapUv: J && p(_.thicknessMap.channel),
       alphaMapUv: St && p(_.alphaMap.channel),
       //
-      vertexTangents: !!W.attributes.tangent && (xt || j),
+      vertexTangents: !!G.attributes.tangent && (xt || W),
       vertexColors: _.vertexColors,
-      vertexAlphas: _.vertexColors === !0 && !!W.attributes.color && W.attributes.color.itemSize === 4,
-      pointsUvs: z.isPoints === !0 && !!W.attributes.uv && (ne || St),
+      vertexAlphas: _.vertexColors === !0 && !!G.attributes.color && G.attributes.color.itemSize === 4,
+      pointsUvs: z.isPoints === !0 && !!G.attributes.uv && (ne || St),
       fog: !!q,
       useFog: _.fog === !0,
       fogExp2: !!q && q.isFogExp2,
@@ -11716,9 +11716,9 @@ function Bx(i, t, e, n, s, r, o) {
       logarithmicDepthBuffer: d,
       reverseDepthBuffer: u,
       skinning: z.isSkinnedMesh === !0,
-      morphTargets: W.morphAttributes.position !== void 0,
-      morphNormals: W.morphAttributes.normal !== void 0,
-      morphColors: W.morphAttributes.color !== void 0,
+      morphTargets: G.morphAttributes.position !== void 0,
+      morphNormals: G.morphAttributes.normal !== void 0,
+      morphColors: G.morphAttributes.color !== void 0,
       morphTargetsCount: Ht,
       morphTextureStride: se,
       numDirLights: S.directional.length,
@@ -12054,19 +12054,19 @@ function Kx(i) {
       if (S.isAmbientLight)
         h += H.r * U, d += H.g * U, u += H.b * U;
       else if (S.isLightProbe) {
-        for (let W = 0; W < 9; W++)
-          n.probe[W].addScaledVector(S.sh.coefficients[W], U);
+        for (let G = 0; G < 9; G++)
+          n.probe[G].addScaledVector(S.sh.coefficients[G], U);
         T++;
       } else if (S.isDirectionalLight) {
-        const W = t.get(S);
-        if (W.color.copy(S.color).multiplyScalar(S.intensity), S.castShadow) {
+        const G = t.get(S);
+        if (G.color.copy(S.color).multiplyScalar(S.intensity), S.castShadow) {
           const ot = S.shadow, K = e.get(S);
           K.shadowIntensity = ot.intensity, K.shadowBias = ot.bias, K.shadowNormalBias = ot.normalBias, K.shadowRadius = ot.radius, K.shadowMapSize = ot.mapSize, n.directionalShadow[f] = K, n.directionalShadowMap[f] = q, n.directionalShadowMatrix[f] = S.shadow.matrix, y++;
         }
-        n.directional[f] = W, f++;
+        n.directional[f] = G, f++;
       } else if (S.isSpotLight) {
-        const W = t.get(S);
-        W.position.setFromMatrixPosition(S.matrixWorld), W.color.copy(H).multiplyScalar(U), W.distance = z, W.coneCos = Math.cos(S.angle), W.penumbraCos = Math.cos(S.angle * (1 - S.penumbra)), W.decay = S.decay, n.spot[v] = W;
+        const G = t.get(S);
+        G.position.setFromMatrixPosition(S.matrixWorld), G.color.copy(H).multiplyScalar(U), G.distance = z, G.coneCos = Math.cos(S.angle), G.penumbraCos = Math.cos(S.angle * (1 - S.penumbra)), G.decay = S.decay, n.spot[v] = G;
         const ot = S.shadow;
         if (S.map && (n.spotLightMap[R] = S.map, R++, ot.updateMatrices(S), S.castShadow && A++), n.spotLightMatrix[v] = ot.matrix, S.castShadow) {
           const K = e.get(S);
@@ -12074,18 +12074,18 @@ function Kx(i) {
         }
         v++;
       } else if (S.isRectAreaLight) {
-        const W = t.get(S);
-        W.color.copy(H).multiplyScalar(U), W.halfWidth.set(S.width * 0.5, 0, 0), W.halfHeight.set(0, S.height * 0.5, 0), n.rectArea[p] = W, p++;
+        const G = t.get(S);
+        G.color.copy(H).multiplyScalar(U), G.halfWidth.set(S.width * 0.5, 0, 0), G.halfHeight.set(0, S.height * 0.5, 0), n.rectArea[p] = G, p++;
       } else if (S.isPointLight) {
-        const W = t.get(S);
-        if (W.color.copy(S.color).multiplyScalar(S.intensity), W.distance = S.distance, W.decay = S.decay, S.castShadow) {
+        const G = t.get(S);
+        if (G.color.copy(S.color).multiplyScalar(S.intensity), G.distance = S.distance, G.decay = S.decay, S.castShadow) {
           const ot = S.shadow, K = e.get(S);
           K.shadowIntensity = ot.intensity, K.shadowBias = ot.bias, K.shadowNormalBias = ot.normalBias, K.shadowRadius = ot.radius, K.shadowMapSize = ot.mapSize, K.shadowCameraNear = ot.camera.near, K.shadowCameraFar = ot.camera.far, n.pointShadow[m] = K, n.pointShadowMap[m] = q, n.pointShadowMatrix[m] = S.shadow.matrix, x++;
         }
-        n.point[m] = W, m++;
+        n.point[m] = G, m++;
       } else if (S.isHemisphereLight) {
-        const W = t.get(S);
-        W.skyColor.copy(S.color).multiplyScalar(U), W.groundColor.copy(S.groundColor).multiplyScalar(U), n.hemi[g] = W, g++;
+        const G = t.get(S);
+        G.skyColor.copy(S.color).multiplyScalar(U), G.groundColor.copy(S.groundColor).multiplyScalar(U), n.hemi[g] = G, g++;
       }
     }
     p > 0 && (i.has("OES_texture_float_linear") === !0 ? (n.rectAreaLTC1 = _t.LTC_FLOAT_1, n.rectAreaLTC2 = _t.LTC_FLOAT_2) : (n.rectAreaLTC1 = _t.LTC_HALF_1, n.rectAreaLTC2 = _t.LTC_HALF_2)), n.ambient[0] = h, n.ambient[1] = d, n.ambient[2] = u;
@@ -12245,7 +12245,7 @@ function tb(i, t, e) {
     const k = i.getRenderTarget(), _ = i.getActiveCubeFace(), S = i.getActiveMipmapLevel(), H = i.state;
     H.setBlending(ci), H.buffers.color.setClear(1, 1, 1, 1), H.buffers.depth.setTest(!0), H.setScissorTest(!1);
     const U = g !== Hn && this.type === Hn, z = g === Hn && this.type !== Hn;
-    for (let q = 0, W = A.length; q < W; q++) {
+    for (let q = 0, G = A.length; q < G; q++) {
       const ot = A[q], K = ot.shadow;
       if (K === void 0) {
         console.warn("THREE.WebGLShadowMap:", ot, "has no shadow.");
@@ -12302,8 +12302,8 @@ function tb(i, t, e) {
       const U = t.update(A), z = A.material;
       if (Array.isArray(z)) {
         const q = U.groups;
-        for (let W = 0, ot = q.length; W < ot; W++) {
-          const K = q[W], at = z[K.materialIndex];
+        for (let G = 0, ot = q.length; G < ot; G++) {
+          const K = q[G], at = z[K.materialIndex];
           if (at && at.visible) {
             const lt = x(A, at, k, _);
             A.onBeforeShadow(i, A, T, P, U, lt, K), i.renderBufferDirect(P, null, U, lt, A, K), A.onAfterShadow(i, A, T, P, U, lt, K);
@@ -12442,9 +12442,9 @@ function nb(i) {
   const s = new t(), r = new e(), o = new n(), a = /* @__PURE__ */ new WeakMap(), l = /* @__PURE__ */ new WeakMap();
   let c = {}, h = {}, d = /* @__PURE__ */ new WeakMap(), u = [], f = null, m = !1, v = null, p = null, g = null, y = null, x = null, M = null, R = null, A = new Ot(0, 0, 0), T = 0, P = !1, k = null, _ = null, S = null, H = null, U = null;
   const z = i.getParameter(i.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
-  let q = !1, W = 0;
+  let q = !1, G = 0;
   const ot = i.getParameter(i.VERSION);
-  ot.indexOf("WebGL") !== -1 ? (W = parseFloat(/^WebGL (\d)/.exec(ot)[1]), q = W >= 1) : ot.indexOf("OpenGL ES") !== -1 && (W = parseFloat(/^OpenGL ES (\d)/.exec(ot)[1]), q = W >= 2);
+  ot.indexOf("WebGL") !== -1 ? (G = parseFloat(/^WebGL (\d)/.exec(ot)[1]), q = G >= 1) : ot.indexOf("OpenGL ES") !== -1 && (G = parseFloat(/^OpenGL ES (\d)/.exec(ot)[1]), q = G >= 2);
   let K = null, at = {};
   const lt = i.getParameter(i.SCISSOR_BOX), ut = i.getParameter(i.VIEWPORT), Ht = new de().fromArray(lt), se = new de().fromArray(ut);
   function Q(F, Tt, J, rt) {
@@ -12584,7 +12584,7 @@ function nb(i) {
     let rt = at[J];
     rt === void 0 && (rt = { type: void 0, texture: void 0 }, at[J] = rt), (rt.type !== F || rt.texture !== Tt) && (K !== J && (i.activeTexture(J), K = J), i.bindTexture(F, Tt || ht[F]), rt.type = F, rt.texture = Tt);
   }
-  function j() {
+  function W() {
     const F = at[K];
     F !== void 0 && F.type !== void 0 && (i.bindTexture(F.type, null), F.type = void 0, F.texture = void 0);
   }
@@ -12697,7 +12697,7 @@ function nb(i) {
     setScissorTest: At,
     activeTexture: L,
     bindTexture: E,
-    unbindTexture: j,
+    unbindTexture: W,
     compressedTexImage2D: $,
     compressedTexImage3D: st,
     texImage2D: Pt,
@@ -12834,10 +12834,10 @@ function sb(i, t, e, n, s, r, o) {
       new OffscreenCanvas(L, E)
     ) : ar("canvas");
   }
-  function v(L, E, j) {
+  function v(L, E, W) {
     let $ = 1;
     const st = At(L);
-    if ((st.width > j || st.height > j) && ($ = j / Math.max(st.width, st.height)), $ < 1)
+    if ((st.width > W || st.height > W) && ($ = W / Math.max(st.width, st.height)), $ < 1)
       if (typeof HTMLImageElement < "u" && L instanceof HTMLImageElement || typeof HTMLCanvasElement < "u" && L instanceof HTMLCanvasElement || typeof ImageBitmap < "u" && L instanceof ImageBitmap || typeof VideoFrame < "u" && L instanceof VideoFrame) {
         const tt = Math.floor($ * st.width), Nt = Math.floor($ * st.height);
         d === void 0 && (d = m(tt, Nt));
@@ -12853,21 +12853,21 @@ function sb(i, t, e, n, s, r, o) {
   function g(L) {
     i.generateMipmap(L);
   }
-  function y(L, E, j, $, st = !1) {
+  function y(L, E, W, $, st = !1) {
     if (L !== null) {
       if (i[L] !== void 0) return i[L];
       console.warn("THREE.WebGLRenderer: Attempt to use non-existing WebGL internal format '" + L + "'");
     }
     let tt = E;
-    if (E === i.RED && (j === i.FLOAT && (tt = i.R32F), j === i.HALF_FLOAT && (tt = i.R16F), j === i.UNSIGNED_BYTE && (tt = i.R8)), E === i.RED_INTEGER && (j === i.UNSIGNED_BYTE && (tt = i.R8UI), j === i.UNSIGNED_SHORT && (tt = i.R16UI), j === i.UNSIGNED_INT && (tt = i.R32UI), j === i.BYTE && (tt = i.R8I), j === i.SHORT && (tt = i.R16I), j === i.INT && (tt = i.R32I)), E === i.RG && (j === i.FLOAT && (tt = i.RG32F), j === i.HALF_FLOAT && (tt = i.RG16F), j === i.UNSIGNED_BYTE && (tt = i.RG8)), E === i.RG_INTEGER && (j === i.UNSIGNED_BYTE && (tt = i.RG8UI), j === i.UNSIGNED_SHORT && (tt = i.RG16UI), j === i.UNSIGNED_INT && (tt = i.RG32UI), j === i.BYTE && (tt = i.RG8I), j === i.SHORT && (tt = i.RG16I), j === i.INT && (tt = i.RG32I)), E === i.RGB_INTEGER && (j === i.UNSIGNED_BYTE && (tt = i.RGB8UI), j === i.UNSIGNED_SHORT && (tt = i.RGB16UI), j === i.UNSIGNED_INT && (tt = i.RGB32UI), j === i.BYTE && (tt = i.RGB8I), j === i.SHORT && (tt = i.RGB16I), j === i.INT && (tt = i.RGB32I)), E === i.RGBA_INTEGER && (j === i.UNSIGNED_BYTE && (tt = i.RGBA8UI), j === i.UNSIGNED_SHORT && (tt = i.RGBA16UI), j === i.UNSIGNED_INT && (tt = i.RGBA32UI), j === i.BYTE && (tt = i.RGBA8I), j === i.SHORT && (tt = i.RGBA16I), j === i.INT && (tt = i.RGBA32I)), E === i.RGB && j === i.UNSIGNED_INT_5_9_9_9_REV && (tt = i.RGB9_E5), E === i.RGBA) {
+    if (E === i.RED && (W === i.FLOAT && (tt = i.R32F), W === i.HALF_FLOAT && (tt = i.R16F), W === i.UNSIGNED_BYTE && (tt = i.R8)), E === i.RED_INTEGER && (W === i.UNSIGNED_BYTE && (tt = i.R8UI), W === i.UNSIGNED_SHORT && (tt = i.R16UI), W === i.UNSIGNED_INT && (tt = i.R32UI), W === i.BYTE && (tt = i.R8I), W === i.SHORT && (tt = i.R16I), W === i.INT && (tt = i.R32I)), E === i.RG && (W === i.FLOAT && (tt = i.RG32F), W === i.HALF_FLOAT && (tt = i.RG16F), W === i.UNSIGNED_BYTE && (tt = i.RG8)), E === i.RG_INTEGER && (W === i.UNSIGNED_BYTE && (tt = i.RG8UI), W === i.UNSIGNED_SHORT && (tt = i.RG16UI), W === i.UNSIGNED_INT && (tt = i.RG32UI), W === i.BYTE && (tt = i.RG8I), W === i.SHORT && (tt = i.RG16I), W === i.INT && (tt = i.RG32I)), E === i.RGB_INTEGER && (W === i.UNSIGNED_BYTE && (tt = i.RGB8UI), W === i.UNSIGNED_SHORT && (tt = i.RGB16UI), W === i.UNSIGNED_INT && (tt = i.RGB32UI), W === i.BYTE && (tt = i.RGB8I), W === i.SHORT && (tt = i.RGB16I), W === i.INT && (tt = i.RGB32I)), E === i.RGBA_INTEGER && (W === i.UNSIGNED_BYTE && (tt = i.RGBA8UI), W === i.UNSIGNED_SHORT && (tt = i.RGBA16UI), W === i.UNSIGNED_INT && (tt = i.RGBA32UI), W === i.BYTE && (tt = i.RGBA8I), W === i.SHORT && (tt = i.RGBA16I), W === i.INT && (tt = i.RGBA32I)), E === i.RGB && W === i.UNSIGNED_INT_5_9_9_9_REV && (tt = i.RGB9_E5), E === i.RGBA) {
       const Nt = st ? wo : ce.getTransfer($);
-      j === i.FLOAT && (tt = i.RGBA32F), j === i.HALF_FLOAT && (tt = i.RGBA16F), j === i.UNSIGNED_BYTE && (tt = Nt === ye ? i.SRGB8_ALPHA8 : i.RGBA8), j === i.UNSIGNED_SHORT_4_4_4_4 && (tt = i.RGBA4), j === i.UNSIGNED_SHORT_5_5_5_1 && (tt = i.RGB5_A1);
+      W === i.FLOAT && (tt = i.RGBA32F), W === i.HALF_FLOAT && (tt = i.RGBA16F), W === i.UNSIGNED_BYTE && (tt = Nt === ye ? i.SRGB8_ALPHA8 : i.RGBA8), W === i.UNSIGNED_SHORT_4_4_4_4 && (tt = i.RGBA4), W === i.UNSIGNED_SHORT_5_5_5_1 && (tt = i.RGB5_A1);
     }
     return (tt === i.R16F || tt === i.R32F || tt === i.RG16F || tt === i.RG32F || tt === i.RGBA16F || tt === i.RGBA32F) && t.get("EXT_color_buffer_float"), tt;
   }
   function x(L, E) {
-    let j;
-    return L ? E === null || E === Ci || E === vs ? j = i.DEPTH24_STENCIL8 : E === wn ? j = i.DEPTH32F_STENCIL8 : E === sr && (j = i.DEPTH24_STENCIL8, console.warn("DepthTexture: 16 bit depth attachment is not supported with stencil. Using 24-bit attachment.")) : E === null || E === Ci || E === vs ? j = i.DEPTH_COMPONENT24 : E === wn ? j = i.DEPTH_COMPONENT32F : E === sr && (j = i.DEPTH_COMPONENT16), j;
+    let W;
+    return L ? E === null || E === Ci || E === vs ? W = i.DEPTH24_STENCIL8 : E === wn ? W = i.DEPTH32F_STENCIL8 : E === sr && (W = i.DEPTH24_STENCIL8, console.warn("DepthTexture: 16 bit depth attachment is not supported with stencil. Using 24-bit attachment.")) : E === null || E === Ci || E === vs ? W = i.DEPTH_COMPONENT24 : E === wn ? W = i.DEPTH_COMPONENT32F : E === sr && (W = i.DEPTH_COMPONENT16), W;
   }
   function M(L, E) {
     return p(L) === !0 || L.isFramebufferTexture && L.minFilter !== qe && L.minFilter !== sn ? Math.log2(Math.max(E.width, E.height)) + 1 : L.mipmaps !== void 0 && L.mipmaps.length > 0 ? L.mipmaps.length : L.isCompressedTexture && Array.isArray(L.image) ? E.mipmaps.length : 1;
@@ -12883,17 +12883,17 @@ function sb(i, t, e, n, s, r, o) {
   function T(L) {
     const E = n.get(L);
     if (E.__webglInit === void 0) return;
-    const j = L.source, $ = u.get(j);
+    const W = L.source, $ = u.get(W);
     if ($) {
       const st = $[E.__cacheKey];
-      st.usedTimes--, st.usedTimes === 0 && P(L), Object.keys($).length === 0 && u.delete(j);
+      st.usedTimes--, st.usedTimes === 0 && P(L), Object.keys($).length === 0 && u.delete(W);
     }
     n.remove(L);
   }
   function P(L) {
     const E = n.get(L);
     i.deleteTexture(E.__webglTexture);
-    const j = L.source, $ = u.get(j);
+    const W = L.source, $ = u.get(W);
     delete $[E.__cacheKey], o.memory.textures--;
   }
   function k(L) {
@@ -12916,10 +12916,10 @@ function sb(i, t, e, n, s, r, o) {
           E.__webglColorRenderbuffer[$] && i.deleteRenderbuffer(E.__webglColorRenderbuffer[$]);
       E.__webglDepthRenderbuffer && i.deleteRenderbuffer(E.__webglDepthRenderbuffer);
     }
-    const j = L.textures;
-    for (let $ = 0, st = j.length; $ < st; $++) {
-      const tt = n.get(j[$]);
-      tt.__webglTexture && (i.deleteTexture(tt.__webglTexture), o.memory.textures--), n.remove(j[$]);
+    const W = L.textures;
+    for (let $ = 0, st = W.length; $ < st; $++) {
+      const tt = n.get(W[$]);
+      tt.__webglTexture && (i.deleteTexture(tt.__webglTexture), o.memory.textures--), n.remove(W[$]);
     }
     n.remove(L);
   }
@@ -12936,43 +12936,43 @@ function sb(i, t, e, n, s, r, o) {
     return E.push(L.wrapS), E.push(L.wrapT), E.push(L.wrapR || 0), E.push(L.magFilter), E.push(L.minFilter), E.push(L.anisotropy), E.push(L.internalFormat), E.push(L.format), E.push(L.type), E.push(L.generateMipmaps), E.push(L.premultiplyAlpha), E.push(L.flipY), E.push(L.unpackAlignment), E.push(L.colorSpace), E.join();
   }
   function z(L, E) {
-    const j = n.get(L);
-    if (L.isVideoTexture && xt(L), L.isRenderTargetTexture === !1 && L.version > 0 && j.__version !== L.version) {
+    const W = n.get(L);
+    if (L.isVideoTexture && xt(L), L.isRenderTargetTexture === !1 && L.version > 0 && W.__version !== L.version) {
       const $ = L.image;
       if ($ === null)
         console.warn("THREE.WebGLRenderer: Texture marked for update but no image data found.");
       else if ($.complete === !1)
         console.warn("THREE.WebGLRenderer: Texture marked for update but image is incomplete");
       else {
-        se(j, L, E);
+        se(W, L, E);
         return;
       }
     }
-    e.bindTexture(i.TEXTURE_2D, j.__webglTexture, i.TEXTURE0 + E);
+    e.bindTexture(i.TEXTURE_2D, W.__webglTexture, i.TEXTURE0 + E);
   }
   function q(L, E) {
-    const j = n.get(L);
-    if (L.version > 0 && j.__version !== L.version) {
-      se(j, L, E);
+    const W = n.get(L);
+    if (L.version > 0 && W.__version !== L.version) {
+      se(W, L, E);
       return;
     }
-    e.bindTexture(i.TEXTURE_2D_ARRAY, j.__webglTexture, i.TEXTURE0 + E);
+    e.bindTexture(i.TEXTURE_2D_ARRAY, W.__webglTexture, i.TEXTURE0 + E);
   }
-  function W(L, E) {
-    const j = n.get(L);
-    if (L.version > 0 && j.__version !== L.version) {
-      se(j, L, E);
+  function G(L, E) {
+    const W = n.get(L);
+    if (L.version > 0 && W.__version !== L.version) {
+      se(W, L, E);
       return;
     }
-    e.bindTexture(i.TEXTURE_3D, j.__webglTexture, i.TEXTURE0 + E);
+    e.bindTexture(i.TEXTURE_3D, W.__webglTexture, i.TEXTURE0 + E);
   }
   function ot(L, E) {
-    const j = n.get(L);
-    if (L.version > 0 && j.__version !== L.version) {
-      Q(j, L, E);
+    const W = n.get(L);
+    if (L.version > 0 && W.__version !== L.version) {
+      Q(W, L, E);
       return;
     }
-    e.bindTexture(i.TEXTURE_CUBE_MAP, j.__webglTexture, i.TEXTURE0 + E);
+    e.bindTexture(i.TEXTURE_CUBE_MAP, W.__webglTexture, i.TEXTURE0 + E);
   }
   const K = {
     [Kn]: i.REPEAT,
@@ -12999,13 +12999,13 @@ function sb(i, t, e, n, s, r, o) {
     if (E.type === wn && t.has("OES_texture_float_linear") === !1 && (E.magFilter === sn || E.magFilter === co || E.magFilter === Xs || E.magFilter === jn || E.minFilter === sn || E.minFilter === co || E.minFilter === Xs || E.minFilter === jn) && console.warn("THREE.WebGLRenderer: Unable to use linear filtering with floating point textures. OES_texture_float_linear not supported on this device."), i.texParameteri(L, i.TEXTURE_WRAP_S, K[E.wrapS]), i.texParameteri(L, i.TEXTURE_WRAP_T, K[E.wrapT]), (L === i.TEXTURE_3D || L === i.TEXTURE_2D_ARRAY) && i.texParameteri(L, i.TEXTURE_WRAP_R, K[E.wrapR]), i.texParameteri(L, i.TEXTURE_MAG_FILTER, at[E.magFilter]), i.texParameteri(L, i.TEXTURE_MIN_FILTER, at[E.minFilter]), E.compareFunction && (i.texParameteri(L, i.TEXTURE_COMPARE_MODE, i.COMPARE_REF_TO_TEXTURE), i.texParameteri(L, i.TEXTURE_COMPARE_FUNC, lt[E.compareFunction])), t.has("EXT_texture_filter_anisotropic") === !0) {
       if (E.magFilter === qe || E.minFilter !== Xs && E.minFilter !== jn || E.type === wn && t.has("OES_texture_float_linear") === !1) return;
       if (E.anisotropy > 1 || n.get(E).__currentAnisotropy) {
-        const j = t.get("EXT_texture_filter_anisotropic");
-        i.texParameterf(L, j.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(E.anisotropy, s.getMaxAnisotropy())), n.get(E).__currentAnisotropy = E.anisotropy;
+        const W = t.get("EXT_texture_filter_anisotropic");
+        i.texParameterf(L, W.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(E.anisotropy, s.getMaxAnisotropy())), n.get(E).__currentAnisotropy = E.anisotropy;
       }
     }
   }
   function Ht(L, E) {
-    let j = !1;
+    let W = !1;
     L.__webglInit === void 0 && (L.__webglInit = !0, E.addEventListener("dispose", R));
     const $ = E.source;
     let st = u.get($);
@@ -13015,20 +13015,20 @@ function sb(i, t, e, n, s, r, o) {
       st[tt] === void 0 && (st[tt] = {
         texture: i.createTexture(),
         usedTimes: 0
-      }, o.memory.textures++, j = !0), st[tt].usedTimes++;
+      }, o.memory.textures++, W = !0), st[tt].usedTimes++;
       const Nt = st[L.__cacheKey];
       Nt !== void 0 && (st[L.__cacheKey].usedTimes--, Nt.usedTimes === 0 && P(E)), L.__cacheKey = tt, L.__webglTexture = st[tt].texture;
     }
-    return j;
+    return W;
   }
-  function se(L, E, j) {
+  function se(L, E, W) {
     let $ = i.TEXTURE_2D;
     (E.isDataArrayTexture || E.isCompressedArrayTexture) && ($ = i.TEXTURE_2D_ARRAY), E.isData3DTexture && ($ = i.TEXTURE_3D);
     const st = Ht(L, E), tt = E.source;
-    e.bindTexture($, L.__webglTexture, i.TEXTURE0 + j);
+    e.bindTexture($, L.__webglTexture, i.TEXTURE0 + W);
     const Nt = n.get(tt);
     if (tt.version !== Nt.__version || st === !0) {
-      e.activeTexture(i.TEXTURE0 + j);
+      e.activeTexture(i.TEXTURE0 + W);
       const yt = ce.getPrimaries(ce.workingColorSpace), Ct = E.colorSpace === ri ? null : ce.getPrimaries(E.colorSpace), re = E.colorSpace === ri || yt === Ct ? i.NONE : i.BROWSER_DEFAULT_WEBGL;
       i.pixelStorei(i.UNPACK_FLIP_Y_WEBGL, E.flipY), i.pixelStorei(i.UNPACK_PREMULTIPLY_ALPHA_WEBGL, E.premultiplyAlpha), i.pixelStorei(i.UNPACK_ALIGNMENT, E.unpackAlignment), i.pixelStorei(i.UNPACK_COLORSPACE_CONVERSION_WEBGL, re);
       let dt = v(E.image, !1, s.maxTextureSize);
@@ -13127,13 +13127,13 @@ function sb(i, t, e, n, s, r, o) {
     }
     L.__version = E.version;
   }
-  function Q(L, E, j) {
+  function Q(L, E, W) {
     if (E.image.length !== 6) return;
     const $ = Ht(L, E), st = E.source;
-    e.bindTexture(i.TEXTURE_CUBE_MAP, L.__webglTexture, i.TEXTURE0 + j);
+    e.bindTexture(i.TEXTURE_CUBE_MAP, L.__webglTexture, i.TEXTURE0 + W);
     const tt = n.get(st);
     if (st.version !== tt.__version || $ === !0) {
-      e.activeTexture(i.TEXTURE0 + j);
+      e.activeTexture(i.TEXTURE0 + W);
       const Nt = ce.getPrimaries(ce.workingColorSpace), yt = E.colorSpace === ri ? null : ce.getPrimaries(E.colorSpace), Ct = E.colorSpace === ri || Nt === yt ? i.NONE : i.BROWSER_DEFAULT_WEBGL;
       i.pixelStorei(i.UNPACK_FLIP_Y_WEBGL, E.flipY), i.pixelStorei(i.UNPACK_PREMULTIPLY_ALPHA_WEBGL, E.premultiplyAlpha), i.pixelStorei(i.UNPACK_ALIGNMENT, E.unpackAlignment), i.pixelStorei(i.UNPACK_COLORSPACE_CONVERSION_WEBGL, Ct);
       const re = E.isCompressedTexture || E.image[0].isCompressedTexture, dt = E.image[0] && E.image[0].isDataTexture, Pt = [];
@@ -13177,23 +13177,23 @@ function sb(i, t, e, n, s, r, o) {
     }
     L.__version = E.version;
   }
-  function ht(L, E, j, $, st, tt) {
-    const Nt = r.convert(j.format, j.colorSpace), yt = r.convert(j.type), Ct = y(j.internalFormat, Nt, yt, j.colorSpace);
+  function ht(L, E, W, $, st, tt) {
+    const Nt = r.convert(W.format, W.colorSpace), yt = r.convert(W.type), Ct = y(W.internalFormat, Nt, yt, W.colorSpace);
     if (!n.get(E).__hasExternalTextures) {
       const dt = Math.max(1, E.width >> tt), Pt = Math.max(1, E.height >> tt);
       st === i.TEXTURE_3D || st === i.TEXTURE_2D_ARRAY ? e.texImage3D(st, tt, Ct, dt, Pt, E.depth, 0, Nt, yt, null) : e.texImage2D(st, tt, Ct, dt, Pt, 0, Nt, yt, null);
     }
-    e.bindFramebuffer(i.FRAMEBUFFER, L), ct(E) ? a.framebufferTexture2DMultisampleEXT(i.FRAMEBUFFER, $, st, n.get(j).__webglTexture, 0, mt(E)) : (st === i.TEXTURE_2D || st >= i.TEXTURE_CUBE_MAP_POSITIVE_X && st <= i.TEXTURE_CUBE_MAP_NEGATIVE_Z) && i.framebufferTexture2D(i.FRAMEBUFFER, $, st, n.get(j).__webglTexture, tt), e.bindFramebuffer(i.FRAMEBUFFER, null);
+    e.bindFramebuffer(i.FRAMEBUFFER, L), ct(E) ? a.framebufferTexture2DMultisampleEXT(i.FRAMEBUFFER, $, st, n.get(W).__webglTexture, 0, mt(E)) : (st === i.TEXTURE_2D || st >= i.TEXTURE_CUBE_MAP_POSITIVE_X && st <= i.TEXTURE_CUBE_MAP_NEGATIVE_Z) && i.framebufferTexture2D(i.FRAMEBUFFER, $, st, n.get(W).__webglTexture, tt), e.bindFramebuffer(i.FRAMEBUFFER, null);
   }
-  function It(L, E, j) {
+  function It(L, E, W) {
     if (i.bindRenderbuffer(i.RENDERBUFFER, L), E.depthBuffer) {
       const $ = E.depthTexture, st = $ && $.isDepthTexture ? $.type : null, tt = x(E.stencilBuffer, st), Nt = E.stencilBuffer ? i.DEPTH_STENCIL_ATTACHMENT : i.DEPTH_ATTACHMENT, yt = mt(E);
-      ct(E) ? a.renderbufferStorageMultisampleEXT(i.RENDERBUFFER, yt, tt, E.width, E.height) : j ? i.renderbufferStorageMultisample(i.RENDERBUFFER, yt, tt, E.width, E.height) : i.renderbufferStorage(i.RENDERBUFFER, tt, E.width, E.height), i.framebufferRenderbuffer(i.FRAMEBUFFER, Nt, i.RENDERBUFFER, L);
+      ct(E) ? a.renderbufferStorageMultisampleEXT(i.RENDERBUFFER, yt, tt, E.width, E.height) : W ? i.renderbufferStorageMultisample(i.RENDERBUFFER, yt, tt, E.width, E.height) : i.renderbufferStorage(i.RENDERBUFFER, tt, E.width, E.height), i.framebufferRenderbuffer(i.FRAMEBUFFER, Nt, i.RENDERBUFFER, L);
     } else {
       const $ = E.textures;
       for (let st = 0; st < $.length; st++) {
         const tt = $[st], Nt = r.convert(tt.format, tt.colorSpace), yt = r.convert(tt.type), Ct = y(tt.internalFormat, Nt, yt, tt.colorSpace), re = mt(E);
-        j && ct(E) === !1 ? i.renderbufferStorageMultisample(i.RENDERBUFFER, re, Ct, E.width, E.height) : ct(E) ? a.renderbufferStorageMultisampleEXT(i.RENDERBUFFER, re, Ct, E.width, E.height) : i.renderbufferStorage(i.RENDERBUFFER, Ct, E.width, E.height);
+        W && ct(E) === !1 ? i.renderbufferStorageMultisample(i.RENDERBUFFER, re, Ct, E.width, E.height) : ct(E) ? a.renderbufferStorageMultisampleEXT(i.RENDERBUFFER, re, Ct, E.width, E.height) : i.renderbufferStorage(i.RENDERBUFFER, Ct, E.width, E.height);
       }
     }
     i.bindRenderbuffer(i.RENDERBUFFER, null);
@@ -13212,7 +13212,7 @@ function sb(i, t, e, n, s, r, o) {
       throw new Error("Unknown depthTexture format");
   }
   function jt(L) {
-    const E = n.get(L), j = L.isWebGLCubeRenderTarget === !0;
+    const E = n.get(L), W = L.isWebGLCubeRenderTarget === !0;
     if (E.__boundDepthTexture !== L.depthTexture) {
       const $ = L.depthTexture;
       if (E.__depthDisposeCallback && E.__depthDisposeCallback(), $) {
@@ -13224,9 +13224,9 @@ function sb(i, t, e, n, s, r, o) {
       E.__boundDepthTexture = $;
     }
     if (L.depthTexture && !E.__autoAllocateDepthBuffer) {
-      if (j) throw new Error("target.depthTexture not supported in Cube render targets");
+      if (W) throw new Error("target.depthTexture not supported in Cube render targets");
       wt(E.__webglFramebuffer, L);
-    } else if (j) {
+    } else if (W) {
       E.__webglDepthbuffer = [];
       for (let $ = 0; $ < 6; $++)
         if (e.bindFramebuffer(i.FRAMEBUFFER, E.__webglFramebuffer[$]), E.__webglDepthbuffer[$] === void 0)
@@ -13243,44 +13243,44 @@ function sb(i, t, e, n, s, r, o) {
     }
     e.bindFramebuffer(i.FRAMEBUFFER, null);
   }
-  function Wt(L, E, j) {
+  function Wt(L, E, W) {
     const $ = n.get(L);
-    E !== void 0 && ht($.__webglFramebuffer, L, L.texture, i.COLOR_ATTACHMENT0, i.TEXTURE_2D, 0), j !== void 0 && jt(L);
+    E !== void 0 && ht($.__webglFramebuffer, L, L.texture, i.COLOR_ATTACHMENT0, i.TEXTURE_2D, 0), W !== void 0 && jt(L);
   }
   function Jt(L) {
-    const E = L.texture, j = n.get(L), $ = n.get(E);
+    const E = L.texture, W = n.get(L), $ = n.get(E);
     L.addEventListener("dispose", A);
     const st = L.textures, tt = L.isWebGLCubeRenderTarget === !0, Nt = st.length > 1;
     if (Nt || ($.__webglTexture === void 0 && ($.__webglTexture = i.createTexture()), $.__version = E.version, o.memory.textures++), tt) {
-      j.__webglFramebuffer = [];
+      W.__webglFramebuffer = [];
       for (let yt = 0; yt < 6; yt++)
         if (E.mipmaps && E.mipmaps.length > 0) {
-          j.__webglFramebuffer[yt] = [];
+          W.__webglFramebuffer[yt] = [];
           for (let Ct = 0; Ct < E.mipmaps.length; Ct++)
-            j.__webglFramebuffer[yt][Ct] = i.createFramebuffer();
+            W.__webglFramebuffer[yt][Ct] = i.createFramebuffer();
         } else
-          j.__webglFramebuffer[yt] = i.createFramebuffer();
+          W.__webglFramebuffer[yt] = i.createFramebuffer();
     } else {
       if (E.mipmaps && E.mipmaps.length > 0) {
-        j.__webglFramebuffer = [];
+        W.__webglFramebuffer = [];
         for (let yt = 0; yt < E.mipmaps.length; yt++)
-          j.__webglFramebuffer[yt] = i.createFramebuffer();
+          W.__webglFramebuffer[yt] = i.createFramebuffer();
       } else
-        j.__webglFramebuffer = i.createFramebuffer();
+        W.__webglFramebuffer = i.createFramebuffer();
       if (Nt)
         for (let yt = 0, Ct = st.length; yt < Ct; yt++) {
           const re = n.get(st[yt]);
           re.__webglTexture === void 0 && (re.__webglTexture = i.createTexture(), o.memory.textures++);
         }
       if (L.samples > 0 && ct(L) === !1) {
-        j.__webglMultisampledFramebuffer = i.createFramebuffer(), j.__webglColorRenderbuffer = [], e.bindFramebuffer(i.FRAMEBUFFER, j.__webglMultisampledFramebuffer);
+        W.__webglMultisampledFramebuffer = i.createFramebuffer(), W.__webglColorRenderbuffer = [], e.bindFramebuffer(i.FRAMEBUFFER, W.__webglMultisampledFramebuffer);
         for (let yt = 0; yt < st.length; yt++) {
           const Ct = st[yt];
-          j.__webglColorRenderbuffer[yt] = i.createRenderbuffer(), i.bindRenderbuffer(i.RENDERBUFFER, j.__webglColorRenderbuffer[yt]);
+          W.__webglColorRenderbuffer[yt] = i.createRenderbuffer(), i.bindRenderbuffer(i.RENDERBUFFER, W.__webglColorRenderbuffer[yt]);
           const re = r.convert(Ct.format, Ct.colorSpace), dt = r.convert(Ct.type), Pt = y(Ct.internalFormat, re, dt, Ct.colorSpace, L.isXRRenderTarget === !0), Kt = mt(L);
-          i.renderbufferStorageMultisample(i.RENDERBUFFER, Kt, Pt, L.width, L.height), i.framebufferRenderbuffer(i.FRAMEBUFFER, i.COLOR_ATTACHMENT0 + yt, i.RENDERBUFFER, j.__webglColorRenderbuffer[yt]);
+          i.renderbufferStorageMultisample(i.RENDERBUFFER, Kt, Pt, L.width, L.height), i.framebufferRenderbuffer(i.FRAMEBUFFER, i.COLOR_ATTACHMENT0 + yt, i.RENDERBUFFER, W.__webglColorRenderbuffer[yt]);
         }
-        i.bindRenderbuffer(i.RENDERBUFFER, null), L.depthBuffer && (j.__webglDepthRenderbuffer = i.createRenderbuffer(), It(j.__webglDepthRenderbuffer, L, !0)), e.bindFramebuffer(i.FRAMEBUFFER, null);
+        i.bindRenderbuffer(i.RENDERBUFFER, null), L.depthBuffer && (W.__webglDepthRenderbuffer = i.createRenderbuffer(), It(W.__webglDepthRenderbuffer, L, !0)), e.bindFramebuffer(i.FRAMEBUFFER, null);
       }
     }
     if (tt) {
@@ -13288,31 +13288,31 @@ function sb(i, t, e, n, s, r, o) {
       for (let yt = 0; yt < 6; yt++)
         if (E.mipmaps && E.mipmaps.length > 0)
           for (let Ct = 0; Ct < E.mipmaps.length; Ct++)
-            ht(j.__webglFramebuffer[yt][Ct], L, E, i.COLOR_ATTACHMENT0, i.TEXTURE_CUBE_MAP_POSITIVE_X + yt, Ct);
+            ht(W.__webglFramebuffer[yt][Ct], L, E, i.COLOR_ATTACHMENT0, i.TEXTURE_CUBE_MAP_POSITIVE_X + yt, Ct);
         else
-          ht(j.__webglFramebuffer[yt], L, E, i.COLOR_ATTACHMENT0, i.TEXTURE_CUBE_MAP_POSITIVE_X + yt, 0);
+          ht(W.__webglFramebuffer[yt], L, E, i.COLOR_ATTACHMENT0, i.TEXTURE_CUBE_MAP_POSITIVE_X + yt, 0);
       p(E) && g(i.TEXTURE_CUBE_MAP), e.unbindTexture();
     } else if (Nt) {
       for (let yt = 0, Ct = st.length; yt < Ct; yt++) {
         const re = st[yt], dt = n.get(re);
-        e.bindTexture(i.TEXTURE_2D, dt.__webglTexture), ut(i.TEXTURE_2D, re), ht(j.__webglFramebuffer, L, re, i.COLOR_ATTACHMENT0 + yt, i.TEXTURE_2D, 0), p(re) && g(i.TEXTURE_2D);
+        e.bindTexture(i.TEXTURE_2D, dt.__webglTexture), ut(i.TEXTURE_2D, re), ht(W.__webglFramebuffer, L, re, i.COLOR_ATTACHMENT0 + yt, i.TEXTURE_2D, 0), p(re) && g(i.TEXTURE_2D);
       }
       e.unbindTexture();
     } else {
       let yt = i.TEXTURE_2D;
       if ((L.isWebGL3DRenderTarget || L.isWebGLArrayRenderTarget) && (yt = L.isWebGL3DRenderTarget ? i.TEXTURE_3D : i.TEXTURE_2D_ARRAY), e.bindTexture(yt, $.__webglTexture), ut(yt, E), E.mipmaps && E.mipmaps.length > 0)
         for (let Ct = 0; Ct < E.mipmaps.length; Ct++)
-          ht(j.__webglFramebuffer[Ct], L, E, i.COLOR_ATTACHMENT0, yt, Ct);
+          ht(W.__webglFramebuffer[Ct], L, E, i.COLOR_ATTACHMENT0, yt, Ct);
       else
-        ht(j.__webglFramebuffer, L, E, i.COLOR_ATTACHMENT0, yt, 0);
+        ht(W.__webglFramebuffer, L, E, i.COLOR_ATTACHMENT0, yt, 0);
       p(E) && g(yt), e.unbindTexture();
     }
     L.depthBuffer && jt(L);
   }
   function ne(L) {
     const E = L.textures;
-    for (let j = 0, $ = E.length; j < $; j++) {
-      const st = E[j];
+    for (let W = 0, $ = E.length; W < $; W++) {
+      const st = E[W];
       if (p(st)) {
         const tt = L.isWebGLCubeRenderTarget ? i.TEXTURE_CUBE_MAP : i.TEXTURE_2D, Nt = n.get(st).__webglTexture;
         e.bindTexture(tt, Nt), g(tt), e.unbindTexture();
@@ -13323,7 +13323,7 @@ function sb(i, t, e, n, s, r, o) {
   function vt(L) {
     if (L.samples > 0) {
       if (ct(L) === !1) {
-        const E = L.textures, j = L.width, $ = L.height;
+        const E = L.textures, W = L.width, $ = L.height;
         let st = i.COLOR_BUFFER_BIT;
         const tt = L.stencilBuffer ? i.DEPTH_STENCIL_ATTACHMENT : i.DEPTH_ATTACHMENT, Nt = n.get(L), yt = E.length > 1;
         if (yt)
@@ -13336,7 +13336,7 @@ function sb(i, t, e, n, s, r, o) {
             const re = n.get(E[Ct]).__webglTexture;
             i.framebufferTexture2D(i.DRAW_FRAMEBUFFER, i.COLOR_ATTACHMENT0, i.TEXTURE_2D, re, 0);
           }
-          i.blitFramebuffer(0, 0, j, $, 0, 0, j, $, st, i.NEAREST), l === !0 && (it.length = 0, D.length = 0, it.push(i.COLOR_ATTACHMENT0 + Ct), L.depthBuffer && L.resolveDepthBuffer === !1 && (it.push(tt), D.push(tt), i.invalidateFramebuffer(i.DRAW_FRAMEBUFFER, D)), i.invalidateFramebuffer(i.READ_FRAMEBUFFER, it));
+          i.blitFramebuffer(0, 0, W, $, 0, 0, W, $, st, i.NEAREST), l === !0 && (it.length = 0, D.length = 0, it.push(i.COLOR_ATTACHMENT0 + Ct), L.depthBuffer && L.resolveDepthBuffer === !1 && (it.push(tt), D.push(tt), i.invalidateFramebuffer(i.DRAW_FRAMEBUFFER, D)), i.invalidateFramebuffer(i.READ_FRAMEBUFFER, it));
         }
         if (e.bindFramebuffer(i.READ_FRAMEBUFFER, null), e.bindFramebuffer(i.DRAW_FRAMEBUFFER, null), yt)
           for (let Ct = 0; Ct < E.length; Ct++) {
@@ -13363,13 +13363,13 @@ function sb(i, t, e, n, s, r, o) {
     h.get(L) !== E && (h.set(L, E), L.update());
   }
   function Ft(L, E) {
-    const j = L.colorSpace, $ = L.format, st = L.type;
-    return L.isCompressedTexture === !0 || L.isVideoTexture === !0 || j !== Fe && j !== ri && (ce.getTransfer(j) === ye ? ($ !== dn || st !== Yn) && console.warn("THREE.WebGLTextures: sRGB encoded textures have to use RGBAFormat and UnsignedByteType.") : console.error("THREE.WebGLTextures: Unsupported texture color space:", j)), E;
+    const W = L.colorSpace, $ = L.format, st = L.type;
+    return L.isCompressedTexture === !0 || L.isVideoTexture === !0 || W !== Fe && W !== ri && (ce.getTransfer(W) === ye ? ($ !== dn || st !== Yn) && console.warn("THREE.WebGLTextures: sRGB encoded textures have to use RGBAFormat and UnsignedByteType.") : console.error("THREE.WebGLTextures: Unsupported texture color space:", W)), E;
   }
   function At(L) {
     return typeof HTMLImageElement < "u" && L instanceof HTMLImageElement ? (c.width = L.naturalWidth || L.width, c.height = L.naturalHeight || L.height) : typeof VideoFrame < "u" && L instanceof VideoFrame ? (c.width = L.displayWidth, c.height = L.displayHeight) : (c.width = L.width, c.height = L.height), c;
   }
-  this.allocateTextureUnit = H, this.resetTextureUnits = S, this.setTexture2D = z, this.setTexture2DArray = q, this.setTexture3D = W, this.setTextureCube = ot, this.rebindTextures = Wt, this.setupRenderTarget = Jt, this.updateRenderTargetMipmap = ne, this.updateMultisampleRenderTarget = vt, this.setupDepthRenderbuffer = jt, this.setupFrameBufferTexture = ht, this.useMultisampledRTT = ct;
+  this.allocateTextureUnit = H, this.resetTextureUnits = S, this.setTexture2D = z, this.setTexture2DArray = q, this.setTexture3D = G, this.setTextureCube = ot, this.rebindTextures = Wt, this.setupRenderTarget = Jt, this.updateRenderTargetMipmap = ne, this.updateMultisampleRenderTarget = vt, this.setupDepthRenderbuffer = jt, this.setupFrameBufferTexture = ht, this.useMultisampledRTT = ct;
 }
 function rb(i, t) {
   function e(n, s = ri) {
@@ -13726,15 +13726,15 @@ class db extends Li {
         jt && jt.connect(It);
       }
     }
-    const W = new N(), ot = new N();
+    const G = new N(), ot = new N();
     function K(Q, ht, It) {
-      W.setFromMatrixPosition(ht.matrixWorld), ot.setFromMatrixPosition(It.matrixWorld);
-      const wt = W.distanceTo(ot), jt = ht.projectionMatrix.elements, Wt = It.projectionMatrix.elements, Jt = jt[14] / (jt[10] - 1), ne = jt[14] / (jt[10] + 1), it = (jt[9] + 1) / jt[5], D = (jt[9] - 1) / jt[5], vt = (jt[8] - 1) / jt[0], mt = (Wt[8] + 1) / Wt[0], ct = Jt * vt, xt = Jt * mt, Ft = wt / (-vt + mt), At = Ft * -vt;
+      G.setFromMatrixPosition(ht.matrixWorld), ot.setFromMatrixPosition(It.matrixWorld);
+      const wt = G.distanceTo(ot), jt = ht.projectionMatrix.elements, Wt = It.projectionMatrix.elements, Jt = jt[14] / (jt[10] - 1), ne = jt[14] / (jt[10] + 1), it = (jt[9] + 1) / jt[5], D = (jt[9] - 1) / jt[5], vt = (jt[8] - 1) / jt[0], mt = (Wt[8] + 1) / Wt[0], ct = Jt * vt, xt = Jt * mt, Ft = wt / (-vt + mt), At = Ft * -vt;
       if (ht.matrixWorld.decompose(Q.position, Q.quaternion, Q.scale), Q.translateX(At), Q.translateZ(Ft), Q.matrixWorld.compose(Q.position, Q.quaternion, Q.scale), Q.matrixWorldInverse.copy(Q.matrixWorld).invert(), jt[10] === -1)
         Q.projectionMatrix.copy(ht.projectionMatrix), Q.projectionMatrixInverse.copy(ht.projectionMatrixInverse);
       else {
-        const L = Jt + Ft, E = ne + Ft, j = ct - At, $ = xt + (wt - At), st = it * ne / E * L, tt = D * ne / E * L;
-        Q.projectionMatrix.makePerspective(j, $, st, tt, L, E), Q.projectionMatrixInverse.copy(Q.projectionMatrix).invert();
+        const L = Jt + Ft, E = ne + Ft, W = ct - At, $ = xt + (wt - At), st = it * ne / E * L, tt = D * ne / E * L;
+        Q.projectionMatrix.makePerspective(W, $, st, tt, L, E), Q.projectionMatrixInverse.copy(Q.projectionMatrix).invert();
       }
     }
     function at(Q, ht) {
@@ -13900,8 +13900,8 @@ function pb(i, t, e, n) {
           const H = S.__offset, U = Array.isArray(S.value) ? S.value : [S.value];
           let z = 0;
           for (let q = 0; q < U.length; q++) {
-            const W = U[q], ot = v(W);
-            typeof W == "number" || typeof W == "boolean" ? (S.__data[0] = W, i.bufferSubData(i.UNIFORM_BUFFER, H + z, S.__data)) : W.isMatrix3 ? (S.__data[0] = W.elements[0], S.__data[1] = W.elements[1], S.__data[2] = W.elements[2], S.__data[3] = 0, S.__data[4] = W.elements[3], S.__data[5] = W.elements[4], S.__data[6] = W.elements[5], S.__data[7] = 0, S.__data[8] = W.elements[6], S.__data[9] = W.elements[7], S.__data[10] = W.elements[8], S.__data[11] = 0) : (W.toArray(S.__data, z), z += ot.storage / Float32Array.BYTES_PER_ELEMENT);
+            const G = U[q], ot = v(G);
+            typeof G == "number" || typeof G == "boolean" ? (S.__data[0] = G, i.bufferSubData(i.UNIFORM_BUFFER, H + z, S.__data)) : G.isMatrix3 ? (S.__data[0] = G.elements[0], S.__data[1] = G.elements[1], S.__data[2] = G.elements[2], S.__data[3] = 0, S.__data[4] = G.elements[3], S.__data[5] = G.elements[4], S.__data[6] = G.elements[5], S.__data[7] = 0, S.__data[8] = G.elements[6], S.__data[9] = G.elements[7], S.__data[10] = G.elements[8], S.__data[11] = 0) : (G.toArray(S.__data, z), z += ot.storage / Float32Array.BYTES_PER_ELEMENT);
           }
           i.bufferSubData(i.UNIFORM_BUFFER, H, S.__data);
         }
@@ -13932,7 +13932,7 @@ function pb(i, t, e, n) {
       for (let _ = 0, S = k.length; _ < S; _++) {
         const H = k[_], U = Array.isArray(H.value) ? H.value : [H.value];
         for (let z = 0, q = U.length; z < q; z++) {
-          const W = U[z], ot = v(W), K = M % R, at = K % ot.boundary, lt = K + at;
+          const G = U[z], ot = v(G), K = M % R, at = K % ot.boundary, lt = K + at;
           M += at, lt !== 0 && R - lt < ot.storage && (M += R - lt), H.__data = new Float32Array(ot.storage / Float32Array.BYTES_PER_ELEMENT), H.__offset = M, M += ot.storage;
         }
       }
@@ -14008,8 +14008,8 @@ class Fu {
     const _ = new de(), S = new de();
     let H = null;
     const U = new Ot(0);
-    let z = 0, q = e.width, W = e.height, ot = 1, K = null, at = null;
-    const lt = new de(0, 0, q, W), ut = new de(0, 0, q, W);
+    let z = 0, q = e.width, G = e.height, ot = 1, K = null, at = null;
+    const lt = new de(0, 0, q, G), ut = new de(0, 0, q, G);
     let Ht = !1;
     const se = new rc();
     let Q = !1, ht = !1;
@@ -14041,9 +14041,9 @@ class Fu {
     } catch (C) {
       throw console.error("THREE.WebGLRenderer: " + C.message), C;
     }
-    let mt, ct, xt, Ft, At, L, E, j, $, st, tt, Nt, yt, Ct, re, dt, Pt, Kt, Yt, Lt, oe, Qt, xe, F;
+    let mt, ct, xt, Ft, At, L, E, W, $, st, tt, Nt, yt, Ct, re, dt, Pt, Kt, Yt, Lt, oe, Qt, xe, F;
     function Tt() {
-      mt = new yv(D), mt.init(), Qt = new rb(D, mt), ct = new pv(D, mt, t, Qt), xt = new nb(D), ct.reverseDepthBuffer && xt.buffers.depth.setReversed(!0), Ft = new Mv(D), At = new Hx(), L = new sb(D, mt, xt, At, ct, Qt, Ft), E = new gv(x), j = new bv(x), $ = new P0(D), xe = new uv(D, $), st = new _v(D, $, Ft, xe), tt = new Ev(D, st, $, Ft), Yt = new Sv(D, ct, L), dt = new mv(At), Nt = new Bx(x, E, j, mt, ct, xe, dt), yt = new fb(x, At), Ct = new Gx(), re = new Yx(mt), Kt = new dv(x, E, j, xt, tt, u, l), Pt = new tb(x, tt, ct), F = new pb(D, Ft, ct, xt), Lt = new fv(D, mt, Ft), oe = new wv(D, mt, Ft), Ft.programs = Nt.programs, x.capabilities = ct, x.extensions = mt, x.properties = At, x.renderLists = Ct, x.shadowMap = Pt, x.state = xt, x.info = Ft;
+      mt = new yv(D), mt.init(), Qt = new rb(D, mt), ct = new pv(D, mt, t, Qt), xt = new nb(D), ct.reverseDepthBuffer && xt.buffers.depth.setReversed(!0), Ft = new Mv(D), At = new Hx(), L = new sb(D, mt, xt, At, ct, Qt, Ft), E = new gv(x), W = new bv(x), $ = new P0(D), xe = new uv(D, $), st = new _v(D, $, Ft, xe), tt = new Ev(D, st, $, Ft), Yt = new Sv(D, ct, L), dt = new mv(At), Nt = new Bx(x, E, W, mt, ct, xe, dt), yt = new fb(x, At), Ct = new Gx(), re = new Yx(mt), Kt = new dv(x, E, W, xt, tt, u, l), Pt = new tb(x, tt, ct), F = new pb(D, Ft, ct, xt), Lt = new fv(D, mt, Ft), oe = new wv(D, mt, Ft), Ft.programs = Nt.programs, x.capabilities = ct, x.extensions = mt, x.properties = At, x.renderLists = Ct, x.shadowMap = Pt, x.state = xt, x.info = Ft;
     }
     Tt();
     const J = new db(x, D);
@@ -14060,19 +14060,19 @@ class Fu {
     }, this.getPixelRatio = function() {
       return ot;
     }, this.setPixelRatio = function(C) {
-      C !== void 0 && (ot = C, this.setSize(q, W, !1));
+      C !== void 0 && (ot = C, this.setSize(q, G, !1));
     }, this.getSize = function(C) {
-      return C.set(q, W);
+      return C.set(q, G);
     }, this.setSize = function(C, B, Y = !0) {
       if (J.isPresenting) {
         console.warn("THREE.WebGLRenderer: Can't change size while VR device is presenting.");
         return;
       }
-      q = C, W = B, e.width = Math.floor(C * ot), e.height = Math.floor(B * ot), Y === !0 && (e.style.width = C + "px", e.style.height = B + "px"), this.setViewport(0, 0, C, B);
+      q = C, G = B, e.width = Math.floor(C * ot), e.height = Math.floor(B * ot), Y === !0 && (e.style.width = C + "px", e.style.height = B + "px"), this.setViewport(0, 0, C, B);
     }, this.getDrawingBufferSize = function(C) {
-      return C.set(q * ot, W * ot).floor();
+      return C.set(q * ot, G * ot).floor();
     }, this.setDrawingBufferSize = function(C, B, Y) {
-      q = C, W = B, ot = Y, e.width = Math.floor(C * Y), e.height = Math.floor(B * Y), this.setViewport(0, 0, C, B);
+      q = C, G = B, ot = Y, e.width = Math.floor(C * Y), e.height = Math.floor(B * Y), this.setViewport(0, 0, C, B);
     }, this.getCurrentViewport = function(C) {
       return C.copy(_);
     }, this.getViewport = function(C) {
@@ -14121,7 +14121,7 @@ class Fu {
     }, this.clearStencil = function() {
       this.clear(!1, !1, !0);
     }, this.dispose = function() {
-      e.removeEventListener("webglcontextlost", rt, !1), e.removeEventListener("webglcontextrestored", St, !1), e.removeEventListener("webglcontextcreationerror", Rt, !1), Ct.dispose(), re.dispose(), At.dispose(), E.dispose(), j.dispose(), tt.dispose(), xe.dispose(), F.dispose(), Nt.dispose(), J.dispose(), J.removeEventListener("sessionstart", wc), J.removeEventListener("sessionend", Mc), pi.stop();
+      e.removeEventListener("webglcontextlost", rt, !1), e.removeEventListener("webglcontextrestored", St, !1), e.removeEventListener("webglcontextcreationerror", Rt, !1), Ct.dispose(), re.dispose(), At.dispose(), E.dispose(), W.dispose(), tt.dispose(), xe.dispose(), F.dispose(), Nt.dispose(), J.dispose(), J.removeEventListener("sessionstart", wc), J.removeEventListener("sessionend", Mc), pi.stop();
     };
     function rt(C) {
       C.preventDefault(), console.log("THREE.WebGLRenderer: Context Lost."), M = !0;
@@ -14349,7 +14349,7 @@ class Fu {
       B.isScene !== !0 && (B = Jt);
       const Z = At.get(C), V = p.state.lights, ft = p.state.shadowsArray, Et = V.state.version, Dt = Nt.getParameters(C, V.state, ft, B, Y), Ut = Nt.getProgramCacheKey(Dt);
       let qt = Z.programs;
-      Z.environment = C.isMeshStandardMaterial ? B.environment : null, Z.fog = B.fog, Z.envMap = (C.isMeshStandardMaterial ? j : E).get(C.envMap || Z.environment), Z.envMapRotation = Z.environment !== null && C.envMap === null ? B.environmentRotation : C.envMapRotation, qt === void 0 && (C.addEventListener("dispose", le), qt = /* @__PURE__ */ new Map(), Z.programs = qt);
+      Z.environment = C.isMeshStandardMaterial ? B.environment : null, Z.fog = B.fog, Z.envMap = (C.isMeshStandardMaterial ? W : E).get(C.envMap || Z.environment), Z.envMapRotation = Z.environment !== null && C.envMap === null ? B.environmentRotation : C.envMapRotation, qt === void 0 && (C.addEventListener("dispose", le), qt = /* @__PURE__ */ new Map(), Z.programs = qt);
       let Xt = qt.get(Ut);
       if (Xt !== void 0) {
         if (Z.currentProgram === Xt && Z.lightsStateVersion === Et)
@@ -14372,7 +14372,7 @@ class Fu {
     }
     function wf(C, B, Y, Z, V) {
       B.isScene !== !0 && (B = Jt), L.resetTextureUnits();
-      const ft = B.fog, Et = Z.isMeshStandardMaterial ? B.environment : null, Dt = T === null ? x.outputColorSpace : T.isXRRenderTarget === !0 ? T.texture.colorSpace : Fe, Ut = (Z.isMeshStandardMaterial ? j : E).get(Z.envMap || Et), qt = Z.vertexColors === !0 && !!Y.attributes.color && Y.attributes.color.itemSize === 4, Xt = !!Y.attributes.tangent && (!!Z.normalMap || Z.anisotropy > 0), kt = !!Y.morphAttributes.position, pe = !!Y.morphAttributes.normal, be = !!Y.morphAttributes.color;
+      const ft = B.fog, Et = Z.isMeshStandardMaterial ? B.environment : null, Dt = T === null ? x.outputColorSpace : T.isXRRenderTarget === !0 ? T.texture.colorSpace : Fe, Ut = (Z.isMeshStandardMaterial ? W : E).get(Z.envMap || Et), qt = Z.vertexColors === !0 && !!Y.attributes.color && Y.attributes.color.itemSize === 4, Xt = !!Y.attributes.tangent && (!!Z.normalMap || Z.anisotropy > 0), kt = !!Y.morphAttributes.position, pe = !!Y.morphAttributes.normal, be = !!Y.morphAttributes.color;
       let Me = hi;
       Z.toneMapped && (T === null || T.isXRRenderTarget === !0) && (Me = x.toneMapping);
       const Qe = Y.morphAttributes.position || Y.morphAttributes.normal || Y.morphAttributes.color, ue = Qe !== void 0 ? Qe.length : 0, zt = At.get(Z), Oe = p.state.lights;
@@ -14402,7 +14402,7 @@ class Fu {
       }
       V.isBatchedMesh && (Ee.setOptional(D, V, "batchingTexture"), Ee.setValue(D, "batchingTexture", V._matricesTexture, L), Ee.setOptional(D, V, "batchingIdTexture"), Ee.setValue(D, "batchingIdTexture", V._indirectTexture, L), Ee.setOptional(D, V, "batchingColorTexture"), V._colorsTexture !== null && Ee.setValue(D, "batchingColorTexture", V._colorsTexture, L));
       const Xo = Y.morphAttributes;
-      if ((Xo.position !== void 0 || Xo.normal !== void 0 || Xo.color !== void 0) && Yt.update(V, Y, pn), ($e || zt.receiveShadow !== V.receiveShadow) && (zt.receiveShadow = V.receiveShadow, Ee.setValue(D, "receiveShadow", V.receiveShadow)), Z.isMeshGouraudMaterial && Z.envMap !== null && (Zn.envMap.value = Ut, Zn.flipEnvMap.value = Ut.isCubeTexture && Ut.isRenderTargetTexture === !1 ? -1 : 1), Z.isMeshStandardMaterial && Z.envMap === null && B.environment !== null && (Zn.envMapIntensity.value = B.environmentIntensity), $e && (Ee.setValue(D, "toneMappingExposure", x.toneMappingExposure), zt.needsLights && Mf(Zn, qo), ft && Z.fog === !0 && yt.refreshFogUniforms(Zn, ft), yt.refreshMaterialUniforms(Zn, Z, ot, W, p.state.transmissionRenderTarget[C.id]), vo.upload(D, Tc(zt), Zn, L)), Z.isShaderMaterial && Z.uniformsNeedUpdate === !0 && (vo.upload(D, Tc(zt), Zn, L), Z.uniformsNeedUpdate = !1), Z.isSpriteMaterial && Ee.setValue(D, "center", V.center), Ee.setValue(D, "modelViewMatrix", V.modelViewMatrix), Ee.setValue(D, "normalMatrix", V.normalMatrix), Ee.setValue(D, "modelMatrix", V.matrixWorld), Z.isShaderMaterial || Z.isRawShaderMaterial) {
+      if ((Xo.position !== void 0 || Xo.normal !== void 0 || Xo.color !== void 0) && Yt.update(V, Y, pn), ($e || zt.receiveShadow !== V.receiveShadow) && (zt.receiveShadow = V.receiveShadow, Ee.setValue(D, "receiveShadow", V.receiveShadow)), Z.isMeshGouraudMaterial && Z.envMap !== null && (Zn.envMap.value = Ut, Zn.flipEnvMap.value = Ut.isCubeTexture && Ut.isRenderTargetTexture === !1 ? -1 : 1), Z.isMeshStandardMaterial && Z.envMap === null && B.environment !== null && (Zn.envMapIntensity.value = B.environmentIntensity), $e && (Ee.setValue(D, "toneMappingExposure", x.toneMappingExposure), zt.needsLights && Mf(Zn, qo), ft && Z.fog === !0 && yt.refreshFogUniforms(Zn, ft), yt.refreshMaterialUniforms(Zn, Z, ot, G, p.state.transmissionRenderTarget[C.id]), vo.upload(D, Tc(zt), Zn, L)), Z.isShaderMaterial && Z.uniformsNeedUpdate === !0 && (vo.upload(D, Tc(zt), Zn, L), Z.uniformsNeedUpdate = !1), Z.isSpriteMaterial && Ee.setValue(D, "center", V.center), Ee.setValue(D, "modelViewMatrix", V.modelViewMatrix), Ee.setValue(D, "normalMatrix", V.normalMatrix), Ee.setValue(D, "modelMatrix", V.matrixWorld), Z.isShaderMaterial || Z.isRawShaderMaterial) {
         const rn = Z.uniformsGroups;
         for (let Ko = 0, Ef = rn.length; Ko < Ef; Ko++) {
           const Cc = rn[Ko];
@@ -15967,8 +15967,8 @@ class hs extends Se {
       for (let P = 0; P <= r; P++) {
         const k = [], _ = P / r, S = _ * (e - t) + t;
         for (let H = 0; H <= s; H++) {
-          const U = H / s, z = U * l + a, q = Math.sin(z), W = Math.cos(z);
-          R.x = S * q, R.y = -_ * n + p, R.z = S * W, d.push(R.x, R.y, R.z), M.set(q, T, W).normalize(), u.push(M.x, M.y, M.z), f.push(U, 1 - _), k.push(m++);
+          const U = H / s, z = U * l + a, q = Math.sin(z), G = Math.cos(z);
+          R.x = S * q, R.y = -_ * n + p, R.z = S * G, d.push(R.x, R.y, R.z), M.set(q, T, G).normalize(), u.push(M.x, M.y, M.z), f.push(U, 1 - _), k.push(m++);
         }
         v.push(k);
       }
@@ -15987,8 +15987,8 @@ class hs extends Se {
         d.push(0, p * _, 0), u.push(0, _, 0), f.push(0.5, 0.5), m++;
       const S = m;
       for (let H = 0; H <= s; H++) {
-        const z = H / s * l + a, q = Math.cos(z), W = Math.sin(z);
-        T.x = k * W, T.y = p * _, T.z = k * q, d.push(T.x, T.y, T.z), u.push(0, _, 0), A.x = q * 0.5 + 0.5, A.y = W * 0.5 * _ + 0.5, f.push(A.x, A.y), m++;
+        const z = H / s * l + a, q = Math.cos(z), G = Math.sin(z);
+        T.x = k * G, T.y = p * _, T.z = k * q, d.push(T.x, T.y, T.z), u.push(0, _, 0), A.x = q * 0.5 + 0.5, A.y = G * 0.5 * _ + 0.5, f.push(A.x, A.y), m++;
       }
       for (let H = 0; H < s; H++) {
         const U = R + H, z = S + H;
@@ -16439,12 +16439,12 @@ class Co extends Se {
       function q(it, D, vt) {
         return D || console.error("THREE.ExtrudeGeometry: vec does not exist"), it.clone().addScaledVector(D, vt);
       }
-      const W = _.length, ot = U.length;
+      const G = _.length, ot = U.length;
       function K(it, D, vt) {
         let mt, ct, xt;
-        const Ft = it.x - D.x, At = it.y - D.y, L = vt.x - it.x, E = vt.y - it.y, j = Ft * Ft + At * At, $ = Ft * E - At * L;
+        const Ft = it.x - D.x, At = it.y - D.y, L = vt.x - it.x, E = vt.y - it.y, W = Ft * Ft + At * At, $ = Ft * E - At * L;
         if (Math.abs($) > Number.EPSILON) {
-          const st = Math.sqrt(j), tt = Math.sqrt(L * L + E * E), Nt = D.x - At / st, yt = D.y + Ft / st, Ct = vt.x - E / tt, re = vt.y + L / tt, dt = ((Ct - Nt) * E - (re - yt) * L) / (Ft * E - At * L);
+          const st = Math.sqrt(W), tt = Math.sqrt(L * L + E * E), Nt = D.x - At / st, yt = D.y + Ft / st, Ct = vt.x - E / tt, re = vt.y + L / tt, dt = ((Ct - Nt) * E - (re - yt) * L) / (Ft * E - At * L);
           mt = Nt + Ft * dt - it.x, ct = yt + At * dt - it.y;
           const Pt = mt * mt + ct * ct;
           if (Pt <= 2)
@@ -16452,7 +16452,7 @@ class Co extends Se {
           xt = Math.sqrt(Pt / 2);
         } else {
           let st = !1;
-          Ft > Number.EPSILON ? L > Number.EPSILON && (st = !0) : Ft < -Number.EPSILON ? L < -Number.EPSILON && (st = !0) : Math.sign(At) === Math.sign(E) && (st = !0), st ? (mt = -At, ct = Ft, xt = Math.sqrt(j)) : (mt = Ft, ct = At, xt = Math.sqrt(j / 2));
+          Ft > Number.EPSILON ? L > Number.EPSILON && (st = !0) : Ft < -Number.EPSILON ? L < -Number.EPSILON && (st = !0) : Math.sign(At) === Math.sign(E) && (st = !0), st ? (mt = -At, ct = Ft, xt = Math.sqrt(W)) : (mt = Ft, ct = At, xt = Math.sqrt(W / 2));
         }
         return new nt(mt / xt, ct / xt);
       }
@@ -16484,12 +16484,12 @@ class Co extends Se {
         }
       }
       const se = m + v;
-      for (let it = 0; it < W; it++) {
+      for (let it = 0; it < G; it++) {
         const D = u ? q(_[it], Ht[it], se) : _[it];
         M ? (T.copy(R.normals[0]).multiplyScalar(D.x), A.copy(R.binormals[0]).multiplyScalar(D.y), P.copy(x[0]).add(T).add(A), wt(P.x, P.y, P.z)) : wt(D.x, D.y, 0);
       }
       for (let it = 1; it <= h; it++)
-        for (let D = 0; D < W; D++) {
+        for (let D = 0; D < G; D++) {
           const vt = u ? q(_[D], Ht[D], se) : _[D];
           M ? (T.copy(R.normals[it]).multiplyScalar(vt.x), A.copy(R.binormals[it]).multiplyScalar(vt.y), P.copy(x[it]).add(T).add(A), wt(P.x, P.y, P.z)) : wt(vt.x, vt.y, d / h * it);
         }
@@ -16512,12 +16512,12 @@ class Co extends Se {
       function Q() {
         const it = s.length / 3;
         if (u) {
-          let D = 0, vt = W * D;
+          let D = 0, vt = G * D;
           for (let mt = 0; mt < ot; mt++) {
             const ct = U[mt];
             jt(ct[2] + vt, ct[1] + vt, ct[0] + vt);
           }
-          D = h + p * 2, vt = W * D;
+          D = h + p * 2, vt = G * D;
           for (let mt = 0; mt < ot; mt++) {
             const ct = U[mt];
             jt(ct[0] + vt, ct[1] + vt, ct[2] + vt);
@@ -16529,7 +16529,7 @@ class Co extends Se {
           }
           for (let D = 0; D < ot; D++) {
             const vt = U[D];
-            jt(vt[0] + W * h, vt[1] + W * h, vt[2] + W * h);
+            jt(vt[0] + G * h, vt[1] + G * h, vt[2] + G * h);
           }
         }
         n.addGroup(it, s.length / 3 - it, 0);
@@ -16551,8 +16551,8 @@ class Co extends Se {
           let ct = vt - 1;
           ct < 0 && (ct = it.length - 1);
           for (let xt = 0, Ft = h + p * 2; xt < Ft; xt++) {
-            const At = W * xt, L = W * (xt + 1), E = D + mt + At, j = D + ct + At, $ = D + ct + L, st = D + mt + L;
-            Wt(E, j, $, st);
+            const At = G * xt, L = G * (xt + 1), E = D + mt + At, W = D + ct + At, $ = D + ct + L, st = D + mt + L;
+            Wt(E, W, $, st);
           }
         }
       }
@@ -22914,7 +22914,7 @@ function Ld(i, t, e, n) {
     }
     const H = new O();
     n >= 0 && (H.userData.openingWall = n, H.userData.openingIndex = T), c.add(H);
-    const U = (K, at, lt, ut, Ht, se) => Ws(H, s, l, d, K, at, lt, ut, Ht, se), z = (K, at) => U(K - 0.025, K + 0.025, at - 0.05, at + 0.05, f * 1.5, g), q = 0.06, W = (P + k) / 2, ot = (_ + S) / 2;
+    const U = (K, at, lt, ut, Ht, se) => Ws(H, s, l, d, K, at, lt, ut, Ht, se), z = (K, at) => U(K - 0.025, K + 0.025, at - 0.05, at + 0.05, f * 1.5, g), q = 0.06, G = (P + k) / 2, ot = (_ + S) / 2;
     if (A.kind === "door") {
       const K = A.variant || "single";
       U(P, P + q, _, S, f * 1.15, p), U(k - q, k, _, S, f * 1.15, p), U(P, k, S - q, S, f * 1.15, p);
@@ -22923,9 +22923,9 @@ function Ld(i, t, e, n) {
     } else {
       const K = A.variant || "single";
       if (U(P, P + q, _, S, f * 1.05, x), U(k - q, k, _, S, f * 1.05, x), U(P, k, _, _ + q, f * 1.05, x), U(P, k, S - q, S, f * 1.05, x), U(P + q, k - q, _ + q, S - q, f, y), K === "single")
-        U(W - 0.03, W + 0.03, _ + q, S - q, f * 1.05, x), U(P + q, k - q, ot - 0.03, ot + 0.03, f * 1.05, x);
+        U(G - 0.03, G + 0.03, _ + q, S - q, f * 1.05, x), U(P + q, k - q, ot - 0.03, ot + 0.03, f * 1.05, x);
       else if (K === "double" || K === "sliding")
-        U(W - 0.03, W + 0.03, _ + q, S - q, f * 1.05, x);
+        U(G - 0.03, G + 0.03, _ + q, S - q, f * 1.05, x);
       else if (K === "terrace") {
         const at = Math.max(2, Math.round((k - P) / 0.95));
         for (let ut = 1; ut < at; ut++) {
@@ -24353,7 +24353,7 @@ function io(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const m_ = "0.124.0", Uo = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const m_ = "0.125.0", Uo = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function g_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25564,7 +25564,7 @@ class C_ {
       if (z < 1e-6) return;
       let q = ((t.x - T) * H + (t.z - P) * U) / z;
       q = Math.max(0, Math.min(1, q));
-      const W = T + H * q, ot = P + U * q, K = Math.hypot(t.x - W, t.z - ot);
+      const G = T + H * q, ot = P + U * q, K = Math.hypot(t.x - G, t.z - ot);
       if (K < o) {
         o = K;
         const at = Math.sqrt(z);
@@ -25611,10 +25611,10 @@ class C_ {
       let z = Math.atan2(H, S);
       const q = Math.abs((z - M + Math.PI) % Math.PI);
       if (q > 0.03 && Math.abs(q - Math.PI) > 0.03) return null;
-      const W = Math.sqrt(U), ot = ((y - T) * S + (x - P) * H) / U, K = T + S * ot, at = P + H * ot;
+      const G = Math.sqrt(U), ot = ((y - T) * S + (x - P) * H) / U, K = T + S * ot, at = P + H * ot;
       if (Math.hypot(y - K, x - at) > 0.12) return null;
-      const lt = ot * W;
-      return lt < 0 || lt > W ? null : Math.max(0, Math.min(W - s, lt - s / 2));
+      const lt = ot * G;
+      return lt < 0 || lt > G ? null : Math.max(0, Math.min(G - s, lt - s / 2));
     };
     for (const T of n.walls ?? []) {
       if (c.type === "wall" && T === c.wall) continue;
@@ -26212,6 +26212,8 @@ const $d = [
   "Fix the leak, then open the valve": "Устраните протечку и откройте кран",
   "Valve is open": "Кран открыт",
   Show: "Показать",
+  "Sync speakers": "Объединить колонки",
+  "Unsync speakers": "Разъединить колонки",
   "Place this sensor on the plan to see the room": "Разместите датчик на плане, чтобы видеть комнату",
   Room: "Комната",
   "All on": "Включить всё",
@@ -27046,7 +27048,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     this.idle && (this.idle = !1), this.armIdle();
   }
   renderPaletteCell(i, t) {
-    return G`
+    return j`
       <button
         class="palette-cell ${i === this.editSelectedModel ? "active" : ""}"
         title=${t}
@@ -27059,7 +27061,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderEditor() {
     const i = this.editTool, t = (o) => o.replace(/_/g, " ").replace(/\b\w/g, (a) => a.toUpperCase()), e = I1.filter((o) => !Lo.includes(o)), n = this.editSelectedKind, s = i === "select" && !!n, r = n === "furniture";
-    return G`
+    return j`
       <div class="overlay top-left toolbar">
         <div class="ed-head"><span>✎ Editor</span></div>
 
@@ -27093,7 +27095,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <button class="btn span2 ${i === "select" ? "active" : ""}" title="Select / move / bind (camera always works: drag empty = orbit)"
             @click=${() => this.onEditTool("select")}>☝ Select</button>
         </div>
-        ${i === "arc" ? G`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>` : et}
+        ${i === "arc" ? j`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>` : et}
         <span class="hint">Camera always on: drag empty space = orbit · two fingers = pan/zoom · tap = act</span>
 
         <div class="panel-group">Building parts — drop a room</div>
@@ -27105,7 +27107,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <span class="hint">then drag / rotate / resize it</span>
 
         <div class="panel-group">Reference image — trace a 2D plan</div>
-        ${this.editUnderlay ? G`<div class="toolrow">
+        ${this.editUnderlay ? j`<div class="toolrow">
                 <label class="hint">Width (m):</label>
                 <input class="num-input" type="number" min="0.5" step="0.1"
                   .value=${String(this.editUnderlay.widthM)}
@@ -27128,7 +27130,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 <button class="btn" title="Set scale by tapping two points of known length"
                   @click=${this.onCalibrateUnderlay}>📏 Calibrate (2 pts)</button>
                 <button class="btn" title="Remove reference image" @click=${this.onRemoveUnderlay}>🗑 Remove</button>
-              </div>` : G`<div class="toolrow">
+              </div>` : j`<div class="toolrow">
               <label class="btn" title="Import a top-down 2D plan image to trace over">
                 📷 Import image
                 <input type="file" accept="image/*" style="display:none"
@@ -27150,7 +27152,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       this.editAllWallMat = o.target.value, this.editor?.setAllWallsMaterial(this.editAllWallMat);
     }}>
             ${Rd.map(
-      (o) => G`<option value=${o} ?selected=${o === this.editAllWallMat}>${o}</option>`
+      (o) => j`<option value=${o} ?selected=${o === this.editAllWallMat}>${o}</option>`
     )}
           </select>
         </div>
@@ -27166,7 +27168,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       this.editAllFloorMat = o.target.value, this.editor?.setAllFloorsMaterial(this.editAllFloorMat);
     }}>
             ${Cd.map(
-      (o) => G`<option value=${o} ?selected=${o === this.editAllFloorMat}>${o}</option>`
+      (o) => j`<option value=${o} ?selected=${o === this.editAllFloorMat}>${o}</option>`
     )}
           </select>
         </div>
@@ -27174,17 +27176,17 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         ${(() => {
       const o = this.editor?.plan.floors ?? [], a = o[this.editFloorIndex]?.name ?? "";
-      return G`<div class="panel-group">Floors</div>
+      return j`<div class="panel-group">Floors</div>
           <div class="toolrow">
-            ${o.length > 1 ? G`<select class="select" @change=${this.onSelectEditFloor}>
+            ${o.length > 1 ? j`<select class="select" @change=${this.onSelectEditFloor}>
                   ${o.map(
-        (l, c) => G`<option value=${c} ?selected=${c === this.editFloorIndex}>
+        (l, c) => j`<option value=${c} ?selected=${c === this.editFloorIndex}>
                       ${l.name || `Floor ${c + 1}`}
                     </option>`
       )}
                 </select>` : et}
             <button class="btn" title="Add a floor above" @click=${this.onAddFloor}>➕ Floor</button>
-            ${o.length > 1 ? G`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>` : et}
+            ${o.length > 1 ? j`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>` : et}
           </div>
           <div class="toolrow">
             <input class="name-input" type="text" placeholder="Floor name"
@@ -27205,18 +27207,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="toolrow">
           <button class="btn" title="Add a room control icon you place by hand"
             @click=${this.onAddZone}>➕ Add room</button>
-          ${this.editZones.length ? G`<select class="select" @change=${(o) => this.onSelectZone(o.target.value || null)}>
+          ${this.editZones.length ? j`<select class="select" @change=${(o) => this.onSelectZone(o.target.value || null)}>
                 <option value="">— select —</option>
                 ${this.editZones.map(
-      (o) => G`<option value=${o.id} ?selected=${o.id === this.editSelectedZoneId}>${o.name || "Room"}</option>`
+      (o) => j`<option value=${o.id} ?selected=${o.id === this.editSelectedZoneId}>${o.name || "Room"}</option>`
     )}
               </select>` : et}
         </div>
         ${(() => {
       const o = this.editZones.find((l) => l.id === this.editSelectedZoneId);
-      if (!o) return this.editZones.length ? G`<span class="hint">select a room to place its icon &amp; pick devices</span>` : G`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
+      if (!o) return this.editZones.length ? j`<span class="hint">select a room to place its icon &amp; pick devices</span>` : j`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
       const a = this.editor?.floorEntities ?? [];
-      return G`<div class="toolrow">
+      return j`<div class="toolrow">
               <input class="name-input" type="text" placeholder="Room name"
                 .value=${o.name ?? ""} @input=${(l) => this.onSetZoneName(o.id, l)} />
             </div>
@@ -27235,22 +27237,22 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
                 type="file" accept="image/*" style="display:none"
                 @change=${(l) => this.onUploadZoneBg(o.id, l)} /></label>
-              ${o.bgImage ? G`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(o.id)}>🗑</button>
-                    <span class="hint">${o.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : G`<span class="hint">не задан</span>`}
+              ${o.bgImage ? j`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(o.id)}>🗑</button>
+                    <span class="hint">${o.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : j`<span class="hint">не задан</span>`}
             </div>
-            ${a.length ? G`<span class="hint">Devices in this room (${o.entities.length}):</span>
+            ${a.length ? j`<span class="hint">Devices in this room (${o.entities.length}):</span>
                   <div class="zone-devs">
                     ${a.map(
-        (l) => G`<label class="zone-dev">
+        (l) => j`<label class="zone-dev">
                         <input type="checkbox" ?checked=${o.entities.includes(l.entity_id)}
                           @change=${() => this.onToggleZoneDevice(o.id, l.entity_id)} />
                         <span>${l.name}</span>
                       </label>`
       )}
-                  </div>` : G`<span class="hint">bind entities to furniture first, then tick them here</span>`}`;
+                  </div>` : j`<span class="hint">bind entities to furniture first, then tick them here</span>`}`;
     })()}
 
-        ${i === "wall" || i === "floor" ? G`<div class="toolrow">
+        ${i === "wall" || i === "floor" ? j`<div class="toolrow">
               <button class="btn" title="Remove the last point" @click=${this.onUndoPoint}>⤺ Undo point</button>
               <button class="btn" title="Finish this run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
               <button class="btn ${this.editSnap ? "active" : ""}"
@@ -27259,7 +27261,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               <span class="hint">${i === "floor" ? "trace a floor: tap corners · tap start (or Finish) to close" : "tap to add points · tap start to close (adds floor) · Finish/Enter to end"}</span>
             </div>` : et}
 
-        ${i === "furniture" ? G`<div class="toolrow">
+        ${i === "furniture" ? j`<div class="toolrow">
               <button class="btn palette-btn" title="Choose a model" @click=${this.togglePalette}>
                 <img class="palette-thumb" src=${Jd(this.editSelectedModel)} alt="" />
                 ${t(this.editSelectedModel)} ▾
@@ -27268,64 +27270,64 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             </div>
             ${this.paletteOpen ? (() => {
       const o = this.editFurnSearch.trim().toLowerCase(), a = (h) => !o || t(h).toLowerCase().includes(o) || h.includes(o), l = Lo.filter(a), c = e.filter(a);
-      return G`<div class="palette">
+      return j`<div class="palette">
                     <input class="select wide" type="search" placeholder="🔍 search models…"
                       .value=${this.editFurnSearch}
                       @input=${(h) => this.editFurnSearch = h.target.value} />
-                    ${l.length ? G`<div class="palette-group">Lighting</div>
+                    ${l.length ? j`<div class="palette-group">Lighting</div>
                           <div class="palette-grid">
                             ${l.map((h) => this.renderPaletteCell(h, t(h)))}
                           </div>` : et}
-                    ${c.length ? G`<div class="palette-group">Furniture</div>
+                    ${c.length ? j`<div class="palette-group">Furniture</div>
                           <div class="palette-grid">
                             ${c.map((h) => this.renderPaletteCell(h, t(h)))}
                           </div>` : et}
-                    ${!l.length && !c.length ? G`<span class="hint">no models match "${this.editFurnSearch}"</span>` : et}
+                    ${!l.length && !c.length ? j`<span class="hint">no models match "${this.editFurnSearch}"</span>` : et}
                   </div>`;
     })() : et}` : et}
 
-        ${s ? G`<div class="toolrow">
+        ${s ? j`<div class="toolrow">
               <span class="hint">${n === "room" && !this.editRoom?.shape ? "floor" : n} selected</span>
-              ${r ? G`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
+              ${r ? j`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>` : et}
-              ${n === "opening" ? G`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
+              ${n === "opening" ? j`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
                     <button class="btn" title="Slide right along the wall" @click=${() => this.onSlideOpening(0.1)}>Right ▶</button>` : et}
               <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>
-            ${r && this.editIsLight ? G`<div class="toolrow">
+            ${r && this.editIsLight ? j`<div class="toolrow">
                   <span class="hint">Brightness:</span>
                   <input type="range" min="0" max="1" step="0.05"
                     .value=${String(this.editBrightness)}
                     title="Manual glow level (bound light overrides)"
                     @input=${this.onSetBrightness} />
                 </div>` : et}
-            ${r && this.editIsLightSet ? G`<div class="toolrow">
+            ${r && this.editIsLightSet ? j`<div class="toolrow">
                     <span class="hint">Spread:</span>
                     <input type="range" min="0.6" max="10" step="0.1"
                       .value=${String(this.editSpread)}
                       title="Spacing between elements (each keeps its size)"
                       @input=${this.onSetSpread} />
                   </div>
-                  ${this.editSelectedObjModel === "spotlight_bar" ? G`<div class="toolrow">
+                  ${this.editSelectedObjModel === "spotlight_bar" ? j`<div class="toolrow">
                         <span class="hint">Spots:</span>
                         <input class="num-input" type="number" min="1" max="12" step="1"
                           .value=${String(this.editCount)}
                           @change=${this.onSetCount} />
                       </div>` : et}` : et}
-            ${n === "opening" ? G`<div class="toolrow">
+            ${n === "opening" ? j`<div class="toolrow">
                     <span class="hint">Type:</span>
                     <select class="select" @change=${this.onSetOpeningKind}>
                       ${["door", "window", "opening"].map(
-      (o) => G`<option value=${o} ?selected=${o === this.editOpeningKind}>${o}</option>`
+      (o) => j`<option value=${o} ?selected=${o === this.editOpeningKind}>${o}</option>`
     )}
                     </select>
                   </div>
-                  ${this.editOpeningKind !== "opening" ? G`<div class="toolrow">
+                  ${this.editOpeningKind !== "opening" ? j`<div class="toolrow">
                         <span class="hint">Style:</span>
                         <select class="select" @change=${this.onSetOpeningVariant}>
                           ${(this.editOpeningKind === "door" ? Z1 : J1).map(
-      (o) => G`<option value=${o} ?selected=${o === this.editOpeningVariant}>${o}</option>`
+      (o) => j`<option value=${o} ?selected=${o === this.editOpeningVariant}>${o}</option>`
     )}
                         </select>
                       </div>` : et}
@@ -27335,7 +27337,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       .value=${this.editOpeningWidth != null ? this.editOpeningWidth.toFixed(2) : ""}
                       @change=${this.onSetOpeningWidth} />
                   </div>` : et}
-            ${n !== "opening" ? G`<div class="toolrow">
+            ${n !== "opening" ? j`<div class="toolrow">
                   <span class="hint">Color:</span>
                   <input
                     class="color"
@@ -27343,14 +27345,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editSelectedColor ?? (n === "room" ? "#c6a87e" : n === "wall" ? "#dcc3a0" : "#ffffff")}
                     @input=${this.onSetColor}
                   />
-                  ${n === "wall" || n === "room" ? G`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
+                  ${n === "wall" || n === "room" ? j`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
                         <select class="select" @change=${this.onSetMaterial}>
                           ${(n === "room" ? Cd : Rd).map(
-      (o) => G`<option value=${o} ?selected=${o === this.editMaterial}>${o}</option>`
+      (o) => j`<option value=${o} ?selected=${o === this.editMaterial}>${o}</option>`
     )}
                         </select>` : et}
                 </div>` : et}
-            ${r && this.editFurnScale && !this.editIsLightSet ? G`<div class="toolrow">
+            ${r && this.editFurnScale && !this.editIsLightSet ? j`<div class="toolrow">
                   <span class="hint">Size</span>
                   <input class="num-input" type="number" min="0.1" step="0.1" title="Width"
                     .value=${this.editFurnScale[0].toFixed(1)}
@@ -27362,7 +27364,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editFurnScale[2].toFixed(1)}
                     @change=${(o) => this.onSetFurnScale(2, o)} />
                 </div>` : et}
-            ${n === "wall" ? G`<div class="toolrow">
+            ${n === "wall" ? j`<div class="toolrow">
                   <span class="hint">Length (m):</span>
                   <input
                     class="num-input"
@@ -27384,15 +27386,15 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editSelectedWallAngle != null ? this.editSelectedWallAngle.toFixed(0) : ""}
                     @change=${this.onSetWallAngle} />
                 </div>
-                ${this.editor && this.editor.selectedWallOpenings.length ? G`<div class="panel-group">Openings (tap 🗑 to remove)</div>
+                ${this.editor && this.editor.selectedWallOpenings.length ? j`<div class="panel-group">Openings (tap 🗑 to remove)</div>
                       ${this.editor.selectedWallOpenings.map(
-      (o, a) => G`<div class="toolrow">
+      (o, a) => j`<div class="toolrow">
                           <span class="hint">${o.kind} @ ${o.position.toFixed(1)}m · ${o.width.toFixed(1)}m</span>
                           <button class="btn" title="Delete this opening"
                             @click=${() => this.onDeleteWallOpening(a)}>🗑</button>
                         </div>`
     )}` : et}` : et}
-            ${n === "room" && this.editRoom?.shape ? G`<div class="toolrow">
+            ${n === "room" && this.editRoom?.shape ? j`<div class="toolrow">
                     <input class="name-input" type="text" placeholder="Room name"
                       .value=${this.editRoom.name ?? ""}
                       @change=${(o) => this.onSetRoomField("name", o)} />
@@ -27418,9 +27420,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       @change=${(o) => this.onSetRoomField("rotation", o)} />
                   </div>
                   <span class="hint">drag body=move · ring=rotate · corners=resize · Shift=no snap</span>
-                  ${this.editor && this.editor.selectedRoomOpenings.length ? G`<div class="panel-group">Openings (tap 🗑 to remove)</div>
+                  ${this.editor && this.editor.selectedRoomOpenings.length ? j`<div class="panel-group">Openings (tap 🗑 to remove)</div>
                         ${this.editor.selectedRoomOpenings.map(
-      (o, a) => G`<div class="toolrow">
+      (o, a) => j`<div class="toolrow">
                             <span class="hint">${o.kind} · ${o.width.toFixed(1)}m</span>
                             <button class="btn" title="Delete this opening"
                               @click=${() => this.onDeleteRoomOpening(a)}>🗑</button>
@@ -27428,7 +27430,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     )}` : et}` : et}
             ${r && this.hass ? (() => {
       const o = this.editShowAllEntities || !this.editSelectedObjModel ? [] : U1(this.editSelectedObjModel), { ids: a, fellBack: l } = this.candidateEntities(o), c = this.editEntitySearch.trim().toLowerCase(), h = c ? a.filter((d) => this.entityOptionText(d).toLowerCase().includes(c)) : a;
-      return G`<div class="toolrow">
+      return j`<div class="toolrow">
                       <input class="select wide" type="search" placeholder="🔍 search entity / room…"
                         .value=${this.editEntitySearch}
                         @input=${(d) => this.editEntitySearch = d.target.value} />
@@ -27439,7 +27441,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                           — bind entity —
                         </option>
                         ${h.map(
-        (d) => G`<option value=${d} ?selected=${d === this.editSelectedEntity}
+        (d) => j`<option value=${d} ?selected=${d === this.editSelectedEntity}
                             title=${d}>
                             ${this.entityOptionText(d)}
                           </option>`
@@ -27458,9 +27460,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     </span>`;
     })() : et}` : et}
 
-        ${i === "select" && !n ? G`<span class="hint">tap to select · DRAG furniture to move it · drag a wall end to reshape</span>` : et}
-        ${i === "door" || i === "window" ? G`<span class="hint">tap a wall to add a ${i}</span>` : et}
-        ${i === "wall" ? G`<span class="hint">tap 2 points = 1 wall · 🧲 snaps parallel/right-angle + equal length · drag empty space = orbit</span>` : et}
+        ${i === "select" && !n ? j`<span class="hint">tap to select · DRAG furniture to move it · drag a wall end to reshape</span>` : et}
+        ${i === "door" || i === "window" ? j`<span class="hint">tap a wall to add a ${i}</span>` : et}
+        ${i === "wall" ? j`<span class="hint">tap 2 points = 1 wall · 🧲 snaps parallel/right-angle + equal length · drag empty space = orbit</span>` : et}
 
         <div class="panel-section">
           <div class="toolrow">
@@ -27473,11 +27475,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               @input=${this.onRenamePlan}
             />
           </div>
-          ${this.projectList.length > 0 ? G`<div class="toolrow">
+          ${this.projectList.length > 0 ? j`<div class="toolrow">
                 <select class="select wide" @change=${this.onSelectStorageProject}>
-                  ${this.editingProjectId ? et : G`<option value="" selected>(unsaved new)</option>`}
+                  ${this.editingProjectId ? et : j`<option value="" selected>(unsaved new)</option>`}
                   ${this.projectList.map(
-      (o) => G`<option value=${o.id} ?selected=${o.id === this.editingProjectId}>${o.name}</option>`
+      (o) => j`<option value=${o.id} ?selected=${o.id === this.editingProjectId}>${o.name}</option>`
     )}
                 </select>
                 <button class="btn" title="Delete this project" @click=${this.onDeleteProject}>🗑</button>
@@ -27503,10 +27505,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               ${this.hasEditPin() ? "Update" : "Set"}
             </button>
           </div>
-          ${this.hasEditPin() ? G`<div class="toolrow">
+          ${this.hasEditPin() ? j`<div class="toolrow">
                 <span class="hint">🔒 PIN required to enter Edit</span>
                 <button class="btn" title="Remove the edit PIN" @click=${this.onRemoveEditPin}>Remove</button>
-              </div>` : G`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
+              </div>` : j`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
         </div>
       </div>
     `;
@@ -27518,7 +27520,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const i = this.hass, t = this.controlEntities.filter((n) => i?.states[n]);
     if (!i || !t.length) return et;
     const [e] = this.controlPos;
-    return G`
+    return j`
       <div class="control-backdrop" @click=${this.closeControl}></div>
       <div class="control-popup" style="left:${e}px"
         @click=${(n) => n.stopPropagation()}>
@@ -27541,18 +27543,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     })).filter((l) => l.ents.length), s = new Set($d.flatMap((l) => l.behaviors)), r = e.filter((l) => !s.has(l.behavior));
     r.length && n.push({ key: "other", label: "Other", icon: "dot", behaviors: [], ents: r });
     const [o] = this.controlPos, a = this.controlCategory ? n.find((l) => l.key === this.controlCategory) : null;
-    return G`
+    return j`
       <div class="control-backdrop" @click=${this.closeControl}></div>
       <div class="control-popup" style="left:${o}px"
         @click=${(l) => l.stopPropagation()}>
         <div class="control-head">
-          <span>${a ? G`<button type="button" class="ctl back" title="Back"
+          <span>${a ? j`<button type="button" class="ctl back" title="Back"
                 @click=${() => this.controlCategory = null}>${this.ic("chevUp")}</button> ${this.t(a.label)}` : i.name || this.t("Room")}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
-        ${a ? G`${a.key === "lights" ? (() => {
+        ${a ? j`${a.key === "lights" ? (() => {
       const l = a.ents.some((c) => this.effState(c.entity_id) === "on");
-      return G`<div class="control-row">
+      return j`<div class="control-row">
                       <span class="control-name">${this.t(l ? "All off" : "All on")}</span>
                       <div class="control-ctls">
                         <button type="button" class="ctl big ${l ? "on" : ""}" title="Toggle all"
@@ -27560,13 +27562,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       </div>
                     </div>`;
     })() : et}
-              ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? G`<div class="cat-grid">
+              ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? j`<div class="cat-grid">
                 ${n.map(
-      (l) => G`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
+      (l) => j`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
                     ${this.ic(l.icon)}<span>${this.t(l.label)}</span><small>${l.ents.length}</small>
                   </button>`
     )}
-              </div>` : G`<span class="hint">${this.t("No controllable devices")}</span>`}
+              </div>` : j`<span class="hint">${this.t("No controllable devices")}</span>`}
       </div>
     `;
   }
@@ -27574,7 +27576,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  on every tablet/browser instead of a tofu box. */
   ic(i) {
     const t = No[i] ?? No.dot;
-    return G`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    return j`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
     >${t.map((e) => Ff`<path d=${e}></path>`)}</svg>`;
   }
@@ -27582,45 +27584,45 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const e = this.hass.states[i], n = i.split(".")[0], s = this.effState(i), r = e?.attributes?.friendly_name ?? i, o = s === "on" || s === "open" || s === "playing" || s === "home" || s === "unlocked";
     let a;
     if (n === "light" || n === "switch" || n === "fan" || n === "input_boolean")
-      a = G`<button type="button" class="ctl big ${o ? "on" : ""}" title="Toggle"
+      a = j`<button type="button" class="ctl big ${o ? "on" : ""}" title="Toggle"
         @click=${() => this.svc(n, "toggle", {}, i, o ? "off" : "on")}>${this.ic("power")}</button>`;
     else if (n === "cover")
-      a = G`
+      a = j`
         <button type="button" class="ctl" title="Open" @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.ic("chevUp")}</button>
         <button type="button" class="ctl" title="Stop" @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.ic("stop")}</button>
         <button type="button" class="ctl" title="Close" @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.ic("chevDown")}</button>`;
     else if (n === "lock")
-      a = G`<button type="button" class="ctl ${o ? "" : "on"}" title=${o ? "Lock" : "Unlock"}
+      a = j`<button type="button" class="ctl ${o ? "" : "on"}" title=${o ? "Lock" : "Unlock"}
         @click=${() => this.svc("lock", o ? "lock" : "unlock", {}, i, o ? "locked" : "unlocked")}>${this.ic(o ? "lockOpen" : "lockClosed")}</button>`;
     else if (n === "climate") {
       const l = this.effTarget(i), c = e?.attributes?.current_temperature, h = Qd(e), d = e?.attributes?.hvac_modes ?? ["off", "cool", "heat", "auto"], u = (f) => {
         typeof l == "number" && this.stepTemp(i, e, l, h, f);
       };
-      a = G`<div class="ctl-col">
+      a = j`<div class="ctl-col">
         <div class="ctl-row">
           <button type="button" class="ctl" title="Cooler" @click=${() => u(-h)}>${this.ic("minus")}</button>
-          <span class="ctl-temp">${l != null ? `${l}°` : "—"}${c != null ? G`<small> · ${c}°</small>` : et}</span>
+          <span class="ctl-temp">${l != null ? `${l}°` : "—"}${c != null ? j`<small> · ${c}°</small>` : et}</span>
           <button type="button" class="ctl" title="Warmer" @click=${() => u(h)}>${this.ic("plus")}</button>
         </div>
         <div class="ctl-row wrap">
           ${d.map((f) => {
         const m = kd(f);
-        return G`<button type="button" class="ctl ${s === f ? "on" : ""}" title=${f}
+        return j`<button type="button" class="ctl ${s === f ? "on" : ""}" title=${f}
               @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: f }, i, f)}>${m ? this.ic(m) : f}</button>`;
       })}
         </div>
       </div>`;
     } else if (n === "media_player") {
       const l = !!e?.attributes?.is_volume_muted, c = !["off", "standby", "unavailable", "unknown"].includes(s);
-      a = G`<div class="ctl-row">
+      a = j`<div class="ctl-row">
         <button type="button" class="ctl ${c ? "on" : ""}" title="Power" @click=${() => this.svc("media_player", "toggle", {}, i, c ? "off" : "playing")}>${this.ic("power")}</button>
         <button type="button" class="ctl" title="Volume down" @click=${() => this.svc("media_player", "volume_down", {}, i)}>${this.ic("volDown")}</button>
         <button type="button" class="ctl ${l ? "on" : ""}" title="Mute" @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !l }, i)}>${this.ic("mute")}</button>
         <button type="button" class="ctl" title="Volume up" @click=${() => this.svc("media_player", "volume_up", {}, i)}>${this.ic("volUp")}</button>
       </div>`;
     } else
-      a = G`<span class="ctl-state">${s}${e?.attributes?.unit_of_measurement ?? ""}</span>`;
-    return G`<div class="control-row">
+      a = j`<span class="ctl-state">${s}${e?.attributes?.unit_of_measurement ?? ""}</span>`;
+    return j`<div class="control-row">
       <span class="control-name" title=${i}>${r}</span>
       <div class="control-ctls">${a}</div>
     </div>`;
@@ -27725,9 +27727,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     );
   }
   renderPills() {
-    return this.rooms.length ? G`<div class="pills">
+    return this.rooms.length ? j`<div class="pills">
       ${this.rooms.map(
-      (i) => G`<button
+      (i) => j`<button
           type="button"
           class="pill ${i.key === this.activeRoomKey ? "on" : ""}"
           @click=${() => this.selectRoom(i.key)}
@@ -27736,9 +27738,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>` : et;
   }
   renderFloorTabs() {
-    return this.floorNames.length <= 1 ? et : G`<div class="ftabs">
+    return this.floorNames.length <= 1 ? et : j`<div class="ftabs">
       ${this.floorNames.map(
-      (i, t) => G`<button type="button" class="ftab ${t === this.activeFloorIndex ? "on" : ""}"
+      (i, t) => j`<button type="button" class="ftab ${t === this.activeFloorIndex ? "on" : ""}"
           @click=${() => this.onSelectFloor(t)}>${i}</button>`
     )}
     </div>`;
@@ -27748,21 +27750,21 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderStageChrome() {
     const i = !!this.activeRoom;
-    return G`
+    return j`
       <div class="clock">
         <div class="ctime">${this.fmtClockTime()}</div>
         <div class="cdate">${this.fmtClockDate()}</div>
       </div>
       <div class="topstat">
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic("room")}</button>
-        ${this.panel ? G`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : et}
+        ${this.panel ? j`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : et}
         <button class="sdot" title="Screensaver" @click=${(t) => this.onSleep(t)}>${this.ic("moon")}</button>
         ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
         ${this.renderFloorTabs()}
         ${this.renderPills()}
-        ${i ? et : G`<div class="ahint">${this.ic("dot")}<span>${this.t("Select a room to control its devices")}</span></div>`}
+        ${i ? et : j`<div class="ahint">${this.ic("dot")}<span>${this.t("Select a room to control its devices")}</span></div>`}
       </div>
     `;
   }
@@ -27791,7 +27793,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderScreensaver() {
     const i = this.homeSummary();
-    return G`<div class="saver" @pointerdown=${() => this.wake()}>
+    return j`<div class="saver" @pointerdown=${() => this.wake()}>
       <div class="saver-aurora"></div>
       <div class="saver-in">
         <div class="saver-home">${this.t("My home")}</div>
@@ -27816,20 +27818,20 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const u = Number(h);
       return Number.isFinite(u) ? u.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
     }, a = t != null ? `${o(t.state, 1)}°` : r != null ? `${o(r, 1)}°` : null, l = e != null ? `${o(e.state, 0)}%` : null, c = this.roomCards(i, n);
-    return G`
+    return j`
       <div class="room-panel">
         <div class="rp-head">
           <div class="rp-top">
             <div class="rp-name">${i.name || this.t("Room")}</div>
             <button type="button" class="closebtn" title="Close" @click=${() => this.selectRoom(null)}>${this.ic("close")}</button>
           </div>
-          ${a || l ? G`<div class="rp-chips">
-                ${a ? G`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : et}
-                ${l ? G`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : et}
+          ${a || l ? j`<div class="rp-chips">
+                ${a ? j`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : et}
+                ${l ? j`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : et}
               </div>` : et}
         </div>
         <div class="rp-body">
-          ${c.length ? c : G`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
+          ${c.length ? c : j`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
         </div>
         <div class="rp-foot">
           <button type="button" class="rp-master" @click=${() => this.onRoomAllOff(i)}>
@@ -27864,7 +27866,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const u = Number(h);
       return Number.isFinite(u) ? u.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
     }, a = t != null ? `${o(t.state, 1)}°` : r != null ? `${o(r, 1)}°` : null, l = e != null ? `${o(e.state, 0)}%` : null, c = this.deviceCount(i);
-    return G`
+    return j`
       <div class="detail-back" @click=${() => this.closeDetail()}></div>
       <div class="detail" @click=${(h) => h.stopPropagation()}>
         <div class="dhead">
@@ -27873,9 +27875,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             <div class="dtitle">${i.name || this.t("Room")}</div>
             <div class="dsub">${c} ${this.ruPlural(c, "устройство", "устройства", "устройств")}</div>
           </div>
-          ${a || l ? G`<div class="rp-chips">
-                ${a ? G`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : et}
-                ${l ? G`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : et}
+          ${a || l ? j`<div class="rp-chips">
+                ${a ? j`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : et}
+                ${l ? j`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : et}
               </div>` : et}
         </div>
         <div class="dbody">${this.roomCards(i, n)}</div>
@@ -27935,7 +27937,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const i = this.leak;
     if (!i || this.leakAck) return et;
     const t = i.wet ? this.roomOfEntity(i.sensors[0]) : void 0, e = i.sensors.map((r) => this.cardName(r)).join(", "), n = i.valve, s = n ? !this.valveShut(n) : !0;
-    return G`<div class="leak-alert">
+    return j`<div class="leak-alert">
       <button type="button" class="leak-x" title=${this.t("Close")}
         @click=${() => this.leakAck = !0}>✕</button>
       <div class="leak-ic">${this.ic("drop")}</div>
@@ -27943,11 +27945,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       <div class="leak-sub">
         ${i.wet ? t?.name ? `${t.name} · ${e}` : e : this.t("Fix the leak, then open the valve")}
       </div>
-      ${i.wet && !t ? G`<div class="leak-hint">${this.t("Place this sensor on the plan to see the room")}</div>` : et}
+      ${i.wet && !t ? j`<div class="leak-hint">${this.t("Place this sensor on the plan to see the room")}</div>` : et}
       <div class="leak-btns">
-        ${t ? G`<button type="button" class="leak-b" @click=${() => this.selectRoom(t.key)}>
+        ${t ? j`<button type="button" class="leak-b" @click=${() => this.selectRoom(t.key)}>
               ${this.t("Show")}</button>` : et}
-        ${n ? G`<button type="button" class="leak-b primary" ?disabled=${s}
+        ${n ? j`<button type="button" class="leak-b primary" ?disabled=${s}
               @click=${() => n.startsWith("valve.") ? this.svc("valve", "open_valve", {}, n, "open") : this.svc("switch", "turn_on", {}, n, "on")}>
               ${s ? this.t("Valve is open") : this.t("Open the valve")}</button>` : et}
       </div>
@@ -27992,7 +27994,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  here it's just "peek at the door + open it", per the agreed design. */
   renderIntercomCard(i) {
     const t = this.hass.states, e = this.effState(i.prosmotr) === "on", n = t[i.vyzov]?.attributes?.call_state, s = n === "ringing" || n == null && this.effState(i.vyzov) === "on", r = s ? this.t("Ringing") : e ? this.t("Viewing") : this.t("Idle");
-    return G`<div class="card intercom ${s ? "ring" : ""}">
+    return j`<div class="card intercom ${s ? "ring" : ""}">
       <div class="crow">
         <div class="cicon ${s || e ? "lit" : ""}">${this.ic("camera")}</div>
         <div class="cgrow">
@@ -28004,7 +28006,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="qb ${e ? "on" : ""}"
           @click=${() => this.svc("switch", e ? "turn_off" : "turn_on", {}, i.prosmotr, e ? "off" : "on")}>
           <span class="qb-ic">${this.ic("eye")}</span><span>${this.t("View")}</span></button>
-        ${i.open ? G`<button type="button" class="qb primary"
+        ${i.open ? j`<button type="button" class="qb primary"
               @click=${() => this.svc("button", "press", {}, i.open)}>
               <span class="qb-ic">${this.ic("doorOpen")}</span><span>${this.t("Open door")}</span></button>` : et}
       </div>
@@ -28031,7 +28033,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }, d = i.filter((R) => this.lightSupportsCT(R)), u = d.find((R) => this.effState(R) === "on") ?? d[0], f = u ? this.hass?.states[u]?.attributes ?? {} : {}, m = Number(f.min_color_temp_kelvin) || 2200, v = Number(f.max_color_temp_kelvin) || 6500, p = Number(f.color_temp_kelvin), g = Number.isFinite(p) ? Math.round((p - m) / (v - m) * 100) : 50, y = `${i[0]}#ct`, x = this.sliderValue(y, Math.max(0, Math.min(100, g))), M = (R) => {
       for (const A of d) this.setLightCT(A, R);
     };
-    return G`<div class="card lights ${e ? "on" : ""}">
+    return j`<div class="card lights ${e ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${e ? "lit" : ""}">${this.ic("bulb")}</div>
         <div class="cgrow">
@@ -28041,21 +28043,21 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="sw ${e ? "on" : ""}" title="Toggle all"
           @click=${() => this.onToggleAll(i.map((R) => ({ entity_id: R, behavior: "light" })))}><span class="sw-k"></span></button>
       </div>
-      ${i.length > 1 ? G`<div class="lgrid">
+      ${i.length > 1 ? j`<div class="lgrid">
             ${i.map((R) => {
       const A = this.effState(R) === "on";
-      return G`<button type="button" class="ltile ${A ? "on" : ""}" title=${this.cardName(R)}
+      return j`<button type="button" class="ltile ${A ? "on" : ""}" title=${this.cardName(R)}
                 @click=${() => this.svc(R.split(".")[0], "toggle", {}, R, A ? "off" : "on")}>
                 <span class="lti ${A ? "lit" : ""}">${this.ic("bulb")}</span>
                 <span class="ltn">${this.cardName(R)}</span>
               </button>`;
     })}
           </div>` : et}
-      ${e && s ? G`<div class="slider" @pointerdown=${(R) => this.onSliderDown(R, l, h)}>
+      ${e && s ? j`<div class="slider" @pointerdown=${(R) => this.onSliderDown(R, l, h)}>
               <div class="slider-fill" style="width:${c}%"></div>
               <div class="slider-lab"><span>${this.t("Brightness")}</span><span>${c}%</span></div>
             </div>
-            ${d.length ? G`<div class="ctwrap">
+            ${d.length ? j`<div class="ctwrap">
                   <div class="ctlab"><span>${this.t("Warm")}</span><span>${this.t("Cool")}</span></div>
                   <div class="cttrack" @pointerdown=${(R) => this.onSliderDown(R, y, M)}>
                     <div class="ctthumb" style="left:${x}%"></div>
@@ -28065,7 +28067,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderToggleCard(i, t) {
     const e = this.effState(i) === "on", n = i.split(".")[0];
-    return G`<div class="card ${e ? "on" : ""}">
+    return j`<div class="card ${e ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${e ? "lit" : ""}">${this.ic(t)}</div>
         <div class="cgrow">
@@ -28081,7 +28083,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const t = this.hass.states[i], e = this.effState(i), n = e !== "off" && e !== "unavailable" && e !== "unknown", s = this.effTarget(i), r = Qd(t), o = (y) => {
       typeof s == "number" && this.stepTemp(i, t, s, r, y);
     }, a = t?.attributes?.current_temperature, l = a != null ? Number(a).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, c = n ? l != null ? `${l}° ${this.t("now")}` : this.climateModeLabel(e) : this.t("Off"), h = t?.attributes?.hvac_modes?.length ? t.attributes.hvac_modes : ["off"], d = h.filter((y) => y !== "off"), u = d[0] ?? "heat", f = [...d, ...h.includes("off") ? ["off"] : []], m = kd(n ? e : u) ?? "power", v = t?.attributes?.fan_modes ?? [], p = t?.attributes?.fan_mode, g = (y) => this.t({ low: "Low", mid: "Medium", medium: "Medium", high: "High", auto: "Auto" }[y] ?? y);
-    return G`<div class="card ${n ? "on cool" : ""}">
+    return j`<div class="card ${n ? "on cool" : ""}">
       <div class="crow">
         <button type="button" class="cicon ${n ? "lit" : ""}" title="Toggle"
           @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: n ? "off" : u }, i, n ? "off" : u)}>${this.ic(m)}</button>
@@ -28097,13 +28099,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>
       <div class="seg">
         ${f.map(
-      (y) => G`<button type="button" class="segb ${e === y ? "on" : ""}"
+      (y) => j`<button type="button" class="segb ${e === y ? "on" : ""}"
             @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: y }, i, y)}>${y === "off" ? this.t("Off mode") : this.climateModeLabel(y)}</button>`
     )}
       </div>
-      ${v.length && n ? G`<div class="seg fan">
+      ${v.length && n ? j`<div class="seg fan">
             ${v.map(
-      (y) => G`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
+      (y) => j`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
                 @click=${() => this.svc("climate", "set_fan_mode", { fan_mode: y }, i)}>${g(y)}</button>`
     )}
           </div>` : et}
@@ -28115,7 +28117,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  states something false. The state string is the honest signal. */
   renderCoverCard(i) {
     const t = this.hass.states[i], e = this.effState(i), n = Number(t?.attributes?.supported_features ?? 0), s = e === "closed" ? this.t("Closed") : e === "opening" ? this.t("Opening") : e === "closing" ? this.t("Closing") : this.t("Open");
-    return G`<div class="card">
+    return j`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic("curtain")}</div>
         <div class="cgrow">
@@ -28124,51 +28126,44 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         </div>
       </div>
       <div class="qbtns">
-        ${n & 1 ? G`<button type="button" class="qb"
+        ${n & 1 ? j`<button type="button" class="qb"
               @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.t("Open blind")}</button>` : et}
-        ${n & 8 ? G`<button type="button" class="qb"
+        ${n & 8 ? j`<button type="button" class="qb"
               @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.t("Stop blind")}</button>` : et}
-        ${n & 2 ? G`<button type="button" class="qb"
+        ${n & 2 ? j`<button type="button" class="qb"
               @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.t("Close blind")}</button>` : et}
       </div>
     </div>`;
   }
   renderMediaCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", r = n === "playing", o = Number(e?.attributes?.supported_features) || 0, a = (A) => (o & A) === A, l = a(128) || a(256), c = a(1) || a(16384), h = a(16), d = a(32), u = a(4), f = a(1024), m = a(8), v = !!e?.attributes?.is_volume_muted, p = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), y = e?.attributes?.media_artist ?? "", x = a(524288), M = (e?.attributes?.group_members?.length ?? 0) > 1, R = x ? this.planGroupSpeakers(i) : [];
-    return G`<div class="card ${s ? "on" : ""}">
+    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", r = n === "playing", o = Number(e?.attributes?.supported_features) || 0, a = (R) => (o & R) === R, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), u = !!e?.attributes?.is_volume_muted, f = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), m = e?.attributes?.media_title ?? this.cardName(i, t), v = e?.attributes?.media_artist ?? "", p = a(524288), g = (e?.attributes?.group_members?.length ?? 0) > 1, y = p ? this.planGroupSpeakers(i) : [], x = y.length > 0, M = x || r;
+    return j`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(i, t)}</div>
           <div class="csub">${r ? this.t("Playing now") : s ? this.t("On") : this.t("Off")}</div>
         </div>
-        ${l ? G`<button type="button" class="sw ${s ? "on" : ""}" title="Toggle"
+        ${l ? j`<button type="button" class="sw ${s ? "on" : ""}" title="Toggle"
               @click=${() => this.svc("media_player", s ? "turn_off" : "turn_on", {}, i, s ? "off" : "on")}><span class="sw-k"></span></button>` : et}
       </div>
-      ${c ? G`<div class="mp">
+      ${M ? j`<div class="mp">
             <div class="mpart">${this.ic("album")}</div>
-            <div class="mptxt"><div class="mptrack">${g}</div><div class="mpartist">${y}</div></div>
-            <div class="mpctl">
-              ${h ? G`<button type="button" class="mpb" title="Previous"
-                @click=${() => this.svc("media_player", "media_previous_track", {}, i)}>${this.ic("skipPrev")}</button>` : et}
-              <button type="button" class="mpb play" title="Play/Pause"
-                @click=${() => this.svc("media_player", "media_play_pause", {}, i, r ? "paused" : "playing")}>${this.ic(r ? "pause" : "play")}</button>
-              ${d ? G`<button type="button" class="mpb" title="Next"
-                @click=${() => this.svc("media_player", "media_next_track", {}, i)}>${this.ic("skipNext")}</button>` : et}
-              ${a(4096) ? G`<button type="button" class="mpb" title="Stop"
-                @click=${() => this.svc("media_player", "media_stop", {}, i, "idle")}>${this.ic("stop")}</button>` : et}
-              ${x && R.length ? G`<button type="button" class="mpb ${M ? "on" : ""}" title=${M ? "Unsync speakers" : "Sync speakers"}
-                    @click=${() => M ? this.svc("media_player", "unjoin", {}, i) : this.syncSpeakers(i, e, R)}>${this.ic("link")}</button>` : et}
-            </div>
+            <div class="mptxt"><div class="mptrack">${m}</div><div class="mpartist">${v}</div></div>
+            ${x ? j`<div class="mpctl">
+                  <button type="button" class="mpb ${g ? "on" : ""}"
+                    title=${g ? this.t("Unsync speakers") : this.t("Sync speakers")}
+                    @click=${() => g ? this.svc("media_player", "unjoin", {}, i) : this.syncSpeakers(i, e, y)}>${this.ic("link")}</button>
+                </div>` : et}
           </div>` : et}
-      ${u || f || m ? G`<div class="seg vol">
-            ${m ? G`<button type="button" class="segb ${v ? "on" : ""}" title="Mute"
-              @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !v }, i)}>${this.ic("mute")}</button>` : et}
+      ${c || h || d ? j`<div class="seg vol">
+            ${d ? j`<button type="button" class="segb ${u ? "on" : ""}" title="Mute"
+              @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !u }, i)}>${this.ic("mute")}</button>` : et}
             <button type="button" class="segb" title="Volume down"
-              @click=${() => this.mediaVolStep(i, e, f, -1)}>${this.ic("volDown")}</button>
-            <div class="volind">${p}%</div>
+              @click=${() => this.mediaVolStep(i, e, h, -1)}>${this.ic("volDown")}</button>
+            <div class="volind">${f}%</div>
             <button type="button" class="segb" title="Volume up"
-              @click=${() => this.mediaVolStep(i, e, f, 1)}>${this.ic("volUp")}</button>
+              @click=${() => this.mediaVolStep(i, e, h, 1)}>${this.ic("volUp")}</button>
           </div>` : et}
     </div>`;
   }
@@ -28207,7 +28202,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderLockCard(i) {
     const t = this.effState(i) === "locked";
-    return G`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
+    return j`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
       @click=${() => this.svc("lock", t ? "unlock" : "lock", {}, i, t ? "unlocked" : "locked")}>
       ${this.ic(t ? "lockClosed" : "lockOpen")}
       <div class="cgrow"><div class="lktxt">${t ? this.t("Locked") : this.t("Unlocked")}</div>
@@ -28217,7 +28212,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderInfoCard(i) {
     const e = this.hass.states[i]?.attributes?.unit_of_measurement ?? "";
-    return G`<div class="card">
+    return j`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic("gauge")}</div>
         <div class="cgrow"><div class="clabel">${this.cardName(i)}</div></div>
@@ -28252,7 +28247,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderViewToggle() {
     const i = (t) => this.viewMode === t ? "on" : "";
-    return G`<div class="view-toggle">
+    return j`<div class="view-toggle">
       <button type="button" class="vt-btn ${i("room")}" @click=${() => this.setViewMode("room")}>
         ${this.ic("room")}<span>${this.t("Room")}</span>
       </button>
@@ -28346,7 +28341,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const r = Number(n);
       return Number.isFinite(r) ? r.toLocaleString(this.uiLocale, { minimumFractionDigits: s, maximumFractionDigits: s }) : "—";
     };
-    return G`
+    return j`
       <div class="ov-top">
         <div class="ov-clock">
           <div class="ctime">${this.fmtClockTime()}</div>
@@ -28380,40 +28375,40 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     for (const s of t) for (const r of s) this.overviewRoomByKey.set(r.key, r);
     const e = this.floorNames.length > 1;
     return t.some((s) => s.length) ? t.map(
-      (s, r) => s.length ? G`${e ? G`<div class="ov-floor-h">${this.floorNames[r] ?? ""}</div>` : et}
+      (s, r) => s.length ? j`${e ? j`<div class="ov-floor-h">${this.floorNames[r] ?? ""}</div>` : et}
             ${s.map((o) => this.renderOverviewCard(o, i))}` : et
-    ) : G`<div class="rp-empty">${this.t("No devices in this room")}</div>`;
+    ) : j`<div class="rp-empty">${this.t("No devices in this room")}</div>`;
   }
   renderOverviewCard(i, t) {
     const { ids: e, anyOn: n } = this.roomLights(i), s = e.filter((v) => this.effState(v) === "on").length, r = e.length ? Math.round(s / e.length * 100) : 0, o = this.roomSensor(i, "temperature", ["°C", "°F"]), a = this.roomSensor(i, "humidity", ["%"]), l = i.entities.find((v) => v.behavior === "climate"), c = i.entities.find((v) => v.behavior === "lock"), h = i.entities.find((v) => v.behavior === "cover"), d = l ? this.hass?.states[l.entity_id]?.attributes?.current_temperature : void 0, u = o ? `${t(o.state, 1)}°` : d != null ? `${t(d, 1)}°` : null, f = a ? `${t(a.state, 0)}%` : null;
     let m = et;
     if (c) {
       const v = this.effState(c.entity_id) === "locked";
-      m = G`<button type="button" class="qstat lockq ${v ? "locked" : "unlocked"}"
+      m = j`<button type="button" class="qstat lockq ${v ? "locked" : "unlocked"}"
         @click=${(p) => {
         p.stopPropagation(), this.svc("lock", v ? "unlock" : "lock", {}, c.entity_id, v ? "unlocked" : "locked");
       }}>
         ${this.ic(v ? "lockClosed" : "lockOpen")}${v ? this.t("Locked") : this.t("Unlocked")}</button>`;
     } else if (l) {
       const v = this.hass?.states[l.entity_id]?.attributes?.temperature;
-      m = G`<div class="qstat">${this.ic("heat")}${v != null ? `${v}°` : "—"}</div>`;
+      m = j`<div class="qstat">${this.ic("heat")}${v != null ? `${v}°` : "—"}</div>`;
     } else if (h) {
       const v = this.hass?.states[h.entity_id]?.attributes?.current_position;
-      m = G`<div class="qstat">${this.ic("curtain")}${v != null ? `${v}%` : "—"}</div>`;
+      m = j`<div class="qstat">${this.ic("curtain")}${v != null ? `${v}%` : "—"}</div>`;
     }
-    return G`<div class="rcard link ${n ? "on" : ""}" @click=${() => this.openDetail(i.key)}>
+    return j`<div class="rcard link ${n ? "on" : ""}" @click=${() => this.openDetail(i.key)}>
       <div class="rchead">
         <div class="rcicon">${this.ic(this.roomIcon(i.name))}</div>
         <div class="cgrow">
           <div class="rcname">${i.name || this.t("Room")}<span class="rcchev">${this.ic("chevRight")}</span></div>
           <div class="rctemp">${[u, f].filter(Boolean).join(" · ") || "—"}</div>
         </div>
-        ${e.length ? G`<button type="button" class="sw ${n ? "on" : ""}" title="Toggle"
+        ${e.length ? j`<button type="button" class="sw ${n ? "on" : ""}" title="Toggle"
               @click=${(v) => {
       v.stopPropagation(), this.onToggleAll(i.entities.filter((p) => ["light", "switch", "input_boolean"].includes(p.behavior)));
     }}><span class="sw-k"></span></button>` : et}
       </div>
-      ${e.length ? G`
+      ${e.length ? j`
           <div class="rcmid">
             <span class="icn-mid">${this.ic("bulb")}</span><span class="lbltxt">${this.t("Light")}</span>
             <div class="grow"></div><span class="brival">${s}/${e.length} · ${r}%</span>
@@ -28421,14 +28416,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <div class="lightsegs">
             ${e.map((v) => {
       const p = this.effState(v) === "on", g = this.hass?.states[v]?.attributes?.friendly_name ?? v;
-      return G`<button type="button" class="lightseg ${p ? "on" : ""}" title=${g}
+      return j`<button type="button" class="lightseg ${p ? "on" : ""}" title=${g}
                 @click=${(y) => {
         y.stopPropagation(), this.svc(v.split(".")[0], "toggle", {}, v, p ? "off" : "on");
       }}><span>${this.shortLightName(v, i.name)}</span></button>`;
     })}
           </div>` : et}
-      ${f || m !== et ? G`<div class="rcfoot">
-            ${f ? G`<div class="qstat">${this.ic("drop")}${f}</div>` : et}
+      ${f || m !== et ? j`<div class="rcfoot">
+            ${f ? j`<div class="qstat">${this.ic("drop")}${f}</div>` : et}
             ${m}
           </div>` : et}
     </div>`;
@@ -28437,35 +28432,35 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   render() {
     if (!this.config) return et;
     const i = this.config.height ?? "500px", t = this.config.projects ?? [];
-    return G`
+    return j`
       <ha-card
         class=${this.editing ? "editing" : `view ${this.viewMode}${this.viewMode === "room" && this.activeRoom ? " has-room" : ""}${this.viewMode === "room" && this.roomPhoto ? " has-photo" : ""}${this.idle ? " idle" : ""}`}
         style=${this.editing ? "" : `height:${i}`}
       >
-        ${this.viewMode === "room" && this.roomPhoto ? G`<div
+        ${this.viewMode === "room" && this.roomPhoto ? j`<div
               class="roombg${this.roomPhotoBaked ? "" : " raw"}"
               style=${`background-image:url("${(this.roomPhotoBaked ?? this.roomPhoto).replace(/"/g, "%22")}")`}
             ></div>` : et}
         <div class="viewport" style=${this.editing ? `height:${i}` : ""}></div>
 
-        ${this.loadError ? G`<div class="error">⚠ ${this.loadError}</div>` : et}
+        ${this.loadError ? j`<div class="error">⚠ ${this.loadError}</div>` : et}
 
         ${this.editing ? et : this.renderLeakAlert()}
 
-        ${this.editing ? et : this.viewMode === "overview" ? G`${this.renderOverview()}${this.renderDetail()}` : G`${this.renderStageChrome()}${this.renderRoomPanel()}`}
+        ${this.editing ? et : this.viewMode === "overview" ? j`${this.renderOverview()}${this.renderDetail()}` : j`${this.renderStageChrome()}${this.renderRoomPanel()}`}
 
         ${!this.editing && this.idle ? this.renderScreensaver() : et}
 
-        ${this.editing ? G`<div class="overlay top-right">
+        ${this.editing ? j`<div class="overlay top-right">
               <button class="btn" title="Reset view" @click=${this.onResetView}>⌂ ${this.t("Reset")}</button>
               <div class="quality-wrap">
                 <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
                   @click=${() => this.qualityMenuOpen = !this.qualityMenuOpen}>
                   ⚙ ${this.qualityLabel(this.qualityChoice)}
                 </button>
-                ${this.qualityMenuOpen ? G`<div class="quality-menu">
+                ${this.qualityMenuOpen ? j`<div class="quality-menu">
                       ${h_.map(
-      (e) => G`<button
+      (e) => j`<button
                           class="qopt ${e === this.qualityChoice ? "on" : ""}"
                           @click=${() => this.onPickQuality(e)}>${this.qualityLabel(e)}</button>`
     )}
@@ -28480,7 +28475,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
              opens the editor (then the PIN prompt if one is set). A long-press,
              NOT a tap count, so it never clashes with a kiosk browser's own
              multi-tap menu gesture. -->
-        ${this.editing ? et : G`<div
+        ${this.editing ? et : j`<div
               class="edit-hotspot"
               @pointerdown=${this.onHotspotDown}
               @pointermove=${this.onHotspotMove}
@@ -28489,11 +28484,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               @pointerleave=${this.onHotspotUp}
             ></div>`}
 
-        ${this.qualityMenuOpen ? G`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : et}
+        ${this.qualityMenuOpen ? j`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : et}
 
         ${this.editing ? this.renderEditor() : et}
 
-        ${this.importOpen ? G`<div class="import-modal">
+        ${this.importOpen ? j`<div class="import-modal">
               <div class="import-box">
                 <div class="import-title">Import / Export plan JSON</div>
                 <textarea
@@ -28510,12 +28505,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>
             </div>` : et}
 
-        ${this.pinPromptOpen ? G`<div class="import-modal" @click=${this.cancelPin}>
+        ${this.pinPromptOpen ? j`<div class="import-modal" @click=${this.cancelPin}>
               <form class="pin-box" @click=${(e) => e.stopPropagation()} @submit=${this.submitPin}>
                 <div class="import-title">🔒 Enter edit PIN</div>
                 <input class="pin-input name-input" type="password" inputmode="numeric"
                   autocomplete="off" placeholder="PIN" />
-                ${this.pinError ? G`<div class="pin-error">${this.pinError}</div>` : et}
+                ${this.pinError ? j`<div class="pin-error">${this.pinError}</div>` : et}
                 <div class="toolrow">
                   <button type="submit" class="btn primary">Unlock</button>
                   <button type="button" class="btn" @click=${this.cancelPin}>Cancel</button>
@@ -28525,13 +28520,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         ${this.controlOpen && !this.editing ? this.renderControlPopup() : et}
 
-        ${this.toast ? G`<div class="toast">${this.toast}</div>` : et}
+        ${this.toast ? j`<div class="toast">${this.toast}</div>` : et}
 
-        ${t.length > 1 ? G`
+        ${t.length > 1 ? j`
               <div class="overlay top-left">
                 <select class="select" @change=${this.onSelectProject}>
                   ${t.map(
-      (e) => G`<option value=${e.id} ?selected=${e.id === this.activeProjectId}>
+      (e) => j`<option value=${e.id} ?selected=${e.id === this.activeProjectId}>
                       ${e.name || e.id}
                     </option>`
     )}
@@ -28539,10 +28534,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>
             ` : et}
 
-        ${this.floorNames.length > 1 && this.editing ? G`
+        ${this.floorNames.length > 1 && this.editing ? j`
               <div class="overlay bottom">
                 ${this.floorNames.map(
-      (e, n) => G`
+      (e, n) => j`
                     <button
                       class="tab ${n === this.activeFloorIndex ? "active" : ""}"
                       @click=${() => this.onSelectFloor(n)}
@@ -31070,7 +31065,7 @@ let fi = class extends rs {
     }
   }
   render() {
-    return this._config ? G`
+    return this._config ? j`
       <div class="form">
         <label>
           Card height
@@ -31121,7 +31116,7 @@ let fi = class extends rs {
             @input=${this._onPlanInput}
           ></textarea>
         </label>
-        ${this._jsonError ? G`<div class="err">⚠ ${this._jsonError}</div>` : et}
+        ${this._jsonError ? j`<div class="err">⚠ ${this._jsonError}</div>` : et}
 
         <p class="hint">
           A full visual wall-drawing editor with a furniture palette and

@@ -104,6 +104,11 @@
         'sensor.kitchen_temperature': { entity_id: 'sensor.kitchen_temperature', state: '22.5', attributes: { friendly_name: 'Kitchen Temp', unit_of_measurement: '°C' } },
         'lock.front_door': { entity_id: 'lock.front_door', state: 'locked', attributes: { friendly_name: 'Front Door' } },
         'binary_sensor.bathroom_motion': { entity_id: 'binary_sensor.bathroom_motion', state: 'off', attributes: { friendly_name: 'Bathroom Motion' } },
+        // Two groupable speakers. supported_features deliberately INCLUDES
+        // PLAY|PAUSE|NEXT|PREV (so the test proves transport is gone even when
+        // the device supports it) plus VOL + GROUPING (524288).
+        'media_player.speaker_living': { entity_id: 'media_player.speaker_living', state: 'playing', attributes: { friendly_name: 'Колонка (зал)', supported_features: 540733, media_title: 'Track A', media_artist: 'Artist A', volume_level: 0.4, group_members: ['media_player.speaker_living'] } },
+        'media_player.speaker_kitchen': { entity_id: 'media_player.speaker_kitchen', state: 'playing', attributes: { friendly_name: 'Колонка (кухня)', supported_features: 540733, media_title: 'Track B', media_artist: 'Artist B', volume_level: 0.6, group_members: ['media_player.speaker_kitchen'] } },
         // Water leak: the card finds these by device_class + name, not by config.
         'binary_sensor.water_leak_sensor': { entity_id: 'binary_sensor.water_leak_sensor', state: 'off', attributes: { friendly_name: 'Датчик протечки', device_class: 'moisture' } },
         // Normal state is OPEN — a closed water main is itself the alarm condition.
@@ -126,6 +131,15 @@
               states[id] = { ...states[id], state: service === 'turn_on' ? 'on' : 'off' };
             } else if (service === 'open_valve' || service === 'close_valve') {
               states[id] = { ...states[id], state: service === 'open_valve' ? 'open' : 'closed' };
+            } else if (service === 'join') {
+              const members = [id, ...(data.group_members || [])];
+              for (const m of members) {
+                if (states[m]) states[m] = { ...states[m], attributes: { ...states[m].attributes, group_members: members } };
+              }
+            } else if (service === 'unjoin') {
+              states[id] = { ...states[id], attributes: { ...states[id].attributes, group_members: [id] } };
+            } else if (service === 'volume_set') {
+              states[id] = { ...states[id], attributes: { ...states[id].attributes, volume_level: data.volume_level } };
             }
             push();
           },
