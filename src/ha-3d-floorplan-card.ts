@@ -302,6 +302,10 @@ export class Ha3dFloorplanCard extends LitElement {
    *  leaves ± looking dead on a stale number. Cleared once HA reports our value
    *  (confirmed) or any other value (someone used the wall unit — that wins). */
   private optTemp = new Map<string, { temp: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
+  /** Pending speaker volume (0..1) shown at once so ± feels instant instead of
+   *  waiting a round-trip, and so repeated taps step from the pending value.
+   *  Cleared when HA reports our value or any other. */
+  private optVol = new Map<string, { vol: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -459,6 +463,19 @@ export class Ha3dFloorplanCard extends LitElement {
         if (t === ov.temp || t !== ov.base) {
           clearTimeout(ov.timer);
           this.optTemp.delete(id);
+        }
+      }
+    }
+    // Same idea for a pending volume: clear once HA reports our value (confirmed)
+    // or a different one (changed elsewhere). Speakers report within ~1s, so
+    // this hands control back quickly without the number snapping mid-tap.
+    if (this.optVol.size) {
+      for (const [id, ov] of [...this.optVol]) {
+        const v = hass.states[id]?.attributes?.volume_level;
+        if (typeof v !== 'number') continue;
+        if (Math.abs(v - ov.vol) < 0.005 || v !== ov.base) {
+          clearTimeout(ov.timer);
+          this.optVol.delete(id);
         }
       }
     }
@@ -3221,7 +3238,9 @@ export class Ha3dFloorplanCard extends LitElement {
     const powerable = can(128) || can(256); // TURN_ON | TURN_OFF
     const volSet = can(4), volStep = can(1024), volMute = can(8); // SET | STEP | MUTE
     const muted = !!ent?.attributes?.is_volume_muted;
-    const volReal = Math.round((Number(ent?.attributes?.volume_level) || 0) * 100);
+    // Read the EFFECTIVE volume so the % jumps the instant ± is tapped, and so a
+    // synced pair shows the shared level rather than this speaker's stale one.
+    const volReal = Math.round(this.effVol(id) * 100);
     const track = ent?.attributes?.media_title ?? this.cardName(id, title);
     const artist = ent?.attributes?.media_artist ?? '';
     // Speaker grouping (HA media_player.join): sync this speaker with the home's
@@ -3278,15 +3297,57 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  /** Nudge a media player's volume: volume_up/down when it supports stepping,
-   *  else a ±5% volume_set. Buttons + a % readout replace the slider. */
+  /** The volume to show and to step from: the pending one if a set is in flight,
+   *  else HA's. Lets ± tap repeatedly (0.40 → 0.45 → 0.50) while HA still sits on
+   *  the old value, and keeps the % live. */
+  private effVol(id: string): number {
+    const ov = this.optVol.get(id);
+    if (ov) return ov.vol;
+    const v = this.hass?.states[id]?.attributes?.volume_level;
+    return typeof v === 'number' ? v : 0;
+  }
+
+  /** Show `vol` (0..1) for `id` until HA catches up (see optVol reconcile). */
+  private setOptimisticVol(id: string, vol: number): void {
+    const prev = this.optVol.get(id);
+    if (prev) clearTimeout(prev.timer);
+    const base = this.hass?.states[id]?.attributes?.volume_level;
+    const timer = setTimeout(() => {
+      this.optVol.delete(id);
+      this.requestUpdate();
+    }, 4000);
+    this.optVol.set(id, { vol, base: typeof base === 'number' ? base : undefined, timer });
+    this.requestUpdate();
+  }
+
+  /** The speakers a volume nudge should move: the whole HA group when this one is
+   *  grouped, so ± drives them as ONE volume; otherwise just this speaker. */
+  private volTargets(id: string, ent: HassEntity | undefined): string[] {
+    const g = ent?.attributes?.group_members as string[] | undefined;
+    if (g && g.length > 1) return g.filter((m) => this.hass?.states[m]);
+    return [id];
+  }
+
+  /** Nudge volume by ±5%. Absolute volume_set (not volume_up/down) so it lands
+   *  in one call — instant via the optimistic %, and the only way to hold a group
+   *  in lockstep. Every group member gets the SAME level, so a synced pair reads
+   *  as one control. Falls back to relative stepping for a lone device that has
+   *  STEP but not SET (some TVs), where an absolute level isn't available. */
   private mediaVolStep(id: string, ent: HassEntity | undefined, volStep: boolean, dir: number): void {
-    if (volStep) {
-      this.svc('media_player', dir > 0 ? 'volume_up' : 'volume_down', {}, id);
+    const targets = this.volTargets(id, ent);
+    const canSet = (m: string) =>
+      (Number(this.hass?.states[m]?.attributes?.supported_features) || 0) & 4;
+    if (targets.every(canSet)) {
+      const cur = this.effVol(id);
+      const next = Math.round(Math.max(0, Math.min(1, cur + dir * 0.05)) * 100) / 100;
+      if (next === Math.round(cur * 100) / 100) return; // already at the rail
+      for (const m of targets) {
+        this.setOptimisticVol(m, next);
+        this.svc('media_player', 'volume_set', { volume_level: next }, m);
+      }
       return;
     }
-    const cur = Number(ent?.attributes?.volume_level) || 0;
-    this.svc('media_player', 'volume_set', { volume_level: Math.max(0, Math.min(1, cur + dir * 0.05)) }, id);
+    if (volStep) this.svc('media_player', dir > 0 ? 'volume_up' : 'volume_down', {}, id);
   }
 
   /** Group `targets` under `id` and level their volume to `id`'s — so syncing

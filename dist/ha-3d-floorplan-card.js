@@ -24448,7 +24448,7 @@ function or(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.130.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.131.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26392,7 +26392,7 @@ const $d = [
 };
 let gt = class extends os {
   constructor() {
-    super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedEntity = null, this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.closeControl = () => {
+    super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedEntity = null, this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.closeControl = () => {
       performance.now() - this.controlOpenedAt < 400 || (this.controlOpen = !1, this.controlRoom = null, this.controlCategory = null);
     }, this.openKiosk = () => {
       window.location.href = "/3d-floorplan-kiosk";
@@ -26489,6 +26489,11 @@ let gt = class extends os {
         for (const [t, e] of [...this.optTemp]) {
           const n = i.states[t]?.attributes?.temperature;
           typeof n == "number" && (n === e.temp || n !== e.base) && (clearTimeout(e.timer), this.optTemp.delete(t));
+        }
+      if (this.optVol.size)
+        for (const [t, e] of [...this.optVol]) {
+          const n = i.states[t]?.attributes?.volume_level;
+          typeof n == "number" && (Math.abs(n - e.vol) < 5e-3 || n !== e.base) && (clearTimeout(e.timer), this.optVol.delete(t));
         }
       this.lastHass = i, this.pushEffective(i), this.controlOpen && this.requestUpdate();
     }
@@ -28292,7 +28297,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   renderMediaCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (R) => (r & R) === R, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), u = !!e?.attributes?.is_volume_muted, f = Math.round((Number(e?.attributes?.volume_level) || 0) * 100), m = e?.attributes?.media_title ?? this.cardName(i, t), v = e?.attributes?.media_artist ?? "", p = a(524288), g = (e?.attributes?.group_members?.length ?? 0) > 1, y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0, M = b || o;
+    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (R) => (r & R) === R, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), u = !!e?.attributes?.is_volume_muted, f = Math.round(this.effVol(i) * 100), m = e?.attributes?.media_title ?? this.cardName(i, t), v = e?.attributes?.media_artist ?? "", p = a(524288), g = (e?.attributes?.group_members?.length ?? 0) > 1, y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0, M = b || o;
     return G`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
@@ -28323,15 +28328,45 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           </div>` : et}
     </div>`;
   }
-  /** Nudge a media player's volume: volume_up/down when it supports stepping,
-   *  else a ±5% volume_set. Buttons + a % readout replace the slider. */
+  /** The volume to show and to step from: the pending one if a set is in flight,
+   *  else HA's. Lets ± tap repeatedly (0.40 → 0.45 → 0.50) while HA still sits on
+   *  the old value, and keeps the % live. */
+  effVol(i) {
+    const t = this.optVol.get(i);
+    if (t) return t.vol;
+    const e = this.hass?.states[i]?.attributes?.volume_level;
+    return typeof e == "number" ? e : 0;
+  }
+  /** Show `vol` (0..1) for `id` until HA catches up (see optVol reconcile). */
+  setOptimisticVol(i, t) {
+    const e = this.optVol.get(i);
+    e && clearTimeout(e.timer);
+    const n = this.hass?.states[i]?.attributes?.volume_level, s = setTimeout(() => {
+      this.optVol.delete(i), this.requestUpdate();
+    }, 4e3);
+    this.optVol.set(i, { vol: t, base: typeof n == "number" ? n : void 0, timer: s }), this.requestUpdate();
+  }
+  /** The speakers a volume nudge should move: the whole HA group when this one is
+   *  grouped, so ± drives them as ONE volume; otherwise just this speaker. */
+  volTargets(i, t) {
+    const e = t?.attributes?.group_members;
+    return e && e.length > 1 ? e.filter((n) => this.hass?.states[n]) : [i];
+  }
+  /** Nudge volume by ±5%. Absolute volume_set (not volume_up/down) so it lands
+   *  in one call — instant via the optimistic %, and the only way to hold a group
+   *  in lockstep. Every group member gets the SAME level, so a synced pair reads
+   *  as one control. Falls back to relative stepping for a lone device that has
+   *  STEP but not SET (some TVs), where an absolute level isn't available. */
   mediaVolStep(i, t, e, n) {
-    if (e) {
-      this.svc("media_player", n > 0 ? "volume_up" : "volume_down", {}, i);
+    const s = this.volTargets(i, t), o = (r) => (Number(this.hass?.states[r]?.attributes?.supported_features) || 0) & 4;
+    if (s.every(o)) {
+      const r = this.effVol(i), a = Math.round(Math.max(0, Math.min(1, r + n * 0.05)) * 100) / 100;
+      if (a === Math.round(r * 100) / 100) return;
+      for (const l of s)
+        this.setOptimisticVol(l, a), this.svc("media_player", "volume_set", { volume_level: a }, l);
       return;
     }
-    const s = Number(t?.attributes?.volume_level) || 0;
-    this.svc("media_player", "volume_set", { volume_level: Math.max(0, Math.min(1, s + n * 0.05)) }, i);
+    e && this.svc("media_player", n > 0 ? "volume_up" : "volume_down", {}, i);
   }
   /** Group `targets` under `id` and level their volume to `id`'s — so syncing
    *  from the upstairs speaker pulls the others to the upstairs volume, and from
