@@ -2718,8 +2718,8 @@ class Yt {
     return this.multiplyMatrices(t, this);
   }
   multiplyMatrices(t, e) {
-    const n = t.elements, s = e.elements, o = this.elements, r = n[0], a = n[4], l = n[8], c = n[12], h = n[1], d = n[5], f = n[9], u = n[13], m = n[2], x = n[6], p = n[10], g = n[14], y = n[3], b = n[7], M = n[11], R = n[15], A = s[0], T = s[4], I = s[8], O = s[12], _ = s[1], S = s[5], H = s[9], k = s[13], z = s[2], X = s[6], W = s[10], rt = s[14], K = s[3], at = s[7], lt = s[11], ut = s[15];
-    return o[0] = r * A + a * _ + l * z + c * K, o[4] = r * T + a * S + l * X + c * at, o[8] = r * I + a * H + l * W + c * lt, o[12] = r * O + a * k + l * rt + c * ut, o[1] = h * A + d * _ + f * z + u * K, o[5] = h * T + d * S + f * X + u * at, o[9] = h * I + d * H + f * W + u * lt, o[13] = h * O + d * k + f * rt + u * ut, o[2] = m * A + x * _ + p * z + g * K, o[6] = m * T + x * S + p * X + g * at, o[10] = m * I + x * H + p * W + g * lt, o[14] = m * O + x * k + p * rt + g * ut, o[3] = y * A + b * _ + M * z + R * K, o[7] = y * T + b * S + M * X + R * at, o[11] = y * I + b * H + M * W + R * lt, o[15] = y * O + b * k + M * rt + R * ut, this;
+    const n = t.elements, s = e.elements, o = this.elements, r = n[0], a = n[4], l = n[8], c = n[12], h = n[1], d = n[5], f = n[9], u = n[13], m = n[2], x = n[6], p = n[10], g = n[14], y = n[3], b = n[7], M = n[11], R = n[15], A = s[0], T = s[4], I = s[8], O = s[12], w = s[1], S = s[5], H = s[9], k = s[13], z = s[2], X = s[6], W = s[10], rt = s[14], K = s[3], at = s[7], lt = s[11], ut = s[15];
+    return o[0] = r * A + a * w + l * z + c * K, o[4] = r * T + a * S + l * X + c * at, o[8] = r * I + a * H + l * W + c * lt, o[12] = r * O + a * k + l * rt + c * ut, o[1] = h * A + d * w + f * z + u * K, o[5] = h * T + d * S + f * X + u * at, o[9] = h * I + d * H + f * W + u * lt, o[13] = h * O + d * k + f * rt + u * ut, o[2] = m * A + x * w + p * z + g * K, o[6] = m * T + x * S + p * X + g * at, o[10] = m * I + x * H + p * W + g * lt, o[14] = m * O + x * k + p * rt + g * ut, o[3] = y * A + b * w + M * z + R * K, o[7] = y * T + b * S + M * X + R * at, o[11] = y * I + b * H + M * W + R * lt, o[15] = y * O + b * k + M * rt + R * ut, this;
   }
   multiplyScalar(t) {
     const e = this.elements;
@@ -4219,10 +4219,10 @@ class Se extends Li {
     for (let I = 0; I < n.count; I++)
       a[I] = new N(), l[I] = new N();
     const c = new N(), h = new N(), d = new N(), f = new nt(), u = new nt(), m = new nt(), x = new N(), p = new N();
-    function g(I, O, _) {
-      c.fromBufferAttribute(n, I), h.fromBufferAttribute(n, O), d.fromBufferAttribute(n, _), f.fromBufferAttribute(o, I), u.fromBufferAttribute(o, O), m.fromBufferAttribute(o, _), h.sub(c), d.sub(c), u.sub(f), m.sub(f);
+    function g(I, O, w) {
+      c.fromBufferAttribute(n, I), h.fromBufferAttribute(n, O), d.fromBufferAttribute(n, w), f.fromBufferAttribute(o, I), u.fromBufferAttribute(o, O), m.fromBufferAttribute(o, w), h.sub(c), d.sub(c), u.sub(f), m.sub(f);
       const S = 1 / (u.x * m.y - m.x * u.y);
-      isFinite(S) && (x.copy(h).multiplyScalar(m.y).addScaledVector(d, -u.y).multiplyScalar(S), p.copy(d).multiplyScalar(u.x).addScaledVector(h, -m.x).multiplyScalar(S), a[I].add(x), a[O].add(x), a[_].add(x), l[I].add(p), l[O].add(p), l[_].add(p));
+      isFinite(S) && (x.copy(h).multiplyScalar(m.y).addScaledVector(d, -u.y).multiplyScalar(S), p.copy(d).multiplyScalar(u.x).addScaledVector(h, -m.x).multiplyScalar(S), a[I].add(x), a[O].add(x), a[w].add(x), l[I].add(p), l[O].add(p), l[w].add(p));
     }
     let y = this.groups;
     y.length === 0 && (y = [{
@@ -4230,7 +4230,7 @@ class Se extends Li {
       count: t.count
     }]);
     for (let I = 0, O = y.length; I < O; ++I) {
-      const _ = y[I], S = _.start, H = _.count;
+      const w = y[I], S = w.start, H = w.count;
       for (let k = S, z = S + H; k < z; k += 3)
         g(
           t.getX(k + 0),
@@ -4247,7 +4247,7 @@ class Se extends Li {
       r.setXYZW(I, b.x, b.y, b.z, S);
     }
     for (let I = 0, O = y.length; I < O; ++I) {
-      const _ = y[I], S = _.start, H = _.count;
+      const w = y[I], S = w.start, H = w.count;
       for (let k = S, z = S + H; k < z; k += 3)
         T(t.getX(k + 0)), T(t.getX(k + 1)), T(t.getX(k + 2));
     }
@@ -4513,13 +4513,13 @@ class Sn extends Se {
     let f = 0, u = 0;
     m("z", "y", "x", -1, -1, n, e, t, r, o, 0), m("z", "y", "x", 1, -1, n, e, -t, r, o, 1), m("x", "z", "y", 1, 1, t, n, e, s, r, 2), m("x", "z", "y", 1, -1, t, n, -e, s, r, 3), m("x", "y", "z", 1, -1, t, e, n, s, o, 4), m("x", "y", "z", -1, -1, t, e, -n, s, o, 5), this.setIndex(l), this.setAttribute("position", new ae(c, 3)), this.setAttribute("normal", new ae(h, 3)), this.setAttribute("uv", new ae(d, 2));
     function m(x, p, g, y, b, M, R, A, T, I, O) {
-      const _ = M / T, S = R / I, H = M / 2, k = R / 2, z = A / 2, X = T + 1, W = I + 1;
+      const w = M / T, S = R / I, H = M / 2, k = R / 2, z = A / 2, X = T + 1, W = I + 1;
       let rt = 0, K = 0;
       const at = new N();
       for (let lt = 0; lt < W; lt++) {
         const ut = lt * S - k;
         for (let Ht = 0; Ht < X; Ht++) {
-          const se = Ht * _ - H;
+          const se = Ht * w - H;
           at[x] = se * y, at[p] = ut * b, at[g] = z, c.push(at.x, at.y, at.z), at[x] = 0, at[p] = 0, at[g] = A > 0 ? 1 : -1, h.push(at.x, at.y, at.z), d.push(Ht / T), d.push(1 - lt / I), rt += 1;
         }
       }
@@ -9368,30 +9368,30 @@ function dv(i, t, e, n, s, o, r) {
 function uv(i, t) {
   const e = i.getParameter(i.MAX_VERTEX_ATTRIBS), n = {}, s = f(null);
   let o = s, r = !1;
-  function a(_, S, H, k, z) {
+  function a(w, S, H, k, z) {
     let X = !1;
     const W = d(k, H, S);
-    o !== W && (o = W, c(o.object)), X = u(_, k, H, z), X && m(_, k, H, z), z !== null && t.update(z, i.ELEMENT_ARRAY_BUFFER), (X || r) && (r = !1, M(_, S, H, k), z !== null && i.bindBuffer(i.ELEMENT_ARRAY_BUFFER, t.get(z).buffer));
+    o !== W && (o = W, c(o.object)), X = u(w, k, H, z), X && m(w, k, H, z), z !== null && t.update(z, i.ELEMENT_ARRAY_BUFFER), (X || r) && (r = !1, M(w, S, H, k), z !== null && i.bindBuffer(i.ELEMENT_ARRAY_BUFFER, t.get(z).buffer));
   }
   function l() {
     return i.createVertexArray();
   }
-  function c(_) {
-    return i.bindVertexArray(_);
+  function c(w) {
+    return i.bindVertexArray(w);
   }
-  function h(_) {
-    return i.deleteVertexArray(_);
+  function h(w) {
+    return i.deleteVertexArray(w);
   }
-  function d(_, S, H) {
+  function d(w, S, H) {
     const k = H.wireframe === !0;
-    let z = n[_.id];
-    z === void 0 && (z = {}, n[_.id] = z);
+    let z = n[w.id];
+    z === void 0 && (z = {}, n[w.id] = z);
     let X = z[S.id];
     X === void 0 && (X = {}, z[S.id] = X);
     let W = X[k];
     return W === void 0 && (W = f(l()), X[k] = W), W;
   }
-  function f(_) {
+  function f(w) {
     const S = [], H = [], k = [];
     for (let z = 0; z < e; z++)
       S[z] = 0, H[z] = 0, k[z] = 0;
@@ -9403,12 +9403,12 @@ function uv(i, t) {
       newAttributes: S,
       enabledAttributes: H,
       attributeDivisors: k,
-      object: _,
+      object: w,
       attributes: {},
       index: null
     };
   }
-  function u(_, S, H, k) {
+  function u(w, S, H, k) {
     const z = o.attributes, X = S.attributes;
     let W = 0;
     const rt = H.getAttributes();
@@ -9416,52 +9416,52 @@ function uv(i, t) {
       if (rt[K].location >= 0) {
         const lt = z[K];
         let ut = X[K];
-        if (ut === void 0 && (K === "instanceMatrix" && _.instanceMatrix && (ut = _.instanceMatrix), K === "instanceColor" && _.instanceColor && (ut = _.instanceColor)), lt === void 0 || lt.attribute !== ut || ut && lt.data !== ut.data) return !0;
+        if (ut === void 0 && (K === "instanceMatrix" && w.instanceMatrix && (ut = w.instanceMatrix), K === "instanceColor" && w.instanceColor && (ut = w.instanceColor)), lt === void 0 || lt.attribute !== ut || ut && lt.data !== ut.data) return !0;
         W++;
       }
     return o.attributesNum !== W || o.index !== k;
   }
-  function m(_, S, H, k) {
+  function m(w, S, H, k) {
     const z = {}, X = S.attributes;
     let W = 0;
     const rt = H.getAttributes();
     for (const K in rt)
       if (rt[K].location >= 0) {
         let lt = X[K];
-        lt === void 0 && (K === "instanceMatrix" && _.instanceMatrix && (lt = _.instanceMatrix), K === "instanceColor" && _.instanceColor && (lt = _.instanceColor));
+        lt === void 0 && (K === "instanceMatrix" && w.instanceMatrix && (lt = w.instanceMatrix), K === "instanceColor" && w.instanceColor && (lt = w.instanceColor));
         const ut = {};
         ut.attribute = lt, lt && lt.data && (ut.data = lt.data), z[K] = ut, W++;
       }
     o.attributes = z, o.attributesNum = W, o.index = k;
   }
   function x() {
-    const _ = o.newAttributes;
-    for (let S = 0, H = _.length; S < H; S++)
-      _[S] = 0;
+    const w = o.newAttributes;
+    for (let S = 0, H = w.length; S < H; S++)
+      w[S] = 0;
   }
-  function p(_) {
-    g(_, 0);
+  function p(w) {
+    g(w, 0);
   }
-  function g(_, S) {
+  function g(w, S) {
     const H = o.newAttributes, k = o.enabledAttributes, z = o.attributeDivisors;
-    H[_] = 1, k[_] === 0 && (i.enableVertexAttribArray(_), k[_] = 1), z[_] !== S && (i.vertexAttribDivisor(_, S), z[_] = S);
+    H[w] = 1, k[w] === 0 && (i.enableVertexAttribArray(w), k[w] = 1), z[w] !== S && (i.vertexAttribDivisor(w, S), z[w] = S);
   }
   function y() {
-    const _ = o.newAttributes, S = o.enabledAttributes;
+    const w = o.newAttributes, S = o.enabledAttributes;
     for (let H = 0, k = S.length; H < k; H++)
-      S[H] !== _[H] && (i.disableVertexAttribArray(H), S[H] = 0);
+      S[H] !== w[H] && (i.disableVertexAttribArray(H), S[H] = 0);
   }
-  function b(_, S, H, k, z, X, W) {
-    W === !0 ? i.vertexAttribIPointer(_, S, H, z, X) : i.vertexAttribPointer(_, S, H, k, z, X);
+  function b(w, S, H, k, z, X, W) {
+    W === !0 ? i.vertexAttribIPointer(w, S, H, z, X) : i.vertexAttribPointer(w, S, H, k, z, X);
   }
-  function M(_, S, H, k) {
+  function M(w, S, H, k) {
     x();
     const z = k.attributes, X = H.getAttributes(), W = S.defaultAttributeValues;
     for (const rt in X) {
       const K = X[rt];
       if (K.location >= 0) {
         let at = z[rt];
-        if (at === void 0 && (rt === "instanceMatrix" && _.instanceMatrix && (at = _.instanceMatrix), rt === "instanceColor" && _.instanceColor && (at = _.instanceColor)), at !== void 0) {
+        if (at === void 0 && (rt === "instanceMatrix" && w.instanceMatrix && (at = w.instanceMatrix), rt === "instanceColor" && w.instanceColor && (at = w.instanceColor)), at !== void 0) {
           const lt = at.normalized, ut = at.itemSize, Ht = t.get(at);
           if (Ht === void 0) continue;
           const se = Ht.buffer, Q = Ht.type, ht = Ht.bytesPerElement, It = Q === i.INT || Q === i.UNSIGNED_INT || at.gpuType === Kl;
@@ -9470,7 +9470,7 @@ function uv(i, t) {
             if (wt.isInstancedInterleavedBuffer) {
               for (let Jt = 0; Jt < K.locationSize; Jt++)
                 g(K.location + Jt, wt.meshPerAttribute);
-              _.isInstancedMesh !== !0 && k._maxInstanceCount === void 0 && (k._maxInstanceCount = wt.meshPerAttribute * wt.count);
+              w.isInstancedMesh !== !0 && k._maxInstanceCount === void 0 && (k._maxInstanceCount = wt.meshPerAttribute * wt.count);
             } else
               for (let Jt = 0; Jt < K.locationSize; Jt++)
                 p(K.location + Jt);
@@ -9489,7 +9489,7 @@ function uv(i, t) {
             if (at.isInstancedBufferAttribute) {
               for (let wt = 0; wt < K.locationSize; wt++)
                 g(K.location + wt, at.meshPerAttribute);
-              _.isInstancedMesh !== !0 && k._maxInstanceCount === void 0 && (k._maxInstanceCount = at.meshPerAttribute * at.count);
+              w.isInstancedMesh !== !0 && k._maxInstanceCount === void 0 && (k._maxInstanceCount = at.meshPerAttribute * at.count);
             } else
               for (let wt = 0; wt < K.locationSize; wt++)
                 p(K.location + wt);
@@ -9528,36 +9528,36 @@ function uv(i, t) {
   }
   function R() {
     I();
-    for (const _ in n) {
-      const S = n[_];
+    for (const w in n) {
+      const S = n[w];
       for (const H in S) {
         const k = S[H];
         for (const z in k)
           h(k[z].object), delete k[z];
         delete S[H];
       }
-      delete n[_];
+      delete n[w];
     }
   }
-  function A(_) {
-    if (n[_.id] === void 0) return;
-    const S = n[_.id];
+  function A(w) {
+    if (n[w.id] === void 0) return;
+    const S = n[w.id];
     for (const H in S) {
       const k = S[H];
       for (const z in k)
         h(k[z].object), delete k[z];
       delete S[H];
     }
-    delete n[_.id];
+    delete n[w.id];
   }
-  function T(_) {
+  function T(w) {
     for (const S in n) {
       const H = n[S];
-      if (H[_.id] === void 0) continue;
-      const k = H[_.id];
+      if (H[w.id] === void 0) continue;
+      const k = H[w.id];
       for (const z in k)
         h(k[z].object), delete k[z];
-      delete H[_.id];
+      delete H[w.id];
     }
   }
   function I() {
@@ -10017,8 +10017,8 @@ function vv(i) {
         0
       ];
       y.set(O, x * m * A), b.set(f, p * m * A);
-      const _ = [A, A, A, A, A, A];
-      M.set(_, g * m * A);
+      const w = [A, A, A, A, A, A];
+      M.set(w, g * m * A);
     }
     const R = new Se();
     R.setAttribute("position", new ke(y, x)), R.setAttribute("uv", new ke(b, p)), R.setAttribute("faceIndex", new ke(M, g)), t.push(R), s > ns && s--;
@@ -10500,8 +10500,8 @@ function Sv(i, t, e) {
       const A = new Float32Array(M * R * 4 * d), T = new Eu(A, M, R, d);
       T.type = wn, T.needsUpdate = !0;
       const I = b * 4;
-      for (let _ = 0; _ < d; _++) {
-        const S = p[_], H = g[_], k = y[_], z = M * R * 4 * _;
+      for (let w = 0; w < d; w++) {
+        const S = p[w], H = g[w], k = y[w], z = M * R * 4 * w;
         for (let X = 0; X < S.count; X++) {
           const W = X * I;
           u === !0 && (s.fromBufferAttribute(S, X), A[z + W + 0] = s.x, A[z + W + 1] = s.y, A[z + W + 2] = s.z, A[z + W + 3] = 0), m === !0 && (s.fromBufferAttribute(H, X), A[z + W + 4] = s.x, A[z + W + 5] = s.y, A[z + W + 6] = s.z, A[z + W + 7] = 0), x === !0 && (s.fromBufferAttribute(k, X), A[z + W + 8] = s.x, A[z + W + 9] = s.y, A[z + W + 10] = s.z, A[z + W + 11] = k.itemSize === 4 ? s.w : 1);
@@ -11534,9 +11534,9 @@ Program Info Log: ` + H + `
   this.getAttributes = function() {
     return O === void 0 && T(this), O;
   };
-  let _ = e.rendererExtensionParallelShaderCompile === !1;
+  let w = e.rendererExtensionParallelShaderCompile === !1;
   return this.isReady = function() {
-    return _ === !1 && (_ = s.getProgramParameter(x, gx)), _;
+    return w === !1 && (w = s.getProgramParameter(x, gx)), w;
   }, this.destroy = function() {
     n.releaseStatesOfProgram(this), s.deleteProgram(x), this.program = void 0;
   }, this.type = e.shaderType, this.name = e.shaderName, this.id = vx++, this.cacheKey = t, this.usedTimes = 1, this.program = x, this.vertexShader = R, this.fragmentShader = A, this;
@@ -11601,12 +11601,12 @@ function Bx(i, t, e, n, s, o, r) {
     ShadowMaterial: "shadow",
     SpriteMaterial: "sprite"
   };
-  function p(_) {
-    return c.add(_), _ === 0 ? "uv" : `uv${_}`;
+  function p(w) {
+    return c.add(w), w === 0 ? "uv" : `uv${w}`;
   }
-  function g(_, S, H, k, z) {
-    const X = k.fog, W = z.geometry, rt = _.isMeshStandardMaterial ? k.environment : null, K = (_.isMeshStandardMaterial ? e : t).get(_.envMap || rt), at = K && K.mapping === Br ? K.image.height : null, lt = x[_.type];
-    _.precision !== null && (m = s.getMaxPrecision(_.precision), m !== _.precision && console.warn("THREE.WebGLProgram.getParameters:", _.precision, "not supported, using", m, "instead."));
+  function g(w, S, H, k, z) {
+    const X = k.fog, W = z.geometry, rt = w.isMeshStandardMaterial ? k.environment : null, K = (w.isMeshStandardMaterial ? e : t).get(w.envMap || rt), at = K && K.mapping === Br ? K.image.height : null, lt = x[w.type];
+    w.precision !== null && (m = s.getMaxPrecision(w.precision), m !== w.precision && console.warn("THREE.WebGLProgram.getParameters:", w.precision, "not supported, using", m, "instead."));
     const ut = W.morphAttributes.position || W.morphAttributes.normal || W.morphAttributes.color, Ht = ut !== void 0 ? ut.length : 0;
     let se = 0;
     W.morphAttributes.position !== void 0 && (se = 1), W.morphAttributes.normal !== void 0 && (se = 2), W.morphAttributes.color !== void 0 && (se = 3);
@@ -11615,21 +11615,21 @@ function Bx(i, t, e, n, s, o, r) {
       const Ze = An[lt];
       Q = Ze.vertexShader, ht = Ze.fragmentShader;
     } else
-      Q = _.vertexShader, ht = _.fragmentShader, l.update(_), It = l.getVertexShaderID(_), wt = l.getFragmentShaderID(_);
-    const jt = i.getRenderTarget(), Wt = z.isInstancedMesh === !0, Jt = z.isBatchedMesh === !0, ne = !!_.map, it = !!_.matcap, D = !!K, vt = !!_.aoMap, mt = !!_.lightMap, ct = !!_.bumpMap, xt = !!_.normalMap, Ft = !!_.displacementMap, At = !!_.emissiveMap, L = !!_.metalnessMap, E = !!_.roughnessMap, j = _.anisotropy > 0, $ = _.clearcoat > 0, st = _.dispersion > 0, tt = _.iridescence > 0, Nt = _.sheen > 0, yt = _.transmission > 0, Ct = j && !!_.anisotropyMap, oe = $ && !!_.clearcoatMap, dt = $ && !!_.clearcoatNormalMap, Pt = $ && !!_.clearcoatRoughnessMap, Kt = tt && !!_.iridescenceMap, Zt = tt && !!_.iridescenceThicknessMap, Lt = Nt && !!_.sheenColorMap, re = Nt && !!_.sheenRoughnessMap, Qt = !!_.specularMap, xe = !!_.specularColorMap, F = !!_.specularIntensityMap, Tt = yt && !!_.transmissionMap, J = yt && !!_.thicknessMap, ot = !!_.gradientMap, St = !!_.alphaMap, Rt = _.alphaTest > 0, le = !!_.alphaHash, Te = !!_.extensions;
+      Q = w.vertexShader, ht = w.fragmentShader, l.update(w), It = l.getVertexShaderID(w), wt = l.getFragmentShaderID(w);
+    const jt = i.getRenderTarget(), Wt = z.isInstancedMesh === !0, Jt = z.isBatchedMesh === !0, ne = !!w.map, it = !!w.matcap, D = !!K, vt = !!w.aoMap, mt = !!w.lightMap, ct = !!w.bumpMap, xt = !!w.normalMap, Ft = !!w.displacementMap, At = !!w.emissiveMap, L = !!w.metalnessMap, E = !!w.roughnessMap, j = w.anisotropy > 0, $ = w.clearcoat > 0, st = w.dispersion > 0, tt = w.iridescence > 0, Nt = w.sheen > 0, yt = w.transmission > 0, Ct = j && !!w.anisotropyMap, oe = $ && !!w.clearcoatMap, dt = $ && !!w.clearcoatNormalMap, Pt = $ && !!w.clearcoatRoughnessMap, Kt = tt && !!w.iridescenceMap, Zt = tt && !!w.iridescenceThicknessMap, Lt = Nt && !!w.sheenColorMap, re = Nt && !!w.sheenRoughnessMap, Qt = !!w.specularMap, xe = !!w.specularColorMap, F = !!w.specularIntensityMap, Tt = yt && !!w.transmissionMap, J = yt && !!w.thicknessMap, ot = !!w.gradientMap, St = !!w.alphaMap, Rt = w.alphaTest > 0, le = !!w.alphaHash, Te = !!w.extensions;
     let Ke = hi;
-    _.toneMapped && (jt === null || jt.isXRRenderTarget === !0) && (Ke = i.toneMapping);
+    w.toneMapped && (jt === null || jt.isXRRenderTarget === !0) && (Ke = i.toneMapping);
     const he = {
       shaderID: lt,
-      shaderType: _.type,
-      shaderName: _.name,
+      shaderType: w.type,
+      shaderName: w.name,
       vertexShader: Q,
       fragmentShader: ht,
-      defines: _.defines,
+      defines: w.defines,
       customVertexShaderID: It,
       customFragmentShaderID: wt,
-      isRawShaderMaterial: _.isRawShaderMaterial === !0,
-      glslVersion: _.glslVersion,
+      isRawShaderMaterial: w.isRawShaderMaterial === !0,
+      glslVersion: w.glslVersion,
       precision: m,
       batching: Jt,
       batchingColor: Jt && z._colorsTexture !== null,
@@ -11638,7 +11638,7 @@ function Bx(i, t, e, n, s, o, r) {
       instancingMorph: Wt && z.morphTexture !== null,
       supportsVertexTextures: u,
       outputColorSpace: jt === null ? i.outputColorSpace : jt.isXRRenderTarget === !0 ? jt.texture.colorSpace : Fe,
-      alphaToCoverage: !!_.alphaToCoverage,
+      alphaToCoverage: !!w.alphaToCoverage,
       map: ne,
       matcap: it,
       envMap: D,
@@ -11650,8 +11650,8 @@ function Bx(i, t, e, n, s, o, r) {
       normalMap: xt,
       displacementMap: u && Ft,
       emissiveMap: At,
-      normalMapObjectSpace: xt && _.normalMapType === Lp,
-      normalMapTangentSpace: xt && _.normalMapType === ec,
+      normalMapObjectSpace: xt && w.normalMapType === Lp,
+      normalMapTangentSpace: xt && w.normalMapType === ec,
       metalnessMap: L,
       roughnessMap: E,
       anisotropy: j,
@@ -11674,45 +11674,45 @@ function Bx(i, t, e, n, s, o, r) {
       transmissionMap: Tt,
       thicknessMap: J,
       gradientMap: ot,
-      opaque: _.transparent === !1 && _.blending === rs && _.alphaToCoverage === !1,
+      opaque: w.transparent === !1 && w.blending === rs && w.alphaToCoverage === !1,
       alphaMap: St,
       alphaTest: Rt,
       alphaHash: le,
-      combine: _.combine,
+      combine: w.combine,
       //
-      mapUv: ne && p(_.map.channel),
-      aoMapUv: vt && p(_.aoMap.channel),
-      lightMapUv: mt && p(_.lightMap.channel),
-      bumpMapUv: ct && p(_.bumpMap.channel),
-      normalMapUv: xt && p(_.normalMap.channel),
-      displacementMapUv: Ft && p(_.displacementMap.channel),
-      emissiveMapUv: At && p(_.emissiveMap.channel),
-      metalnessMapUv: L && p(_.metalnessMap.channel),
-      roughnessMapUv: E && p(_.roughnessMap.channel),
-      anisotropyMapUv: Ct && p(_.anisotropyMap.channel),
-      clearcoatMapUv: oe && p(_.clearcoatMap.channel),
-      clearcoatNormalMapUv: dt && p(_.clearcoatNormalMap.channel),
-      clearcoatRoughnessMapUv: Pt && p(_.clearcoatRoughnessMap.channel),
-      iridescenceMapUv: Kt && p(_.iridescenceMap.channel),
-      iridescenceThicknessMapUv: Zt && p(_.iridescenceThicknessMap.channel),
-      sheenColorMapUv: Lt && p(_.sheenColorMap.channel),
-      sheenRoughnessMapUv: re && p(_.sheenRoughnessMap.channel),
-      specularMapUv: Qt && p(_.specularMap.channel),
-      specularColorMapUv: xe && p(_.specularColorMap.channel),
-      specularIntensityMapUv: F && p(_.specularIntensityMap.channel),
-      transmissionMapUv: Tt && p(_.transmissionMap.channel),
-      thicknessMapUv: J && p(_.thicknessMap.channel),
-      alphaMapUv: St && p(_.alphaMap.channel),
+      mapUv: ne && p(w.map.channel),
+      aoMapUv: vt && p(w.aoMap.channel),
+      lightMapUv: mt && p(w.lightMap.channel),
+      bumpMapUv: ct && p(w.bumpMap.channel),
+      normalMapUv: xt && p(w.normalMap.channel),
+      displacementMapUv: Ft && p(w.displacementMap.channel),
+      emissiveMapUv: At && p(w.emissiveMap.channel),
+      metalnessMapUv: L && p(w.metalnessMap.channel),
+      roughnessMapUv: E && p(w.roughnessMap.channel),
+      anisotropyMapUv: Ct && p(w.anisotropyMap.channel),
+      clearcoatMapUv: oe && p(w.clearcoatMap.channel),
+      clearcoatNormalMapUv: dt && p(w.clearcoatNormalMap.channel),
+      clearcoatRoughnessMapUv: Pt && p(w.clearcoatRoughnessMap.channel),
+      iridescenceMapUv: Kt && p(w.iridescenceMap.channel),
+      iridescenceThicknessMapUv: Zt && p(w.iridescenceThicknessMap.channel),
+      sheenColorMapUv: Lt && p(w.sheenColorMap.channel),
+      sheenRoughnessMapUv: re && p(w.sheenRoughnessMap.channel),
+      specularMapUv: Qt && p(w.specularMap.channel),
+      specularColorMapUv: xe && p(w.specularColorMap.channel),
+      specularIntensityMapUv: F && p(w.specularIntensityMap.channel),
+      transmissionMapUv: Tt && p(w.transmissionMap.channel),
+      thicknessMapUv: J && p(w.thicknessMap.channel),
+      alphaMapUv: St && p(w.alphaMap.channel),
       //
       vertexTangents: !!W.attributes.tangent && (xt || j),
-      vertexColors: _.vertexColors,
-      vertexAlphas: _.vertexColors === !0 && !!W.attributes.color && W.attributes.color.itemSize === 4,
+      vertexColors: w.vertexColors,
+      vertexAlphas: w.vertexColors === !0 && !!W.attributes.color && W.attributes.color.itemSize === 4,
       pointsUvs: z.isPoints === !0 && !!W.attributes.uv && (ne || St),
       fog: !!X,
-      useFog: _.fog === !0,
+      useFog: w.fog === !0,
       fogExp2: !!X && X.isFogExp2,
-      flatShading: _.flatShading === !0,
-      sizeAttenuation: _.sizeAttenuation === !0,
+      flatShading: w.flatShading === !0,
+      sizeAttenuation: w.sizeAttenuation === !0,
       logarithmicDepthBuffer: d,
       reverseDepthBuffer: f,
       skinning: z.isSkinnedMesh === !0,
@@ -11734,48 +11734,48 @@ function Bx(i, t, e, n, s, o, r) {
       numLightProbes: S.numLightProbes,
       numClippingPlanes: r.numPlanes,
       numClipIntersection: r.numIntersection,
-      dithering: _.dithering,
+      dithering: w.dithering,
       shadowMapEnabled: i.shadowMap.enabled && H.length > 0,
       shadowMapType: i.shadowMap.type,
       toneMapping: Ke,
-      decodeVideoTexture: ne && _.map.isVideoTexture === !0 && ce.getTransfer(_.map.colorSpace) === ye,
-      premultipliedAlpha: _.premultipliedAlpha,
-      doubleSided: _.side === cn,
-      flipSided: _.side === Je,
-      useDepthPacking: _.depthPacking >= 0,
-      depthPacking: _.depthPacking || 0,
-      index0AttributeName: _.index0AttributeName,
-      extensionClipCullDistance: Te && _.extensions.clipCullDistance === !0 && n.has("WEBGL_clip_cull_distance"),
-      extensionMultiDraw: (Te && _.extensions.multiDraw === !0 || Jt) && n.has("WEBGL_multi_draw"),
+      decodeVideoTexture: ne && w.map.isVideoTexture === !0 && ce.getTransfer(w.map.colorSpace) === ye,
+      premultipliedAlpha: w.premultipliedAlpha,
+      doubleSided: w.side === cn,
+      flipSided: w.side === Je,
+      useDepthPacking: w.depthPacking >= 0,
+      depthPacking: w.depthPacking || 0,
+      index0AttributeName: w.index0AttributeName,
+      extensionClipCullDistance: Te && w.extensions.clipCullDistance === !0 && n.has("WEBGL_clip_cull_distance"),
+      extensionMultiDraw: (Te && w.extensions.multiDraw === !0 || Jt) && n.has("WEBGL_multi_draw"),
       rendererExtensionParallelShaderCompile: n.has("KHR_parallel_shader_compile"),
-      customProgramCacheKey: _.customProgramCacheKey()
+      customProgramCacheKey: w.customProgramCacheKey()
     };
     return he.vertexUv1s = c.has(1), he.vertexUv2s = c.has(2), he.vertexUv3s = c.has(3), c.clear(), he;
   }
-  function y(_) {
+  function y(w) {
     const S = [];
-    if (_.shaderID ? S.push(_.shaderID) : (S.push(_.customVertexShaderID), S.push(_.customFragmentShaderID)), _.defines !== void 0)
-      for (const H in _.defines)
-        S.push(H), S.push(_.defines[H]);
-    return _.isRawShaderMaterial === !1 && (b(S, _), M(S, _), S.push(i.outputColorSpace)), S.push(_.customProgramCacheKey), S.join();
+    if (w.shaderID ? S.push(w.shaderID) : (S.push(w.customVertexShaderID), S.push(w.customFragmentShaderID)), w.defines !== void 0)
+      for (const H in w.defines)
+        S.push(H), S.push(w.defines[H]);
+    return w.isRawShaderMaterial === !1 && (b(S, w), M(S, w), S.push(i.outputColorSpace)), S.push(w.customProgramCacheKey), S.join();
   }
-  function b(_, S) {
-    _.push(S.precision), _.push(S.outputColorSpace), _.push(S.envMapMode), _.push(S.envMapCubeUVHeight), _.push(S.mapUv), _.push(S.alphaMapUv), _.push(S.lightMapUv), _.push(S.aoMapUv), _.push(S.bumpMapUv), _.push(S.normalMapUv), _.push(S.displacementMapUv), _.push(S.emissiveMapUv), _.push(S.metalnessMapUv), _.push(S.roughnessMapUv), _.push(S.anisotropyMapUv), _.push(S.clearcoatMapUv), _.push(S.clearcoatNormalMapUv), _.push(S.clearcoatRoughnessMapUv), _.push(S.iridescenceMapUv), _.push(S.iridescenceThicknessMapUv), _.push(S.sheenColorMapUv), _.push(S.sheenRoughnessMapUv), _.push(S.specularMapUv), _.push(S.specularColorMapUv), _.push(S.specularIntensityMapUv), _.push(S.transmissionMapUv), _.push(S.thicknessMapUv), _.push(S.combine), _.push(S.fogExp2), _.push(S.sizeAttenuation), _.push(S.morphTargetsCount), _.push(S.morphAttributeCount), _.push(S.numDirLights), _.push(S.numPointLights), _.push(S.numSpotLights), _.push(S.numSpotLightMaps), _.push(S.numHemiLights), _.push(S.numRectAreaLights), _.push(S.numDirLightShadows), _.push(S.numPointLightShadows), _.push(S.numSpotLightShadows), _.push(S.numSpotLightShadowsWithMaps), _.push(S.numLightProbes), _.push(S.shadowMapType), _.push(S.toneMapping), _.push(S.numClippingPlanes), _.push(S.numClipIntersection), _.push(S.depthPacking);
+  function b(w, S) {
+    w.push(S.precision), w.push(S.outputColorSpace), w.push(S.envMapMode), w.push(S.envMapCubeUVHeight), w.push(S.mapUv), w.push(S.alphaMapUv), w.push(S.lightMapUv), w.push(S.aoMapUv), w.push(S.bumpMapUv), w.push(S.normalMapUv), w.push(S.displacementMapUv), w.push(S.emissiveMapUv), w.push(S.metalnessMapUv), w.push(S.roughnessMapUv), w.push(S.anisotropyMapUv), w.push(S.clearcoatMapUv), w.push(S.clearcoatNormalMapUv), w.push(S.clearcoatRoughnessMapUv), w.push(S.iridescenceMapUv), w.push(S.iridescenceThicknessMapUv), w.push(S.sheenColorMapUv), w.push(S.sheenRoughnessMapUv), w.push(S.specularMapUv), w.push(S.specularColorMapUv), w.push(S.specularIntensityMapUv), w.push(S.transmissionMapUv), w.push(S.thicknessMapUv), w.push(S.combine), w.push(S.fogExp2), w.push(S.sizeAttenuation), w.push(S.morphTargetsCount), w.push(S.morphAttributeCount), w.push(S.numDirLights), w.push(S.numPointLights), w.push(S.numSpotLights), w.push(S.numSpotLightMaps), w.push(S.numHemiLights), w.push(S.numRectAreaLights), w.push(S.numDirLightShadows), w.push(S.numPointLightShadows), w.push(S.numSpotLightShadows), w.push(S.numSpotLightShadowsWithMaps), w.push(S.numLightProbes), w.push(S.shadowMapType), w.push(S.toneMapping), w.push(S.numClippingPlanes), w.push(S.numClipIntersection), w.push(S.depthPacking);
   }
-  function M(_, S) {
-    a.disableAll(), S.supportsVertexTextures && a.enable(0), S.instancing && a.enable(1), S.instancingColor && a.enable(2), S.instancingMorph && a.enable(3), S.matcap && a.enable(4), S.envMap && a.enable(5), S.normalMapObjectSpace && a.enable(6), S.normalMapTangentSpace && a.enable(7), S.clearcoat && a.enable(8), S.iridescence && a.enable(9), S.alphaTest && a.enable(10), S.vertexColors && a.enable(11), S.vertexAlphas && a.enable(12), S.vertexUv1s && a.enable(13), S.vertexUv2s && a.enable(14), S.vertexUv3s && a.enable(15), S.vertexTangents && a.enable(16), S.anisotropy && a.enable(17), S.alphaHash && a.enable(18), S.batching && a.enable(19), S.dispersion && a.enable(20), S.batchingColor && a.enable(21), _.push(a.mask), a.disableAll(), S.fog && a.enable(0), S.useFog && a.enable(1), S.flatShading && a.enable(2), S.logarithmicDepthBuffer && a.enable(3), S.reverseDepthBuffer && a.enable(4), S.skinning && a.enable(5), S.morphTargets && a.enable(6), S.morphNormals && a.enable(7), S.morphColors && a.enable(8), S.premultipliedAlpha && a.enable(9), S.shadowMapEnabled && a.enable(10), S.doubleSided && a.enable(11), S.flipSided && a.enable(12), S.useDepthPacking && a.enable(13), S.dithering && a.enable(14), S.transmission && a.enable(15), S.sheen && a.enable(16), S.opaque && a.enable(17), S.pointsUvs && a.enable(18), S.decodeVideoTexture && a.enable(19), S.alphaToCoverage && a.enable(20), _.push(a.mask);
+  function M(w, S) {
+    a.disableAll(), S.supportsVertexTextures && a.enable(0), S.instancing && a.enable(1), S.instancingColor && a.enable(2), S.instancingMorph && a.enable(3), S.matcap && a.enable(4), S.envMap && a.enable(5), S.normalMapObjectSpace && a.enable(6), S.normalMapTangentSpace && a.enable(7), S.clearcoat && a.enable(8), S.iridescence && a.enable(9), S.alphaTest && a.enable(10), S.vertexColors && a.enable(11), S.vertexAlphas && a.enable(12), S.vertexUv1s && a.enable(13), S.vertexUv2s && a.enable(14), S.vertexUv3s && a.enable(15), S.vertexTangents && a.enable(16), S.anisotropy && a.enable(17), S.alphaHash && a.enable(18), S.batching && a.enable(19), S.dispersion && a.enable(20), S.batchingColor && a.enable(21), w.push(a.mask), a.disableAll(), S.fog && a.enable(0), S.useFog && a.enable(1), S.flatShading && a.enable(2), S.logarithmicDepthBuffer && a.enable(3), S.reverseDepthBuffer && a.enable(4), S.skinning && a.enable(5), S.morphTargets && a.enable(6), S.morphNormals && a.enable(7), S.morphColors && a.enable(8), S.premultipliedAlpha && a.enable(9), S.shadowMapEnabled && a.enable(10), S.doubleSided && a.enable(11), S.flipSided && a.enable(12), S.useDepthPacking && a.enable(13), S.dithering && a.enable(14), S.transmission && a.enable(15), S.sheen && a.enable(16), S.opaque && a.enable(17), S.pointsUvs && a.enable(18), S.decodeVideoTexture && a.enable(19), S.alphaToCoverage && a.enable(20), w.push(a.mask);
   }
-  function R(_) {
-    const S = x[_.type];
+  function R(w) {
+    const S = x[w.type];
     let H;
     if (S) {
       const k = An[S];
       H = M0.clone(k.uniforms);
     } else
-      H = _.uniforms;
+      H = w.uniforms;
     return H;
   }
-  function A(_, S) {
+  function A(w, S) {
     let H;
     for (let k = 0, z = h.length; k < z; k++) {
       const X = h[k];
@@ -11784,16 +11784,16 @@ function Bx(i, t, e, n, s, o, r) {
         break;
       }
     }
-    return H === void 0 && (H = new kx(i, S, _, o), h.push(H)), H;
+    return H === void 0 && (H = new kx(i, S, w, o), h.push(H)), H;
   }
-  function T(_) {
-    if (--_.usedTimes === 0) {
-      const S = h.indexOf(_);
-      h[S] = h[h.length - 1], h.pop(), _.destroy();
+  function T(w) {
+    if (--w.usedTimes === 0) {
+      const S = h.indexOf(w);
+      h[S] = h[h.length - 1], h.pop(), w.destroy();
     }
   }
-  function I(_) {
-    l.remove(_);
+  function I(w) {
+    l.remove(w);
   }
   function O() {
     l.dispose();
@@ -12049,7 +12049,7 @@ function Kx(i) {
     for (let O = 0; O < 9; O++) n.probe[O].set(0, 0, 0);
     let u = 0, m = 0, x = 0, p = 0, g = 0, y = 0, b = 0, M = 0, R = 0, A = 0, T = 0;
     c.sort(Xx);
-    for (let O = 0, _ = c.length; O < _; O++) {
+    for (let O = 0, w = c.length; O < w; O++) {
       const S = c[O], H = S.color, k = S.intensity, z = S.distance, X = S.shadow && S.shadow.map ? S.shadow.map.texture : null;
       if (S.isAmbientLight)
         h += H.r * k, d += H.g * k, f += H.b * k;
@@ -12242,7 +12242,7 @@ function tb(i, t, e) {
   let g = this.type;
   this.render = function(A, T, I) {
     if (p.enabled === !1 || p.autoUpdate === !1 && p.needsUpdate === !1 || A.length === 0) return;
-    const O = i.getRenderTarget(), _ = i.getActiveCubeFace(), S = i.getActiveMipmapLevel(), H = i.state;
+    const O = i.getRenderTarget(), w = i.getActiveCubeFace(), S = i.getActiveMipmapLevel(), H = i.state;
     H.setBlending(ci), H.buffers.color.setClear(1, 1, 1, 1), H.buffers.depth.setTest(!0), H.setScissorTest(!1);
     const k = g !== Hn && this.type === Hn, z = g === Hn && this.type !== Hn;
     for (let X = 0, W = A.length; X < W; X++) {
@@ -12271,33 +12271,33 @@ function tb(i, t, e) {
       }
       K.isPointLightShadow !== !0 && this.type === Hn && y(K, I), K.needsUpdate = !1;
     }
-    g = this.type, p.needsUpdate = !1, i.setRenderTarget(O, _, S);
+    g = this.type, p.needsUpdate = !1, i.setRenderTarget(O, w, S);
   };
   function y(A, T) {
     const I = t.update(x);
     f.defines.VSM_SAMPLES !== A.blurSamples && (f.defines.VSM_SAMPLES = A.blurSamples, u.defines.VSM_SAMPLES = A.blurSamples, f.needsUpdate = !0, u.needsUpdate = !0), A.mapPass === null && (A.mapPass = new Pi(s.x, s.y)), f.uniforms.shadow_pass.value = A.map.texture, f.uniforms.resolution.value = A.mapSize, f.uniforms.radius.value = A.radius, i.setRenderTarget(A.mapPass), i.clear(), i.renderBufferDirect(T, null, I, f, x, null), u.uniforms.shadow_pass.value = A.mapPass.texture, u.uniforms.resolution.value = A.mapSize, u.uniforms.radius.value = A.radius, i.setRenderTarget(A.map), i.clear(), i.renderBufferDirect(T, null, I, u, x, null);
   }
   function b(A, T, I, O) {
-    let _ = null;
+    let w = null;
     const S = I.isPointLight === !0 ? A.customDistanceMaterial : A.customDepthMaterial;
     if (S !== void 0)
-      _ = S;
-    else if (_ = I.isPointLight === !0 ? l : a, i.localClippingEnabled && T.clipShadows === !0 && Array.isArray(T.clippingPlanes) && T.clippingPlanes.length !== 0 || T.displacementMap && T.displacementScale !== 0 || T.alphaMap && T.alphaTest > 0 || T.map && T.alphaTest > 0) {
-      const H = _.uuid, k = T.uuid;
+      w = S;
+    else if (w = I.isPointLight === !0 ? l : a, i.localClippingEnabled && T.clipShadows === !0 && Array.isArray(T.clippingPlanes) && T.clippingPlanes.length !== 0 || T.displacementMap && T.displacementScale !== 0 || T.alphaMap && T.alphaTest > 0 || T.map && T.alphaTest > 0) {
+      const H = w.uuid, k = T.uuid;
       let z = c[H];
       z === void 0 && (z = {}, c[H] = z);
       let X = z[k];
-      X === void 0 && (X = _.clone(), z[k] = X, T.addEventListener("dispose", R)), _ = X;
+      X === void 0 && (X = w.clone(), z[k] = X, T.addEventListener("dispose", R)), w = X;
     }
-    if (_.visible = T.visible, _.wireframe = T.wireframe, O === Hn ? _.side = T.shadowSide !== null ? T.shadowSide : T.side : _.side = T.shadowSide !== null ? T.shadowSide : d[T.side], _.alphaMap = T.alphaMap, _.alphaTest = T.alphaTest, _.map = T.map, _.clipShadows = T.clipShadows, _.clippingPlanes = T.clippingPlanes, _.clipIntersection = T.clipIntersection, _.displacementMap = T.displacementMap, _.displacementScale = T.displacementScale, _.displacementBias = T.displacementBias, _.wireframeLinewidth = T.wireframeLinewidth, _.linewidth = T.linewidth, I.isPointLight === !0 && _.isMeshDistanceMaterial === !0) {
-      const H = i.properties.get(_);
+    if (w.visible = T.visible, w.wireframe = T.wireframe, O === Hn ? w.side = T.shadowSide !== null ? T.shadowSide : T.side : w.side = T.shadowSide !== null ? T.shadowSide : d[T.side], w.alphaMap = T.alphaMap, w.alphaTest = T.alphaTest, w.map = T.map, w.clipShadows = T.clipShadows, w.clippingPlanes = T.clippingPlanes, w.clipIntersection = T.clipIntersection, w.displacementMap = T.displacementMap, w.displacementScale = T.displacementScale, w.displacementBias = T.displacementBias, w.wireframeLinewidth = T.wireframeLinewidth, w.linewidth = T.linewidth, I.isPointLight === !0 && w.isMeshDistanceMaterial === !0) {
+      const H = i.properties.get(w);
       H.light = I;
     }
-    return _;
+    return w;
   }
-  function M(A, T, I, O, _) {
+  function M(A, T, I, O, w) {
     if (A.visible === !1) return;
-    if (A.layers.test(T.layers) && (A.isMesh || A.isLine || A.isPoints) && (A.castShadow || A.receiveShadow && _ === Hn) && (!A.frustumCulled || n.intersectsObject(A))) {
+    if (A.layers.test(T.layers) && (A.isMesh || A.isLine || A.isPoints) && (A.castShadow || A.receiveShadow && w === Hn) && (!A.frustumCulled || n.intersectsObject(A))) {
       A.modelViewMatrix.multiplyMatrices(I.matrixWorldInverse, A.matrixWorld);
       const k = t.update(A), z = A.material;
       if (Array.isArray(z)) {
@@ -12305,24 +12305,24 @@ function tb(i, t, e) {
         for (let W = 0, rt = X.length; W < rt; W++) {
           const K = X[W], at = z[K.materialIndex];
           if (at && at.visible) {
-            const lt = b(A, at, O, _);
+            const lt = b(A, at, O, w);
             A.onBeforeShadow(i, A, T, I, k, lt, K), i.renderBufferDirect(I, null, k, lt, A, K), A.onAfterShadow(i, A, T, I, k, lt, K);
           }
         }
       } else if (z.visible) {
-        const X = b(A, z, O, _);
+        const X = b(A, z, O, w);
         A.onBeforeShadow(i, A, T, I, k, X, null), i.renderBufferDirect(I, null, k, X, A, null), A.onAfterShadow(i, A, T, I, k, X, null);
       }
     }
     const H = A.children;
     for (let k = 0, z = H.length; k < z; k++)
-      M(H[k], T, I, O, _);
+      M(H[k], T, I, O, w);
   }
   function R(A) {
     A.target.removeEventListener("dispose", R);
     for (const I in c) {
-      const O = c[I], _ = A.target.uuid;
-      _ in O && (O[_].dispose(), delete O[_]);
+      const O = c[I], w = A.target.uuid;
+      w in O && (O[w].dispose(), delete O[w]);
     }
   }
 }
@@ -12440,7 +12440,7 @@ function nb(i) {
     };
   }
   const s = new t(), o = new e(), r = new n(), a = /* @__PURE__ */ new WeakMap(), l = /* @__PURE__ */ new WeakMap();
-  let c = {}, h = {}, d = /* @__PURE__ */ new WeakMap(), f = [], u = null, m = !1, x = null, p = null, g = null, y = null, b = null, M = null, R = null, A = new Ot(0, 0, 0), T = 0, I = !1, O = null, _ = null, S = null, H = null, k = null;
+  let c = {}, h = {}, d = /* @__PURE__ */ new WeakMap(), f = [], u = null, m = !1, x = null, p = null, g = null, y = null, b = null, M = null, R = null, A = new Ot(0, 0, 0), T = 0, I = !1, O = null, w = null, S = null, H = null, k = null;
   const z = i.getParameter(i.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
   let X = !1, W = 0;
   const rt = i.getParameter(i.VERSION);
@@ -12565,7 +12565,7 @@ function nb(i) {
     O !== F && (F ? i.frontFace(i.CW) : i.frontFace(i.CCW), O = F);
   }
   function ct(F) {
-    F !== Qf ? (It(i.CULL_FACE), F !== _ && (F === Hc ? i.cullFace(i.BACK) : F === $f ? i.cullFace(i.FRONT) : i.cullFace(i.FRONT_AND_BACK))) : wt(i.CULL_FACE), _ = F;
+    F !== Qf ? (It(i.CULL_FACE), F !== w && (F === Hc ? i.cullFace(i.BACK) : F === $f ? i.cullFace(i.FRONT) : i.cullFace(i.FRONT_AND_BACK))) : wt(i.CULL_FACE), w = F;
   }
   function xt(F) {
     F !== S && (X && i.lineWidth(F), S = F);
@@ -12675,7 +12675,7 @@ function nb(i) {
     a.get(Tt) !== ot && (i.uniformBlockBinding(Tt, ot, F.__bindingPointIndex), a.set(Tt, ot));
   }
   function xe() {
-    i.disable(i.BLEND), i.disable(i.CULL_FACE), i.disable(i.DEPTH_TEST), i.disable(i.POLYGON_OFFSET_FILL), i.disable(i.SCISSOR_TEST), i.disable(i.STENCIL_TEST), i.disable(i.SAMPLE_ALPHA_TO_COVERAGE), i.blendEquation(i.FUNC_ADD), i.blendFunc(i.ONE, i.ZERO), i.blendFuncSeparate(i.ONE, i.ZERO, i.ONE, i.ZERO), i.blendColor(0, 0, 0, 0), i.colorMask(!0, !0, !0, !0), i.clearColor(0, 0, 0, 0), i.depthMask(!0), i.depthFunc(i.LESS), i.clearDepth(1), i.stencilMask(4294967295), i.stencilFunc(i.ALWAYS, 0, 4294967295), i.stencilOp(i.KEEP, i.KEEP, i.KEEP), i.clearStencil(0), i.cullFace(i.BACK), i.frontFace(i.CCW), i.polygonOffset(0, 0), i.activeTexture(i.TEXTURE0), i.bindFramebuffer(i.FRAMEBUFFER, null), i.bindFramebuffer(i.DRAW_FRAMEBUFFER, null), i.bindFramebuffer(i.READ_FRAMEBUFFER, null), i.useProgram(null), i.lineWidth(1), i.scissor(0, 0, i.canvas.width, i.canvas.height), i.viewport(0, 0, i.canvas.width, i.canvas.height), c = {}, K = null, at = {}, h = {}, d = /* @__PURE__ */ new WeakMap(), f = [], u = null, m = !1, x = null, p = null, g = null, y = null, b = null, M = null, R = null, A = new Ot(0, 0, 0), T = 0, I = !1, O = null, _ = null, S = null, H = null, k = null, Ht.set(0, 0, i.canvas.width, i.canvas.height), se.set(0, 0, i.canvas.width, i.canvas.height), s.reset(), o.reset(), r.reset();
+    i.disable(i.BLEND), i.disable(i.CULL_FACE), i.disable(i.DEPTH_TEST), i.disable(i.POLYGON_OFFSET_FILL), i.disable(i.SCISSOR_TEST), i.disable(i.STENCIL_TEST), i.disable(i.SAMPLE_ALPHA_TO_COVERAGE), i.blendEquation(i.FUNC_ADD), i.blendFunc(i.ONE, i.ZERO), i.blendFuncSeparate(i.ONE, i.ZERO, i.ONE, i.ZERO), i.blendColor(0, 0, 0, 0), i.colorMask(!0, !0, !0, !0), i.clearColor(0, 0, 0, 0), i.depthMask(!0), i.depthFunc(i.LESS), i.clearDepth(1), i.stencilMask(4294967295), i.stencilFunc(i.ALWAYS, 0, 4294967295), i.stencilOp(i.KEEP, i.KEEP, i.KEEP), i.clearStencil(0), i.cullFace(i.BACK), i.frontFace(i.CCW), i.polygonOffset(0, 0), i.activeTexture(i.TEXTURE0), i.bindFramebuffer(i.FRAMEBUFFER, null), i.bindFramebuffer(i.DRAW_FRAMEBUFFER, null), i.bindFramebuffer(i.READ_FRAMEBUFFER, null), i.useProgram(null), i.lineWidth(1), i.scissor(0, 0, i.canvas.width, i.canvas.height), i.viewport(0, 0, i.canvas.width, i.canvas.height), c = {}, K = null, at = {}, h = {}, d = /* @__PURE__ */ new WeakMap(), f = [], u = null, m = !1, x = null, p = null, g = null, y = null, b = null, M = null, R = null, A = new Ot(0, 0, 0), T = 0, I = !1, O = null, w = null, S = null, H = null, k = null, Ht.set(0, 0, i.canvas.width, i.canvas.height), se.set(0, 0, i.canvas.width, i.canvas.height), s.reset(), o.reset(), r.reset();
   }
   return {
     buffers: {
@@ -12923,13 +12923,13 @@ function sb(i, t, e, n, s, o, r) {
     }
     n.remove(L);
   }
-  let _ = 0;
+  let w = 0;
   function S() {
-    _ = 0;
+    w = 0;
   }
   function H() {
-    const L = _;
-    return L >= s.maxTextures && console.warn("THREE.WebGLTextures: Trying to use " + L + " texture units while this GPU supports only " + s.maxTextures), _ += 1, L;
+    const L = w;
+    return L >= s.maxTextures && console.warn("THREE.WebGLTextures: Trying to use " + L + " texture units while this GPU supports only " + s.maxTextures), w += 1, L;
   }
   function k(L) {
     const E = [];
@@ -13609,8 +13609,8 @@ class db extends Li {
     T.layers.enable(1), T.viewport = new de();
     const I = new He();
     I.layers.enable(2), I.viewport = new de();
-    const O = [T, I], _ = new rb();
-    _.layers.enable(1), _.layers.enable(2);
+    const O = [T, I], w = new rb();
+    w.layers.enable(1), w.layers.enable(2);
     let S = null, H = null;
     this.cameraAutoUpdate = !0, this.enabled = !1, this.isPresenting = !1, this.getController = function(Q) {
       let ht = b[Q];
@@ -13743,21 +13743,21 @@ class db extends Li {
     this.updateCamera = function(Q) {
       if (s === null) return;
       let ht = Q.near, It = Q.far;
-      x.texture !== null && (x.depthNear > 0 && (ht = x.depthNear), x.depthFar > 0 && (It = x.depthFar)), _.near = I.near = T.near = ht, _.far = I.far = T.far = It, (S !== _.near || H !== _.far) && (s.updateRenderState({
-        depthNear: _.near,
-        depthFar: _.far
-      }), S = _.near, H = _.far);
-      const wt = Q.parent, jt = _.cameras;
-      at(_, wt);
+      x.texture !== null && (x.depthNear > 0 && (ht = x.depthNear), x.depthFar > 0 && (It = x.depthFar)), w.near = I.near = T.near = ht, w.far = I.far = T.far = It, (S !== w.near || H !== w.far) && (s.updateRenderState({
+        depthNear: w.near,
+        depthFar: w.far
+      }), S = w.near, H = w.far);
+      const wt = Q.parent, jt = w.cameras;
+      at(w, wt);
       for (let Wt = 0; Wt < jt.length; Wt++)
         at(jt[Wt], wt);
-      jt.length === 2 ? K(_, T, I) : _.projectionMatrix.copy(T.projectionMatrix), lt(Q, _, wt);
+      jt.length === 2 ? K(w, T, I) : w.projectionMatrix.copy(T.projectionMatrix), lt(Q, w, wt);
     };
     function lt(Q, ht, It) {
       It === null ? Q.matrix.copy(ht.matrixWorld) : (Q.matrix.copy(It.matrixWorld), Q.matrix.invert(), Q.matrix.multiply(ht.matrixWorld)), Q.matrix.decompose(Q.position, Q.quaternion, Q.scale), Q.updateMatrixWorld(!0), Q.projectionMatrix.copy(ht.projectionMatrix), Q.projectionMatrixInverse.copy(ht.projectionMatrixInverse), Q.isPerspectiveCamera && (Q.fov = bs * 2 * Math.atan(1 / Q.projectionMatrix.elements[5]), Q.zoom = 1);
     }
     this.getCamera = function() {
-      return _;
+      return w;
     }, this.getFoveation = function() {
       if (!(f === null && u === null))
         return l;
@@ -13766,7 +13766,7 @@ class db extends Li {
     }, this.hasDepthSensing = function() {
       return x.texture !== null;
     }, this.getDepthSensingMesh = function() {
-      return x.getMesh(_);
+      return x.getMesh(w);
     };
     let ut = null;
     function Ht(Q, ht) {
@@ -13774,7 +13774,7 @@ class db extends Li {
         const It = h.views;
         u !== null && (t.setRenderTargetFramebuffer(y, u.framebuffer), t.setRenderTarget(y));
         let wt = !1;
-        It.length !== _.cameras.length && (_.cameras.length = 0, wt = !0);
+        It.length !== w.cameras.length && (w.cameras.length = 0, wt = !0);
         for (let Wt = 0; Wt < It.length; Wt++) {
           const Jt = It[Wt];
           let ne = null;
@@ -13789,7 +13789,7 @@ class db extends Li {
             ), t.setRenderTarget(y));
           }
           let it = O[Wt];
-          it === void 0 && (it = new He(), it.layers.enable(Wt), it.viewport = new de(), O[Wt] = it), it.matrix.fromArray(Jt.transform.matrix), it.matrix.decompose(it.position, it.quaternion, it.scale), it.projectionMatrix.fromArray(Jt.projectionMatrix), it.projectionMatrixInverse.copy(it.projectionMatrix).invert(), it.viewport.set(ne.x, ne.y, ne.width, ne.height), Wt === 0 && (_.matrix.copy(it.matrix), _.matrix.decompose(_.position, _.quaternion, _.scale)), wt === !0 && _.cameras.push(it);
+          it === void 0 && (it = new He(), it.layers.enable(Wt), it.viewport = new de(), O[Wt] = it), it.matrix.fromArray(Jt.transform.matrix), it.matrix.decompose(it.position, it.quaternion, it.scale), it.projectionMatrix.fromArray(Jt.projectionMatrix), it.projectionMatrixInverse.copy(it.projectionMatrix).invert(), it.viewport.set(ne.x, ne.y, ne.width, ne.height), Wt === 0 && (w.matrix.copy(it.matrix), w.matrix.decompose(w.position, w.quaternion, w.scale)), wt === !0 && w.cameras.push(it);
         }
         const jt = s.enabledFeatures;
         if (jt && jt.includes("depth-sensing")) {
@@ -13894,7 +13894,7 @@ function pb(i, t, e, n) {
     i.bindBuffer(i.UNIFORM_BUFFER, b);
     for (let A = 0, T = M.length; A < T; A++) {
       const I = Array.isArray(M[A]) ? M[A] : [M[A]];
-      for (let O = 0, _ = I.length; O < _; O++) {
+      for (let O = 0, w = I.length; O < w; O++) {
         const S = I[O];
         if (u(S, A, O, R) === !0) {
           const H = S.__offset, k = Array.isArray(S.value) ? S.value : [S.value];
@@ -13929,8 +13929,8 @@ function pb(i, t, e, n) {
     const R = 16;
     for (let T = 0, I = b.length; T < I; T++) {
       const O = Array.isArray(b[T]) ? b[T] : [b[T]];
-      for (let _ = 0, S = O.length; _ < S; _++) {
-        const H = O[_], k = Array.isArray(H.value) ? H.value : [H.value];
+      for (let w = 0, S = O.length; w < S; w++) {
+        const H = O[w], k = Array.isArray(H.value) ? H.value : [H.value];
         for (let z = 0, X = k.length; z < X; z++) {
           const W = k[z], rt = x(W), K = M % R, at = K % rt.boundary, lt = K + at;
           M += at, lt !== 0 && R - lt < rt.storage && (M += R - lt), H.__data = new Float32Array(rt.storage / Float32Array.BYTES_PER_ELEMENT), H.__offset = M, M += rt.storage;
@@ -14005,7 +14005,7 @@ class Fu {
     }, this.autoClear = !0, this.autoClearColor = !0, this.autoClearDepth = !0, this.autoClearStencil = !0, this.sortObjects = !0, this.clippingPlanes = [], this.localClippingEnabled = !1, this._outputColorSpace = Ie, this.toneMapping = hi, this.toneMappingExposure = 1;
     const b = this;
     let M = !1, R = 0, A = 0, T = null, I = -1, O = null;
-    const _ = new de(), S = new de();
+    const w = new de(), S = new de();
     let H = null;
     const k = new Ot(0);
     let z = 0, X = e.width, W = e.height, rt = 1, K = null, at = null;
@@ -14074,11 +14074,11 @@ class Fu {
     }, this.setDrawingBufferSize = function(C, B, Z) {
       X = C, W = B, rt = Z, e.width = Math.floor(C * Z), e.height = Math.floor(B * Z), this.setViewport(0, 0, C, B);
     }, this.getCurrentViewport = function(C) {
-      return C.copy(_);
+      return C.copy(w);
     }, this.getViewport = function(C) {
       return C.copy(lt);
     }, this.setViewport = function(C, B, Z, Y) {
-      C.isVector4 ? lt.set(C.x, C.y, C.z, C.w) : lt.set(C, B, Z, Y), xt.viewport(_.copy(lt).multiplyScalar(rt).round());
+      C.isVector4 ? lt.set(C.x, C.y, C.z, C.w) : lt.set(C, B, Z, Y), xt.viewport(w.copy(lt).multiplyScalar(rt).round());
     }, this.getScissor = function(C) {
       return C.copy(ut);
     }, this.setScissor = function(C, B, Z, Y) {
@@ -14300,7 +14300,7 @@ class Fu {
     }
     function Sc(C, B, Z, Y) {
       const V = C.opaque, pt = C.transmissive, Et = C.transparent;
-      p.setupLightsView(Z), Q === !0 && dt.setGlobalState(b.clippingPlanes, Z), Y && xt.viewport(_.copy(Y)), V.length > 0 && wo(V, B, Z), pt.length > 0 && wo(pt, B, Z), Et.length > 0 && wo(Et, B, Z), xt.buffers.depth.setTest(!0), xt.buffers.depth.setMask(!0), xt.buffers.color.setMask(!0), xt.setPolygonOffset(!1);
+      p.setupLightsView(Z), Q === !0 && dt.setGlobalState(b.clippingPlanes, Z), Y && xt.viewport(w.copy(Y)), V.length > 0 && wo(V, B, Z), pt.length > 0 && wo(pt, B, Z), Et.length > 0 && wo(Et, B, Z), xt.buffers.depth.setTest(!0), xt.buffers.depth.setMask(!0), xt.buffers.color.setMask(!0), xt.setPolygonOffset(!1);
     }
     function Ec(C, B, Z, Y) {
       if ((Z.isScene === !0 ? Z.overrideMaterial : null) !== null)
@@ -14315,7 +14315,7 @@ class Fu {
         resolveStencilBuffer: !1,
         colorSpace: ce.workingColorSpace
       }));
-      const pt = p.state.transmissionRenderTarget[Y.id], Et = Y.viewport || _;
+      const pt = p.state.transmissionRenderTarget[Y.id], Et = Y.viewport || w;
       pt.setSize(Et.z, Et.w);
       const Dt = b.getRenderTarget();
       b.setRenderTarget(pt), b.getClearColor(k), z = b.getClearAlpha(), z < 1 && b.setClearColor(16777215, 0.5), b.clear(), ne && Kt.render(Z);
@@ -14452,10 +14452,10 @@ class Fu {
         const qt = C.texture;
         (qt.isData3DTexture || qt.isDataArrayTexture || qt.isCompressedArrayTexture) && (Et = !0);
         const Xt = At.get(C).__webglFramebuffer;
-        C.isWebGLCubeRenderTarget ? (Array.isArray(Xt[B]) ? V = Xt[B][Z] : V = Xt[B], pt = !0) : C.samples > 0 && L.useMultisampledRTT(C) === !1 ? V = At.get(C).__webglMultisampledFramebuffer : Array.isArray(Xt) ? V = Xt[Z] : V = Xt, _.copy(C.viewport), S.copy(C.scissor), H = C.scissorTest;
+        C.isWebGLCubeRenderTarget ? (Array.isArray(Xt[B]) ? V = Xt[B][Z] : V = Xt[B], pt = !0) : C.samples > 0 && L.useMultisampledRTT(C) === !1 ? V = At.get(C).__webglMultisampledFramebuffer : Array.isArray(Xt) ? V = Xt[Z] : V = Xt, w.copy(C.viewport), S.copy(C.scissor), H = C.scissorTest;
       } else
-        _.copy(lt).multiplyScalar(rt).floor(), S.copy(ut).multiplyScalar(rt).floor(), H = Ht;
-      if (xt.bindFramebuffer(D.FRAMEBUFFER, V) && Y && xt.drawBuffers(C, V), xt.viewport(_), xt.scissor(S), xt.setScissorTest(H), pt) {
+        w.copy(lt).multiplyScalar(rt).floor(), S.copy(ut).multiplyScalar(rt).floor(), H = Ht;
+      if (xt.bindFramebuffer(D.FRAMEBUFFER, V) && Y && xt.drawBuffers(C, V), xt.viewport(w), xt.scissor(S), xt.setScissorTest(H), pt) {
         const Ut = At.get(C.texture);
         D.framebufferTexture2D(D.FRAMEBUFFER, D.COLOR_ATTACHMENT0, D.TEXTURE_CUBE_MAP_POSITIVE_X + B, Ut.__webglTexture, Z);
       } else if (Et) {
@@ -15965,30 +15965,30 @@ class hs extends Se {
       let A = 0;
       const T = (e - t) / n;
       for (let I = 0; I <= o; I++) {
-        const O = [], _ = I / o, S = _ * (e - t) + t;
+        const O = [], w = I / o, S = w * (e - t) + t;
         for (let H = 0; H <= s; H++) {
           const k = H / s, z = k * l + a, X = Math.sin(z), W = Math.cos(z);
-          R.x = S * X, R.y = -_ * n + p, R.z = S * W, d.push(R.x, R.y, R.z), M.set(X, T, W).normalize(), f.push(M.x, M.y, M.z), u.push(k, 1 - _), O.push(m++);
+          R.x = S * X, R.y = -w * n + p, R.z = S * W, d.push(R.x, R.y, R.z), M.set(X, T, W).normalize(), f.push(M.x, M.y, M.z), u.push(k, 1 - w), O.push(m++);
         }
         x.push(O);
       }
       for (let I = 0; I < s; I++)
         for (let O = 0; O < o; O++) {
-          const _ = x[O][I], S = x[O + 1][I], H = x[O + 1][I + 1], k = x[O][I + 1];
-          t > 0 && (h.push(_, S, k), A += 3), e > 0 && (h.push(S, H, k), A += 3);
+          const w = x[O][I], S = x[O + 1][I], H = x[O + 1][I + 1], k = x[O][I + 1];
+          t > 0 && (h.push(w, S, k), A += 3), e > 0 && (h.push(S, H, k), A += 3);
         }
       c.addGroup(g, A, 0), g += A;
     }
     function b(M) {
       const R = m, A = new nt(), T = new N();
       let I = 0;
-      const O = M === !0 ? t : e, _ = M === !0 ? 1 : -1;
+      const O = M === !0 ? t : e, w = M === !0 ? 1 : -1;
       for (let H = 1; H <= s; H++)
-        d.push(0, p * _, 0), f.push(0, _, 0), u.push(0.5, 0.5), m++;
+        d.push(0, p * w, 0), f.push(0, w, 0), u.push(0.5, 0.5), m++;
       const S = m;
       for (let H = 0; H <= s; H++) {
         const z = H / s * l + a, X = Math.cos(z), W = Math.sin(z);
-        T.x = O * W, T.y = p * _, T.z = O * X, d.push(T.x, T.y, T.z), f.push(0, _, 0), A.x = X * 0.5 + 0.5, A.y = W * 0.5 * _ + 0.5, u.push(A.x, A.y), m++;
+        T.x = O * W, T.y = p * w, T.z = O * X, d.push(T.x, T.y, T.z), f.push(0, w, 0), A.x = X * 0.5 + 0.5, A.y = W * 0.5 * w + 0.5, u.push(A.x, A.y), m++;
       }
       for (let H = 0; H < s; H++) {
         const k = R + H, z = S + H;
@@ -16023,14 +16023,14 @@ class Wr extends Se {
       const A = R + 1, T = [];
       for (let I = 0; I <= A; I++) {
         T[I] = [];
-        const O = y.clone().lerp(M, I / A), _ = b.clone().lerp(M, I / A), S = A - I;
+        const O = y.clone().lerp(M, I / A), w = b.clone().lerp(M, I / A), S = A - I;
         for (let H = 0; H <= S; H++)
-          H === 0 && I === A ? T[I][H] = O : T[I][H] = O.clone().lerp(_, H / S);
+          H === 0 && I === A ? T[I][H] = O : T[I][H] = O.clone().lerp(w, H / S);
       }
       for (let I = 0; I < A; I++)
         for (let O = 0; O < 2 * (A - I) - 1; O++) {
-          const _ = Math.floor(O / 2);
-          O % 2 === 0 ? (f(T[I][_ + 1]), f(T[I + 1][_]), f(T[I][_])) : (f(T[I][_ + 1]), f(T[I + 1][_ + 1]), f(T[I + 1][_]));
+          const w = Math.floor(O / 2);
+          O % 2 === 0 ? (f(T[I][w + 1]), f(T[I + 1][w]), f(T[I][w])) : (f(T[I][w + 1]), f(T[I + 1][w + 1]), f(T[I + 1][w]));
         }
     }
     function c(y) {
@@ -16062,10 +16062,10 @@ class Wr extends Se {
     }
     function m() {
       const y = new N(), b = new N(), M = new N(), R = new N(), A = new nt(), T = new nt(), I = new nt();
-      for (let O = 0, _ = 0; O < o.length; O += 9, _ += 6) {
-        y.set(o[O + 0], o[O + 1], o[O + 2]), b.set(o[O + 3], o[O + 4], o[O + 5]), M.set(o[O + 6], o[O + 7], o[O + 8]), A.set(r[_ + 0], r[_ + 1]), T.set(r[_ + 2], r[_ + 3]), I.set(r[_ + 4], r[_ + 5]), R.copy(y).add(b).add(M).divideScalar(3);
+      for (let O = 0, w = 0; O < o.length; O += 9, w += 6) {
+        y.set(o[O + 0], o[O + 1], o[O + 2]), b.set(o[O + 3], o[O + 4], o[O + 5]), M.set(o[O + 6], o[O + 7], o[O + 8]), A.set(r[w + 0], r[w + 1]), T.set(r[w + 2], r[w + 3]), I.set(r[w + 4], r[w + 5]), R.copy(y).add(b).add(M).divideScalar(3);
         const S = p(R);
-        x(A, _ + 0, y, S), x(T, _ + 2, b, S), x(I, _ + 4, M, S);
+        x(A, w + 0, y, S), x(T, w + 2, b, S), x(I, w + 4, M, S);
       }
     }
     function x(y, b, M, R) {
@@ -16422,24 +16422,24 @@ class Pr extends Se {
       let b, M = !1, R, A, T, I;
       g && (b = g.getSpacedPoints(h), M = !0, f = !1, R = g.computeFrenetFrames(h, !1), A = new N(), T = new N(), I = new N()), f || (p = 0, u = 0, m = 0, x = 0);
       const O = a.extractPoints(c);
-      let _ = O.shape;
+      let w = O.shape;
       const S = O.holes;
-      if (!di.isClockWise(_)) {
-        _ = _.reverse();
+      if (!di.isClockWise(w)) {
+        w = w.reverse();
         for (let it = 0, D = S.length; it < D; it++) {
           const vt = S[it];
           di.isClockWise(vt) && (S[it] = vt.reverse());
         }
       }
-      const k = di.triangulateShape(_, S), z = _;
+      const k = di.triangulateShape(w, S), z = w;
       for (let it = 0, D = S.length; it < D; it++) {
         const vt = S[it];
-        _ = _.concat(vt);
+        w = w.concat(vt);
       }
       function X(it, D, vt) {
         return D || console.error("THREE.ExtrudeGeometry: vec does not exist"), it.clone().addScaledVector(D, vt);
       }
-      const W = _.length, rt = k.length;
+      const W = w.length, rt = k.length;
       function K(it, D, vt) {
         let mt, ct, xt;
         const Ft = it.x - D.x, At = it.y - D.y, L = vt.x - it.x, E = vt.y - it.y, j = Ft * Ft + At * At, $ = Ft * E - At * L;
@@ -16485,12 +16485,12 @@ class Pr extends Se {
       }
       const se = m + x;
       for (let it = 0; it < W; it++) {
-        const D = f ? X(_[it], Ht[it], se) : _[it];
+        const D = f ? X(w[it], Ht[it], se) : w[it];
         M ? (T.copy(R.normals[0]).multiplyScalar(D.x), A.copy(R.binormals[0]).multiplyScalar(D.y), I.copy(b[0]).add(T).add(A), wt(I.x, I.y, I.z)) : wt(D.x, D.y, 0);
       }
       for (let it = 1; it <= h; it++)
         for (let D = 0; D < W; D++) {
-          const vt = f ? X(_[D], Ht[D], se) : _[D];
+          const vt = f ? X(w[D], Ht[D], se) : w[D];
           M ? (T.copy(R.normals[it]).multiplyScalar(vt.x), A.copy(R.binormals[it]).multiplyScalar(vt.y), I.copy(b[it]).add(T).add(A), wt(I.x, I.y, I.z)) : wt(vt.x, vt.y, d / h * it);
         }
       for (let it = p - 1; it >= 0; it--) {
@@ -20434,8 +20434,8 @@ class Ry {
         M.updateMatrix && M.updateMatrix();
         const O = n._createAnimationTracks(M, R, A, T, I);
         if (O)
-          for (let _ = 0; _ < O.length; _++)
-            g.push(O[_]);
+          for (let w = 0; w < O.length; w++)
+            g.push(O[w]);
       }
       return new l1(o, void 0, g);
     });
@@ -20651,7 +20651,7 @@ function yd(i, t, e) {
   });
 }
 const Gt = 10251071, Ge = 7306636, ft = 12106948, $t = 15921906, Vt = 2830134, Bn = 8962256;
-function w(i, t = {}) {
+function _(i, t = {}) {
   return new _n({
     color: i,
     roughness: 0.8,
@@ -20687,30 +20687,30 @@ function _d(i, t, e, n) {
     u.translate(d, 0, f), r.push(u);
   };
   a(i, e, 0, -(o - e / 2)), a(i, e, 0, o - e / 2), a(e, t - 2 * e, -(s - e / 2), 0), a(e, t - 2 * e, s - e / 2, 0);
-  const l = new Bt(Lr(r, !1), w(n, { emissive: 0 }));
+  const l = new Bt(Lr(r, !1), _(n, { emissive: 0 }));
   return l.name = "emissive", l.castShadow = !1, r.forEach((c) => c.dispose()), l;
 }
 function wd(i) {
   const t = new U();
-  t.add(P(q(0.15, 0.15, 0.022, w($t, { roughness: 0.6 }), 0, -0.011, 0, 28), i)), t.add(q(0.125, 0.125, 0.02, w(2500910, { roughness: 0.85, metalness: 0.15 }), 0, -0.024, 0, 28)), t.add(q(0.045, 0.045, 0.016, w(1382170, { roughness: 0.9 }), 0, -0.032, 0, 18));
-  const e = q(8e-3, 8e-3, 6e-3, w(3133546, { emissive: 0 }), 0.105, -0.02, 0, 10);
+  t.add(P(q(0.15, 0.15, 0.022, _($t, { roughness: 0.6 }), 0, -0.011, 0, 28), i)), t.add(q(0.125, 0.125, 0.02, _(2500910, { roughness: 0.85, metalness: 0.15 }), 0, -0.024, 0, 28)), t.add(q(0.045, 0.045, 0.016, _(1382170, { roughness: 0.9 }), 0, -0.032, 0, 18));
+  const e = q(8e-3, 8e-3, 6e-3, _(3133546, { emissive: 0 }), 0.105, -0.02, 0, 10);
   return e.name = "emissive", t.add(e), t;
 }
 function Iy(i) {
-  const t = new U(), e = 0.62, n = 2.4, s = 0.42, o = w(1709842, { roughness: 0.22, metalness: 0.35 }), r = w(13214282, { metalness: 0.75, roughness: 0.3 });
-  t.add(P(v(e, n, s, o, 0, n / 2, 0), i)), t.add(v(0.014, n, 0.014, r, -e / 2 + 0.02, n / 2, s / 2)), t.add(v(0.014, n, 0.014, r, e / 2 - 0.02, n / 2, s / 2)), t.add(v(e, 0.02, s, r, 0, n - 0.01, 0)), t.add(v(e - 0.16, n - 0.24, 0.02, w(2762017, { roughness: 0.5 }), 0, n / 2, s / 2 - 0.13));
-  const a = w(2764081, { transparent: !0, opacity: 0.55, roughness: 0.2, metalness: 0.2 });
+  const t = new U(), e = 0.62, n = 2.4, s = 0.42, o = _(1709842, { roughness: 0.22, metalness: 0.35 }), r = _(13214282, { metalness: 0.75, roughness: 0.3 });
+  t.add(P(v(e, n, s, o, 0, n / 2, 0), i)), t.add(v(0.014, n, 0.014, r, -e / 2 + 0.02, n / 2, s / 2)), t.add(v(0.014, n, 0.014, r, e / 2 - 0.02, n / 2, s / 2)), t.add(v(e, 0.02, s, r, 0, n - 0.01, 0)), t.add(v(e - 0.16, n - 0.24, 0.02, _(2762017, { roughness: 0.5 }), 0, n / 2, s / 2 - 0.13));
+  const a = _(2764081, { transparent: !0, opacity: 0.55, roughness: 0.2, metalness: 0.2 });
   for (let l = 0; l < 4; l++) {
     const c = 0.55 + l * 0.5;
     t.add(v(e - 0.18, 0.02, 0.24, a, 0, c, s / 2 - 0.15));
-    const h = v(e - 0.2, 0.015, 0.02, w(16773328, { emissive: 0 }), 0, c - 0.02, s / 2 - 0.25);
+    const h = v(e - 0.2, 0.015, 0.02, _(16773328, { emissive: 0 }), 0, c - 0.02, s / 2 - 0.25);
     h.name = "emissive", t.add(h);
   }
   return t;
 }
 const po = {
   sofa: (i) => {
-    const t = new U(), e = i.clone().multiplyScalar(0.62), n = () => w(Ge, { roughness: 0.9 }), s = () => w(Ge, { roughness: 0.97 }), o = w(3878694, { roughness: 0.5, metalness: 0.2 });
+    const t = new U(), e = i.clone().multiplyScalar(0.62), n = () => _(Ge, { roughness: 0.9 }), s = () => _(Ge, { roughness: 0.97 }), o = _(3878694, { roughness: 0.5, metalness: 0.2 });
     for (const r of [-1, 1])
       for (const a of [-1, 1])
         t.add(q(0.035, 0.05, 0.1, o, r * 0.92, 0.05, a * 0.34, 10));
@@ -20734,17 +20734,17 @@ const po = {
     return t;
   },
   sofa_round: (i) => {
-    const t = new U(), e = w(Ge), n = 1, s = Math.PI * 1.15, o = Math.PI / 2 - s / 2, r = (h) => {
+    const t = new U(), e = _(Ge), n = 1, s = Math.PI * 1.15, o = Math.PI / 2 - s / 2, r = (h) => {
       h.rotation.x = Math.PI / 2, h.rotation.z = -o;
     }, a = new Bt(new ln(n, 0.42, 12, 48, s), e);
     r(a), a.scale.z = 0.45, a.position.y = 0.31, t.add(P(a, i));
     const l = new Bt(new ln(n + 0.34, 0.2, 12, 48, s), e);
     r(l), l.scale.z = 1.5, l.position.y = 0.62, t.add(P(l, i));
-    const c = new Bt(new ln(n, 0.46, 10, 48, s), w(4869975));
+    const c = new Bt(new ln(n, 0.46, 10, 48, s), _(4869975));
     return r(c), c.scale.z = 0.18, c.position.y = 0.1, t.add(c), t;
   },
   bed: (i) => {
-    const t = new U(), e = w(Ge, { roughness: 0.9 }), n = w($t, { roughness: 0.85 }), s = w(Vt, { roughness: 0.6 });
+    const t = new U(), e = _(Ge, { roughness: 0.9 }), n = _($t, { roughness: 0.85 }), s = _(Vt, { roughness: 0.6 });
     for (const [r, a] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
       t.add(v(0.1, 0.1, 0.1, s, r * 0.82, 0.05, a * 0.92));
     t.add(P(v(1.9, 0.3, 2.15, e, 0, 0.25, 0), i)), t.add(v(1.86, 0.06, 2.11, e, 0, 0.41, 0)), t.add(v(1.8, 0.22, 1.98, n, 0, 0.51, 0.05)), t.add(v(1.84, 0.12, 1.3, e, 0, 0.68, 0.39));
@@ -20761,7 +20761,7 @@ const po = {
     return t;
   },
   table: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     t.add(P(v(1.4, 0.06, 0.8, e, 0, 0.74, 0), i));
     const n = 0.62, s = 0.32;
     for (const [o, r] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
@@ -20769,7 +20769,7 @@ const po = {
     return t;
   },
   chair: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     t.add(P(v(0.45, 0.05, 0.45, e, 0, 0.45, 0), i)), t.add(P(v(0.45, 0.45, 0.05, e, 0, 0.68, -0.2), i));
     const n = 0.18, s = 0.18;
     for (const [o, r] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
@@ -20778,7 +20778,7 @@ const po = {
   },
   // Hanging swing (arg'imchoq) — a freestanding A-frame with a rope seat.
   swing: (i) => {
-    const t = new U(), e = w(9071178, { roughness: 0.75 }), n = 2.05, s = 1.9, o = 1.4, r = Math.hypot(n, o / 2), a = Math.atan2(o / 2, n);
+    const t = new U(), e = _(9071178, { roughness: 0.75 }), n = 2.05, s = 1.9, o = 1.4, r = Math.hypot(n, o / 2), a = Math.atan2(o / 2, n);
     for (const b of [-1, 1])
       for (const M of [-1, 1]) {
         const R = q(0.045, 0.06, r, e, b * (s / 2), n / 2, M * o / 4, 10);
@@ -20786,16 +20786,16 @@ const po = {
       }
     const l = q(0.055, 0.055, s + 0.2, e, 0, n, 0, 10);
     l.rotation.z = Math.PI / 2, t.add(l);
-    const c = w(8015662, { roughness: 0.85 }), h = s + 0.5, d = n + 0.6, f = n + 0.16, u = o / 2 + 0.28;
+    const c = _(8015662, { roughness: 0.85 }), h = s + 0.5, d = n + 0.6, f = n + 0.16, u = o / 2 + 0.28;
     for (const b of [-1, 1]) {
       const M = v(h, 0.05, Math.hypot(d - f, u) + 0.06, c, 0, (d + f) / 2, b * u / 2);
       M.rotation.x = b * Math.atan2(d - f, u), t.add(P(M, i));
     }
     t.add(v(h, 0.07, 0.09, c, 0, d, 0));
-    const m = w(Gt, { roughness: 0.7 }), x = 0.52, p = s - 0.5, g = 0.5;
-    t.add(P(v(p, 0.06, g, m, 0, x, 0.02), i)), t.add(v(p, 0.08, g, w(7227951), 0, x - 0.06, 0.02)), t.add(P(v(p, 0.42, 0.05, m, 0, x + 0.23, -0.22), i));
+    const m = _(Gt, { roughness: 0.7 }), x = 0.52, p = s - 0.5, g = 0.5;
+    t.add(P(v(p, 0.06, g, m, 0, x, 0.02), i)), t.add(v(p, 0.08, g, _(7227951), 0, x - 0.06, 0.02)), t.add(P(v(p, 0.42, 0.05, m, 0, x + 0.23, -0.22), i));
     for (const b of [-1, 1]) t.add(v(0.05, 0.22, g, m, b * (p / 2 - 0.03), x + 0.13, 0.02));
-    const y = w(5987163, { roughness: 0.95 });
+    const y = _(5987163, { roughness: 0.95 });
     for (const b of [-1, 1])
       for (const M of [-1, 1])
         t.add(q(0.01, 0.01, n - x - 0.1, y, b * (p / 2 - 0.05), (n + x) / 2, 0.02 + M * (g / 2 - 0.06), 6));
@@ -20805,34 +20805,34 @@ const po = {
   // tall rounded arch (a mirror/opening), with a CURVED chute descending to the
   // floor + side rails. Light natural oak.
   slide: (i) => {
-    const t = new U(), e = w(14468512, { roughness: 0.72 }), n = w(13283462, { roughness: 0.8 }), s = w(14732198, { roughness: 0.55 }), o = 0.92, r = 0.9;
+    const t = new U(), e = _(14468512, { roughness: 0.72 }), n = _(13283462, { roughness: 0.8 }), s = _(14732198, { roughness: 0.55 }), o = 0.92, r = 0.9;
     t.add(P(v(r, 0.08, 0.85, e, 0, o, -0.95), i));
     for (const p of [-1, 1])
       for (const g of [-0.6, -1.3])
         t.add(v(0.08, o, 0.08, n, p * (r / 2 - 0.06), o / 2, g));
     t.add(v(r, o - 0.1, 0.05, n, 0, (o - 0.1) / 2, -1.32));
-    const a = w(15127990, { roughness: 0.85 }), l = r + 0.16, c = 1.5, h = -1.42;
+    const a = _(15127990, { roughness: 0.85 }), l = r + 0.16, c = 1.5, h = -1.42;
     for (const p of [-1, 1]) t.add(v(0.1, c, 0.14, a, p * (l / 2 - 0.05), o + c / 2 - 0.15, h));
     const d = new Bt(new ln(l / 2 - 0.05, 0.07, 8, 22, Math.PI), a);
-    d.position.set(0, o + c - 0.15, h), t.add(d), t.add(v(l - 0.34, c - 0.15, 0.04, w(15853780, { roughness: 0.5 }), 0, o + (c - 0.15) / 2 - 0.08, h + 0.06));
+    d.position.set(0, o + c - 0.15, h), t.add(d), t.add(v(l - 0.34, c - 0.15, 0.04, _(15853780, { roughness: 0.5 }), 0, o + (c - 0.15) / 2 - 0.08, h + 0.06));
     const f = 10, u = -0.5, m = 1.7, x = [];
     for (let p = 0; p <= f; p++) {
       const g = p / f;
       x.push([u + (m - u) * g, o * Math.pow(1 - g, 1.7)]);
     }
     for (let p = 0; p < f; p++) {
-      const g = x[p][0], y = x[p][1], b = x[p + 1][0], M = x[p + 1][1], R = (g + b) / 2, A = (y + M) / 2, T = b - g, I = M - y, O = Math.hypot(T, I), _ = Math.atan2(I, T), S = P(v(r, 0.05, O + 0.03, s, 0, A + 0.04, R), i);
-      S.rotation.x = -_, t.add(S);
+      const g = x[p][0], y = x[p][1], b = x[p + 1][0], M = x[p + 1][1], R = (g + b) / 2, A = (y + M) / 2, T = b - g, I = M - y, O = Math.hypot(T, I), w = Math.atan2(I, T), S = P(v(r, 0.05, O + 0.03, s, 0, A + 0.04, R), i);
+      S.rotation.x = -w, t.add(S);
       for (const H of [-1, 1]) {
         const k = v(0.06, 0.17, O + 0.03, n, H * (r / 2), A + 0.11, R);
-        k.rotation.x = -_, t.add(k);
+        k.rotation.x = -w, t.add(k);
       }
     }
     return t;
   },
   // Round/oval stone table (travertine look) on two chunky curved feet.
   round_table: (i) => {
-    const t = new U(), e = w(15327957, { roughness: 0.55, metalness: 0.02 }), n = q(0.75, 0.75, 0.08, e, 0, 0.73, 0, 44);
+    const t = new U(), e = _(15327957, { roughness: 0.55, metalness: 0.02 }), n = q(0.75, 0.75, 0.08, e, 0, 0.73, 0, 44);
     n.scale.z = 0.72, t.add(P(n, i));
     for (const s of [-1, 1]) {
       const o = q(0.16, 0.24, 0.7, e, 0, 0.35, s * 0.22, 24);
@@ -20843,7 +20843,7 @@ const po = {
   // Chunky rounded tub armchair (Roly-Poly style) — a fat cushion, a wrap-around
   // back/arms, and 4 stubby rounded legs.
   roly_chair: (i) => {
-    const t = new U(), e = w(10135672, { roughness: 0.95 });
+    const t = new U(), e = _(10135672, { roughness: 0.95 });
     t.add(P(q(0.26, 0.28, 0.18, e, 0, 0.4, 0, 28), i));
     const n = new Bt(new ln(0.25, 0.1, 12, 24, Math.PI * 1.3), e);
     n.castShadow = !0, n.receiveShadow = !0, n.position.set(0, 0.55, 0.02), n.rotation.x = Math.PI / 2, n.rotation.z = -Math.PI * 0.15, t.add(P(n, i));
@@ -20855,20 +20855,20 @@ const po = {
   },
   wardrobe: (i) => {
     const t = new U();
-    return t.add(P(v(1.2, 2, 0.6, w(Gt), 0, 1, 0), i)), t.add(v(0.04, 1.8, 0.02, w(ft), -0.02, 1, 0.31)), t.add(q(0.02, 0.02, 0.15, w(ft), -0.2, 1, 0.32)), t.add(q(0.02, 0.02, 0.15, w(ft), 0.16, 1, 0.32)), t;
+    return t.add(P(v(1.2, 2, 0.6, _(Gt), 0, 1, 0), i)), t.add(v(0.04, 1.8, 0.02, _(ft), -0.02, 1, 0.31)), t.add(q(0.02, 0.02, 0.15, _(ft), -0.2, 1, 0.32)), t.add(q(0.02, 0.02, 0.15, _(ft), 0.16, 1, 0.32)), t;
   },
   kitchen_counter: (i) => {
     const t = new U();
-    return t.add(P(v(2, 0.85, 0.6, w($t), 0, 0.425, 0), i)), t.add(v(2.05, 0.05, 0.65, w(Vt), 0, 0.875, 0)), t;
+    return t.add(P(v(2, 0.85, 0.6, _($t), 0, 0.425, 0), i)), t.add(v(2.05, 0.05, 0.65, _(Vt), 0, 0.875, 0)), t;
   },
   tv: (i) => {
     const t = new U();
-    t.add(P(v(1.3, 0.78, 0.06, w(Vt), 0, 0, 0.03), i));
+    t.add(P(v(1.3, 0.78, 0.06, _(Vt), 0, 0, 0.03), i));
     const e = v(
       1.18,
       0.66,
       0.02,
-      w(657930, { emissive: 16777215, emissiveMap: Py(), emissiveIntensity: 0 }),
+      _(657930, { emissive: 16777215, emissiveMap: Py(), emissiveIntensity: 0 }),
       0,
       0,
       0.07
@@ -20877,42 +20877,42 @@ const po = {
   },
   fridge: (i) => {
     const t = new U();
-    return t.add(P(v(0.7, 1.8, 0.7, w(ft), 0, 0.9, 0), i)), t.add(v(0.04, 0.1, 0.02, w(Vt), 0.3, 1.3, 0.36)), t.add(v(0.04, 0.1, 0.02, w(Vt), 0.3, 0.6, 0.36)), t;
+    return t.add(P(v(0.7, 1.8, 0.7, _(ft), 0, 0.9, 0), i)), t.add(v(0.04, 0.1, 0.02, _(Vt), 0.3, 1.3, 0.36)), t.add(v(0.04, 0.1, 0.02, _(Vt), 0.3, 0.6, 0.36)), t;
   },
   sink: (i) => {
     const t = new U();
-    return t.add(P(v(0.6, 0.8, 0.5, w($t), 0, 0.4, 0), i)), t.add(v(0.5, 0.08, 0.4, w(ft), 0, 0.82, 0)), t.add(q(0.02, 0.02, 0.25, w(ft), 0, 0.95, -0.12)), t;
+    return t.add(P(v(0.6, 0.8, 0.5, _($t), 0, 0.4, 0), i)), t.add(v(0.5, 0.08, 0.4, _(ft), 0, 0.82, 0)), t.add(q(0.02, 0.02, 0.25, _(ft), 0, 0.95, -0.12)), t;
   },
   toilet: (i) => {
     const t = new U();
-    return t.add(P(q(0.22, 0.25, 0.4, w($t), 0, 0.2, 0.05), i)), t.add(v(0.35, 0.5, 0.18, w($t), 0, 0.45, -0.18)), t.add(q(0.24, 0.24, 0.05, w($t), 0, 0.42, 0.05)), t;
+    return t.add(P(q(0.22, 0.25, 0.4, _($t), 0, 0.2, 0.05), i)), t.add(v(0.35, 0.5, 0.18, _($t), 0, 0.45, -0.18)), t.add(q(0.24, 0.24, 0.05, _($t), 0, 0.42, 0.05)), t;
   },
   door: (i) => {
-    const t = new U(), e = w($t);
+    const t = new U(), e = _($t);
     t.add(v(0.06, 2.06, 0.16, e, -0.46, 1.03, 0)), t.add(v(0.06, 2.06, 0.16, e, 0.46, 1.03, 0)), t.add(v(0.98, 0.06, 0.16, e, 0, 2.06, 0));
-    const n = P(v(0.84, 2, 0.06, w(Gt), 0, 1, 0), i);
-    return t.add(n), t.add(q(0.03, 0.03, 0.12, w(12096302), 0.33, 1, 0.06)), t;
+    const n = P(v(0.84, 2, 0.06, _(Gt), 0, 1, 0), i);
+    return t.add(n), t.add(q(0.03, 0.03, 0.12, _(12096302), 0.33, 1, 0.06)), t;
   },
   window_frame: (i) => {
-    const t = new U(), e = w(5595242), n = 1.2, s = 1.2, o = 1.45, r = 0.07, a = 0.1;
-    return t.add(P(v(n, r, a, e, 0, o + s / 2, 0), i)), t.add(P(v(n, r, a, e, 0, o - s / 2, 0), i)), t.add(v(r, s, a, e, -n / 2 + r / 2, o, 0)), t.add(v(r, s, a, e, n / 2 - r / 2, o, 0)), t.add(v(0.05, s, a * 0.6, e, 0, o, 0)), t.add(v(n, 0.05, a * 0.6, e, 0, o, 0)), t.add(v(n - r, s - r, 0.02, w(10274778, { transparent: !0, opacity: 0.5, metalness: 0.2 }), 0, o, 0)), t;
+    const t = new U(), e = _(5595242), n = 1.2, s = 1.2, o = 1.45, r = 0.07, a = 0.1;
+    return t.add(P(v(n, r, a, e, 0, o + s / 2, 0), i)), t.add(P(v(n, r, a, e, 0, o - s / 2, 0), i)), t.add(v(r, s, a, e, -n / 2 + r / 2, o, 0)), t.add(v(r, s, a, e, n / 2 - r / 2, o, 0)), t.add(v(0.05, s, a * 0.6, e, 0, o, 0)), t.add(v(n, 0.05, a * 0.6, e, 0, o, 0)), t.add(v(n - r, s - r, 0.02, _(10274778, { transparent: !0, opacity: 0.5, metalness: 0.2 }), 0, o, 0)), t;
   },
   ceiling_light: (i) => {
-    const t = new U(), e = q(0.18, 0.22, 0.12, w($t, { emissive: 0 }), 0, 0, 0);
-    return e.name = "emissive", t.add(P(e, i)), t.add(q(0.01, 0.01, 0.25, w(ft), 0, 0.18, 0)), t;
+    const t = new U(), e = q(0.18, 0.22, 0.12, _($t, { emissive: 0 }), 0, 0, 0);
+    return e.name = "emissive", t.add(P(e, i)), t.add(q(0.01, 0.01, 0.25, _(ft), 0, 0.18, 0)), t;
   },
   ac_unit: (i) => {
     const t = new U();
-    return t.add(P(v(0.9, 0.28, 0.18, w($t), 0, 0, 0), i)), t.add(v(0.8, 0.04, 0.02, w(Vt), 0, -0.1, 0.09)), t;
+    return t.add(P(v(0.9, 0.28, 0.18, _($t), 0, 0, 0), i)), t.add(v(0.8, 0.04, 0.02, _(Vt), 0, -0.1, 0.09)), t;
   },
   intercom: (i) => {
     const t = new U();
-    t.add(P(v(0.16, 0.26, 0.04, w(Vt), 0, 0, 0), i));
-    const e = v(0.12, 0.14, 0.01, w(1053720, { emissive: 666170 }), 0, 0.03, 0.025);
+    t.add(P(v(0.16, 0.26, 0.04, _(Vt), 0, 0, 0), i));
+    const e = v(0.12, 0.14, 0.01, _(1053720, { emissive: 666170 }), 0, 0.03, 0.025);
     return e.name = "emissive", t.add(e), t;
   },
   armchair: (i) => {
-    const t = new U(), e = w(Ge, { roughness: 0.9 }), n = w(5979944, { roughness: 0.45, metalness: 0.05 }), s = w(4869975, { roughness: 0.7 });
+    const t = new U(), e = _(Ge, { roughness: 0.9 }), n = _(5979944, { roughness: 0.45, metalness: 0.05 }), s = _(4869975, { roughness: 0.7 });
     for (const [l, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
       const h = q(0.022, 0.038, 0.2, n, l * 0.3, 0.1, c * 0.32, 10);
       h.rotation.z = l * 0.08, h.rotation.x = -c * 0.06, t.add(h);
@@ -20932,36 +20932,36 @@ const po = {
     return t;
   },
   coffee_table: (i) => {
-    const t = new U(), e = w(7293480, { roughness: 0.55 }), n = w(Vt, { roughness: 0.4, metalness: 0.3 });
-    t.add(v(1.2, 0.035, 0.6, e, 0, 0.383, 0)), t.add(P(v(1.15, 0.03, 0.55, w(Gt, { roughness: 0.5 }), 0, 0.415, 0), i)), t.add(v(1.06, 0.05, 0.46, e, 0, 0.345, 0)), t.add(v(1.02, 0.03, 0.5, w(Gt, { roughness: 0.5 }), 0, 0.13, 0)), t.add(v(0.96, 0.02, 0.44, e, 0, 0.112, 0));
+    const t = new U(), e = _(7293480, { roughness: 0.55 }), n = _(Vt, { roughness: 0.4, metalness: 0.3 });
+    t.add(v(1.2, 0.035, 0.6, e, 0, 0.383, 0)), t.add(P(v(1.15, 0.03, 0.55, _(Gt, { roughness: 0.5 }), 0, 0.415, 0), i)), t.add(v(1.06, 0.05, 0.46, e, 0, 0.345, 0)), t.add(v(1.02, 0.03, 0.5, _(Gt, { roughness: 0.5 }), 0, 0.13, 0)), t.add(v(0.96, 0.02, 0.44, e, 0, 0.112, 0));
     for (const [s, o] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
       t.add(q(0.023, 0.036, 0.36, n, s * 0.52, 0.18, o * 0.245, 12));
     return t;
   },
   dining_table: (i) => {
     const t = new U();
-    t.add(P(v(1.8, 0.06, 0.95, w(Gt), 0, 0.75, 0), i));
+    t.add(P(v(1.8, 0.06, 0.95, _(Gt), 0, 0.75, 0), i));
     for (const [e, n] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-      t.add(v(0.08, 0.75, 0.08, w(Gt), e * 0.8, 0.37, n * 0.4));
+      t.add(v(0.08, 0.75, 0.08, _(Gt), e * 0.8, 0.37, n * 0.4));
     return t;
   },
   bookshelf: (i) => {
     const t = new U();
-    t.add(P(v(1, 1.8, 0.32, w(Gt), 0, 0.9, 0), i));
-    for (let e = 1; e <= 4; e++) t.add(v(0.94, 0.03, 0.3, w(Vt), 0, e * 0.36, 0));
+    t.add(P(v(1, 1.8, 0.32, _(Gt), 0, 0.9, 0), i));
+    for (let e = 1; e <= 4; e++) t.add(v(0.94, 0.03, 0.3, _(Vt), 0, e * 0.36, 0));
     return t;
   },
   desk: (i) => {
-    const t = new U(), e = w(Gt, { roughness: 0.6 }), n = w(Vt, { roughness: 0.5 }), s = w(ft, { roughness: 0.4, metalness: 0.5 });
-    t.add(P(v(1.5, 0.04, 0.75, e, 0, 0.71, 0), i)), t.add(v(1.42, 0.02, 0.67, w(9068340, { roughness: 0.55 }), 0, 0.735, 0)), t.add(v(0.42, 0.66, 0.68, n, 0.5, 0.36, 0));
+    const t = new U(), e = _(Gt, { roughness: 0.6 }), n = _(Vt, { roughness: 0.5 }), s = _(ft, { roughness: 0.4, metalness: 0.5 });
+    t.add(P(v(1.5, 0.04, 0.75, e, 0, 0.71, 0), i)), t.add(v(1.42, 0.02, 0.67, _(9068340, { roughness: 0.55 }), 0, 0.735, 0)), t.add(v(0.42, 0.66, 0.68, n, 0.5, 0.36, 0));
     for (let o = 0; o < 3; o++) {
       const r = 0.2 + o * 0.2;
-      t.add(v(0.34, 0.17, 0.02, w(3817287, { roughness: 0.5 }), 0.5, r, 0.35)), t.add(v(0.12, 0.02, 0.02, s, 0.5, r, 0.37));
+      t.add(v(0.34, 0.17, 0.02, _(3817287, { roughness: 0.5 }), 0.5, r, 0.35)), t.add(v(0.12, 0.02, 0.02, s, 0.5, r, 0.37));
     }
     return t.add(v(0.9, 0.42, 0.03, e, -0.13, 0.45, -0.34)), t.add(q(0.025, 0.035, 0.68, s, -0.68, 0.34, 0.3, 12)), t.add(q(0.025, 0.035, 0.68, s, -0.68, 0.34, -0.3, 12)), t;
   },
   office_chair: (i) => {
-    const t = new U(), e = w(ft, { roughness: 0.25, metalness: 0.85 }), n = w(Vt, { roughness: 0.6 }), s = w(3817028, { roughness: 0.85 }), o = w(2830134, { roughness: 0.9 });
+    const t = new U(), e = _(ft, { roughness: 0.25, metalness: 0.85 }), n = _(Vt, { roughness: 0.6 }), s = _(3817028, { roughness: 0.85 }), o = _(2830134, { roughness: 0.9 });
     t.add(q(0.055, 0.07, 0.07, e, 0, 0.06, 0, 16));
     for (let a = 0; a < 5; a++) {
       const l = a * Math.PI * 2 / 5, c = v(0.055, 0.05, 0.3, e, 0, 0.055, 0.16);
@@ -20979,44 +20979,44 @@ const po = {
     return t;
   },
   nightstand: (i) => {
-    const t = new U(), e = w(Gt, { roughness: 0.6 }), n = w(Vt, { roughness: 0.6 }), s = w(ft, { roughness: 0.3, metalness: 0.6 });
+    const t = new U(), e = _(Gt, { roughness: 0.6 }), n = _(Vt, { roughness: 0.6 }), s = _(ft, { roughness: 0.3, metalness: 0.6 });
     for (const [o, r] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
       t.add(q(0.02, 0.03, 0.12, n, o * 0.2, 0.06, r * 0.16, 8));
     return t.add(P(v(0.46, 0.34, 0.4, e, 0, 0.29, 0), i)), t.add(v(0.42, 0.15, 0.02, e, 0, 0.21, 0.205)), t.add(v(0.42, 0.15, 0.02, e, 0, 0.37, 0.205)), t.add(v(0.16, 0.015, 0.02, s, 0, 0.235, 0.22)), t.add(v(0.16, 0.015, 0.02, s, 0, 0.395, 0.22)), t.add(v(0.5, 0.03, 0.44, e, 0, 0.475, 0)), t;
   },
   dresser: (i) => {
     const t = new U();
-    t.add(P(v(1.1, 0.85, 0.5, w(Gt), 0, 0.42, 0), i));
-    for (let e = 0; e < 3; e++) t.add(v(0.9, 0.02, 0.02, w(ft), 0, 0.2 + e * 0.25, 0.26));
+    t.add(P(v(1.1, 0.85, 0.5, _(Gt), 0, 0.42, 0), i));
+    for (let e = 0; e < 3; e++) t.add(v(0.9, 0.02, 0.02, _(ft), 0, 0.2 + e * 0.25, 0.26));
     return t;
   },
   stove: (i) => {
     const t = new U();
-    t.add(P(v(0.6, 0.85, 0.6, w(ft), 0, 0.42, 0), i)), t.add(v(0.55, 0.02, 0.55, w(Vt), 0, 0.86, 0));
+    t.add(P(v(0.6, 0.85, 0.6, _(ft), 0, 0.42, 0), i)), t.add(v(0.55, 0.02, 0.55, _(Vt), 0, 0.86, 0));
     for (const [e, n] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-      t.add(q(0.08, 0.08, 0.01, w(2236962), e * 0.13, 0.875, n * 0.13));
+      t.add(q(0.08, 0.08, 0.01, _(2236962), e * 0.13, 0.875, n * 0.13));
     return t;
   },
   microwave: (i) => {
     const t = new U();
-    return t.add(P(v(0.5, 0.3, 0.35, w(Vt), 0, 0.15, 0), i)), t.add(v(0.32, 0.22, 0.01, w(1053720, { emissive: 662050 }), -0.05, 0.15, 0.18)), t;
+    return t.add(P(v(0.5, 0.3, 0.35, _(Vt), 0, 0.15, 0), i)), t.add(v(0.32, 0.22, 0.01, _(1053720, { emissive: 662050 }), -0.05, 0.15, 0.18)), t;
   },
   dishwasher: (i) => {
     const t = new U();
-    return t.add(P(v(0.6, 0.85, 0.6, w(ft), 0, 0.42, 0), i)), t.add(v(0.5, 0.02, 0.02, w(Vt), 0, 0.75, 0.31)), t;
+    return t.add(P(v(0.6, 0.85, 0.6, _(ft), 0, 0.42, 0), i)), t.add(v(0.5, 0.02, 0.02, _(Vt), 0, 0.75, 0.31)), t;
   },
   washing_machine: (i) => {
     const t = new U();
-    return t.add(P(v(0.6, 0.85, 0.6, w($t), 0, 0.42, 0), i)), t.add(q(0.2, 0.2, 0.04, w(Vt), 0, 0.45, 0.31).rotateX(Math.PI / 2)), t;
+    return t.add(P(v(0.6, 0.85, 0.6, _($t), 0, 0.42, 0), i)), t.add(q(0.2, 0.2, 0.04, _(Vt), 0, 0.45, 0.31).rotateX(Math.PI / 2)), t;
   },
   // Freestanding bath — an open shell (4 walls + floor) so it reads as a real
   // basin with water, on a slim plinth, with a chrome mixer at one end.
   bathtub: (i) => {
-    const t = new U(), e = 1.7, n = 0.58, s = 0.78, o = 0.09, r = w($t, { roughness: 0.3, metalness: 0.05 });
-    t.add(v(e - 0.04, 0.05, s - 0.04, w(15001835, { roughness: 0.6 }), 0, 0.025, 0)), t.add(P(v(e, o, s, r, 0, 0.05 + o / 2, 0), i));
+    const t = new U(), e = 1.7, n = 0.58, s = 0.78, o = 0.09, r = _($t, { roughness: 0.3, metalness: 0.05 });
+    t.add(v(e - 0.04, 0.05, s - 0.04, _(15001835, { roughness: 0.6 }), 0, 0.025, 0)), t.add(P(v(e, o, s, r, 0, 0.05 + o / 2, 0), i));
     const a = n - 0.05 - o, l = 0.05 + o + a / 2;
-    t.add(P(v(e, a, o, r, 0, l, s / 2 - o / 2), i)), t.add(P(v(e, a, o, r, 0, l, -0.34500000000000003), i)), t.add(P(v(o, a, s - 2 * o, r, e / 2 - o / 2, l, 0), i)), t.add(P(v(o, a, s - 2 * o, r, -0.8049999999999999, l, 0), i)), t.add(v(e - 2 * o, 0.02, s - 2 * o, w(12574954, { transparent: !0, opacity: 0.72, roughness: 0.15 }), 0, n - 0.07, 0));
-    const c = w(ft, { metalness: 0.8, roughness: 0.2 });
+    t.add(P(v(e, a, o, r, 0, l, s / 2 - o / 2), i)), t.add(P(v(e, a, o, r, 0, l, -0.34500000000000003), i)), t.add(P(v(o, a, s - 2 * o, r, e / 2 - o / 2, l, 0), i)), t.add(P(v(o, a, s - 2 * o, r, -0.8049999999999999, l, 0), i)), t.add(v(e - 2 * o, 0.02, s - 2 * o, _(12574954, { transparent: !0, opacity: 0.72, roughness: 0.15 }), 0, n - 0.07, 0));
+    const c = _(ft, { metalness: 0.8, roughness: 0.2 });
     return t.add(q(0.018, 0.022, 0.2, c, -e / 2 + 0.16, n + 0.1, -s / 2 + 0.15, 12)), t.add(v(0.14, 0.025, 0.028, c, -e / 2 + 0.24, n + 0.185, -s / 2 + 0.15)), t;
   },
   // A PAIR of tall dark display cabinets flanking a feature wall — `count`
@@ -21032,38 +21032,38 @@ const po = {
   },
   shower: (i) => {
     const t = new U();
-    return t.add(P(v(0.9, 0.04, 0.9, w($t), 0, 0.02, 0), i)), t.add(v(0.04, 2, 0.9, w(Bn, { transparent: !0, opacity: 0.25 }), -0.43, 1, 0)), t.add(v(0.9, 2, 0.04, w(Bn, { transparent: !0, opacity: 0.25 }), 0, 1, -0.43)), t.add(q(0.06, 0.06, 0.04, w(ft), 0.3, 1.9, 0.3)), t;
+    return t.add(P(v(0.9, 0.04, 0.9, _($t), 0, 0.02, 0), i)), t.add(v(0.04, 2, 0.9, _(Bn, { transparent: !0, opacity: 0.25 }), -0.43, 1, 0)), t.add(v(0.9, 2, 0.04, _(Bn, { transparent: !0, opacity: 0.25 }), 0, 1, -0.43)), t.add(q(0.06, 0.06, 0.04, _(ft), 0.3, 1.9, 0.3)), t;
   },
   mirror: (i) => {
     const t = new U();
-    return t.add(P(v(0.6, 0.9, 0.04, w(ft), 0, 0, 0), i)), t.add(v(0.5, 0.8, 0.01, w(11195616, { metalness: 0.9, roughness: 0.1 }), 0, 0, 0.03)), t;
+    return t.add(P(v(0.6, 0.9, 0.04, _(ft), 0, 0, 0), i)), t.add(v(0.5, 0.8, 0.01, _(11195616, { metalness: 0.9, roughness: 0.1 }), 0, 0, 0.03)), t;
   },
   plant: (i) => {
     const t = new U();
-    return t.add(q(0.16, 0.2, 0.3, w(9067056), 0, 0.15, 0)), t.add(P(new Bt(new ss(0.32, 0), w(4160831)), i).translateY(0.6)), t;
+    return t.add(q(0.16, 0.2, 0.3, _(9067056), 0, 0.15, 0)), t.add(P(new Bt(new ss(0.32, 0), _(4160831)), i).translateY(0.6)), t;
   },
   rug: (i) => {
     const t = new U();
-    return t.add(P(v(2, 0.02, 1.4, w(8930372), 0, 0.012, 0), i)), t;
+    return t.add(P(v(2, 0.02, 1.4, _(8930372), 0, 0.012, 0), i)), t;
   },
   stairs: (i) => {
     const t = new U(), e = 8;
     for (let n = 0; n < e; n++)
-      t.add(P(v(1, 0.18, 0.3, w(Gt), 0, 0.09 + n * 0.18, -n * 0.3), i));
+      t.add(P(v(1, 0.18, 0.3, _(Gt), 0, 0.09 + n * 0.18, -n * 0.3), i));
     return t;
   },
   // Descending staircase — for an UPPER floor, a flight going DOWN to the level
   // below (steps drop beneath the floor). Treads + risers + side stringers read
   // clearly as a stairwell.
   stairs_down: (i) => {
-    const t = new U(), e = 8, n = 0.19, s = 0.3, o = 1, r = w(Gt), a = w(9068340);
+    const t = new U(), e = 8, n = 0.19, s = 0.3, o = 1, r = _(Gt), a = _(9068340);
     for (let h = 0; h < e; h++) {
       const d = -0.02 - h * n, f = -0.15 - h * s;
       t.add(P(v(o, 0.05, s, r, 0, d, f), i)), t.add(v(o - 0.02, n, 0.03, a, 0, d - n / 2, f - s / 2));
     }
     const l = Math.hypot(e * n, e * s), c = Math.atan2(e * n, e * s);
     for (const h of [-1, 1]) {
-      const d = v(0.05, 0.3, l, w(8016432), h * (o / 2), -0.02 - e * n / 2, -0.15 - e * s / 2 + s / 2);
+      const d = v(0.05, 0.3, l, _(8016432), h * (o / 2), -0.02 - e * n / 2, -0.15 - e * s / 2 + s / 2);
       d.rotation.x = -c, t.add(d);
     }
     return t;
@@ -21071,7 +21071,7 @@ const po = {
   // U-shaped switchback stair: two flights bridged by a mid landing (as drawn in
   // the Лестничная клетка stairwells).
   stairs_switchback: (i) => {
-    const t = new U(), e = 7, n = 0.18, s = 0.28, o = 0.95, r = 0.06, a = w(Gt), l = o / 2 + r / 2, c = -e * s;
+    const t = new U(), e = 7, n = 0.18, s = 0.28, o = 0.95, r = 0.06, a = _(Gt), l = o / 2 + r / 2, c = -e * s;
     for (let f = 0; f < e; f++)
       t.add(P(v(o, 0.16, s, a, -l, 0.08 + f * n, -f * s - s / 2), i));
     const h = 0.08 + (e - 1) * n + n;
@@ -21085,9 +21085,9 @@ const po = {
   // stairs are drawn on the plan: a wooden footprint with tread lines across the
   // run (no arrow), for tracing the plan rather than a raised 3D flight.
   stairs_flat: (i) => {
-    const t = new U(), e = 12, n = 0.27, s = 1.2, o = 0.014, r = e * n, a = w(Gt, { roughness: 0.96 });
+    const t = new U(), e = 12, n = 0.27, s = 1.2, o = 0.014, r = e * n, a = _(Gt, { roughness: 0.96 });
     t.add(P(v(s, o, r, a, 0, o / 2, 0), i));
-    const l = w(5913892, { roughness: 0.9 });
+    const l = _(5913892, { roughness: 0.9 });
     for (let c = 1; c < e; c++)
       t.add(v(s - 0.04, o * 1.4, 0.018, l, 0, o + 2e-3, -r / 2 + c * n));
     for (const c of [-1, 1])
@@ -21098,24 +21098,24 @@ const po = {
   // zero length collapses in the builder, so a placeable column model is needed.
   column_sq: (i) => {
     const t = new U();
-    return t.add(P(v(0.38, 2.6, 0.38, w(14209734, { roughness: 0.9 }), 0, 1.3, 0), i)), t;
+    return t.add(P(v(0.38, 2.6, 0.38, _(14209734, { roughness: 0.9 }), 0, 1.3, 0), i)), t;
   },
   column_round: (i) => {
     const t = new U();
-    return t.add(P(q(0.19, 0.19, 2.6, w(14209734, { roughness: 0.9 }), 0, 1.3, 0, 24), i)), t;
+    return t.add(P(q(0.19, 0.19, 2.6, _(14209734, { roughness: 0.9 }), 0, 1.3, 0, 24), i)), t;
   },
   // Elevator (Лифт) — shaft on three sides, a cabin, and two sliding leaves on
   // the open face. Footprint ~3.1 x 1.9 m to match the plan.
   elevator: (i) => {
-    const t = new U(), e = 3.1, n = 1.9, s = 2.6, o = w(12567496, { roughness: 0.6, metalness: 0.3 });
-    t.add(v(e, s, 0.1, o, 0, s / 2, -n / 2 + 0.05)), t.add(v(0.1, s, n, o, -e / 2 + 0.05, s / 2, 0)), t.add(v(0.1, s, n, o, e / 2 - 0.05, s / 2, 0)), t.add(v(e, 0.12, n, o, 0, s - 0.06, 0)), t.add(P(v(e - 0.32, s - 0.22, n - 0.32, w(15264492, { roughness: 0.4, metalness: 0.5 }), 0, (s - 0.22) / 2, -0.06), i));
-    const r = w(ft, { roughness: 0.35, metalness: 0.7 });
+    const t = new U(), e = 3.1, n = 1.9, s = 2.6, o = _(12567496, { roughness: 0.6, metalness: 0.3 });
+    t.add(v(e, s, 0.1, o, 0, s / 2, -n / 2 + 0.05)), t.add(v(0.1, s, n, o, -e / 2 + 0.05, s / 2, 0)), t.add(v(0.1, s, n, o, e / 2 - 0.05, s / 2, 0)), t.add(v(e, 0.12, n, o, 0, s - 0.06, 0)), t.add(P(v(e - 0.32, s - 0.22, n - 0.32, _(15264492, { roughness: 0.4, metalness: 0.5 }), 0, (s - 0.22) / 2, -0.06), i));
+    const r = _(ft, { roughness: 0.35, metalness: 0.7 });
     return t.add(v(0.72, s - 0.2, 0.05, r, -0.38, (s - 0.2) / 2, n / 2 - 0.05)), t.add(v(0.72, s - 0.2, 0.05, r, 0.38, (s - 0.2) / 2, n / 2 - 0.05)), t;
   },
   // Reception / front desk (Ресепшн) — counter carcass + raised transaction top +
   // a lower inner work surface.
   reception: (i) => {
-    const t = new U(), e = 2.4, n = 0.72, s = 1.02, o = w(Gt, { roughness: 0.55 }), r = w(9068340, { roughness: 0.5 }), a = w(15131352, { roughness: 0.35, metalness: 0.05 }), l = w(Vt, { roughness: 0.4 }), c = w(ft, { metalness: 0.7, roughness: 0.3 }), h = 0.12 + (s - 0.12) / 2;
+    const t = new U(), e = 2.4, n = 0.72, s = 1.02, o = _(Gt, { roughness: 0.55 }), r = _(9068340, { roughness: 0.5 }), a = _(15131352, { roughness: 0.35, metalness: 0.05 }), l = _(Vt, { roughness: 0.4 }), c = _(ft, { metalness: 0.7, roughness: 0.3 }), h = 0.12 + (s - 0.12) / 2;
     t.add(v(e - 0.1, 0.12, n - 0.16, l, 0, 0.06, 0)), t.add(P(v(e, s - 0.12, n, o, 0, h, 0), i));
     const d = n / 2 + 0.012, f = (e - 0.16) / 3;
     for (let u = 0; u < 3; u++) {
@@ -21125,23 +21125,23 @@ const po = {
     t.add(v(e - 0.12, 0.02, 6e-3, l, 0, s - 0.18, d + 6e-3)), t.add(v(e - 0.12, 0.02, 6e-3, l, 0, 0.3, d + 6e-3));
     for (const u of [-1, 1])
       t.add(v(0.02, s - 0.2, n - 0.06, r, u * (e / 2 + 0.011), h, 0));
-    t.add(v(e - 0.2, 0.04, 0.5, w(13350812, { roughness: 0.5 }), 0, 0.74, -0.16));
+    t.add(v(e - 0.2, 0.04, 0.5, _(13350812, { roughness: 0.5 }), 0, 0.74, -0.16));
     for (const u of [-1, 0, 1])
       t.add(q(0.012, 0.012, 0.1, c, u * (e / 2 - 0.2), s + 0.05, 0.05, 8));
     return t.add(v(e + 0.12, 0.05, n + 0.22, a, 0, s + 0.125, 0.02)), t.add(v(e + 0.08, 0.03, n + 0.18, a, 0, s + 0.09, 0.02)), t;
   },
   // Carport canopy (Навес) — a flat roof on four slim posts.
   canopy: (i) => {
-    const t = new U(), e = 7.2, n = 7, s = 2.7, o = w(ft, { roughness: 0.5, metalness: 0.4 });
+    const t = new U(), e = 7.2, n = 7, s = 2.7, o = _(ft, { roughness: 0.5, metalness: 0.4 });
     for (const r of [-1, 1])
       for (const a of [-1, 1]) t.add(q(0.08, 0.08, s, o, r * (e / 2 - 0.2), s / 2, a * (n / 2 - 0.2), 12));
-    return t.add(P(v(e, 0.15, n, w(14211292, { roughness: 0.7 }), 0, s + 0.07, 0), i)), t;
+    return t.add(P(v(e, 0.15, n, _(14211292, { roughness: 0.7 }), 0, s + 0.07, 0), i)), t;
   },
   // Passenger car (parked under the canopy on the plan).
   car: (i) => {
-    const t = new U(), e = w(3166318, { roughness: 0.4, metalness: 0.5 });
-    t.add(P(v(1.82, 0.55, 4.3, e, 0, 0.5, 0), i)), t.add(P(v(1.7, 0.35, 3.5, e, 0, 0.85, 0), i)), t.add(v(1.5, 0.42, 1.9, w(1713716, { roughness: 0.2, metalness: 0.3 }), 0, 1.12, -0.15));
-    const n = w(1842206, { roughness: 0.9 });
+    const t = new U(), e = _(3166318, { roughness: 0.4, metalness: 0.5 });
+    t.add(P(v(1.82, 0.55, 4.3, e, 0, 0.5, 0), i)), t.add(P(v(1.7, 0.35, 3.5, e, 0, 0.85, 0), i)), t.add(v(1.5, 0.42, 1.9, _(1713716, { roughness: 0.2, metalness: 0.3 }), 0, 1.12, -0.15));
+    const n = _(1842206, { roughness: 0.9 });
     for (const s of [-1, 1])
       for (const o of [-1, 1]) {
         const r = q(0.33, 0.33, 0.22, n, s * 0.88, 0.33, o * 1.35, 18);
@@ -21152,12 +21152,12 @@ const po = {
   // Curved exterior entrance porch — stacked half-round stone treads + railing
   // posts. Self-contained (does not need a curved wall).
   porch: (i) => {
-    const t = new U(), e = w(14144200, { roughness: 0.9 }), n = 3;
+    const t = new U(), e = _(14144200, { roughness: 0.9 }), n = 3;
     for (let l = 0; l < n; l++) {
       const c = 2.2 - l * 0.4, h = q(c, c, 0.15, e, 0, 0.075 + l * 0.15, 0, 44);
       h.scale.z = 0.55, t.add(P(h, i));
     }
-    const s = w(ft, { roughness: 0.5, metalness: 0.4 }), o = 2.2 - (n - 1) * 0.4, r = 0.075 + (n - 1) * 0.15, a = 7;
+    const s = _(ft, { roughness: 0.5, metalness: 0.4 }), o = 2.2 - (n - 1) * 0.4, r = 0.075 + (n - 1) * 0.15, a = 7;
     for (let l = 0; l <= a; l++) {
       const c = -Math.PI / 2 + Math.PI * (l / a);
       t.add(q(0.03, 0.03, 0.9, s, Math.cos(c) * o, r + 0.45, Math.sin(c) * o * 0.55, 8));
@@ -21166,11 +21166,11 @@ const po = {
   },
   // Wall-hung urinal for the WCs (Сан.узел).
   urinal: (i) => {
-    const t = new U(), e = w($t, { roughness: 0.35 });
-    return t.add(P(v(0.36, 0.6, 0.32, e, 0, 0, -0.02), i)), t.add(P(q(0.18, 0.14, 0.16, e, 0, -0.18, 0.06, 18), i)), t.add(v(0.08, 0.12, 0.06, w(ft, { metalness: 0.7, roughness: 0.3 }), 0, 0.42, -0.06)), t;
+    const t = new U(), e = _($t, { roughness: 0.35 });
+    return t.add(P(v(0.36, 0.6, 0.32, e, 0, 0, -0.02), i)), t.add(P(q(0.18, 0.14, 0.16, e, 0, -0.18, 0.06, 18), i)), t.add(v(0.08, 0.12, 0.06, _(ft, { metalness: 0.7, roughness: 0.3 }), 0, 0.42, -0.06)), t;
   },
   curtain: (i) => {
-    const t = new U(), e = 1.8, n = 2.2, s = 0.03, o = w(10128246, { roughness: 1 }), r = q(0.022, 0.022, e + 0.2, w(ft), 0, n + 0.02, s, 8);
+    const t = new U(), e = 1.8, n = 2.2, s = 0.03, o = _(10128246, { roughness: 1 }), r = q(0.022, 0.022, e + 0.2, _(ft), 0, n + 0.02, s, 8);
     r.rotation.z = Math.PI / 2, t.add(r);
     const a = (l) => {
       const c = new U();
@@ -21186,7 +21186,7 @@ const po = {
   },
   // Half curtain: ONE panel that slides to a single side (not centre-split).
   curtain_single: (i) => {
-    const t = new U(), e = 1.6, n = 2.2, s = 0.03, o = w(10128246, { roughness: 1 }), r = q(0.022, 0.022, e + 0.2, w(ft), 0, n + 0.02, s, 8);
+    const t = new U(), e = 1.6, n = 2.2, s = 0.03, o = _(10128246, { roughness: 1 }), r = q(0.022, 0.022, e + 0.2, _(ft), 0, n + 0.02, s, 8);
     r.rotation.z = Math.PI / 2, t.add(r);
     const a = new U();
     a.name = "curtainPivot", a.position.x = -e / 2;
@@ -21198,7 +21198,7 @@ const po = {
     return t.add(a), t;
   },
   curtain_sheer: (i) => {
-    const t = new U(), e = 1.8, n = 2.2, s = 0.03, o = w(15921129, { transparent: !0, opacity: 0.5, roughness: 1 }), r = q(0.02, 0.02, e + 0.2, w(ft), 0, n + 0.02, s, 8);
+    const t = new U(), e = 1.8, n = 2.2, s = 0.03, o = _(15921129, { transparent: !0, opacity: 0.5, roughness: 1 }), r = q(0.02, 0.02, e + 0.2, _(ft), 0, n + 0.02, s, 8);
     r.rotation.z = Math.PI / 2, t.add(r);
     const a = (l) => {
       const c = new U();
@@ -21215,7 +21215,7 @@ const po = {
   // Half sheer: ONE tulle panel that slides to a single side (not centre-split),
   // the sheer twin of curtain_single.
   curtain_sheer_single: (i) => {
-    const t = new U(), e = 1.6, n = 2.2, s = 0.03, o = w(15921129, { transparent: !0, opacity: 0.5, roughness: 1 }), r = q(0.02, 0.02, e + 0.2, w(ft), 0, n + 0.02, s, 8);
+    const t = new U(), e = 1.6, n = 2.2, s = 0.03, o = _(15921129, { transparent: !0, opacity: 0.5, roughness: 1 }), r = q(0.02, 0.02, e + 0.2, _(ft), 0, n + 0.02, s, 8);
     r.rotation.z = Math.PI / 2, t.add(r);
     const a = new U();
     a.name = "curtainPivot", a.position.x = -e / 2;
@@ -21227,13 +21227,13 @@ const po = {
     return t.add(a), t;
   },
   roller_blind: (i) => {
-    const t = new U(), e = 1.4, n = 1.9, s = 0.02, o = q(0.05, 0.05, e, w(14209732), 0, n, s, 10);
+    const t = new U(), e = 1.4, n = 1.9, s = 0.02, o = q(0.05, 0.05, e, _(14209732), 0, n, s, 10);
     o.rotation.z = Math.PI / 2, t.add(o);
     const r = new U();
-    return r.name = "curtainPivot", r.add(P(v(e, n, 0.02, w(12562067, { roughness: 1 }), 0, n / 2, s), i)), t.add(r), t;
+    return r.name = "curtainPivot", r.add(P(v(e, n, 0.02, _(12562067, { roughness: 1 }), 0, n / 2, s), i)), t.add(r), t;
   },
   roman_blind: (i) => {
-    const t = new U(), e = 1.4, n = 1.9, s = 0.02, o = w(9076588, { roughness: 1 }), r = q(0.04, 0.04, e, w(ft), 0, n + 0.02, s, 8);
+    const t = new U(), e = 1.4, n = 1.9, s = 0.02, o = _(9076588, { roughness: 1 }), r = q(0.04, 0.04, e, _(ft), 0, n + 0.02, s, 8);
     r.rotation.z = Math.PI / 2, t.add(r);
     const a = new U();
     a.name = "curtainPivot";
@@ -21246,25 +21246,25 @@ const po = {
   // 'blindPivotV' (the binding scales it in Y, anchored at the top).
   blind_bottomup: (i) => {
     const t = new U(), e = 1.6, n = 2, s = 0.03;
-    t.add(v(e + 0.06, 0.07, 0.08, w(ft), 0, n + 0.02, s));
+    t.add(v(e + 0.06, 0.07, 0.08, _(ft), 0, n + 0.02, s));
     const o = new U();
     o.name = "blindPivotV", o.position.set(0, n, s);
-    const r = w(13350812, { roughness: 0.9 }), a = 18, l = n / a;
+    const r = _(13350812, { roughness: 0.9 }), a = 18, l = n / a;
     for (let c = 1; c <= a; c++) {
       const h = P(v(e, 0.02, 0.035, r, 0, -c * l + l * 0.4, 0), i);
       h.rotation.x = 0.32, o.add(h);
     }
-    o.add(v(e + 0.02, 0.045, 0.05, w(10128243), 0, -n, 0));
+    o.add(v(e + 0.02, 0.045, 0.05, _(10128243), 0, -n, 0));
     for (const c of [-1, 1])
-      o.add(v(6e-3, n, 6e-3, w(13617338), c * e * 0.3, -n / 2, 0.012));
+      o.add(v(6e-3, n, 6e-3, _(13617338), c * e * 0.3, -n / 2, 0.012));
     return t.add(o), t;
   },
   // ---- Extra kitchen ----
   wall_cabinet: (i) => {
     const t = new U(), e = 1.6, n = 0.7, s = 0.34;
-    t.add(P(v(e, n, s, w($t), 0, 0, 0), i));
+    t.add(P(v(e, n, s, _($t), 0, 0, 0), i));
     for (const o of [-1, 1])
-      t.add(v(e / 2 - 0.03, n - 0.04, 0.02, w(16185078), o * e / 4, 0, s / 2 + 5e-3)), t.add(v(0.04, 0.18, 0.03, w(ft), o * 0.03, -n / 4, s / 2 + 0.02));
+      t.add(v(e / 2 - 0.03, n - 0.04, 0.02, _(16185078), o * e / 4, 0, s / 2 + 5e-3)), t.add(v(0.04, 0.18, 0.03, _(ft), o * 0.03, -n / 4, s / 2 + 0.02));
     return t;
   },
   // Glass-front kitchen wall cabinet (навесной шкаф со стеклом + подсветкой), as
@@ -21276,16 +21276,16 @@ const po = {
   // 'emissive', so binding a light/switch lights them together. Wall-mounted;
   // origin at the cabinet's base. 2.4 x 1.0 x 0.35 m.
   glass_wall_cabinet: (i) => {
-    const t = new U(), e = 2.4, n = 1, s = 0.35, o = -s / 2, r = s / 2, a = w(1844770, { roughness: 0.35, metalness: 0.25 }), l = w(2371625, { roughness: 0.4, metalness: 0.2 }), c = w(ft, { metalness: 0.7, roughness: 0.3 }), h = w(12576495, { transparent: !0, opacity: 0.18, roughness: 0.1, metalness: 0.1 }), d = w(14675698, { transparent: !0, opacity: 0.34, roughness: 0.15 });
+    const t = new U(), e = 2.4, n = 1, s = 0.35, o = -s / 2, r = s / 2, a = _(1844770, { roughness: 0.35, metalness: 0.25 }), l = _(2371625, { roughness: 0.4, metalness: 0.2 }), c = _(ft, { metalness: 0.7, roughness: 0.3 }), h = _(12576495, { transparent: !0, opacity: 0.18, roughness: 0.1, metalness: 0.1 }), d = _(14675698, { transparent: !0, opacity: 0.34, roughness: 0.15 });
     t.add(P(v(e, n, 0.02, a, 0, n / 2, o + 0.01), i)), t.add(P(v(e, 0.05, s, a, 0, n - 0.025, 0), i)), t.add(P(v(e, 0.05, s, a, 0, 0.025, 0), i)), t.add(P(v(0.04, n, s, a, -e / 2 + 0.02, n / 2, 0), i)), t.add(P(v(0.04, n, s, a, e / 2 - 0.02, n / 2, 0), i));
     const f = 4, u = e / f, m = [0, 3];
     for (let p = 0; p < f; p++) {
       const g = -e / 2 + u * (p + 0.5);
       if (p < f - 1 && t.add(P(v(0.03, n - 0.06, s - 0.02, a, g + u / 2, n / 2, 0), i)), m.includes(p)) {
-        const y = u - 0.1, b = v(y, n - 0.12, 0.01, w(16184558, { emissive: 0 }), g, n / 2, o + 0.03);
+        const y = u - 0.1, b = v(y, n - 0.12, 0.01, _(16184558, { emissive: 0 }), g, n / 2, o + 0.03);
         b.name = "emissive", t.add(b);
         for (const M of [-1, 1]) {
-          const R = v(0.018, n - 0.16, 0.02, w(16774108, { emissive: 0 }), g + M * (y / 2 - 0.01), n / 2, o + 0.07);
+          const R = v(0.018, n - 0.16, 0.02, _(16774108, { emissive: 0 }), g + M * (y / 2 - 0.01), n / 2, o + 0.07);
           R.name = "emissive", t.add(R);
         }
         for (let M = 0; M < 4; M++)
@@ -21299,45 +21299,56 @@ const po = {
         t.add(v(0.02, 0.18, 0.025, c, y, n / 2, r - 5e-3));
       }
     }
-    const x = v(e - 0.1, 0.02, 0.05, w(16771524, { emissive: 0 }), 0, 6e-3, r - 0.1);
+    const x = v(e - 0.1, 0.02, 0.05, _(16771524, { emissive: 0 }), 0, 6e-3, r - 0.1);
     return x.name = "emissive", t.add(x), t.add(P(v(e + 0.05, 0.05, s + 0.04, a, 0, n + 0.02, 0), i)), t;
+  },
+  // A neutral wall switch / control plate. DELIBERATELY has NO 'emissive' mesh and
+  // no moving parts, so a bound device NEVER changes its look — no glow, no point
+  // light, no spin, no floating label. It is purely a tap target that surfaces the
+  // bound device's controls (a switch toggle, a media/AC "pult", a cover) in the 3D
+  // UI. entityDomainsFor(wall_switch) restricts binding to the inert behaviours
+  // (switch/media_player/climate/cover) precisely so it stays visually static.
+  // Centered at local y=0, back at z=0 (surface-mounts flush). 0.13 x 0.13 m.
+  wall_switch: (i) => {
+    const t = new U(), e = 0.13, n = 0.13, s = _(15659250, { roughness: 0.5, metalness: 0.08 }), o = _(15001578, { roughness: 0.55 }), r = _(16251130, { roughness: 0.4 }), a = _(10133670, { roughness: 0.5 });
+    return t.add(P(v(e, n, 0.01, s, 0, 0, 5e-3), i)), t.add(v(e * 0.9, n * 0.9, 0.014, o, 0, 0, 0.012)), t.add(v(e * 0.46, n * 0.74, 0.02, r, 0, 0, 0.022)), t.add(v(0.012, 0.012, 6e-3, a, 0, -n * 0.3, 0.026)), t;
   },
   cooktop: (i) => {
     const t = new U();
-    t.add(P(v(0.6, 0.04, 0.52, w(1315860, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), i));
+    t.add(P(v(0.6, 0.04, 0.52, _(1315860, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), i));
     for (const [e, n] of [[-0.15, -0.13], [0.15, -0.13], [-0.15, 0.13], [0.15, 0.13]])
-      t.add(q(0.07, 0.07, 6e-3, w(2763306), e, 0.923, n, 18));
+      t.add(q(0.07, 0.07, 6e-3, _(2763306), e, 0.923, n, 18));
     return t;
   },
   dish_rack: (i) => {
     const t = new U();
-    t.add(P(v(0.42, 0.04, 0.3, w(ft, { metalness: 0.5, roughness: 0.4 }), 0, 0.92, 0), i));
-    for (let e = 0; e < 5; e++) t.add(v(6e-3, 0.16, 0.26, w(ft), -0.18 + e * 0.09, 1, 0));
+    t.add(P(v(0.42, 0.04, 0.3, _(ft, { metalness: 0.5, roughness: 0.4 }), 0, 0.92, 0), i));
+    for (let e = 0; e < 5; e++) t.add(v(6e-3, 0.16, 0.26, _(ft), -0.18 + e * 0.09, 1, 0));
     return t;
   },
   // ---- Extra lighting (emissive; bindable as lights) ----
   track_light: (i) => {
-    const t = new U(), e = v(1.2, 0.05, 0.05, w(Vt), 0, 0, 0);
+    const t = new U(), e = v(1.2, 0.05, 0.05, _(Vt), 0, 0, 0);
     t.add(P(e, i));
     for (const n of [-0.4, 0, 0.4]) {
-      t.add(v(0.08, 0.1, 0.08, w(Vt), n, -0.08, 0));
-      const s = q(0.05, 0.06, 0.08, w(16774358, { emissive: 0 }), n, -0.16, 0, 12);
+      t.add(v(0.08, 0.1, 0.08, _(Vt), n, -0.08, 0));
+      const s = q(0.05, 0.06, 0.08, _(16774358, { emissive: 0 }), n, -0.16, 0, 12);
       s.name = "emissive", t.add(s);
     }
     return t;
   },
   lantern: (i) => {
     const t = new U();
-    t.add(P(v(0.22, 0.04, 0.22, w(Vt), 0, 0, 0), i)), t.add(v(0.22, 0.04, 0.22, w(Vt), 0, 0.5, 0));
+    t.add(P(v(0.22, 0.04, 0.22, _(Vt), 0, 0, 0), i)), t.add(v(0.22, 0.04, 0.22, _(Vt), 0, 0.5, 0));
     for (const [n, s] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-      t.add(v(0.02, 0.5, 0.02, w(Vt), n * 0.1, 0.25, s * 0.1));
-    const e = v(0.16, 0.42, 0.16, w(16773568, { emissive: 0, transparent: !0, opacity: 0.85 }), 0, 0.25, 0);
+      t.add(v(0.02, 0.5, 0.02, _(Vt), n * 0.1, 0.25, s * 0.1));
+    const e = v(0.16, 0.42, 0.16, _(16773568, { emissive: 0, transparent: !0, opacity: 0.85 }), 0, 0.25, 0);
     return e.name = "emissive", t.add(e), t;
   },
   led_panel: (i) => {
     const t = new U();
-    t.add(P(v(0.6, 0.04, 0.6, w(ft), 0, 0, 0), i));
-    const e = v(0.56, 0.02, 0.56, w(16251647, { emissive: 0 }), 0, -0.02, 0);
+    t.add(P(v(0.6, 0.04, 0.6, _(ft), 0, 0, 0), i));
+    const e = v(0.56, 0.02, 0.56, _(16251647, { emissive: 0 }), 0, -0.02, 0);
     return e.name = "emissive", t.add(e), t;
   },
   // ---- Consolidated fixtures: ONE model + ONE bound entity in place of many
@@ -21356,9 +21367,9 @@ const po = {
         const b = new hs(0.05, 0.055, 0.02, 16);
         b.translate(p, -0.018, g), h.push(b);
       }
-    const f = new Bt(Lr(c, !1), w(15592941, { metalness: 0.15, roughness: 0.6 }));
+    const f = new Bt(Lr(c, !1), _(15592941, { metalness: 0.15, roughness: 0.6 }));
     f.castShadow = !1, c.forEach((m) => m.dispose()), e.add(f);
-    const u = new Bt(Lr(h, !1), w(16774358, { emissive: 0 }));
+    const u = new Bt(Lr(h, !1), _(16774358, { emissive: 0 }));
     return u.name = "emissive", u.castShadow = !1, h.forEach((m) => m.dispose()), e.add(P(u, i)), e;
   },
   // Hollow rectangular LED backlight. `spread` grows the frame (keeps the strip
@@ -21380,9 +21391,9 @@ const po = {
     const e = new U(), n = Math.max(1, Math.min(8, Math.round(t?.count ?? 2))), o = 0.95 * (t?.spread ?? 1);
     for (let r = 0; r < n; r++) {
       const a = new U();
-      a.add(v(0.09, 0.34, 0.07, w(2830134, { metalness: 0.5, roughness: 0.4 }), 0, 0, 0));
+      a.add(v(0.09, 0.34, 0.07, _(2830134, { metalness: 0.5, roughness: 0.4 }), 0, 0, 0));
       for (const l of [0.19, -0.19]) {
-        const c = v(0.06, 0.03, 0.055, w(16773846, { emissive: 0 }), 0, l, 0.02);
+        const c = v(0.06, 0.03, 0.055, _(16773846, { emissive: 0 }), 0, l, 0.02);
         c.name = "emissive", a.add(P(c, i));
       }
       a.position.x = (r - (n - 1) / 2) * o, e.add(a);
@@ -21392,11 +21403,11 @@ const po = {
   // Classic wall-sconce SET ("бра") — a pair (default) of brass sconces with an
   // upward shade. `count` fixtures, `spread` sets the GAP; each keeps its size.
   sconce_pair: (i, t) => {
-    const e = new U(), n = Math.max(1, Math.min(8, Math.round(t?.count ?? 2))), o = 0.9 * (t?.spread ?? 1), r = w(12096346, { metalness: 0.6, roughness: 0.35 });
+    const e = new U(), n = Math.max(1, Math.min(8, Math.round(t?.count ?? 2))), o = 0.9 * (t?.spread ?? 1), r = _(12096346, { metalness: 0.6, roughness: 0.35 });
     for (let a = 0; a < n; a++) {
       const l = new U();
       l.add(v(0.11, 0.12, 0.03, r, 0, -0.08, 0.015)), l.add(v(0.03, 0.03, 0.12, r, 0, -0.04, 0.08)), l.add(v(0.02, 0.16, 0.02, r, 0, 0.04, 0.13));
-      const c = q(0.09, 0.055, 0.14, w(16774358, { emissive: 0, transparent: !0, opacity: 0.92 }), 0, 0.16, 0.13, 16);
+      const c = q(0.09, 0.055, 0.14, _(16774358, { emissive: 0, transparent: !0, opacity: 0.92 }), 0, 0.16, 0.13, 16);
       c.name = "emissive", l.add(P(c, i)), l.position.x = (a - (n - 1) / 2) * o, e.add(l);
     }
     return e;
@@ -21404,12 +21415,12 @@ const po = {
   // Rectangular wall sconce ("bra") — a slim vertical luminous bar on the wall.
   wall_sconce: (i) => {
     const t = new U();
-    t.add(v(0.1, 0.5, 0.1, w(ft), 0, 0, 0));
+    t.add(v(0.1, 0.5, 0.1, _(ft), 0, 0, 0));
     const e = v(
       0.06,
       0.44,
       0.05,
-      w(16774358, { emissive: 0, transparent: !0, opacity: 0.92 }),
+      _(16774358, { emissive: 0, transparent: !0, opacity: 0.92 }),
       0,
       0,
       0.06
@@ -21420,34 +21431,34 @@ const po = {
   // display panel is 'emissive' so it lights when the bound fan/switch is on.
   air_purifier: (i) => {
     const t = new U(), e = 0.3, n = 0.9, s = 0.22;
-    t.add(v(e + 0.02, 0.03, s + 0.02, w(14212320, { roughness: 0.6 }), 0, 0.015, 0)), t.add(P(v(e, n, s, w($t, { roughness: 0.5, metalness: 0.1 }), 0, 0.03 + n / 2, 0), i));
-    const o = w(3817285, { roughness: 0.9 });
-    t.add(v(e - 0.05, n * 0.5, 6e-3, o, 0, 0.03 + n * 0.33, s / 2)), t.add(v(6e-3, n * 0.5, s - 0.05, o, -e / 2, 0.03 + n * 0.33, 0)), t.add(v(6e-3, n * 0.5, s - 0.05, o, e / 2, 0.03 + n * 0.33, 0)), t.add(P(v(e, 0.04, s, w(15921906, { roughness: 0.5 }), 0, 0.03 + n + 0.02, 0), i)), t.add(v(e - 0.08, 0.02, s - 0.08, w(2764081, { roughness: 0.8 }), 0, 0.03 + n + 0.045, 0));
-    const r = v(0.1, 0.06, 6e-3, w(3133695, { emissive: 0 }), 0, 0.03 + n * 0.82, s / 2 + 2e-3);
+    t.add(v(e + 0.02, 0.03, s + 0.02, _(14212320, { roughness: 0.6 }), 0, 0.015, 0)), t.add(P(v(e, n, s, _($t, { roughness: 0.5, metalness: 0.1 }), 0, 0.03 + n / 2, 0), i));
+    const o = _(3817285, { roughness: 0.9 });
+    t.add(v(e - 0.05, n * 0.5, 6e-3, o, 0, 0.03 + n * 0.33, s / 2)), t.add(v(6e-3, n * 0.5, s - 0.05, o, -e / 2, 0.03 + n * 0.33, 0)), t.add(v(6e-3, n * 0.5, s - 0.05, o, e / 2, 0.03 + n * 0.33, 0)), t.add(P(v(e, 0.04, s, _(15921906, { roughness: 0.5 }), 0, 0.03 + n + 0.02, 0), i)), t.add(v(e - 0.08, 0.02, s - 0.08, _(2764081, { roughness: 0.8 }), 0, 0.03 + n + 0.045, 0));
+    const r = v(0.1, 0.06, 6e-3, _(3133695, { emissive: 0 }), 0, 0.03 + n * 0.82, s / 2 + 2e-3);
     return r.name = "emissive", t.add(r), t;
   },
   // ---- SPA / gym / pool (basement plan) ----
   treadmill: (i) => {
-    const t = new U(), e = w(Vt), n = P(v(0.9, 0.14, 2, w($t), 0, 0.1, 0), i);
-    t.add(n), t.add(v(0.52, 0.03, 1.55, w(1579293, { roughness: 0.95 }), 0, 0.185, -0.15)), t.add(P(v(0.16, 0.07, 1.55, w($t), 0.34, 0.2, -0.15), i)), t.add(P(v(0.16, 0.07, 1.55, w($t), -0.34, 0.2, -0.15), i)), t.add(v(0.86, 0.16, 0.24, e, 0, 0.18, 1)), t.add(v(0.07, 0.9, 0.07, e, 0.3, 0.62, 0.9)), t.add(v(0.07, 0.9, 0.07, e, -0.3, 0.62, 0.9));
-    const s = q(0.03, 0.03, 0.68, w(ft), 0, 1.02, 0.9);
-    return s.rotation.z = Math.PI / 2, t.add(s), t.add(v(0.66, 0.36, 0.08, e, 0, 1.15, 0.86)), t.add(v(0.42, 0.24, 0.02, w(659478, { emissive: 1458270 }), 0, 1.17, 0.91)), t;
+    const t = new U(), e = _(Vt), n = P(v(0.9, 0.14, 2, _($t), 0, 0.1, 0), i);
+    t.add(n), t.add(v(0.52, 0.03, 1.55, _(1579293, { roughness: 0.95 }), 0, 0.185, -0.15)), t.add(P(v(0.16, 0.07, 1.55, _($t), 0.34, 0.2, -0.15), i)), t.add(P(v(0.16, 0.07, 1.55, _($t), -0.34, 0.2, -0.15), i)), t.add(v(0.86, 0.16, 0.24, e, 0, 0.18, 1)), t.add(v(0.07, 0.9, 0.07, e, 0.3, 0.62, 0.9)), t.add(v(0.07, 0.9, 0.07, e, -0.3, 0.62, 0.9));
+    const s = q(0.03, 0.03, 0.68, _(ft), 0, 1.02, 0.9);
+    return s.rotation.z = Math.PI / 2, t.add(s), t.add(v(0.66, 0.36, 0.08, e, 0, 1.15, 0.86)), t.add(v(0.42, 0.24, 0.02, _(659478, { emissive: 1458270 }), 0, 1.17, 0.91)), t;
   },
   exercise_bike: (i) => {
-    const t = new U(), e = w(ft, { roughness: 0.4, metalness: 0.5 }), n = w(Vt, { roughness: 0.6 });
+    const t = new U(), e = _(ft, { roughness: 0.4, metalness: 0.5 }), n = _(Vt, { roughness: 0.6 });
     for (const a of [0.45, -0.45]) t.add(v(0.5, 0.07, 0.1, n, 0, 0.035, a));
     const s = q(0.05, 0.06, 1.05, e, 0, 0.55, 0.32, 12);
     s.rotation.x = 0.16;
     const o = q(0.045, 0.05, 0.85, e, 0, 0.55, -0.28, 12);
     o.rotation.x = -0.18, t.add(P(s, i)), t.add(P(o, i)), t.add(P(v(0.09, 0.1, 0.7, e, 0, 0.16, 0.02), i));
-    const r = q(0.24, 0.24, 0.08, w(Vt), 0, 0.28, 0.28, 20);
+    const r = q(0.24, 0.24, 0.08, _(Vt), 0, 0.28, 0.28, 20);
     r.rotation.z = Math.PI / 2, t.add(r);
     for (const a of [-1, 1])
-      t.add(v(0.14, 0.02, 0.02, w(ft), a * 0.09, 0.28, 0.28)), t.add(v(0.11, 0.03, 0.07, w(3356477), a * 0.16, 0.22, 0.28));
-    return t.add(P(v(0.28, 0.06, 0.22, w(Ge), 0, 0.95, -0.36), i)), t.add(v(0.4, 0.05, 0.05, w(ft), 0, 1.12, 0.24)), t.add(v(0.05, 0.05, 0.22, w(ft), 0, 1.12, 0.34)), t.add(v(0.24, 0.16, 0.03, w(1711394, { emissive: 2241348 }), 0, 1.2, 0.4)), t;
+      t.add(v(0.14, 0.02, 0.02, _(ft), a * 0.09, 0.28, 0.28)), t.add(v(0.11, 0.03, 0.07, _(3356477), a * 0.16, 0.22, 0.28));
+    return t.add(P(v(0.28, 0.06, 0.22, _(Ge), 0, 0.95, -0.36), i)), t.add(v(0.4, 0.05, 0.05, _(ft), 0, 1.12, 0.24)), t.add(v(0.05, 0.05, 0.22, _(ft), 0, 1.12, 0.34)), t.add(v(0.24, 0.16, 0.03, _(1711394, { emissive: 2241348 }), 0, 1.2, 0.4)), t;
   },
   weight_bench: (i) => {
-    const t = new U(), e = w(Vt, { metalness: 0.5, roughness: 0.4 }), n = w(ft, { metalness: 0.7, roughness: 0.3 }), s = v(1.1, 0.1, 0.34, w(Ge), 0, 0.5, 0);
+    const t = new U(), e = _(Vt, { metalness: 0.5, roughness: 0.4 }), n = _(ft, { metalness: 0.7, roughness: 0.3 }), s = v(1.1, 0.1, 0.34, _(Ge), 0, 0.5, 0);
     P(s, i), t.add(s), t.add(v(1, 0.05, 0.12, e, 0, 0.43, 0)), [-0.45, 0.45].forEach((r) => {
       t.add(v(0.05, 0.43, 0.05, n, r, 0.215, 0.13)), t.add(v(0.05, 0.43, 0.05, n, r, 0.215, -0.13)), t.add(v(0.05, 0.05, 0.3, n, r, 0, 0));
     }), [-0.22, 0.22].forEach((r) => t.add(v(0.05, 1.3, 0.05, n, r, 0.65, 0.55)));
@@ -21455,7 +21466,7 @@ const po = {
     return o.rotation.z = Math.PI / 2, t.add(o), [-0.62, 0.62].forEach((r) => t.add(q(0.16, 0.16, 0.06, e, r, 1.15, 0.55))), t;
   },
   gym_machine: (i) => {
-    const t = new U(), e = w(ft, { roughness: 0.35, metalness: 0.7 }), n = w(Ge, { roughness: 0.85 }), s = w(Vt, { roughness: 0.5, metalness: 0.4 });
+    const t = new U(), e = _(ft, { roughness: 0.35, metalness: 0.7 }), n = _(Ge, { roughness: 0.85 }), s = _(Vt, { roughness: 0.5, metalness: 0.4 });
     t.add(v(1.1, 0.08, 1.4, e, 0, 0.04, 0)), t.add(q(0.045, 0.045, 1.8, e, -0.45, 0.9, -0.6, 12)), t.add(q(0.045, 0.045, 1.8, e, 0.45, 0.9, -0.6, 12)), t.add(v(1, 0.06, 0.06, e, 0, 1.78, -0.6)), t.add(q(0.015, 0.015, 1.4, e, -0.08, 0.75, -0.62, 8)), t.add(q(0.015, 0.015, 1.4, e, 0.08, 0.75, -0.62, 8));
     for (let o = 0; o < 9; o++)
       t.add(P(v(0.34, 0.055, 0.24, s, 0, 0.16 + o * 0.075, -0.62), i));
@@ -21467,7 +21478,7 @@ const po = {
     return t;
   },
   dumbbell_rack: (i) => {
-    const t = new U(), e = w(ft, { roughness: 0.35, metalness: 0.7 }), n = w(Vt, { roughness: 0.6 }), s = w(ft, { roughness: 0.2, metalness: 0.85 });
+    const t = new U(), e = _(ft, { roughness: 0.35, metalness: 0.7 }), n = _(Vt, { roughness: 0.6 }), s = _(ft, { roughness: 0.2, metalness: 0.85 });
     for (const r of [-0.72, 0.72])
       t.add(v(0.05, 0.9, 0.05, e, r, 0.45, -0.16)), t.add(v(0.05, 0.62, 0.05, e, r, 0.31, 0.16)), t.add(v(0.05, 0.05, 0.46, e, r, 0.03, 0));
     t.add(P(v(1.5, 0.04, 0.14, e, 0, 0.35, 0.13), i)), t.add(P(v(1.5, 0.04, 0.14, e, 0, 0.62, -0.12), i));
@@ -21486,7 +21497,7 @@ const po = {
     return t;
   },
   swimming_pool: (i) => {
-    const t = new U(), e = w(13222835, { roughness: 0.85 }), n = 6, s = 4, o = 0.35, r = 0.25;
+    const t = new U(), e = _(13222835, { roughness: 0.85 }), n = 6, s = 4, o = 0.35, r = 0.25;
     [
       v(n, r, o, e, 0, r / 2, (s - o) / 2),
       v(n, r, o, e, 0, r / 2, -3.65 / 2),
@@ -21496,10 +21507,10 @@ const po = {
       P(c, i), t.add(c);
     });
     const a = n - o * 2, l = s - o * 2;
-    return t.add(v(a, 0.02, l, w(1728378, { roughness: 0.4 }), 0, 0.06, 0)), t.add(v(a, 0.02, l, w(3121104, { transparent: !0, opacity: 0.75, roughness: 0.15 }), 0, r - 0.05, 0)), t;
+    return t.add(v(a, 0.02, l, _(1728378, { roughness: 0.4 }), 0, 0.06, 0)), t.add(v(a, 0.02, l, _(3121104, { transparent: !0, opacity: 0.75, roughness: 0.15 }), 0, r - 0.05, 0)), t;
   },
   sauna_bench: (i) => {
-    const t = new U(), e = w(Gt), n = 0.04, s = 8e-3;
+    const t = new U(), e = _(Gt), n = 0.04, s = 8e-3;
     return [[0.6, 0, 0.45], [0.45, -0.075, 0.85]].forEach(([r, a, l]) => {
       let c = a + r / 2 - 0.06;
       for (; c > a - r / 2; )
@@ -21509,16 +21520,16 @@ const po = {
     }), t;
   },
   sauna_heater: (i) => {
-    const t = new U(), e = w(ft, { roughness: 0.5, metalness: 0.7 }), n = v(0.5, 0.6, 0.5, e, 0, 0.31, 0);
-    P(n, i), t.add(n), t.add(v(0.54, 0.04, 0.54, w(Vt), 0, 0.02, 0)), t.add(v(0.52, 0.05, 0.52, e, 0, 0.63, 0));
-    const s = w(9080726, { roughness: 0.95 }), o = new Tn(0.06, 8, 6);
+    const t = new U(), e = _(ft, { roughness: 0.5, metalness: 0.7 }), n = v(0.5, 0.6, 0.5, e, 0, 0.31, 0);
+    P(n, i), t.add(n), t.add(v(0.54, 0.04, 0.54, _(Vt), 0, 0.02, 0)), t.add(v(0.52, 0.05, 0.52, e, 0, 0.63, 0));
+    const s = _(9080726, { roughness: 0.95 }), o = new Tn(0.06, 8, 6);
     return [[0, 0.68, 0], [0.11, 0.67, 0.05], [-0.1, 0.67, -0.04], [0.05, 0.66, -0.12], [-0.07, 0.68, 0.12], [0.13, 0.72, -0.08], [-0.12, 0.71, 0.09], [0, 0.77, 0.02], [0.07, 0.76, 0.1], [-0.05, 0.75, -0.09]].forEach(([a, l, c]) => {
       const h = new Bt(o, s);
       h.position.set(a, l, c), h.scale.set(1, 0.8, 1), t.add(h);
     }), t;
   },
   massage_table: (i) => {
-    const t = new U(), e = w(Ge), n = w(Gt), s = w(ft, { metalness: 0.4, roughness: 0.5 }), o = P(v(2, 0.1, 0.7, e, 0, 0.6, 0), i);
+    const t = new U(), e = _(Ge), n = _(Gt), s = _(ft, { metalness: 0.4, roughness: 0.5 }), o = P(v(2, 0.1, 0.7, e, 0, 0.6, 0), i);
     t.add(o), t.add(v(1.96, 0.05, 0.66, n, 0, 0.53, 0));
     const r = 0.9, a = 0.28;
     [[r, a], [r, -a], [-r, a], [-r, -a]].forEach(([c, h]) => {
@@ -21528,22 +21539,22 @@ const po = {
     return t.add(l), t;
   },
   barber_chair: (i) => {
-    const t = new U(), e = w(ft, { roughness: 0.2, metalness: 0.9 }), n = w(4157324, { roughness: 0.7 });
+    const t = new U(), e = _(ft, { roughness: 0.2, metalness: 0.9 }), n = _(4157324, { roughness: 0.7 });
     t.add(q(0.32, 0.34, 0.05, e, 0, 0.025, 0, 32)), t.add(q(0.07, 0.09, 0.42, e, 0, 0.26, 0, 20)), t.add(q(0.16, 0.16, 0.04, e, 0, 0.46, 0, 24));
     const s = q(0.02, 0.02, 0.34, e, 0, 0.2, 0.4, 12);
     s.rotation.z = Math.PI / 2, t.add(s), t.add(v(0.3, 0.03, 0.1, e, 0, 0.2, 0.42)), t.add(P(v(0.56, 0.14, 0.56, n, 0, 0.55, 0.02), i));
     const o = P(v(0.54, 0.62, 0.14, n, 0, 0.9, -0.24), i);
     o.rotation.x = -0.14, t.add(o), t.add(P(v(0.44, 0.2, 0.12, n, 0, 1.24, -0.31), i));
     for (const r of [-1, 1])
-      t.add(v(0.1, 0.06, 0.4, w(Vt, { roughness: 0.5 }), r * 0.32, 0.74, 0.06)), t.add(q(0.03, 0.03, 0.16, e, r * 0.32, 0.66, 0.22, 10));
+      t.add(v(0.1, 0.06, 0.4, _(Vt, { roughness: 0.5 }), r * 0.32, 0.74, 0.06)), t.add(q(0.03, 0.03, 0.16, e, r * 0.32, 0.66, 0.22, 10));
     return t;
   },
   prayer_mat: (i) => {
-    const t = new U(), e = 1.2, n = 0.7, s = P(v(n, 0.015, e, w(4156762), 0, 8e-3, 0), i);
+    const t = new U(), e = 1.2, n = 0.7, s = P(v(n, 0.015, e, _(4156762), 0, 8e-3, 0), i);
     t.add(s);
-    const o = w(13279562, { metalness: 0.15, roughness: 0.6 });
+    const o = _(13279562, { metalness: 0.15, roughness: 0.6 });
     t.add(v(n, 0.022, 0.04, o, 0, 0.011, -e / 2 + 0.02)), t.add(v(n, 0.022, 0.04, o, 0, 0.011, e / 2 - 0.02)), t.add(v(0.04, 0.022, e, o, -n / 2 + 0.02, 0.011, 0)), t.add(v(0.04, 0.022, e, o, n / 2 - 0.02, 0.011, 0));
-    const r = w(14997684, { roughness: 0.7 });
+    const r = _(14997684, { roughness: 0.7 });
     t.add(v(0.28, 0.018, 0.34, r, 0, 0.017, e / 2 - 0.28));
     const a = new Bt(new hs(0.14, 0.14, 0.018, 20, 1, !1, 0, Math.PI), r);
     return a.position.set(0, 0.02, e / 2 - 0.44), t.add(a), t;
@@ -21551,11 +21562,11 @@ const po = {
   // Generic fallback marker so an unknown model key still renders something.
   painting: (i) => {
     const t = new U();
-    return t.add(P(v(0.7, 0.5, 0.04, w(Gt), 0, 0, 0), i)), t.add(v(0.6, 0.4, 0.01, w(6719658), 0, 0, 0.03)), t;
+    return t.add(P(v(0.7, 0.5, 0.04, _(Gt), 0, 0, 0), i)), t.add(v(0.6, 0.4, 0.01, _(6719658), 0, 0, 0.03)), t;
   },
   speaker: (i) => {
     const t = new U();
-    return t.add(P(v(0.25, 0.4, 0.25, w(Vt), 0, 0.2, 0), i)), t.add(q(0.08, 0.08, 0.01, w(1118481), 0, 0.26, 0.13).rotateX(Math.PI / 2)), t;
+    return t.add(P(v(0.25, 0.4, 0.25, _(Vt), 0, 0.2, 0), i)), t.add(q(0.08, 0.08, 0.01, _(1118481), 0, 0.26, 0.13).rotateX(Math.PI / 2)), t;
   },
   // Flush ceiling speaker (потолочная колонка) — a round grille facing down.
   // Binds to a media_player (or switch); its LED glows when playing.
@@ -21572,26 +21583,26 @@ const po = {
   },
   security_camera: (i) => {
     const t = new U();
-    t.add(P(q(0.06, 0.06, 0.18, w($t), 0, 0, 0), i));
-    const e = q(0.04, 0.04, 0.04, w(1053720, { emissive: 3145728 }), 0, 0, 0.1);
+    t.add(P(q(0.06, 0.06, 0.18, _($t), 0, 0, 0), i));
+    const e = q(0.04, 0.04, 0.04, _(1053720, { emissive: 3145728 }), 0, 0, 0.1);
     return e.name = "emissive", e.rotateX(Math.PI / 2), t.add(e), t;
   },
   // Panel radiator (радиатор отопления) — sits low against a wall. The front
   // panel is the 'emissive' face: it glows warm when the bound thermostat (or
   // relay switch) is actively heating (hvac_action = heating / switch on).
   radiator: (i) => {
-    const t = new U(), e = 0.9, n = 0.55, s = 0.09, o = 0.16 + n / 2, r = w($t, { roughness: 0.55, metalness: 0.1 });
+    const t = new U(), e = 0.9, n = 0.55, s = 0.09, o = 0.16 + n / 2, r = _($t, { roughness: 0.55, metalness: 0.1 });
     t.add(P(v(e, n, s * 0.45, r, 0, o, -s * 0.22), i));
-    const a = v(e, n, s * 0.45, w($t, { roughness: 0.5, emissive: 0 }), 0, o, s * 0.22);
+    const a = v(e, n, s * 0.45, _($t, { roughness: 0.5, emissive: 0 }), 0, o, s * 0.22);
     a.name = "emissive", t.add(P(a, i));
-    const l = w(15132390, { roughness: 0.5 }), c = 14;
+    const l = _(15132390, { roughness: 0.5 }), c = 14;
     for (let d = 0; d < c; d++) {
       const f = -e / 2 + 0.05 + d / (c - 1) * (e - 0.1);
       t.add(v(0.014, n - 0.06, 0.02, l, f, o, s * 0.22 + 0.025));
     }
-    t.add(P(v(e, 0.03, s, w(15921906), 0, o + n / 2, 0), i)), t.add(P(v(e, 0.03, s, w(15921906), 0, o - n / 2, 0), i));
-    const h = w(ft, { metalness: 0.5, roughness: 0.4 });
-    return t.add(v(0.035, 0.16, s, h, -e / 2 + 0.1, 0.08, 0)), t.add(v(0.035, 0.16, s, h, e / 2 - 0.1, 0.08, 0)), t.add(q(0.014, 0.014, 0.16, h, e / 2 - 0.03, 0.08, 0, 12)), t.add(q(0.032, 0.032, 0.06, w(13582400, { roughness: 0.5, metalness: 0.2 }), e / 2 - 0.03, 0.17, 0, 14)), t;
+    t.add(P(v(e, 0.03, s, _(15921906), 0, o + n / 2, 0), i)), t.add(P(v(e, 0.03, s, _(15921906), 0, o - n / 2, 0), i));
+    const h = _(ft, { metalness: 0.5, roughness: 0.4 });
+    return t.add(v(0.035, 0.16, s, h, -e / 2 + 0.1, 0.08, 0)), t.add(v(0.035, 0.16, s, h, e / 2 - 0.1, 0.08, 0)), t.add(q(0.014, 0.014, 0.16, h, e / 2 - 0.03, 0.08, 0, 12)), t.add(q(0.032, 0.032, 0.06, _(13582400, { roughness: 0.5, metalness: 0.2 }), e / 2 - 0.03, 0.17, 0, 14)), t;
   },
   // Built-in arched bookcase wall with a window seat (арочные ниши + скамья).
   // Two arched niches — open cubbies over wood cabinets — flanking a cushioned
@@ -21599,14 +21610,14 @@ const po = {
   // nook cut out of it, so the openings read as real reveals; everything else
   // lives behind that face and is occluded by it.
   arch_shelf_wall: (i) => {
-    const t = new U(), e = 4.8, n = 2.5, s = 0.42, o = s / 2 - 0.06, r = 1.5, a = 0.625, l = 0.05, c = 2.2, h = c - a, d = 1.75, f = 1.02, u = -0.03, m = 0.34, x = w($t, { roughness: 0.75 }), p = w(11105866, { roughness: 0.6 }), g = w(ft, { metalness: 0.6, roughness: 0.3 }), y = (_, S, H, k = 0.016) => {
+    const t = new U(), e = 4.8, n = 2.5, s = 0.42, o = s / 2 - 0.06, r = 1.5, a = 0.625, l = 0.05, c = 2.2, h = c - a, d = 1.75, f = 1.02, u = -0.03, m = 0.34, x = _($t, { roughness: 0.75 }), p = _(11105866, { roughness: 0.6 }), g = _(ft, { metalness: 0.6, roughness: 0.3 }), y = (w, S, H, k = 0.016) => {
       const z = new Bt(new Tn(k, 10, 8), g);
-      return z.position.set(_, S, H), z;
+      return z.position.set(w, S, H), z;
     }, b = new co();
     b.moveTo(-e / 2, 0), b.lineTo(e / 2, 0), b.lineTo(e / 2, n), b.lineTo(-e / 2, n), b.closePath();
-    const M = (_) => {
+    const M = (w) => {
       const S = new cs();
-      return S.moveTo(_ - a, l), S.lineTo(_ - a, h), S.absarc(_, h, a, Math.PI, 0, !0), S.lineTo(_ + a, l), S.closePath(), S;
+      return S.moveTo(w - a, l), S.lineTo(w - a, h), S.absarc(w, h, a, Math.PI, 0, !0), S.lineTo(w + a, l), S.closePath(), S;
     }, R = new cs();
     R.moveTo(-d / 2, 0), R.lineTo(d / 2, 0), R.lineTo(d / 2, f), R.lineTo(-d / 2, f), R.closePath(), b.holes.push(M(-r), M(r), R);
     const A = new Bt(
@@ -21615,25 +21626,25 @@ const po = {
     );
     A.position.z = o, t.add(P(A, i));
     const T = 0.72;
-    for (const _ of [-r, r]) {
-      t.add(P(v(a * 2, c - l, 0.02, x, _, (l + c) / 2, -s / 2 + 0.01), i));
+    for (const w of [-r, r]) {
+      t.add(P(v(a * 2, c - l, 0.02, x, w, (l + c) / 2, -s / 2 + 0.01), i));
       for (const S of [-1, 1])
-        t.add(P(v(0.02, c - l, 0.36, x, _ + S * a, (l + c) / 2, u), i)), t.add(v(a - 0.05, T - l - 0.04, 0.02, p, _ + S * (a / 2), (l + T) / 2, s / 2 - 0.08)), t.add(y(_ + S * 0.06, T - 0.14, s / 2 - 0.06));
-      t.add(P(v(a * 2, 0.03, m, x, _, T, u), i));
-      for (const S of [1.2, 1.68]) t.add(P(v(a * 2 - 0.04, 0.025, m, x, _, S, u), i));
-      t.add(P(v(0.025, 1.68 - T, m, x, _, (T + 1.68) / 2, u), i));
+        t.add(P(v(0.02, c - l, 0.36, x, w + S * a, (l + c) / 2, u), i)), t.add(v(a - 0.05, T - l - 0.04, 0.02, p, w + S * (a / 2), (l + T) / 2, s / 2 - 0.08)), t.add(y(w + S * 0.06, T - 0.14, s / 2 - 0.06));
+      t.add(P(v(a * 2, 0.03, m, x, w, T, u), i));
+      for (const S of [1.2, 1.68]) t.add(P(v(a * 2 - 0.04, 0.025, m, x, w, S, u), i));
+      t.add(P(v(0.025, 1.68 - T, m, x, w, (T + 1.68) / 2, u), i));
     }
     t.add(P(v(d, f, 0.02, x, 0, f / 2, -s / 2 + 0.01), i));
-    for (const _ of [-1, 1]) t.add(P(v(0.02, f, 0.36, x, _ * (d / 2), f / 2, u), i));
-    for (const _ of [-0.55, 0, 0.55])
-      t.add(v(0.5, 0.36, 0.02, p, _, 0.24, s / 2 - 0.08)), t.add(y(_, 0.24, s / 2 - 0.06, 0.018));
+    for (const w of [-1, 1]) t.add(P(v(0.02, f, 0.36, x, w * (d / 2), f / 2, u), i));
+    for (const w of [-0.55, 0, 0.55])
+      t.add(v(0.5, 0.36, 0.02, p, w, 0.24, s / 2 - 0.08)), t.add(y(w, 0.24, s / 2 - 0.06, 0.018));
     const I = 0.46;
-    t.add(P(v(d - 0.04, 0.04, m, x, 0, I, u), i)), t.add(v(d - 0.14, 0.09, 0.3, w(14672872, { roughness: 0.9 }), 0, I + 0.065, u));
-    const O = w(9147812, { roughness: 0.9 });
-    for (let _ = 0; _ < 9; _++)
-      t.add(v(0.02, 0.092, 0.302, O, -0.7 + _ * 0.175, I + 0.065, u));
-    for (const _ of [-1, 1])
-      t.add(v(0.3, 0.15, 0.12, w($t, { roughness: 0.95 }), _ * 0.6, I + 0.18, -0.12));
+    t.add(P(v(d - 0.04, 0.04, m, x, 0, I, u), i)), t.add(v(d - 0.14, 0.09, 0.3, _(14672872, { roughness: 0.9 }), 0, I + 0.065, u));
+    const O = _(9147812, { roughness: 0.9 });
+    for (let w = 0; w < 9; w++)
+      t.add(v(0.02, 0.092, 0.302, O, -0.7 + w * 0.175, I + 0.065, u));
+    for (const w of [-1, 1])
+      t.add(v(0.3, 0.15, 0.12, _($t, { roughness: 0.95 }), w * 0.6, I + 0.18, -0.12));
     return t.add(P(v(e, 0.07, s + 0.05, x, 0, n - 0.035, 0.02), i)), t;
   },
   // Backlit niche display wall (ниши с подсветкой + стеклянные полки). Two tall
@@ -21642,7 +21653,7 @@ const po = {
   // them over a low fluted black console. The light strips are 'emissive', so
   // binding the room's подсветка light glows them. 4.6 x 2.5 x 0.4 m.
   niche_shelf_wall: (i) => {
-    const t = new U(), e = 4.6, n = 2.5, s = 0.4, o = s / 2 - 0.06, r = 1.5, a = 0.48, l = 0.06, c = 2.25, h = -0.02, d = 0.32, f = w($t, { roughness: 0.8 }), u = w(9277330, { roughness: 0.85 }), m = w(2303531, { roughness: 0.25, metalness: 0.35, transparent: !0, opacity: 0.72 }), x = w(1776928, { roughness: 0.5, metalness: 0.2 }), p = new co();
+    const t = new U(), e = 4.6, n = 2.5, s = 0.4, o = s / 2 - 0.06, r = 1.5, a = 0.48, l = 0.06, c = 2.25, h = -0.02, d = 0.32, f = _($t, { roughness: 0.8 }), u = _(9277330, { roughness: 0.85 }), m = _(2303531, { roughness: 0.25, metalness: 0.35, transparent: !0, opacity: 0.72 }), x = _(1776928, { roughness: 0.5, metalness: 0.2 }), p = new co();
     p.moveTo(-e / 2, 0), p.lineTo(e / 2, 0), p.lineTo(e / 2, n), p.lineTo(-e / 2, n), p.closePath();
     const g = (k) => {
       const z = new cs();
@@ -21659,7 +21670,7 @@ const po = {
           0.03,
           c - l - 0.1,
           0.04,
-          w(16773592, { emissive: 0 }),
+          _(16773592, { emissive: 0 }),
           k + z * (a - 0.05),
           (l + c) / 2,
           h + d / 2 - 0.03
@@ -21671,11 +21682,11 @@ const po = {
     }
     const b = o + 0.045, M = 0.72, R = 0.62, A = 2.15, T = 0.03;
     t.add(P(v(M * 2, T, 0.03, f, 0, A, b), i)), t.add(P(v(M * 2, T, 0.03, f, 0, R, b), i)), t.add(P(v(T, A - R, 0.03, f, -M, (R + A) / 2, b), i)), t.add(P(v(T, A - R, 0.03, f, M, (R + A) / 2, b), i));
-    const I = 1.7, O = 0.5, _ = 0.34, S = s / 2 - _ / 2 + 0.02;
-    t.add(v(I, O, _, x, 0, O / 2 + 0.02, S)), t.add(v(I + 0.04, 0.04, _ + 0.03, w(1184534, { roughness: 0.4 }), 0, O + 0.04, S));
-    const H = w(2764081, { roughness: 0.55, metalness: 0.15 });
+    const I = 1.7, O = 0.5, w = 0.34, S = s / 2 - w / 2 + 0.02;
+    t.add(v(I, O, w, x, 0, O / 2 + 0.02, S)), t.add(v(I + 0.04, 0.04, w + 0.03, _(1184534, { roughness: 0.4 }), 0, O + 0.04, S));
+    const H = _(2764081, { roughness: 0.55, metalness: 0.15 });
     for (let k = 0; k < 16; k++)
-      t.add(v(0.022, O - 0.06, 0.02, H, -I / 2 + 0.06 + k * ((I - 0.12) / 15), O / 2 + 0.02, S + _ / 2));
+      t.add(v(0.022, O - 0.06, 0.02, H, -I / 2 + 0.06 + k * ((I - 0.12) / 15), O / 2 + 0.02, S + w / 2));
     return t.add(P(v(e, 0.08, s + 0.05, f, 0, n - 0.04, 0.02), i)), t.add(P(v(e, 0.1, s + 0.02, f, 0, 0.05, 0.01), i)), t;
   },
   // Decorative feature wall (декоративная стена, панно): a floor-to-ceiling
@@ -21685,7 +21696,7 @@ const po = {
   // bound light/switch lights it. Free-standing — slide it flat against a wall
   // and rotate to face the room. 2.6 x 2.5 x 0.26 m.
   feature_wall: (i) => {
-    const t = new U(), e = 2.6, n = 2.5, s = 0.26, o = -s / 2, r = s / 2 - 0.02, a = w(7291686, { roughness: 0.4, metalness: 0.12 }), l = w(13214282, { metalness: 0.85, roughness: 0.25 }), c = w(921362, { roughness: 0.12, metalness: 0.6 });
+    const t = new U(), e = 2.6, n = 2.5, s = 0.26, o = -s / 2, r = s / 2 - 0.02, a = _(7291686, { roughness: 0.4, metalness: 0.12 }), l = _(13214282, { metalness: 0.85, roughness: 0.25 }), c = _(921362, { roughness: 0.12, metalness: 0.6 });
     t.add(P(v(e, n, 0.04, a, 0, n / 2, o + 0.02), i));
     const h = -e / 2, d = 0.02, f = d - h, u = (h + d) / 2;
     t.add(P(v(f, n - 0.02, 0.05, a, u, n / 2, r - 0.03), i));
@@ -21697,32 +21708,32 @@ const po = {
     t.add(v(b, n - 0.02, 0.03, c, M, n / 2, r - 0.01));
     const R = r + 0.014;
     t.add(v(b, 0.02, 0.02, l, M, n - 0.06, R)), t.add(v(b, 0.02, 0.02, l, M, 0.06, R)), t.add(v(0.02, n - 0.02, 0.02, l, g + 0.01, n / 2, R)), t.add(v(0.02, n - 0.02, 0.02, l, y - 0.01, n / 2, R));
-    const A = v(0.03, n - 0.22, 0.02, w(16771520, { emissive: 0 }), 0.29, n / 2, r + 0.02);
+    const A = v(0.03, n - 0.22, 0.02, _(16771520, { emissive: 0 }), 0.29, n / 2, r + 0.02);
     return A.name = "emissive", t.add(A), t;
   },
   // ---- Lighting (освещение) — each has an 'emissive' mesh + reads as a lamp ----
   floor_lamp: (i) => {
     const t = new U();
-    t.add(q(0.18, 0.22, 0.03, w(ft), 0, 0.015, 0)), t.add(q(0.02, 0.02, 1.5, w(ft), 0, 0.75, 0));
-    const e = q(0.18, 0.25, 0.28, w(16774358, { emissive: 0 }), 0, 1.55, 0);
+    t.add(q(0.18, 0.22, 0.03, _(ft), 0, 0.015, 0)), t.add(q(0.02, 0.02, 1.5, _(ft), 0, 0.75, 0));
+    const e = q(0.18, 0.25, 0.28, _(16774358, { emissive: 0 }), 0, 1.55, 0);
     return e.name = "emissive", t.add(P(e, i)), t;
   },
   table_lamp: (i) => {
     const t = new U();
-    t.add(q(0.1, 0.12, 0.03, w(ft), 0, 0.015, 0)), t.add(q(0.015, 0.015, 0.3, w(ft), 0, 0.18, 0));
-    const e = q(0.12, 0.16, 0.18, w(16774358, { emissive: 0 }), 0, 0.42, 0);
+    t.add(q(0.1, 0.12, 0.03, _(ft), 0, 0.015, 0)), t.add(q(0.015, 0.015, 0.3, _(ft), 0, 0.18, 0));
+    const e = q(0.12, 0.16, 0.18, _(16774358, { emissive: 0 }), 0, 0.42, 0);
     return e.name = "emissive", t.add(P(e, i)), t;
   },
   wall_light: (i) => {
     const t = new U();
-    t.add(v(0.12, 0.2, 0.08, w(ft), 0, 0, 0));
-    const e = v(0.1, 0.16, 0.04, w(16774358, { emissive: 0 }), 0, 0, 0.06);
+    t.add(v(0.12, 0.2, 0.08, _(ft), 0, 0, 0));
+    const e = v(0.1, 0.16, 0.04, _(16774358, { emissive: 0 }), 0, 0, 0.06);
     return e.name = "emissive", t.add(P(e, i)), t;
   },
   // Ornate two-tier candle chandelier. Origin sits at the ceiling mount; the
   // fixture hangs DOWN (negative Y). Candle "flames" are the emissive meshes.
   chandelier: (i) => {
-    const t = new U(), e = w(14268515, { metalness: 0.6, roughness: 0.35 }), n = w(13625077, { transparent: !0, opacity: 0.55, roughness: 0.1, metalness: 0.1 }), s = w(15985362);
+    const t = new U(), e = _(14268515, { metalness: 0.6, roughness: 0.35 }), n = _(13625077, { transparent: !0, opacity: 0.55, roughness: 0.1, metalness: 0.1 }), s = _(15985362);
     t.add(q(0.07, 0.09, 0.04, e, 0, -0.02, 0)), t.add(q(0.012, 0.012, 0.34, e, 0, -0.2, 0));
     const o = -0.42;
     t.add(q(0.05, 0.09, 0.13, e, 0, o, 0));
@@ -21736,7 +21747,7 @@ const po = {
       for (let c = 0; c < l.n; c++) {
         const h = c / l.n * Math.PI * 2 + l.off, d = Math.cos(h) * l.r, f = Math.sin(h) * l.r, u = q(0.012, 0.012, l.r, e, d / 2, l.y, f / 2);
         u.rotation.z = Math.PI / 2, u.rotation.y = -h, t.add(u), t.add(q(0.035, 0.05, 0.04, e, d, l.y - 0.02, f)), t.add(q(0.02, 0.022, 0.1, s, d, l.y + 0.05, f));
-        const m = new Bt(new Tn(0.035, 10, 10), w(16773568, { emissive: 0 }));
+        const m = new Bt(new Tn(0.035, 10, 10), _(16773568, { emissive: 0 }));
         m.name = "emissive", m.position.set(d, l.y + 0.12, f), t.add(P(m, i));
       }
     for (let l = 0; l < 10; l++) {
@@ -21748,7 +21759,7 @@ const po = {
   // Modern cascading-crystal chandelier: three descending rings dripping with
   // crystals around a central warm glow column (the emissive part).
   crystal_chandelier: (i) => {
-    const t = new U(), e = w(15124078, { metalness: 0.7, roughness: 0.3 }), n = w(14676219, { transparent: !0, opacity: 0.5, roughness: 0.05, metalness: 0.2 });
+    const t = new U(), e = _(15124078, { metalness: 0.7, roughness: 0.3 }), n = _(14676219, { transparent: !0, opacity: 0.5, roughness: 0.05, metalness: 0.2 });
     t.add(q(0.06, 0.08, 0.03, e, 0, -0.015, 0)), t.add(q(0.01, 0.01, 0.25, e, 0, -0.14, 0));
     const s = [
       { r: 0.28, y: -0.3 },
@@ -21764,7 +21775,7 @@ const po = {
         d.position.set(Math.cos(h) * r.r, r.y - 0.05, Math.sin(h) * r.r), t.add(d);
       }
     }
-    const o = q(0.05, 0.05, 0.42, w(16774096, { emissive: 0, transparent: !0, opacity: 0.9 }), 0, -0.4, 0, 16);
+    const o = q(0.05, 0.05, 0.42, _(16774096, { emissive: 0, transparent: !0, opacity: 0.9 }), 0, -0.4, 0, 16);
     return o.name = "emissive", t.add(P(o, i)), t;
   },
   // A PAIR of chandeliers as a set — `count` fixtures, `spread` sets the GAP
@@ -21787,18 +21798,18 @@ const po = {
   },
   spotlight: (i) => {
     const t = new U();
-    t.add(q(0.05, 0.07, 0.06, w(ft), 0, 0, 0));
-    const e = q(0.05, 0.05, 0.01, w(16774358, { emissive: 0 }), 0, -0.03, 0);
+    t.add(q(0.05, 0.07, 0.06, _(ft), 0, 0, 0));
+    const e = q(0.05, 0.05, 0.01, _(16774358, { emissive: 0 }), 0, -0.03, 0);
     return e.name = "emissive", t.add(P(e, i)), t;
   },
   pendant_light: (i) => {
     const t = new U();
-    t.add(q(8e-3, 8e-3, 0.4, w(Vt), 0, 0.2, 0));
-    const e = q(0.16, 0.05, 0.2, w(16774358, { emissive: 0 }), 0, -0.1, 0);
+    t.add(q(8e-3, 8e-3, 0.4, _(Vt), 0, 0.2, 0));
+    const e = q(0.16, 0.05, 0.2, _(16774358, { emissive: 0 }), 0, -0.1, 0);
     return e.name = "emissive", t.add(P(e, i)), t;
   },
   led_strip: (i) => {
-    const t = new U(), e = v(1.5, 0.03, 0.04, w(16777215, { emissive: 0 }), 0, 0, 0);
+    const t = new U(), e = v(1.5, 0.03, 0.04, _(16777215, { emissive: 0 }), 0, 0, 0);
     return e.name = "emissive", t.add(P(e, i)), t;
   },
   // Twin parallel linear ceiling lights (the two parallel LED lines on the
@@ -21806,8 +21817,8 @@ const po = {
   track_double: (i) => {
     const t = new U(), e = 2, n = 0.5;
     for (const s of [-n / 2, n / 2]) {
-      t.add(v(e, 0.04, 0.07, w(Vt, { roughness: 0.7 }), 0, 0, s));
-      const o = v(e - 0.06, 0.02, 0.035, w(16774358, { emissive: 0 }), 0, -0.02, s);
+      t.add(v(e, 0.04, 0.07, _(Vt, { roughness: 0.7 }), 0, 0, s));
+      const o = v(e - 0.06, 0.02, 0.035, _(16774358, { emissive: 0 }), 0, -0.02, s);
       o.name = "emissive", t.add(P(o, i));
     }
     return t;
@@ -21816,8 +21827,8 @@ const po = {
   // "vertikal podsvetka"). Bindable to a light; mounts on the wall surface.
   wall_backlight: (i) => {
     const t = new U(), e = 2.3, n = 0.15;
-    t.add(v(0.09, e + 0.06, 0.03, w(3089952, { roughness: 0.9 }), 0, n + e / 2, 0));
-    const s = v(0.05, e, 0.035, w(16773328, { emissive: 0 }), 0, n + e / 2, 0.02);
+    t.add(v(0.09, e + 0.06, 0.03, _(3089952, { roughness: 0.9 }), 0, n + e / 2, 0));
+    const s = v(0.05, e, 0.035, _(16773328, { emissive: 0 }), 0, n + e / 2, 0.02);
     return s.name = "emissive", t.add(P(s, i)), t;
   },
   // Double vertical wall backlight — a PAIR (default) of the vertical reveals
@@ -21828,8 +21839,8 @@ const po = {
     const e = new U(), n = Math.max(1, Math.min(6, Math.round(t?.count ?? 2))), o = 0.5 * (t?.spread ?? 1), r = 2.3, a = 0.15;
     for (let l = 0; l < n; l++) {
       const c = (l - (n - 1) / 2) * o;
-      e.add(v(0.09, r + 0.06, 0.03, w(3089952, { roughness: 0.9 }), c, a + r / 2, 0));
-      const h = v(0.05, r, 0.035, w(16773328, { emissive: 0 }), c, a + r / 2, 0.02);
+      e.add(v(0.09, r + 0.06, 0.03, _(3089952, { roughness: 0.9 }), c, a + r / 2, 0));
+      const h = v(0.05, r, 0.035, _(16773328, { emissive: 0 }), c, a + r / 2, 0.02);
       h.name = "emissive", e.add(P(h, i));
     }
     return e;
@@ -21838,160 +21849,160 @@ const po = {
   // board, floor-to-ceiling; sits flush on the wall surface.
   wood_slat_panel: (i) => {
     const t = new U(), e = 1.2, n = 2.6, s = 0.02;
-    t.add(v(e, n, 0.02, w(7227951, { roughness: 0.85 }), 0, n / 2, s - 0.012));
+    t.add(v(e, n, 0.02, _(7227951, { roughness: 0.85 }), 0, n / 2, s - 0.012));
     const o = 16, r = e / o;
     for (let a = 0; a < o; a++)
-      t.add(P(v(r * 0.55, n, 0.045, w(Gt, { roughness: 0.7 }), -e / 2 + r * (a + 0.5), n / 2, s + 0.02), i));
+      t.add(P(v(r * 0.55, n, 0.045, _(Gt, { roughness: 0.7 }), -e / 2 + r * (a + 0.5), n / 2, s + 0.02), i));
     return t;
   },
   // Built-in TV media wall — wood cabinet + marble centre with a mounted TV,
   // a fluted-wood top border, and a brass-framed glass display niche.
   tv_wall: (i) => {
-    const t = new U(), e = 3.6, n = 2.6, s = 0.4, o = -s / 2, r = w(Gt, { roughness: 0.6 });
-    t.add(P(v(e, 0.55, s, r, 0, 0.275, 0), i)), t.add(v(e, 0.03, s + 0.02, w(15525853, { roughness: 0.5 }), 0, 0.565, 0));
-    const a = w(15789801, { roughness: 0.35 });
-    t.add(v(1.8, 1.9, 0.05, a, -0.4, 1.5, o + 0.05)), t.add(v(1.3, 0.78, 0.05, w(921104, { roughness: 0.25 }), -0.4, 1.62, o + 0.11));
+    const t = new U(), e = 3.6, n = 2.6, s = 0.4, o = -s / 2, r = _(Gt, { roughness: 0.6 });
+    t.add(P(v(e, 0.55, s, r, 0, 0.275, 0), i)), t.add(v(e, 0.03, s + 0.02, _(15525853, { roughness: 0.5 }), 0, 0.565, 0));
+    const a = _(15789801, { roughness: 0.35 });
+    t.add(v(1.8, 1.9, 0.05, a, -0.4, 1.5, o + 0.05)), t.add(v(1.3, 0.78, 0.05, _(921104, { roughness: 0.25 }), -0.4, 1.62, o + 0.11));
     const l = 22, c = e / l;
     for (let d = 0; d < l; d++)
       t.add(P(v(c * 0.5, 0.5, 0.05, r, -e / 2 + c * (d + 0.5), n - 0.25, o + 0.03), i));
-    const h = w(Bn, { transparent: !0, opacity: 0.22, roughness: 0.1 });
+    const h = _(Bn, { transparent: !0, opacity: 0.22, roughness: 0.1 });
     t.add(v(0.86, 1.9, 0.03, h, 1.15, 1.5, o + 0.06));
-    for (const d of [0.7, 1.6]) t.add(v(0.03, 1.9, 0.07, w(12096302, { metalness: 0.6, roughness: 0.4 }), d, 1.5, o + 0.09));
-    for (const d of [1.05, 1.55, 2.05]) t.add(v(0.82, 0.03, 0.22, w(7227951, { roughness: 0.7 }), 1.15, d, o + 0.14));
+    for (const d of [0.7, 1.6]) t.add(v(0.03, 1.9, 0.07, _(12096302, { metalness: 0.6, roughness: 0.4 }), d, 1.5, o + 0.09));
+    for (const d of [1.05, 1.55, 2.05]) t.add(v(0.82, 0.03, 0.22, _(7227951, { roughness: 0.7 }), 1.15, d, o + 0.14));
     return t;
   },
   // Modern L-shaped executive (director's) desk — sculptural solid body with a
   // dark-wood top and a lower side return.
   boss_desk: (i) => {
-    const t = new U(), e = w(13617597, { roughness: 0.5 }), n = w(5979944, { roughness: 0.4 });
-    return t.add(v(2, 0.05, 0.95, n, 0, 0.76, 0)), t.add(P(v(2.1, 0.72, 1, e, 0, 0.36, 0.02), i)), t.add(v(1, 0.62, 0.05, w(2830134, { roughness: 0.8 }), 0, 0.33, -0.42)), t.add(v(1, 0.05, 0.6, n, -1.4, 0.66, -0.15)), t.add(P(v(1, 0.62, 0.6, e, -1.4, 0.31, -0.15), i)), t;
+    const t = new U(), e = _(13617597, { roughness: 0.5 }), n = _(5979944, { roughness: 0.4 });
+    return t.add(v(2, 0.05, 0.95, n, 0, 0.76, 0)), t.add(P(v(2.1, 0.72, 1, e, 0, 0.36, 0.02), i)), t.add(v(1, 0.62, 0.05, _(2830134, { roughness: 0.8 }), 0, 0.33, -0.42)), t.add(v(1, 0.05, 0.6, n, -1.4, 0.66, -0.15)), t.add(P(v(1, 0.62, 0.6, e, -1.4, 0.31, -0.15), i)), t;
   },
   double_door: (i) => {
     const t = new U();
-    return t.add(P(v(0.7, 2, 0.05, w(Gt), -0.36, 1, 0), i)), t.add(P(v(0.7, 2, 0.05, w(Gt), 0.36, 1, 0), i)), t.add(q(0.025, 0.025, 0.1, w(ft), -0.05, 1, 0.05)), t.add(q(0.025, 0.025, 0.1, w(ft), 0.05, 1, 0.05)), t;
+    return t.add(P(v(0.7, 2, 0.05, _(Gt), -0.36, 1, 0), i)), t.add(P(v(0.7, 2, 0.05, _(Gt), 0.36, 1, 0), i)), t.add(q(0.025, 0.025, 0.1, _(ft), -0.05, 1, 0.05)), t.add(q(0.025, 0.025, 0.1, _(ft), 0.05, 1, 0.05)), t;
   },
   // Cottage sectional garage door — opens UPWARD (the panelled door lifts into the
   // headbox). Reuses the vertical cover hook 'blindPivotV' so a bound `cover`
   // entity raises/lowers it; closed = down, open = retracted to the top.
   garage_door: (i) => {
-    const t = new U(), e = 2.6, n = 2.2, s = 0.05, o = w(15131870, { roughness: 0.7 });
+    const t = new U(), e = 2.6, n = 2.2, s = 0.05, o = _(15131870, { roughness: 0.7 });
     t.add(v(0.12, n + 0.14, 0.16, o, -1.36, (n + 0.14) / 2, s)), t.add(v(0.12, n + 0.14, 0.16, o, e / 2 + 0.06, (n + 0.14) / 2, s)), t.add(v(e + 0.24, 0.18, 0.18, o, 0, n + 0.09, s));
     const r = new U();
     r.name = "blindPivotV", r.position.set(0, n, s);
-    const a = w(15921386, { roughness: 0.6 }), l = w(14342094, { roughness: 0.7 }), c = 5, h = n / c;
+    const a = _(15921386, { roughness: 0.6 }), l = _(14342094, { roughness: 0.7 }), c = 5, h = n / c;
     for (let d = 1; d <= c; d++) {
       const f = -(d - 0.5) * h;
       r.add(P(v(e, h - 0.02, 0.06, a, 0, f, 0.02), i));
       for (const u of [-e / 3, 0, e / 3])
         r.add(v(e / 3 - 0.16, h - 0.14, 0.02, l, u, f, 0.06));
     }
-    return r.add(v(0.28, 0.05, 0.05, w(ft), 0, -n + 0.55, 0.07)), t.add(r), t;
+    return r.add(v(0.28, 0.05, 0.05, _(ft), 0, -n + 0.55, 0.07)), t.add(r), t;
   },
   sliding_door: (i) => {
     const t = new U();
-    return t.add(v(1.6, 0.06, 0.08, w(ft), 0, 2.05, 0)), t.add(P(v(0.78, 1.95, 0.04, w(Bn, { transparent: !0, opacity: 0.4 }), -0.4, 1, 0), i)), t.add(P(v(0.78, 1.95, 0.04, w(Bn, { transparent: !0, opacity: 0.4 }), 0.4, 1, 0.05), i)), t;
+    return t.add(v(1.6, 0.06, 0.08, _(ft), 0, 2.05, 0)), t.add(P(v(0.78, 1.95, 0.04, _(Bn, { transparent: !0, opacity: 0.4 }), -0.4, 1, 0), i)), t.add(P(v(0.78, 1.95, 0.04, _(Bn, { transparent: !0, opacity: 0.4 }), 0.4, 1, 0.05), i)), t;
   },
   wall_panel: (i) => {
     const t = new U();
-    return t.add(P(v(1.5, 2.6, 0.12, w(15132390), 0, 1.3, 0), i)), t;
+    return t.add(P(v(1.5, 2.6, 0.12, _(15132390), 0, 1.3, 0), i)), t;
   },
   arch: (i) => {
     const t = new U();
-    return t.add(P(v(0.15, 2, 0.25, w(15132390), -0.6, 1, 0), i)), t.add(P(v(0.15, 2, 0.25, w(15132390), 0.6, 1, 0), i)), t.add(P(v(1.35, 0.25, 0.25, w(15132390), 0, 2.1, 0), i)), t;
+    return t.add(P(v(0.15, 2, 0.25, _(15132390), -0.6, 1, 0), i)), t.add(P(v(0.15, 2, 0.25, _(15132390), 0.6, 1, 0), i)), t.add(P(v(1.35, 0.25, 0.25, _(15132390), 0, 2.1, 0), i)), t;
   },
   bar_stool: (i) => {
     const t = new U();
-    return t.add(P(q(0.18, 0.18, 0.05, w(Gt), 0, 0.66, 0), i)), t.add(q(0.03, 0.03, 0.66, w(ft), 0, 0.33, 0)), t.add(q(0.2, 0.2, 0.02, w(ft), 0, 0.02, 0)), t;
+    return t.add(P(q(0.18, 0.18, 0.05, _(Gt), 0, 0.66, 0), i)), t.add(q(0.03, 0.03, 0.66, _(ft), 0, 0.33, 0)), t.add(q(0.2, 0.2, 0.02, _(ft), 0, 0.02, 0)), t;
   },
   tv_stand: (i) => {
     const t = new U();
-    return t.add(P(v(1.4, 0.4, 0.4, w(Vt), 0, 0.2, 0), i)), t.add(v(0.6, 0.02, 0.36, w(ft), -0.35, 0.41, 0)), t;
+    return t.add(P(v(1.4, 0.4, 0.4, _(Vt), 0, 0.2, 0), i)), t.add(v(0.6, 0.02, 0.36, _(ft), -0.35, 0.41, 0)), t;
   },
   kitchen_island: (i) => {
     const t = new U();
-    return t.add(P(v(1.6, 0.9, 0.9, w($t), 0, 0.45, 0), i)), t.add(v(1.7, 0.05, 1, w(Vt), 0, 0.92, 0)), t;
+    return t.add(P(v(1.6, 0.9, 0.9, _($t), 0, 0.45, 0), i)), t.add(v(1.7, 0.05, 1, _(Vt), 0, 0.92, 0)), t;
   },
   sideboard: (i) => {
     const t = new U();
-    t.add(P(v(1.6, 0.8, 0.45, w(Gt), 0, 0.4, 0), i));
-    for (let e = -1; e <= 1; e++) t.add(v(0.02, 0.1, 0.02, w(ft), e * 0.5, 0.5, 0.23));
+    t.add(P(v(1.6, 0.8, 0.45, _(Gt), 0, 0.4, 0), i));
+    for (let e = -1; e <= 1; e++) t.add(v(0.02, 0.1, 0.02, _(ft), e * 0.5, 0.5, 0.23));
     return t;
   },
   bunk_bed: (i) => {
     const t = new U();
     for (const e of [0.4, 1.4])
-      t.add(v(1, 0.12, 2, w(Gt), 0, e, 0)), t.add(P(v(0.95, 0.12, 1.95, w($t), 0, e + 0.12, 0), i));
+      t.add(v(1, 0.12, 2, _(Gt), 0, e, 0)), t.add(P(v(0.95, 0.12, 1.95, _($t), 0, e + 0.12, 0), i));
     for (const [e, n] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-      t.add(v(0.08, 1.9, 0.08, w(Gt), e * 0.46, 0.95, n * 0.96));
+      t.add(v(0.08, 1.9, 0.08, _(Gt), e * 0.46, 0.95, n * 0.96));
     return t;
   },
   bar_counter: (i) => {
     const t = new U();
-    return t.add(P(v(2, 1.05, 0.55, w(Gt), 0, 0.525, 0), i)), t.add(v(2.1, 0.05, 0.65, w(Vt), 0, 1.07, 0)), t;
+    return t.add(P(v(2, 1.05, 0.55, _(Gt), 0, 0.525, 0), i)), t.add(v(2.1, 0.05, 0.65, _(Vt), 0, 1.07, 0)), t;
   },
   piano: (i) => {
     const t = new U();
-    return t.add(P(v(1.5, 0.9, 0.6, w(1447964), 0, 0.45, 0), i)), t.add(v(1.4, 0.06, 0.25, w($t), 0, 0.78, 0.18)), t;
+    return t.add(P(v(1.5, 0.9, 0.6, _(1447964), 0, 0.45, 0), i)), t.add(v(1.4, 0.06, 0.25, _($t), 0, 0.78, 0.18)), t;
   },
   range_hood: (i) => {
     const t = new U();
-    return t.add(P(v(0.9, 0.25, 0.5, w(ft), 0, 0, 0), i)), t.add(v(0.3, 0.4, 0.3, w(ft), 0, 0.3, 0)), t;
+    return t.add(P(v(0.9, 0.25, 0.5, _(ft), 0, 0, 0), i)), t.add(v(0.3, 0.4, 0.3, _(ft), 0, 0.3, 0)), t;
   },
   wall_clock: (i) => {
-    const t = new U(), e = q(0.18, 0.18, 0.04, w($t), 0, 0, 0, 24);
+    const t = new U(), e = q(0.18, 0.18, 0.04, _($t), 0, 0, 0, 24);
     return e.rotateX(Math.PI / 2), t.add(P(e, i)), t;
   },
   patio_door: (i) => {
-    const t = new U(), e = w(5595242), n = 2.6, s = 2.2, o = 0.08, r = 0.1;
-    return t.add(P(v(n, o, r, e, 0, s - o / 2, 0), i)), t.add(v(n, o, r, e, 0, o / 2, 0)), t.add(v(o, s, r, e, -n / 2 + o / 2, s / 2, 0)), t.add(v(o, s, r, e, n / 2 - o / 2, s / 2, 0)), t.add(v(0.06, s, r * 0.6, e, -n / 6, s / 2, 0)), t.add(v(0.06, s, r * 0.6, e, n / 6, s / 2, 0)), t.add(v(n - o, s - o, 0.02, w(10274778, { transparent: !0, opacity: 0.42, metalness: 0.2 }), 0, s / 2, 0)), t;
+    const t = new U(), e = _(5595242), n = 2.6, s = 2.2, o = 0.08, r = 0.1;
+    return t.add(P(v(n, o, r, e, 0, s - o / 2, 0), i)), t.add(v(n, o, r, e, 0, o / 2, 0)), t.add(v(o, s, r, e, -n / 2 + o / 2, s / 2, 0)), t.add(v(o, s, r, e, n / 2 - o / 2, s / 2, 0)), t.add(v(0.06, s, r * 0.6, e, -n / 6, s / 2, 0)), t.add(v(0.06, s, r * 0.6, e, n / 6, s / 2, 0)), t.add(v(n - o, s - o, 0.02, _(10274778, { transparent: !0, opacity: 0.42, metalness: 0.2 }), 0, s / 2, 0)), t;
   },
   terrace_window: (i) => {
-    const t = new U(), e = w(5595242), n = 2.6, s = 1.5, o = 0.07, r = 0.1;
-    return t.add(P(v(n, o, r, e, 0, s / 2, 0), i)), t.add(v(n, o, r, e, 0, -s / 2, 0)), t.add(v(o, s, r, e, -n / 2 + o / 2, 0, 0)), t.add(v(o, s, r, e, n / 2 - o / 2, 0, 0)), t.add(v(0.05, s, r * 0.6, e, -n / 4, 0, 0)), t.add(v(0.05, s, r * 0.6, e, n / 4, 0, 0)), t.add(v(n - o, s - o, 0.02, w(10274778, { transparent: !0, opacity: 0.45 }), 0, 0, 0)), t;
+    const t = new U(), e = _(5595242), n = 2.6, s = 1.5, o = 0.07, r = 0.1;
+    return t.add(P(v(n, o, r, e, 0, s / 2, 0), i)), t.add(v(n, o, r, e, 0, -s / 2, 0)), t.add(v(o, s, r, e, -n / 2 + o / 2, 0, 0)), t.add(v(o, s, r, e, n / 2 - o / 2, 0, 0)), t.add(v(0.05, s, r * 0.6, e, -n / 4, 0, 0)), t.add(v(0.05, s, r * 0.6, e, n / 4, 0, 0)), t.add(v(n - o, s - o, 0.02, _(10274778, { transparent: !0, opacity: 0.45 }), 0, 0, 0)), t;
   },
   // Full-wall floor-to-ceiling terrace glazing WITH a door pane. Placed from the
   // palette it cuts a full-height opening (auto-fits the wall).
   terrace_wall: (i) => {
-    const t = new U(), e = w(4871520), n = 4, s = 2.55, o = 0.08, r = 0.12;
+    const t = new U(), e = _(4871520), n = 4, s = 2.55, o = 0.08, r = 0.12;
     t.add(P(v(n, o, r, e, 0, s - o / 2, 0), i)), t.add(v(n, o, r, e, 0, o / 2, 0)), t.add(v(o, s, r, e, -n / 2 + o / 2, s / 2, 0)), t.add(v(o, s, r, e, n / 2 - o / 2, s / 2, 0));
     const a = 4;
     for (let c = 1; c < a; c++) t.add(v(0.05, s, r * 0.6, e, -n / 2 + n * c / a, s / 2, 0));
     const l = -n / 2 + n / a;
-    return t.add(v(0.06, s - o, r * 0.7, e, l - 0.03, s / 2, 0)), t.add(v(n / a - 0.1, 0.07, r * 0.7, e, (-n / 2 + l) / 2, 0.12, 0)), t.add(v(0.04, 0.16, r * 1.2, w(13349482, { metalness: 0.6, roughness: 0.35 }), l - 0.16, 1.05, 0)), t.add(v(n - o, s - o, 0.02, w(10274778, { transparent: !0, opacity: 0.4, metalness: 0.2 }), 0, s / 2, 0)), t;
+    return t.add(v(0.06, s - o, r * 0.7, e, l - 0.03, s / 2, 0)), t.add(v(n / a - 0.1, 0.07, r * 0.7, e, (-n / 2 + l) / 2, 0.12, 0)), t.add(v(0.04, 0.16, r * 1.2, _(13349482, { metalness: 0.6, roughness: 0.35 }), l - 0.16, 1.05, 0)), t.add(v(n - o, s - o, 0.02, _(10274778, { transparent: !0, opacity: 0.4, metalness: 0.2 }), 0, s / 2, 0)), t;
   },
   // Floor-to-ceiling terrace WINDOW (mullioned, no door) — a black-framed
   // panoramic window. Placed like the other glazing (cuts a real opening).
   terrace_window_full: (i) => {
-    const t = new U(), e = w(2896184, { roughness: 0.5 }), n = 2.6, s = 2.55, o = 0.08, r = 0.1;
+    const t = new U(), e = _(2896184, { roughness: 0.5 }), n = 2.6, s = 2.55, o = 0.08, r = 0.1;
     t.add(P(v(n, o, r, e, 0, s - o / 2, 0), i)), t.add(v(n, o, r, e, 0, o / 2, 0)), t.add(v(o, s, r, e, -n / 2 + o / 2, s / 2, 0)), t.add(v(o, s, r, e, n / 2 - o / 2, s / 2, 0));
     for (let a = 1; a < 3; a++) t.add(v(0.05, s, r * 0.6, e, -n / 2 + n * a / 3, s / 2, 0));
-    return t.add(v(n - o, 0.05, r * 0.6, e, 0, s * 0.74, 0)), t.add(v(n - o, s - o, 0.02, w(10274778, { transparent: !0, opacity: 0.38, metalness: 0.2 }), 0, s / 2, 0)), t;
+    return t.add(v(n - o, 0.05, r * 0.6, e, 0, s * 0.74, 0)), t.add(v(n - o, s - o, 0.02, _(10274778, { transparent: !0, opacity: 0.38, metalness: 0.2 }), 0, s / 2, 0)), t;
   },
   // Tall floor-to-ceiling display cabinet — dark tinted glass doors in a
   // brass-framed wood body (the "uzun shkaf"). Sits flush on the wall.
   tall_cabinet: (i) => {
-    const t = new U(), e = 1.5, n = 2.6, s = 0.42, o = w(Gt, { roughness: 0.6 });
-    t.add(P(v(e, n, s, o, 0, n / 2, 0), i)), t.add(v(e - 0.1, n - 0.55, s - 0.08, w(1316378, { roughness: 0.6 }), 0, n / 2 + 0.05, -0.02));
-    for (let l = 1; l <= 5; l++) t.add(v(e - 0.14, 0.03, s - 0.12, w(2764083), 0, 0.35 + l * 0.38, -0.02));
-    const r = w(921362, { transparent: !0, opacity: 0.72, roughness: 0.15, metalness: 0.3 });
+    const t = new U(), e = 1.5, n = 2.6, s = 0.42, o = _(Gt, { roughness: 0.6 });
+    t.add(P(v(e, n, s, o, 0, n / 2, 0), i)), t.add(v(e - 0.1, n - 0.55, s - 0.08, _(1316378, { roughness: 0.6 }), 0, n / 2 + 0.05, -0.02));
+    for (let l = 1; l <= 5; l++) t.add(v(e - 0.14, 0.03, s - 0.12, _(2764083), 0, 0.35 + l * 0.38, -0.02));
+    const r = _(921362, { transparent: !0, opacity: 0.72, roughness: 0.15, metalness: 0.3 });
     for (const l of [-1, 1]) t.add(v(e / 2 - 0.06, n - 0.55, 0.02, r, l * (e / 4), n / 2 + 0.05, s / 2));
-    const a = w(13349482, { metalness: 0.6, roughness: 0.35 });
+    const a = _(13349482, { metalness: 0.6, roughness: 0.35 });
     for (const l of [-e / 2 + 0.05, 0, e / 2 - 0.05]) t.add(v(0.025, n - 0.5, 0.03, a, l, n / 2 + 0.05, s / 2 + 5e-3));
     return t.add(v(e - 0.06, 0.03, 0.03, a, 0, n - 0.22, s / 2 + 5e-3)), t.add(v(e - 0.06, 0.03, 0.03, a, 0, 0.32, s / 2 + 5e-3)), t.add(P(v(e, 0.3, s, o, 0, 0.15, 0), i)), t;
   },
   // Low media console under the TV — a wood cabinet with door fronts + a top.
   tv_console: (i) => {
-    const t = new U(), e = 2, n = 0.5, s = 0.45, o = w(Gt, { roughness: 0.6 });
-    t.add(P(v(e, n, s, o, 0, n / 2 + 0.05, 0), i)), t.add(v(e + 0.04, 0.03, s + 0.04, w(7227951, { roughness: 0.5 }), 0, n + 0.065, 0));
+    const t = new U(), e = 2, n = 0.5, s = 0.45, o = _(Gt, { roughness: 0.6 });
+    t.add(P(v(e, n, s, o, 0, n / 2 + 0.05, 0), i)), t.add(v(e + 0.04, 0.03, s + 0.04, _(7227951, { roughness: 0.5 }), 0, n + 0.065, 0));
     const r = 4, a = e / r;
     for (let l = 0; l < r; l++) t.add(P(v(a - 0.02, n - 0.08, 0.02, o, -e / 2 + a * (l + 0.5), n / 2 + 0.05, s / 2 + 5e-3), i));
-    return t.add(v(e - 0.1, 0.06, s - 0.06, w(3813158), 0, 0.03, 0)), t;
+    return t.add(v(e - 0.1, 0.06, s - 0.06, _(3813158), 0, 0.03, 0)), t;
   },
   // Climbing / bouldering wall — a tan panel studded with colourful holds.
   // Deterministic pseudo-random layout (no Math.random, so it's stable).
   climbing_wall: (i) => {
     const t = new U(), e = 2.4, n = 2.6, s = 0.03;
-    t.add(P(v(e, n, 0.04, w(13349001, { roughness: 0.95 }), 0, n / 2, s - 0.02), i));
+    t.add(P(v(e, n, 0.04, _(13349001, { roughness: 0.95 }), 0, n / 2, s - 0.02), i));
     const o = [13653066, 4881872, 5025642, 9068464, 15132390, 14715450, 3355443, 14207040, 3190960], r = (h) => {
       const d = Math.sin(h * 12.9898) * 43758.5453;
       return d - Math.floor(d);
@@ -22000,7 +22011,7 @@ const po = {
     for (let h = 0; h < l; h++)
       for (let d = 0; d < a; d++) {
         c++;
-        const f = -e / 2 + e / a * (d + 0.5) + (r(c) - 0.5) * (e / a) * 0.7, u = n / l * (h + 0.5) + (r(c + 100) - 0.5) * (n / l) * 0.7, m = 0.055 + r(c + 20) * 0.075, x = o[Math.floor(r(c + 50) * o.length) % o.length], p = new Bt(new ss(m, 0), w(x, { roughness: 0.55, flatShading: !0 }));
+        const f = -e / 2 + e / a * (d + 0.5) + (r(c) - 0.5) * (e / a) * 0.7, u = n / l * (h + 0.5) + (r(c + 100) - 0.5) * (n / l) * 0.7, m = 0.055 + r(c + 20) * 0.075, x = o[Math.floor(r(c + 50) * o.length) % o.length], p = new Bt(new ss(m, 0), _(x, { roughness: 0.55, flatShading: !0 }));
         p.position.set(f, u, s + m * 0.5), p.scale.z = 0.55, p.rotation.set(r(c) * 3, r(c + 1) * 3, r(c + 2) * 3), p.castShadow = !0, t.add(p);
       }
     return t;
@@ -22008,32 +22019,32 @@ const po = {
   // ---- Kitchen ----
   oven: (i) => {
     const t = new U();
-    t.add(P(v(0.6, 0.9, 0.6, w(ft, { metalness: 0.6, roughness: 0.4 }), 0, 0.45, 0), i)), t.add(v(0.5, 0.5, 0.02, w(1119255, { metalness: 0.3 }), 0, 0.5, 0.3)), t.add(v(0.5, 0.06, 0.04, w(Vt), 0, 0.78, 0.31));
-    for (const e of [-0.18, -0.06, 0.06, 0.18]) t.add(q(0.03, 0.03, 0.04, w(Vt), e, 0.86, 0.31, 12));
+    t.add(P(v(0.6, 0.9, 0.6, _(ft, { metalness: 0.6, roughness: 0.4 }), 0, 0.45, 0), i)), t.add(v(0.5, 0.5, 0.02, _(1119255, { metalness: 0.3 }), 0, 0.5, 0.3)), t.add(v(0.5, 0.06, 0.04, _(Vt), 0, 0.78, 0.31));
+    for (const e of [-0.18, -0.06, 0.06, 0.18]) t.add(q(0.03, 0.03, 0.04, _(Vt), e, 0.86, 0.31, 12));
     return t;
   },
   kettle: (i) => {
     const t = new U();
-    return t.add(q(0.11, 0.11, 0.03, w(Vt), 0, 0.015, 0, 18)), t.add(P(q(0.09, 0.11, 0.2, w(ft, { metalness: 0.5, roughness: 0.3 }), 0, 0.12, 0, 18), i)), t.add(v(0.04, 0.14, 0.04, w(Vt), 0, 0.18, -0.11)), t;
+    return t.add(q(0.11, 0.11, 0.03, _(Vt), 0, 0.015, 0, 18)), t.add(P(q(0.09, 0.11, 0.2, _(ft, { metalness: 0.5, roughness: 0.3 }), 0, 0.12, 0, 18), i)), t.add(v(0.04, 0.14, 0.04, _(Vt), 0, 0.18, -0.11)), t;
   },
   coffee_machine: (i) => {
     const t = new U();
-    return t.add(P(v(0.26, 0.36, 0.3, w(Vt), 0, 0.18, 0), i)), t.add(v(0.2, 0.05, 0.06, w(ft), 0, 0.12, 0.16)), t.add(q(0.05, 0.05, 0.08, w(7031343), 0, 0.05, 0.13, 12)), t;
+    return t.add(P(v(0.26, 0.36, 0.3, _(Vt), 0, 0.18, 0), i)), t.add(v(0.2, 0.05, 0.06, _(ft), 0, 0.12, 0.16)), t.add(q(0.05, 0.05, 0.08, _(7031343), 0, 0.05, 0.13, 12)), t;
   },
   toaster: (i) => {
     const t = new U();
-    return t.add(P(v(0.3, 0.18, 0.16, w(ft, { metalness: 0.6, roughness: 0.3 }), 0, 0.09, 0), i)), t.add(v(0.22, 0.02, 0.02, w(Vt), 0, 0.19, 0)), t;
+    return t.add(P(v(0.3, 0.18, 0.16, _(ft, { metalness: 0.6, roughness: 0.3 }), 0, 0.09, 0), i)), t.add(v(0.22, 0.02, 0.02, _(Vt), 0, 0.19, 0)), t;
   },
   blender: (i) => {
     const t = new U();
-    return t.add(v(0.15, 0.1, 0.15, w(Vt), 0, 0.05, 0)), t.add(P(q(0.07, 0.06, 0.22, w(Bn, { transparent: !0, opacity: 0.5 }), 0, 0.21, 0, 14), i)), t;
+    return t.add(v(0.15, 0.1, 0.15, _(Vt), 0, 0.05, 0)), t.add(P(q(0.07, 0.06, 0.22, _(Bn, { transparent: !0, opacity: 0.5 }), 0, 0.21, 0, 14), i)), t;
   },
   trash_can: (i) => {
     const t = new U();
-    return t.add(P(q(0.18, 0.16, 0.5, w(ft, { metalness: 0.5, roughness: 0.4 }), 0, 0.25, 0, 20), i)), t.add(q(0.19, 0.19, 0.03, w(ft, { metalness: 0.5 }), 0, 0.51, 0, 20)), t;
+    return t.add(P(q(0.18, 0.16, 0.5, _(ft, { metalness: 0.5, roughness: 0.4 }), 0, 0.25, 0, 20), i)), t.add(q(0.19, 0.19, 0.03, _(ft, { metalness: 0.5 }), 0, 0.51, 0, 20)), t;
   },
   wine_rack: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     for (const [n, s] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
       t.add(P(v(0.05, 0.8, 0.05, e, n * 0.28, 0.4, s * 0.14), i));
     for (const n of [0.15, 0.35, 0.55, 0.75]) t.add(v(0.56, 0.03, 0.28, e, 0, n, 0));
@@ -22041,72 +22052,72 @@ const po = {
   },
   // ---- Living / common ----
   recliner: (i) => {
-    const t = new U(), e = w(Ge);
+    const t = new U(), e = _(Ge);
     return t.add(P(v(0.9, 0.4, 0.95, e, 0, 0.25, 0), i)), t.add(P(v(0.9, 0.7, 0.18, e, 0, 0.6, -0.38), i)), t.add(P(v(0.18, 0.35, 0.95, e, -0.45, 0.45, 0), i)), t.add(P(v(0.18, 0.35, 0.95, e, 0.45, 0.45, 0), i)), t.add(v(0.78, 0.16, 0.36, e, 0, 0.22, 0.62)), t;
   },
   ottoman: (i) => {
-    const t = new U(), e = w(Ge, { roughness: 0.9 }), n = w(5979944, { roughness: 0.45, metalness: 0.05 }), s = w(4869975, { roughness: 0.7 });
+    const t = new U(), e = _(Ge, { roughness: 0.9 }), n = _(5979944, { roughness: 0.45, metalness: 0.05 }), s = _(4869975, { roughness: 0.7 });
     for (const [o, r] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
       t.add(q(0.02, 0.03, 0.09, n, o * 0.24, 0.045, r * 0.24, 8));
     return t.add(P(v(0.56, 0.22, 0.56, e, 0, 0.2, 0), i)), t.add(v(0.6, 0.03, 0.6, s, 0, 0.31, 0)), t.add(P(v(0.54, 0.1, 0.54, e, 0, 0.35, 0), i)), t.add(P(v(0.48, 0.04, 0.48, e, 0, 0.4, 0), i)), t.add(q(0.02, 0.02, 0.025, s, 0, 0.41, 0, 8)), t;
   },
   console_table: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     t.add(P(v(1.2, 0.05, 0.4, e, 0, 0.8, 0), i));
     for (const n of [-1, 1]) t.add(v(0.06, 0.8, 0.36, e, n * 0.55, 0.4, 0));
     return t.add(v(1.1, 0.04, 0.36, e, 0, 0.4, 0)), t;
   },
   fireplace: (i) => {
-    const t = new U(), e = w(9079430, { roughness: 1 });
-    return t.add(P(v(1.4, 1.2, 0.4, e, 0, 0.6, 0), i)), t.add(v(0.9, 0.7, 0.26, w(1315860), 0, 0.5, 0.1)), t.add(v(0.74, 0.36, 0.18, w(16742960, { emissive: 16734746 }), 0, 0.4, 0.14)), t.add(v(1.5, 0.1, 0.5, e, 0, 1.22, 0)), t;
+    const t = new U(), e = _(9079430, { roughness: 1 });
+    return t.add(P(v(1.4, 1.2, 0.4, e, 0, 0.6, 0), i)), t.add(v(0.9, 0.7, 0.26, _(1315860), 0, 0.5, 0.1)), t.add(v(0.74, 0.36, 0.18, _(16742960, { emissive: 16734746 }), 0, 0.4, 0.14)), t.add(v(1.5, 0.1, 0.5, e, 0, 1.22, 0)), t;
   },
   floor_vase: (i) => {
     const t = new U();
-    t.add(P(q(0.1, 0.18, 0.7, w(11887901), 0, 0.35, 0, 20), i)), t.add(q(0.12, 0.1, 0.08, w(11887901), 0, 0.74, 0, 20));
-    for (const e of [-0.05, 0.05, 0]) t.add(v(0.012, 0.5, 0.012, w(3828538), e, 1, 0));
+    t.add(P(q(0.1, 0.18, 0.7, _(11887901), 0, 0.35, 0, 20), i)), t.add(q(0.12, 0.1, 0.08, _(11887901), 0, 0.74, 0, 20));
+    for (const e of [-0.05, 0.05, 0]) t.add(v(0.012, 0.5, 0.012, _(3828538), e, 1, 0));
     return t;
   },
   aquarium: (i) => {
     const t = new U();
-    return t.add(v(1, 0.5, 0.4, w(Gt), 0, 0.25, 0)), t.add(v(0.95, 0.18, 0.38, w(2781088, { transparent: !0, opacity: 0.55 }), 0, 0.62, 0)), t.add(P(v(0.96, 0.46, 0.39, w(Bn, { transparent: !0, opacity: 0.28, metalness: 0.1 }), 0, 0.73, 0), i)), t;
+    return t.add(v(1, 0.5, 0.4, _(Gt), 0, 0.25, 0)), t.add(v(0.95, 0.18, 0.38, _(2781088, { transparent: !0, opacity: 0.55 }), 0, 0.62, 0)), t.add(P(v(0.96, 0.46, 0.39, _(Bn, { transparent: !0, opacity: 0.28, metalness: 0.1 }), 0, 0.73, 0), i)), t;
   },
   pool_table: (i) => {
     const t = new U();
-    t.add(v(2.1, 0.16, 1.2, w(Gt), 0, 0.68, 0)), t.add(P(v(1.96, 0.06, 1.06, w(2062909), 0, 0.79, 0), i));
+    t.add(v(2.1, 0.16, 1.2, _(Gt), 0, 0.68, 0)), t.add(P(v(1.96, 0.06, 1.06, _(2062909), 0, 0.79, 0), i));
     for (const [e, n] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-      t.add(v(0.14, 0.6, 0.14, w(Gt), e * 0.95, 0.3, n * 0.5));
+      t.add(v(0.14, 0.6, 0.14, _(Gt), e * 0.95, 0.3, n * 0.5));
     return t;
   },
   // ---- Bedroom ----
   crib: (i) => {
-    const t = new U(), e = w($t);
+    const t = new U(), e = _($t);
     t.add(P(v(0.66, 0.1, 1.16, e, 0, 0.5, 0), i));
     for (const n of [-1, 1]) t.add(v(0.7, 0.5, 0.04, e, 0, 0.65, n * 0.58));
     for (const n of [-1, 1]) t.add(v(0.04, 0.5, 1.2, e, n * 0.33, 0.65, 0));
     return t;
   },
   vanity: (i) => {
-    const t = new U(), e = w($t);
+    const t = new U(), e = _($t);
     t.add(P(v(1, 0.05, 0.45, e, 0, 0.78, 0), i));
     for (const n of [-1, 1]) t.add(v(0.36, 0.78, 0.42, e, n * 0.3, 0.39, 0));
-    return t.add(v(0.66, 0.66, 0.04, e, 0, 1.2, -0.22)), t.add(v(0.6, 0.6, 0.02, w(13623526, { metalness: 0.4, roughness: 0.1 }), 0, 1.2, -0.2)), t;
+    return t.add(v(0.66, 0.66, 0.04, e, 0, 1.2, -0.22)), t.add(v(0.6, 0.6, 0.02, _(13623526, { metalness: 0.4, roughness: 0.1 }), 0, 1.2, -0.2)), t;
   },
   bench: (i) => {
-    const t = new U(), e = w(Gt);
-    t.add(P(v(1.1, 0.1, 0.4, w(Ge), 0, 0.45, 0), i));
+    const t = new U(), e = _(Gt);
+    t.add(P(v(1.1, 0.1, 0.4, _(Ge), 0, 0.45, 0), i));
     for (const n of [-1, 1]) t.add(v(0.06, 0.45, 0.36, e, n * 0.5, 0.225, 0));
     return t;
   },
   ceiling_fan: (i) => {
     const t = new U();
-    return t.add(q(0.1, 0.1, 0.1, w(ft), 0, 0, 0, 16)), t.add(P(v(1.4, 0.02, 0.18, w(Gt), 0, -0.02, 0), i)), t.add(P(v(0.18, 0.02, 1.4, w(Gt), 0, -0.02, 0), i)), t.add(q(0.04, 0.04, 0.22, w(ft), 0, 0.14, 0, 10)), t;
+    return t.add(q(0.1, 0.1, 0.1, _(ft), 0, 0, 0, 16)), t.add(P(v(1.4, 0.02, 0.18, _(Gt), 0, -0.02, 0), i)), t.add(P(v(0.18, 0.02, 1.4, _(Gt), 0, -0.02, 0), i)), t.add(q(0.04, 0.04, 0.22, _(ft), 0, 0.14, 0, 10)), t;
   },
   // Small round ceiling exhaust vent (extractor). Sits flush under the ceiling;
   // bind a fan.* entity and the whole grille spins while the fan is ON.
   ceiling_vent: (i) => {
-    const t = new U(), e = w($t, { metalness: 0.1, roughness: 0.7 }), n = w(14146785, { metalness: 0.25, roughness: 0.55 }), s = w(ft, { metalness: 0.55, roughness: 0.35 });
+    const t = new U(), e = _($t, { metalness: 0.1, roughness: 0.7 }), n = _(14146785, { metalness: 0.25, roughness: 0.55 }), s = _(ft, { metalness: 0.55, roughness: 0.35 });
     t.add(P(q(0.24, 0.26, 0.05, e, 0, -0.025, 0, 32), i)), t.add(q(0.2, 0.2, 0.012, n, 0, -0.055, 0, 32)), t.add(q(0.055, 0.06, 0.045, s, 0, -0.07, 0, 20));
-    const o = w(15527665, { metalness: 0.2, roughness: 0.5 });
+    const o = _(15527665, { metalness: 0.2, roughness: 0.5 });
     for (let r = 0; r < 7; r++) {
       const a = r / 7 * Math.PI * 2, l = v(0.15, 6e-3, 0.05, o, Math.cos(a) * 0.11, -0.062, Math.sin(a) * 0.11);
       l.rotation.y = -a, t.add(l);
@@ -22117,8 +22128,8 @@ const po = {
   // heating loop glows when the heater is ON (bind climate/switch).
   warm_floor: (i) => {
     const t = new U(), e = 1.6, n = 1.1;
-    t.add(P(v(e, 0.015, n, w(12160893, { roughness: 0.9 }), 0, 75e-4, 0), i));
-    const s = w(14252106, { roughness: 0.5 }), o = 5, r = -e / 2 + 0.14, a = e / 2 - 0.14, l = -n / 2 + 0.14, c = (n - 0.28) / (o - 1);
+    t.add(P(v(e, 0.015, n, _(12160893, { roughness: 0.9 }), 0, 75e-4, 0), i));
+    const s = _(14252106, { roughness: 0.5 }), o = 5, r = -e / 2 + 0.14, a = e / 2 - 0.14, l = -n / 2 + 0.14, c = (n - 0.28) / (o - 1);
     for (let h = 0; h < o; h++) {
       const d = v(a - r, 0.02, 0.035, s, 0, 0.02, l + h * c);
       d.name = "emissive", t.add(d);
@@ -22134,8 +22145,8 @@ const po = {
   // glow warm when the heater is ON (bind climate/switch/fan).
   convector: (i) => {
     const t = new U(), e = 1, n = 0.18;
-    t.add(P(v(e, 0.04, n, w(10133670, { metalness: 0.55, roughness: 0.35 }), 0, 0.02, 0), i));
-    const s = w(14256730, { metalness: 0.3, roughness: 0.5 }), o = 16;
+    t.add(P(v(e, 0.04, n, _(10133670, { metalness: 0.55, roughness: 0.35 }), 0, 0.02, 0), i));
+    const s = _(14256730, { metalness: 0.3, roughness: 0.5 }), o = 16;
     for (let r = 0; r < o; r++) {
       const a = -e / 2 + 0.05 + r / (o - 1) * (e - 0.1), l = v(0.018, 0.02, n - 0.05, s, a, 0.035, 0);
       l.name = "emissive", t.add(l);
@@ -22145,49 +22156,49 @@ const po = {
   // ---- Bathroom ----
   bidet: (i) => {
     const t = new U();
-    return t.add(P(v(0.4, 0.4, 0.55, w($t), 0, 0.2, 0), i)), t.add(q(0.16, 0.18, 0.12, w($t), 0, 0.42, 0.05, 18)), t;
+    return t.add(P(v(0.4, 0.4, 0.55, _($t), 0, 0.2, 0), i)), t.add(q(0.16, 0.18, 0.12, _($t), 0, 0.42, 0.05, 18)), t;
   },
   towel_rack: (i) => {
     const t = new U();
-    return t.add(v(0.6, 0.04, 0.05, w(ft, { metalness: 0.6, roughness: 0.3 }), 0, 0.12, 0.04)), t.add(P(v(0.5, 0.32, 0.02, w($t), 0, -0.05, 0.06), i)), t;
+    return t.add(v(0.6, 0.04, 0.05, _(ft, { metalness: 0.6, roughness: 0.3 }), 0, 0.12, 0.04)), t.add(P(v(0.5, 0.32, 0.02, _($t), 0, -0.05, 0.06), i)), t;
   },
   bathroom_cabinet: (i) => {
     const t = new U();
-    return t.add(P(v(0.6, 0.7, 0.15, w($t), 0, 0, 0.075), i)), t.add(v(0.56, 0.66, 0.02, w(13623526, { metalness: 0.4, roughness: 0.1 }), 0, 0, 0.16)), t;
+    return t.add(P(v(0.6, 0.7, 0.15, _($t), 0, 0, 0.075), i)), t.add(v(0.56, 0.66, 0.02, _(13623526, { metalness: 0.4, roughness: 0.1 }), 0, 0, 0.16)), t;
   },
   dryer: (i) => {
     const t = new U();
-    return t.add(P(v(0.6, 0.85, 0.6, w($t), 0, 0.425, 0), i)), t.add(q(0.22, 0.22, 0.04, w(2764598, { metalness: 0.3 }), 0, 0.5, 0.3, 24)), t.add(v(0.5, 0.08, 0.04, w(ft), 0, 0.78, 0.31)), t;
+    return t.add(P(v(0.6, 0.85, 0.6, _($t), 0, 0.425, 0), i)), t.add(q(0.22, 0.22, 0.04, _(2764598, { metalness: 0.3 }), 0, 0.5, 0.3, 24)), t.add(v(0.5, 0.08, 0.04, _(ft), 0, 0.78, 0.31)), t;
   },
   // ---- Office ----
   filing_cabinet: (i) => {
     const t = new U();
-    t.add(P(v(0.45, 1, 0.55, w(ft, { metalness: 0.4, roughness: 0.5 }), 0, 0.5, 0), i));
-    for (const e of [0.25, 0.5, 0.75]) t.add(v(0.4, 0.02, 0.02, w(Vt), 0, e, 0.28));
+    t.add(P(v(0.45, 1, 0.55, _(ft, { metalness: 0.4, roughness: 0.5 }), 0, 0.5, 0), i));
+    for (const e of [0.25, 0.5, 0.75]) t.add(v(0.4, 0.02, 0.02, _(Vt), 0, e, 0.28));
     return t;
   },
   monitor: (i) => {
     const t = new U();
-    return t.add(P(v(0.5, 0.32, 0.03, w(Vt), 0, 0.45, 0), i)), t.add(v(0.46, 0.28, 0.01, w(657930, { emissive: 1053466 }), 0, 0.45, 0.02)), t.add(q(0.03, 0.03, 0.18, w(Vt), 0, 0.3, -0.02, 10)), t.add(v(0.2, 0.02, 0.14, w(Vt), 0, 0.21, -0.02)), t;
+    return t.add(P(v(0.5, 0.32, 0.03, _(Vt), 0, 0.45, 0), i)), t.add(v(0.46, 0.28, 0.01, _(657930, { emissive: 1053466 }), 0, 0.45, 0.02)), t.add(q(0.03, 0.03, 0.18, _(Vt), 0, 0.3, -0.02, 10)), t.add(v(0.2, 0.02, 0.14, _(Vt), 0, 0.21, -0.02)), t;
   },
   printer: (i) => {
     const t = new U();
-    return t.add(P(v(0.45, 0.3, 0.4, w($t), 0, 0.15, 0), i)), t.add(v(0.4, 0.02, 0.3, w(Vt), 0, 0.31, 0)), t.add(v(0.34, 0.04, 0.08, w(14540270), 0, 0.3, 0.12)), t;
+    return t.add(P(v(0.45, 0.3, 0.4, _($t), 0, 0.15, 0), i)), t.add(v(0.4, 0.02, 0.3, _(Vt), 0, 0.31, 0)), t.add(v(0.34, 0.04, 0.08, _(14540270), 0, 0.3, 0.12)), t;
   },
   whiteboard: (i) => {
     const t = new U();
-    return t.add(P(v(1.26, 0.86, 0.02, w(ft), 0, 0, 0), i)), t.add(v(1.2, 0.8, 0.02, w(16185078), 0, 0, 0.02)), t.add(v(0.4, 0.03, 0.06, w(ft), 0, -0.36, 0.05)), t;
+    return t.add(P(v(1.26, 0.86, 0.02, _(ft), 0, 0, 0), i)), t.add(v(1.2, 0.8, 0.02, _(16185078), 0, 0, 0.02)), t.add(v(0.4, 0.03, 0.06, _(ft), 0, -0.36, 0.05)), t;
   },
   // ---- Entry / utility / decor ----
   shoe_rack: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     for (const n of [0.1, 0.3, 0.5]) t.add(P(v(0.8, 0.03, 0.3, e, 0, n, 0), i));
     for (const [n, s] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
       t.add(v(0.04, 0.55, 0.04, e, n * 0.38, 0.275, s * 0.13));
     return t;
   },
   coat_rack: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     t.add(P(q(0.04, 0.06, 1.7, e, 0, 0.85, 0, 12), i)), t.add(q(0.25, 0.25, 0.04, e, 0, 0.02, 0, 16));
     for (let n = 0; n < 4; n++) {
       const s = n * Math.PI / 2;
@@ -22197,62 +22208,62 @@ const po = {
   },
   water_heater: (i) => {
     const t = new U();
-    return t.add(P(q(0.25, 0.25, 0.9, w($t), 0, 0.45, 0, 20), i)), t.add(q(0.25, 0.25, 0.05, w(ft), 0, 0.9, 0, 20)), t.add(v(0.1, 0.1, 0.1, w(ft), 0, 0.2, 0.26)), t;
+    return t.add(P(q(0.25, 0.25, 0.9, _($t), 0, 0.45, 0, 20), i)), t.add(q(0.25, 0.25, 0.05, _(ft), 0, 0.9, 0, 20)), t.add(v(0.1, 0.1, 0.1, _(ft), 0, 0.2, 0.26)), t;
   },
   books: (i) => {
     const t = new U(), e = [9059131, 3889802, 3902042, 11899183];
     let n = 0.02;
     for (let s = 0; s < 4; s++)
-      t.add(v(0.22, 0.04, 0.16, w(e[s % e.length]), 0, n, s % 2 * 0.01)), n += 0.045;
+      t.add(v(0.22, 0.04, 0.16, _(e[s % e.length]), 0, n, s % 2 * 0.01)), n += 0.045;
     return P(t.children[0], i), t;
   },
   vase: (i) => {
     const t = new U();
-    t.add(P(q(0.06, 0.1, 0.28, w(14673642, { metalness: 0.1, roughness: 0.3 }), 0, 0.14, 0, 18), i));
-    for (const e of [-0.03, 0.03, 0]) t.add(v(0.01, 0.3, 0.01, w(3828538), e, 0.4, 0));
+    t.add(P(q(0.06, 0.1, 0.28, _(14673642, { metalness: 0.1, roughness: 0.3 }), 0, 0.14, 0, 18), i));
+    for (const e of [-0.03, 0.03, 0]) t.add(v(0.01, 0.3, 0.01, _(3828538), e, 0.4, 0));
     return t;
   },
   wall_shelf: (i) => {
-    const t = new U(), e = w(Gt);
+    const t = new U(), e = _(Gt);
     return t.add(P(v(0.8, 0.04, 0.22, e, 0, 0, 0.11), i)), t.add(v(0.04, 0.2, 0.2, e, -0.36, -0.1, 0.1)), t.add(v(0.04, 0.2, 0.2, e, 0.36, -0.1, 0.1)), t;
   },
   // ---- Wardrobes / cabinets ----
   wardrobe_glass: (i) => {
     const t = new U(), e = 1.2, n = 2.1, s = 0.58;
-    t.add(P(v(e, n, s, w($t), 0, n / 2, 0), i)), t.add(v(e - 0.06, n - 0.06, s - 0.08, w(2106408), 0, n / 2, -0.02));
-    for (const r of [0.45, 0.9, 1.35, 1.75]) t.add(v(e - 0.1, 0.03, s - 0.1, w(Gt), 0, r, 0));
-    const o = w(Bn, { transparent: !0, opacity: 0.3, metalness: 0.2, roughness: 0.05 });
-    return t.add(v(e / 2 - 0.04, n - 0.14, 0.02, o, -e / 4, n / 2, s / 2 + 0.01)), t.add(v(e / 2 - 0.04, n - 0.14, 0.02, o, e / 4, n / 2, s / 2 + 0.01)), t.add(v(0.04, n - 0.1, 0.05, w(ft), 0, n / 2, s / 2 + 0.015)), t.add(q(0.012, 0.012, 0.2, w(ft), -0.06, n / 2, s / 2 + 0.05, 8)), t.add(q(0.012, 0.012, 0.2, w(ft), 0.06, n / 2, s / 2 + 0.05, 8)), t;
+    t.add(P(v(e, n, s, _($t), 0, n / 2, 0), i)), t.add(v(e - 0.06, n - 0.06, s - 0.08, _(2106408), 0, n / 2, -0.02));
+    for (const r of [0.45, 0.9, 1.35, 1.75]) t.add(v(e - 0.1, 0.03, s - 0.1, _(Gt), 0, r, 0));
+    const o = _(Bn, { transparent: !0, opacity: 0.3, metalness: 0.2, roughness: 0.05 });
+    return t.add(v(e / 2 - 0.04, n - 0.14, 0.02, o, -e / 4, n / 2, s / 2 + 0.01)), t.add(v(e / 2 - 0.04, n - 0.14, 0.02, o, e / 4, n / 2, s / 2 + 0.01)), t.add(v(0.04, n - 0.1, 0.05, _(ft), 0, n / 2, s / 2 + 0.015)), t.add(q(0.012, 0.012, 0.2, _(ft), -0.06, n / 2, s / 2 + 0.05, 8)), t.add(q(0.012, 0.012, 0.2, _(ft), 0.06, n / 2, s / 2 + 0.05, 8)), t;
   },
   display_cabinet: (i) => {
     const t = new U(), e = 0.9, n = 1.9, s = 0.4;
-    t.add(P(v(e, n, s, w(Gt), 0, n / 2, 0), i)), t.add(v(e - 0.08, n - 0.2, s - 0.06, w(1843236), 0, n / 2 + 0.04, -0.01));
-    const o = w(Bn, { transparent: !0, opacity: 0.26, metalness: 0.2, roughness: 0.05 });
+    t.add(P(v(e, n, s, _(Gt), 0, n / 2, 0), i)), t.add(v(e - 0.08, n - 0.2, s - 0.06, _(1843236), 0, n / 2 + 0.04, -0.01));
+    const o = _(Bn, { transparent: !0, opacity: 0.26, metalness: 0.2, roughness: 0.05 });
     t.add(v(e - 0.06, n - 0.28, 0.02, o, 0, n / 2 + 0.04, s / 2));
-    for (const r of [0.55, 0.95, 1.35, 1.7]) t.add(v(e - 0.1, 0.02, s - 0.08, w(15921906), 0, r, 0));
-    return t.add(P(q(0.05, 0.07, 0.16, w(14673642), -0.2, 0.63, 0, 12), i)), t.add(v(0.12, 0.18, 0.1, w(9059131), 0.18, 0.64, 0)), t;
+    for (const r of [0.55, 0.95, 1.35, 1.7]) t.add(v(e - 0.1, 0.02, s - 0.08, _(15921906), 0, r, 0));
+    return t.add(P(q(0.05, 0.07, 0.16, _(14673642), -0.2, 0.63, 0, 12), i)), t.add(v(0.12, 0.18, 0.1, _(9059131), 0.18, 0.64, 0)), t;
   },
   shelving_unit: (i) => {
-    const t = new U(), e = w(Gt), n = 1, s = 2, o = 0.32;
+    const t = new U(), e = _(Gt), n = 1, s = 2, o = 0.32;
     t.add(P(v(0.04, s, o, e, -n / 2, s / 2, 0), i)), t.add(P(v(0.04, s, o, e, n / 2, s / 2, 0), i)), t.add(v(n, 0.03, 0.04, e, 0, s - 0.02, -o / 2 + 0.02));
     for (let r = 0; r < 6; r++) t.add(v(n, 0.03, o, e, 0, 0.04 + r * (s - 0.08) / 5, 0));
     return t;
   },
   wardrobe_lit: (i) => {
     const t = new U(), e = 1.2, n = 2.1, s = 0.58;
-    t.add(P(v(e, n, s, w($t), 0, n / 2, 0), i)), t.add(v(e - 0.06, n - 0.06, s - 0.08, w(1316634), 0, n / 2, -0.02));
-    for (const r of [0.6, 1.5]) t.add(v(e - 0.1, 0.03, s - 0.1, w(Gt), 0, r, 0));
-    const o = q(0.015, 0.015, e - 0.16, w(ft), 0, 1.95, 0.05, 8);
+    t.add(P(v(e, n, s, _($t), 0, n / 2, 0), i)), t.add(v(e - 0.06, n - 0.06, s - 0.08, _(1316634), 0, n / 2, -0.02));
+    for (const r of [0.6, 1.5]) t.add(v(e - 0.1, 0.03, s - 0.1, _(Gt), 0, r, 0));
+    const o = q(0.015, 0.015, e - 0.16, _(ft), 0, 1.95, 0.05, 8);
     o.rotation.z = Math.PI / 2, t.add(o);
     for (const r of [n - 0.12, 1.45, 0.55]) {
-      const a = v(e - 0.16, 0.035, 0.04, w(15395562, { emissive: 0 }), 0, r, s / 2 - 0.12);
+      const a = v(e - 0.16, 0.035, 0.04, _(15395562, { emissive: 0 }), 0, r, s / 2 - 0.12);
       a.name = "emissive", t.add(a);
     }
     return t;
   },
   // Generic fallback marker so an unknown model key still renders something.
   sofa_l: (i) => {
-    const t = new U(), e = i.clone().multiplyScalar(0.62), n = () => w(Ge, { roughness: 0.9 }), s = () => w(Ge, { roughness: 0.97 }), o = w(3878694, { roughness: 0.5, metalness: 0.2 });
+    const t = new U(), e = i.clone().multiplyScalar(0.62), n = () => _(Ge, { roughness: 0.9 }), s = () => _(Ge, { roughness: 0.97 }), o = _(3878694, { roughness: 0.5, metalness: 0.2 });
     for (const [l, c] of [[-1.15, -1.05], [1.15, -1.05], [1.15, 1.05], [0.5, 1.05], [-1.15, -0.4], [0.5, -0.4]])
       t.add(q(0.035, 0.05, 0.1, o, l, 0.05, c, 10));
     t.add(P(v(2.6, 0.24, 0.95, s(), 0, 0.22, -0.725), e)), t.add(P(v(0.95, 0.24, 1.45, s(), 0.825, 0.22, 0.475), e)), t.add(P(v(2.5, 0.06, 0.88, s(), 0, 0.35, -0.725), e)), t.add(P(v(0.88, 0.06, 1.4, s(), 0.825, 0.35, 0.475), e)), t.add(P(v(0.2, 0.52, 2.4, n(), 1.2, 0.36, 0), i));
@@ -22273,7 +22284,7 @@ const po = {
     return t;
   },
   sofa_u: (i) => {
-    const t = new U(), e = w(Ge, { roughness: 0.9 }), n = w(5068128, { roughness: 0.85 }), s = w(3024931, { roughness: 0.5, metalness: 0.25 }), o = w(13218959, { roughness: 0.95 }), r = 3, a = 2.6, l = 0.85, c = r / 2, h = a / 2, d = 0.24, f = 0.18, u = 0.3, m = [[-1.3, -1.15], [1.3, -1.15], [-1.3, 1.15], [1.3, 1.15], [0, -1.15], [0, 0.9]];
+    const t = new U(), e = _(Ge, { roughness: 0.9 }), n = _(5068128, { roughness: 0.85 }), s = _(3024931, { roughness: 0.5, metalness: 0.25 }), o = _(13218959, { roughness: 0.95 }), r = 3, a = 2.6, l = 0.85, c = r / 2, h = a / 2, d = 0.24, f = 0.18, u = 0.3, m = [[-1.3, -1.15], [1.3, -1.15], [-1.3, 1.15], [1.3, 1.15], [0, -1.15], [0, 0.9]];
     for (const [y, b] of m) t.add(q(0.05, 0.065, 0.09, s, y, 0.045, b, 10));
     t.add(v(r, d, l, n, 0, f, -0.875)), t.add(v(l, d, a, n, -1.075, f, 0)), t.add(v(l, d, a, n, c - l / 2, f, 0)), t.add(P(v(2.6, 0.5, 0.2, e, 0, 0.55, -1.15), i)), t.add(P(v(0.2, 0.5, 2.3, e, -1.4, 0.55, -0.1), i)), t.add(P(v(0.2, 0.5, 2.3, e, 1.4, 0.55, -0.1), i));
     for (const y of [-1, 1]) {
@@ -22297,7 +22308,7 @@ const po = {
     return g(-0.95, -0.9, Math.PI * 0.18), g(0.95, -0.9, -Math.PI * 0.18), g(-1.12, 0.55, Math.PI * 0.5 - 0.3), g(1.05, -0.1, -Math.PI * 0.5 + 0.3), t;
   },
   conference_chair: (i) => {
-    const t = new U(), e = w(4541268, { roughness: 0.85 }), n = w(ft, { roughness: 0.4, metalness: 0.5 }), s = w(Vt, { roughness: 0.6 });
+    const t = new U(), e = _(4541268, { roughness: 0.85 }), n = _(ft, { roughness: 0.4, metalness: 0.5 }), s = _(Vt, { roughness: 0.6 });
     t.add(v(0.48, 0.06, 0.46, s, 0, 0.42, 0)), t.add(P(v(0.44, 0.06, 0.42, e, 0, 0.47, 0), i)), t.add(q(0.028, 0.03, 0.3, n, 0, 0.24, 0, 12)), t.add(q(0.055, 0.06, 0.05, s, 0, 0.08, 0, 12));
     for (let a = 0; a < 4; a++) {
       const l = a * Math.PI / 2 + Math.PI / 4, c = v(0.26, 0.035, 0.06, n, Math.cos(l) * 0.12, 0.055, Math.sin(l) * 0.12);
@@ -22313,8 +22324,8 @@ const po = {
     return t;
   },
   tub_chair: (i) => {
-    const t = new U(), e = w(11049606, { roughness: 0.9 }), n = w(Gt, { roughness: 0.5 });
-    t.add(P(q(0.26, 0.28, 0.16, e, 0, 0.28, 0, 28), i)), t.add(P(q(0.25, 0.26, 0.13, e, 0, 0.44, 0, 28), i)), t.add(q(0.21, 0.22, 0.05, w(9405041, { roughness: 0.9 }), 0, 0.51, 0, 24));
+    const t = new U(), e = _(11049606, { roughness: 0.9 }), n = _(Gt, { roughness: 0.5 });
+    t.add(P(q(0.26, 0.28, 0.16, e, 0, 0.28, 0, 28), i)), t.add(P(q(0.25, 0.26, 0.13, e, 0, 0.44, 0, 28), i)), t.add(q(0.21, 0.22, 0.05, _(9405041, { roughness: 0.9 }), 0, 0.51, 0, 24));
     const s = new Bt(new ln(0.27, 0.12, 12, 30, Math.PI * 1.4), e);
     s.castShadow = !0, s.receiveShadow = !0, s.position.set(0, 0.53, 0), s.rotation.x = Math.PI / 2, s.rotation.z = -Math.PI * 0.2, t.add(P(s, i));
     const o = new Bt(new ln(0.27, 0.025, 8, 30, Math.PI * 1.4), n);
@@ -22326,28 +22337,28 @@ const po = {
     return t;
   },
   conference_table: (i) => {
-    const t = new U(), e = 6.8, n = 1.4, s = w(Gt, { roughness: 0.45 }), o = w(7293480, { roughness: 0.55 }), r = w(4862488, { roughness: 0.4 }), a = w(Vt, { roughness: 0.4, metalness: 0.45 }), l = w(1053720, { emissive: 662050 });
+    const t = new U(), e = 6.8, n = 1.4, s = _(Gt, { roughness: 0.45 }), o = _(7293480, { roughness: 0.55 }), r = _(4862488, { roughness: 0.4 }), a = _(Vt, { roughness: 0.4, metalness: 0.45 }), l = _(1053720, { emissive: 662050 });
     t.add(v(e, 0.045, n, o, 0, 0.695, 0)), t.add(P(v(e - 0.12, 0.04, n - 0.08, s, 0, 0.72, 0), i));
     for (const c of [-1, 1])
       t.add(v(e - 0.5, 6e-3, 0.05, r, 0, 0.741, c * 0.5));
     for (const c of [-1, 1])
-      t.add(v(0.14, 0.66, n - 0.25, o, c * 2.35, 0.35, 0)), t.add(v(0.12, 0.62, n - 0.4, w(5913890, { roughness: 0.5 }), c * 2.35, 0.35, 0)), t.add(v(0.5, 0.06, n - 0.1, o, c * 2.35, 0.03, 0));
+      t.add(v(0.14, 0.66, n - 0.25, o, c * 2.35, 0.35, 0)), t.add(v(0.12, 0.62, n - 0.4, _(5913890, { roughness: 0.5 }), c * 2.35, 0.35, 0)), t.add(v(0.5, 0.06, n - 0.1, o, c * 2.35, 0.03, 0));
     t.add(v(4.5, 0.18, 0.24, o, 0, 0.42, 0));
     for (const c of [-1.8, 0, 1.8])
       t.add(v(0.38, 0.03, 0.24, a, c, 0.755, 0)), t.add(v(0.3, 0.01, 0.16, l, c, 0.772, 0));
     return t;
   },
   executive_desk: (i) => {
-    const t = new U(), e = w(Gt, { roughness: 0.55 }), n = w(Vt, { roughness: 0.5 }), s = w(ft, { roughness: 0.4, metalness: 0.5 });
-    t.add(P(v(2, 0.05, 0.95, e, 0, 0.73, 0), i)), t.add(v(1.8, 0.02, 0.8, w(8016432, { roughness: 0.5 }), 0, 0.758, 0)), t.add(v(2, 0.05, 0.07, e, 0, 0.785, -0.44)), t.add(v(1.45, 0.64, 0.04, e, -0.255, 0.38, 0.44)), t.add(v(1.3, 0.44, 0.02, w(9068340, { roughness: 0.55 }), -0.255, 0.38, 0.465)), t.add(v(0.05, 0.7, 0.9, e, -0.97, 0.35, 0)), t.add(v(0.5, 0.72, 0.9, n, 0.72, 0.36, 0));
+    const t = new U(), e = _(Gt, { roughness: 0.55 }), n = _(Vt, { roughness: 0.5 }), s = _(ft, { roughness: 0.4, metalness: 0.5 });
+    t.add(P(v(2, 0.05, 0.95, e, 0, 0.73, 0), i)), t.add(v(1.8, 0.02, 0.8, _(8016432, { roughness: 0.5 }), 0, 0.758, 0)), t.add(v(2, 0.05, 0.07, e, 0, 0.785, -0.44)), t.add(v(1.45, 0.64, 0.04, e, -0.255, 0.38, 0.44)), t.add(v(1.3, 0.44, 0.02, _(9068340, { roughness: 0.55 }), -0.255, 0.38, 0.465)), t.add(v(0.05, 0.7, 0.9, e, -0.97, 0.35, 0)), t.add(v(0.5, 0.72, 0.9, n, 0.72, 0.36, 0));
     for (let o = 0; o < 3; o++) {
       const r = 0.2 + o * 0.22;
-      t.add(v(0.42, 0.2, 0.02, w(3817287, { roughness: 0.5 }), 0.72, r, -0.46)), t.add(v(0.14, 0.02, 0.02, s, 0.72, r, -0.48));
+      t.add(v(0.42, 0.2, 0.02, _(3817287, { roughness: 0.5 }), 0.72, r, -0.46)), t.add(v(0.14, 0.02, 0.02, s, 0.72, r, -0.48));
     }
     return t;
   },
   tree: (i) => {
-    const t = new U(), e = w(7031343, { roughness: 0.95 }), n = w(4160831);
+    const t = new U(), e = _(7031343, { roughness: 0.95 }), n = _(4160831);
     t.add(q(0.09, 0.17, 1.3, e, 0, 0.65, 0, 8));
     const s = q(0.035, 0.07, 0.55, e, -0.13, 1.25, 0.05, 6);
     s.rotation.z = 0.5, t.add(s);
@@ -22360,14 +22371,14 @@ const po = {
     return t.add(r(0.85, 0, 2.05, 0)), t.add(r(0.6, -0.62, 1.78, 0.15)), t.add(r(0.58, 0.6, 1.82, -0.2)), t.add(r(0.55, 0.1, 2.45, 0.2)), t.add(r(0.5, 0.2, 1.9, 0.58)), t.add(r(0.48, -0.16, 1.92, -0.55)), t;
   },
   shrub: (i) => {
-    const t = new U(), e = w(4881722), n = (s, o, r, a) => {
+    const t = new U(), e = _(4881722), n = (s, o, r, a) => {
       const l = new Bt(new ss(s, 0), e);
       return l.position.set(o, r, a), l.scale.set(1, 0.62, 1), l.castShadow = !0, l.receiveShadow = !0, P(l, i);
     };
     return t.add(n(0.34, 0, 0.22, 0)), t.add(n(0.27, -0.2, 0.18, 0.06)), t.add(n(0.26, 0.2, 0.19, -0.05)), t;
   },
   sink_double: (i) => {
-    const t = new U(), e = w(15659507, { roughness: 0.28, metalness: 0.08 }), n = w(14340292, { roughness: 0.7 }), s = w(13287342, { roughness: 0.6 }), o = w(ft, { metalness: 0.7, roughness: 0.25 }), r = 1.4, a = 0.55, l = 0.04;
+    const t = new U(), e = _(15659507, { roughness: 0.28, metalness: 0.08 }), n = _(14340292, { roughness: 0.7 }), s = _(13287342, { roughness: 0.6 }), o = _(ft, { metalness: 0.7, roughness: 0.25 }), r = 1.4, a = 0.55, l = 0.04;
     t.add(P(v(r, l, a, e, 0, -l / 2, 0), i)), t.add(v(r - 0.06, 0.014, a - 0.06, e, 0, 6e-3, 0)), t.add(v(r, 0.05, 0.03, e, 0, 0.025, -a / 2 + 0.015));
     const c = r - 0.06, h = 0.44, d = a - 0.06, f = -l - h / 2;
     t.add(v(c, h, d, n, 0, f, 5e-3));
@@ -22376,18 +22387,18 @@ const po = {
     for (const u of [-1, 1]) {
       const m = u * 0.34, x = 0.02, p = q(0.185, 0.185, 0.02, e, m, -0.01, x, 20);
       p.scale.z = 0.72, t.add(p);
-      const g = q(0.155, 0.09, 0.11, w(16185593, { roughness: 0.22 }), m, -0.07, x, 20);
+      const g = q(0.155, 0.09, 0.11, _(16185593, { roughness: 0.22 }), m, -0.07, x, 20);
       g.scale.z = 0.72, t.add(g), t.add(q(0.016, 0.02, 0.17, o, m, 0.085, -a / 2 + 0.11, 12)), t.add(v(0.03, 0.03, 0.11, o, m, 0.16, -a / 2 + 0.16)), t.add(v(0.05, 0.02, 0.02, o, m, 0.1, -a / 2 + 0.09));
     }
     for (const u of [-1, 1]) {
       const m = u * 0.34;
-      t.add(v(0.5, 0.62, 0.02, n, m, 0.62, -a / 2 + 0.02)), t.add(v(0.44, 0.56, 0.01, w(12374230, { metalness: 0.4, roughness: 0.08 }), m, 0.62, -a / 2 + 0.035));
+      t.add(v(0.5, 0.62, 0.02, n, m, 0.62, -a / 2 + 0.02)), t.add(v(0.44, 0.56, 0.01, _(12374230, { metalness: 0.4, roughness: 0.08 }), m, 0.62, -a / 2 + 0.035));
     }
     return t;
   },
   marker: (i) => {
     const t = new U();
-    return t.add(P(q(0, 0.12, 0.3, w(16733525), 0, 0.15, 0, 8), i)), t;
+    return t.add(P(q(0, 0.12, 0.3, _(16733525), 0, 0.15, 0, 8), i)), t;
   }
 }, Ly = Object.keys(po).filter((i) => i !== "marker"), Dy = [
   "door",
@@ -22429,7 +22440,8 @@ const po = {
   "wall_light_double",
   "sconce_pair",
   "glass_wall_cabinet",
-  "wall_backlight_double"
+  "wall_backlight_double",
+  "wall_switch"
 ];
 function Md(i) {
   return Dy.includes(i);
@@ -22468,7 +22480,8 @@ const Ny = [
   "wall_light_double",
   "sconce_pair",
   "glass_wall_cabinet",
-  "wall_backlight_double"
+  "wall_backlight_double",
+  "wall_switch"
 ];
 function Uy(i) {
   return Ny.includes(i);
@@ -22512,6 +22525,8 @@ function ky(i) {
     case "feature_wall":
     case "glass_wall_cabinet":
       return ["light", "switch"];
+    case "wall_switch":
+      return ["switch", "media_player", "climate", "cover"];
     case "ceiling_fan":
     case "ceiling_vent":
       return ["fan", "switch"];
@@ -22560,7 +22575,7 @@ function ky(i) {
   }
 }
 function Sd(i, t = 2.6) {
-  return i === "ceiling_light" || i === "chandelier" || i === "crystal_chandelier" || i === "chandelier_double" || i === "crystal_chandelier_double" || i === "pendant_light" ? t - 0.05 : i === "spotlight" || i === "led_strip" || i === "led_panel" || i === "track_light" || i === "spotlight_bar" || i === "led_backlight" || i === "track_bar" || i === "track_double" || i === "ceiling_speaker" || i === "ceiling_speaker_double" ? t - 0.02 : i === "wall_sconce" || i === "sconce_pair" ? 1.6 : i === "wall_light_double" ? 1.8 : i === "ceiling_fan" ? t - 0.25 : i === "ceiling_vent" ? t - 0.02 : i === "wall_cabinet" ? 1.55 : i === "glass_wall_cabinet" ? 1.4 : i === "wall_light" || i === "ac_unit" || i === "security_camera" ? 2 : i === "bathroom_cabinet" || i === "whiteboard" ? 1.5 : i === "wall_shelf" || i === "painting" || i === "mirror" || i === "tv" || i === "intercom" ? 1.4 : i === "towel_rack" ? 1.1 : i === "terrace_window" ? 1.2 : i === "wall_clock" ? 1.7 : i === "range_hood" ? 1.6 : i === "curtain" || i === "curtain_single" || i === "curtain_sheer" || i === "curtain_sheer_single" || i === "roller_blind" || i === "roman_blind" || i === "blind_bottomup" ? 0.1 : i === "urinal" ? 0.55 : i === "sink_double" ? 0.8 : 0;
+  return i === "ceiling_light" || i === "chandelier" || i === "crystal_chandelier" || i === "chandelier_double" || i === "crystal_chandelier_double" || i === "pendant_light" ? t - 0.05 : i === "spotlight" || i === "led_strip" || i === "led_panel" || i === "track_light" || i === "spotlight_bar" || i === "led_backlight" || i === "track_bar" || i === "track_double" || i === "ceiling_speaker" || i === "ceiling_speaker_double" ? t - 0.02 : i === "wall_sconce" || i === "sconce_pair" ? 1.6 : i === "wall_light_double" ? 1.8 : i === "ceiling_fan" ? t - 0.25 : i === "ceiling_vent" ? t - 0.02 : i === "wall_cabinet" ? 1.55 : i === "glass_wall_cabinet" ? 1.4 : i === "wall_switch" ? 1.15 : i === "wall_light" || i === "ac_unit" || i === "security_camera" ? 2 : i === "bathroom_cabinet" || i === "whiteboard" ? 1.5 : i === "wall_shelf" || i === "painting" || i === "mirror" || i === "tv" || i === "intercom" ? 1.4 : i === "towel_rack" ? 1.1 : i === "terrace_window" ? 1.2 : i === "wall_clock" ? 1.7 : i === "range_hood" ? 1.6 : i === "curtain" || i === "curtain_single" || i === "curtain_sheer" || i === "curtain_sheer_single" || i === "roller_blind" || i === "roman_blind" || i === "blind_bottomup" ? 0.1 : i === "urinal" ? 0.55 : i === "sink_double" ? 0.8 : 0;
 }
 const Oy = {
   // Upholstery / fabric
@@ -22738,6 +22753,7 @@ const Oy = {
   wall_backlight: "#fff0d0",
   wall_backlight_double: "#fff0d0",
   glass_wall_cabinet: "#1c2622",
+  wall_switch: "#eef0f2",
   wood_slat_panel: "#9c6b3f",
   tv_wall: "#9c6b3f",
   boss_desk: "#cfc9bd",
@@ -23059,40 +23075,40 @@ function Ld(i, t, e, n) {
     const I = Dd(A.position, 0, a), O = Dd(A.position + A.width, 0, a);
     if (O <= R) continue;
     Ws(c, s, l, d, R, I, 0, f, u, m);
-    const _ = A.sill ?? (A.kind === "window" ? 0.9 : 0), S = A.top ?? (A.kind === "window" ? 2.1 : A.kind === "opening" ? 2.4 : 2.05);
-    if (_ > 0 && Ws(c, s, l, d, I, O, 0, _, u, m), S < f && Ws(c, s, l, d, I, O, S, f, u, m), A.bare) {
+    const w = A.sill ?? (A.kind === "window" ? 0.9 : 0), S = A.top ?? (A.kind === "window" ? 2.1 : A.kind === "opening" ? 2.4 : 2.05);
+    if (w > 0 && Ws(c, s, l, d, I, O, 0, w, u, m), S < f && Ws(c, s, l, d, I, O, S, f, u, m), A.bare) {
       R = Math.max(R, O);
       continue;
     }
     const H = new U();
     n >= 0 && (H.userData.openingWall = n, H.userData.openingIndex = T), c.add(H);
-    const k = (K, at, lt, ut, Ht, se) => Ws(H, s, l, d, K, at, lt, ut, Ht, se), z = (K, at) => k(K - 0.025, K + 0.025, at - 0.05, at + 0.05, u * 1.5, g), X = 0.06, W = (I + O) / 2, rt = (_ + S) / 2;
+    const k = (K, at, lt, ut, Ht, se) => Ws(H, s, l, d, K, at, lt, ut, Ht, se), z = (K, at) => k(K - 0.025, K + 0.025, at - 0.05, at + 0.05, u * 1.5, g), X = 0.06, W = (I + O) / 2, rt = (w + S) / 2;
     if (A.kind === "door") {
       const K = A.variant || "single";
-      k(I, I + X, _, S, u * 1.15, p), k(O - X, O, _, S, u * 1.15, p), k(I, O, S - X, S, u * 1.15, p);
+      k(I, I + X, w, S, u * 1.15, p), k(O - X, O, w, S, u * 1.15, p), k(I, O, S - X, S, u * 1.15, p);
       const at = I + X, lt = O - X, ut = S - X, Ht = (at + lt) / 2;
-      K === "double" ? (k(at, Ht - 0.02, _, ut, 0.055, x), k(Ht + 0.02, lt, _, ut, 0.055, x), z(Ht - 0.1, rt), z(Ht + 0.1, rt)) : K === "glass" ? (k(at, at + X, _, ut, u, x), k(lt - X, lt, _, ut, u, x), k(at + X, lt - X, _, ut - X, 0.04, y), z(lt - 0.12, rt)) : K === "sliding" ? (k(at, Ht + 0.06, _, ut, 0.045, y), k(Ht - 0.06, lt, _, ut, 0.05, x), z(Ht - 0.12, rt)) : (k(at, lt, _, ut, 0.055, x), z(lt - 0.12, rt));
+      K === "double" ? (k(at, Ht - 0.02, w, ut, 0.055, x), k(Ht + 0.02, lt, w, ut, 0.055, x), z(Ht - 0.1, rt), z(Ht + 0.1, rt)) : K === "glass" ? (k(at, at + X, w, ut, u, x), k(lt - X, lt, w, ut, u, x), k(at + X, lt - X, w, ut - X, 0.04, y), z(lt - 0.12, rt)) : K === "sliding" ? (k(at, Ht + 0.06, w, ut, 0.045, y), k(Ht - 0.06, lt, w, ut, 0.05, x), z(Ht - 0.12, rt)) : (k(at, lt, w, ut, 0.055, x), z(lt - 0.12, rt));
     } else {
       const K = A.variant || "single";
-      if (k(I, I + X, _, S, u * 1.05, b), k(O - X, O, _, S, u * 1.05, b), k(I, O, _, _ + X, u * 1.05, b), k(I, O, S - X, S, u * 1.05, b), k(I + X, O - X, _ + X, S - X, u, y), K === "single")
-        k(W - 0.03, W + 0.03, _ + X, S - X, u * 1.05, b), k(I + X, O - X, rt - 0.03, rt + 0.03, u * 1.05, b);
+      if (k(I, I + X, w, S, u * 1.05, b), k(O - X, O, w, S, u * 1.05, b), k(I, O, w, w + X, u * 1.05, b), k(I, O, S - X, S, u * 1.05, b), k(I + X, O - X, w + X, S - X, u, y), K === "single")
+        k(W - 0.03, W + 0.03, w + X, S - X, u * 1.05, b), k(I + X, O - X, rt - 0.03, rt + 0.03, u * 1.05, b);
       else if (K === "double" || K === "sliding")
-        k(W - 0.03, W + 0.03, _ + X, S - X, u * 1.05, b);
+        k(W - 0.03, W + 0.03, w + X, S - X, u * 1.05, b);
       else if (K === "terrace") {
         const at = Math.max(2, Math.round((O - I) / 0.95));
         for (let ut = 1; ut < at; ut++) {
           const Ht = I + (O - I) * ut / at;
-          k(Ht - 0.03, Ht + 0.03, _ + X, S - X, u * 1.05, b);
+          k(Ht - 0.03, Ht + 0.03, w + X, S - X, u * 1.05, b);
         }
         const lt = I + (O - I) / at;
-        k(I + X, lt, _, _ + 0.06, u * 1.1, b), z(lt - 0.14, 1.05);
+        k(I + X, lt, w, w + 0.06, u * 1.1, b), z(lt - 0.14, 1.05);
       } else if (K === "storefront") {
         const at = Math.max(2, Math.round((O - I) / 0.9));
         for (let ut = 1; ut < at; ut++) {
           const Ht = I + (O - I) * ut / at;
-          k(Ht - 0.03, Ht + 0.03, _ + X, S - X, u * 1.05, b);
+          k(Ht - 0.03, Ht + 0.03, w + X, S - X, u * 1.05, b);
         }
-        const lt = _ + (S - _) * 0.74;
+        const lt = w + (S - w) * 0.74;
         k(I + X, O - X, lt - 0.03, lt + 0.03, u * 1.05, b);
       }
     }
@@ -24505,7 +24521,7 @@ function or(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.136.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.137.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25635,8 +25651,8 @@ class P_ {
     R(b - g) > A && (A -= M);
     const T = Math.min(40, Math.max(2, Math.round(p * Math.abs(A) / 0.4))), I = [];
     for (let O = 0; O <= T; O++) {
-      const _ = g + A * (O / T);
-      I.push([+(m + p * Math.cos(_)).toFixed(3), +(x + p * Math.sin(_)).toFixed(3)]);
+      const w = g + A * (O / T);
+      I.push([+(m + p * Math.cos(w)).toFixed(3), +(x + p * Math.sin(w)).toFixed(3)]);
     }
     return I;
   }
@@ -25727,8 +25743,8 @@ class P_ {
     this.pushUndo();
     const s = e === "door" ? 0.9 : e === "opening" ? 1.4 : 1, o = e === "opening";
     let r = 0.6, a = null;
-    const l = (T, I, O, _, S) => {
-      const H = O - T, k = _ - I, z = H * H + k * k;
+    const l = (T, I, O, w, S) => {
+      const H = O - T, k = w - I, z = H * H + k * k;
       if (z < 1e-6) return;
       let X = ((t.x - T) * H + (t.z - I) * k) / z;
       X = Math.max(0, Math.min(1, X));
@@ -25750,8 +25766,8 @@ class P_ {
       if (!nn(T)) continue;
       const I = Wn(T);
       for (let O = 0; O < I.length; O++) {
-        const _ = I[O], S = I[(O + 1) % I.length], H = O;
-        l(_[0], _[1], S[0], S[1], (k, z) => ({
+        const w = I[O], S = I[(O + 1) % I.length], H = O;
+        l(w[0], w[1], S[0], S[1], (k, z) => ({
           type: "room",
           room: T,
           edge: H,
@@ -25773,8 +25789,8 @@ class P_ {
       const T = Wn(c.room), I = T[c.edge], O = T[(c.edge + 1) % T.length];
       f = [I[0], I[1], O[0], O[1]];
     }
-    const [u, m, x, p] = f, g = Math.hypot(x - u, p - m) || 1, y = u + (x - u) / g * d, b = m + (p - m) / g * d, M = Math.atan2(p - m, x - u), R = (T, I, O, _) => {
-      const S = O - T, H = _ - I, k = S * S + H * H;
+    const [u, m, x, p] = f, g = Math.hypot(x - u, p - m) || 1, y = u + (x - u) / g * d, b = m + (p - m) / g * d, M = Math.atan2(p - m, x - u), R = (T, I, O, w) => {
+      const S = O - T, H = w - I, k = S * S + H * H;
       if (k < 1e-6) return null;
       let z = Math.atan2(H, S);
       const X = Math.abs((z - M + Math.PI) % Math.PI);
@@ -25794,7 +25810,7 @@ class P_ {
       const I = Wn(T);
       for (let O = 0; O < I.length; O++) {
         if (c.type === "room" && T === c.room && O === c.edge) continue;
-        const _ = I[O], S = I[(O + 1) % I.length], H = R(_[0], _[1], S[0], S[1]);
+        const w = I[O], S = I[(O + 1) % I.length], H = R(w[0], w[1], S[0], S[1]);
         H != null && (T.openings ??= []).push({ kind: e, edge: O, position: H, width: s, ...o ? { bare: o } : {} });
       }
     }
@@ -25923,16 +25939,16 @@ class P_ {
         let T = M, I = R, O = 0;
         do {
           h.add(d(T, I)), A.push(T);
-          const _ = l(I, T);
+          const w = l(I, T);
           let S = null, H = 1 / 0;
           for (const k of o.get(I)) {
-            let z = _ - l(I, k);
+            let z = w - l(I, k);
             z = (z % c + c) % c, z < 1e-9 && (z = c), z < H && (H = z, S = k);
           }
           if (S === null) break;
           T = I, I = S, O++;
         } while (!(T === M && I === R) && O < 1e5);
-        A.length >= 3 && f.push(A.map((_) => s[_]));
+        A.length >= 3 && f.push(A.map((w) => s[w]));
       }
     const u = (y) => {
       let b = 0;
@@ -26008,7 +26024,7 @@ class P_ {
       };
       for (const A of l)
         for (const T of A.w.openings ?? []) {
-          const I = A.w.end[0] - A.w.start[0], O = A.w.end[1] - A.w.start[1], _ = Math.hypot(I, O) || 1, S = A.w.start[0] + I / _ * T.position, H = A.w.start[1] + O / _ * T.position, k = (S - b[0]) * h + (H - b[1]) * d;
+          const I = A.w.end[0] - A.w.start[0], O = A.w.end[1] - A.w.start[1], w = Math.hypot(I, O) || 1, S = A.w.start[0] + I / w * T.position, H = A.w.start[1] + O / w * T.position, k = (S - b[0]) * h + (H - b[1]) * d;
           R.openings.push({ ...T, position: Math.max(0, k) });
         }
       R.openings.length || delete R.openings, r.push(R);

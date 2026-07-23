@@ -1197,6 +1197,26 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(box(W + 0.05, 0.05, D + 0.04, frame, 0, H + 0.02, 0), c)); // slim crown
     return g;
   },
+  // A neutral wall switch / control plate. DELIBERATELY has NO 'emissive' mesh and
+  // no moving parts, so a bound device NEVER changes its look — no glow, no point
+  // light, no spin, no floating label. It is purely a tap target that surfaces the
+  // bound device's controls (a switch toggle, a media/AC "pult", a cover) in the 3D
+  // UI. entityDomainsFor(wall_switch) restricts binding to the inert behaviours
+  // (switch/media_player/climate/cover) precisely so it stays visually static.
+  // Centered at local y=0, back at z=0 (surface-mounts flush). 0.13 x 0.13 m.
+  wall_switch: (c) => {
+    const g = new THREE.Group();
+    const W = 0.13, H = 0.13;
+    const plate = mat(0xeef0f2, { roughness: 0.5, metalness: 0.08 });
+    const surround = mat(0xe4e7ea, { roughness: 0.55 });
+    const rocker = mat(0xf7f8fa, { roughness: 0.4 });
+    const dot = mat(0x9aa0a6, { roughness: 0.5 }); // neutral indicator — never lights
+    g.add(tint(box(W, H, 0.01, plate, 0, 0, 0.005), c));                 // faceplate (back flush at z=0)
+    g.add(box(W * 0.9, H * 0.9, 0.014, surround, 0, 0, 0.012));          // inner surround
+    g.add(box(W * 0.46, H * 0.74, 0.02, rocker, 0, 0, 0.022));           // rocker paddle
+    g.add(box(0.012, 0.012, 0.006, dot, 0, -H * 0.3, 0.026));            // tiny status dot (static)
+    return g;
+  },
   cooktop: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(0.6, 0.04, 0.52, mat(0x141414, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), c));
@@ -3114,7 +3134,7 @@ export const WALL_MOUNT_KEYS = [
   'curtain_sheer', 'curtain_sheer_single', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
-  'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double',
+  'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double', 'wall_switch',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -3129,7 +3149,7 @@ export const SURFACE_MOUNT_KEYS = [
   'curtain', 'curtain_sheer', 'curtain_sheer_single', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
-  'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double',
+  'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double', 'wall_switch',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -3182,6 +3202,12 @@ export function entityDomainsFor(model: string): string[] {
     case 'feature_wall':
     case 'glass_wall_cabinet':
       return ['light', 'switch']; // the cove-light strips glow when bound
+    case 'wall_switch':
+      // A neutral control anchor: allow ONLY behaviours that cause no visual
+      // change on an emissive-less model (a switch toggle, a media/AC "pult", a
+      // cover). Excludes light (adds a point light), fan (spins), sensor/
+      // binary_sensor/lock (float a label) — so the plate never reacts on state.
+      return ['switch', 'media_player', 'climate', 'cover'];
 
     case 'ceiling_fan':
     case 'ceiling_vent':
@@ -3262,6 +3288,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'ceiling_vent') return wallHeight - 0.02;
   if (model === 'wall_cabinet') return 1.55;
   if (model === 'glass_wall_cabinet') return 1.4; // upper cabinet, origin at its base
+  if (model === 'wall_switch') return 1.15;       // switch height, centered at origin
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
   if (model === 'wall_shelf') return 1.4;
@@ -3336,7 +3363,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
-  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
+  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
