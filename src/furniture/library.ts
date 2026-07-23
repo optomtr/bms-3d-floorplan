@@ -1128,6 +1128,75 @@ const builders: Record<string, FurnitureBuilder> = {
     }
     return g;
   },
+  // Glass-front kitchen wall cabinet (навесной шкаф со стеклом + подсветкой), as
+  // in the reference photo: a dark shaker-frame run whose OUTER sections have
+  // glass doors over a lit white interior with glass shelves, and whose CENTRE
+  // sections are solid doors. Vertical LED strips down each glass bay light the
+  // shelves ("polkalardagi vertikal podsvetka"), and an under-cabinet strip
+  // washes the backsplash below ("fartukdagi podsvetka"). Every glow mesh is
+  // 'emissive', so binding a light/switch lights them together. Wall-mounted;
+  // origin at the cabinet's base. 2.4 x 1.0 x 0.35 m.
+  glass_wall_cabinet: (c) => {
+    const g = new THREE.Group();
+    const W = 2.4, H = 1.0, D = 0.35;
+    const backZ = -D / 2, frontZ = D / 2;
+    const frame = mat(0x1c2622, { roughness: 0.35, metalness: 0.25 }); // dark green-black
+    const frameLite = mat(0x243029, { roughness: 0.4, metalness: 0.2 });
+    const metal = mat(METAL, { metalness: 0.7, roughness: 0.3 });
+    const glass = mat(0xbfe6ef, { transparent: true, opacity: 0.18, roughness: 0.1, metalness: 0.1 });
+    const shelfGlass = mat(0xdfeef2, { transparent: true, opacity: 0.34, roughness: 0.15 });
+
+    // Carcass — back, top, bottom, sides (tinted so a recolor hits the cabinet).
+    g.add(tint(box(W, H, 0.02, frame, 0, H / 2, backZ + 0.01), c));
+    g.add(tint(box(W, 0.05, D, frame, 0, H - 0.025, 0), c));
+    g.add(tint(box(W, 0.05, D, frame, 0, 0.025, 0), c));
+    g.add(tint(box(0.04, H, D, frame, -W / 2 + 0.02, H / 2, 0), c));
+    g.add(tint(box(0.04, H, D, frame, W / 2 - 0.02, H / 2, 0), c));
+
+    const n = 4, sw = W / n;         // four doors; outer two are glass
+    const glassCols = [0, 3];
+    for (let i = 0; i < n; i++) {
+      const cx = -W / 2 + sw * (i + 0.5);
+      if (i < n - 1) g.add(tint(box(0.03, H - 0.06, D - 0.02, frame, cx + sw / 2, H / 2, 0), c)); // divider
+
+      if (glassCols.includes(i)) {
+        // Lit display bay: glowing back, vertical side LEDs, glass shelves.
+        const inW = sw - 0.1;
+        const back = box(inW, H - 0.12, 0.01, mat(0xf6f4ee, { emissive: 0x000000 }), cx, H / 2, backZ + 0.03);
+        back.name = 'emissive';
+        g.add(back);
+        for (const s of [-1, 1]) {
+          const strip = box(0.018, H - 0.16, 0.02, mat(0xfff3dc, { emissive: 0x000000 }), cx + s * (inW / 2 - 0.01), H / 2, backZ + 0.07);
+          strip.name = 'emissive';
+          g.add(strip);
+        }
+        for (let s = 0; s < 4; s++) {
+          g.add(box(inW - 0.03, 0.014, D - 0.12, shelfGlass, cx, 0.16 + s * ((H - 0.24) / 3), 0));
+        }
+        // Glass door: frame stiles/rails + vertical mullion + translucent pane.
+        g.add(box(sw - 0.05, 0.03, 0.03, frameLite, cx, H - 0.05, frontZ - 0.02));
+        g.add(box(sw - 0.05, 0.03, 0.03, frameLite, cx, 0.05, frontZ - 0.02));
+        for (const s of [-1, 1]) g.add(box(0.03, H - 0.04, 0.03, frameLite, cx + s * (sw / 2 - 0.04), H / 2, frontZ - 0.02));
+        g.add(box(0.02, H - 0.08, 0.02, frameLite, cx, H / 2, frontZ - 0.02)); // mullion
+        g.add(box(sw - 0.09, H - 0.09, 0.006, glass, cx, H / 2, frontZ - 0.03));
+        g.add(box(0.02, 0.14, 0.02, metal, cx + sw / 2 - 0.09, H / 2, frontZ - 0.005)); // handle
+      } else {
+        // Solid dark door: slab + shaker inset + slim handle meeting the centre.
+        g.add(box(sw - 0.05, H - 0.08, 0.03, frameLite, cx, H / 2, frontZ - 0.02));
+        g.add(box(sw - 0.16, H - 0.2, 0.008, frame, cx, H / 2, frontZ - 0.004));
+        const hx = i < 2 ? cx + sw / 2 - 0.06 : cx - sw / 2 + 0.06;
+        g.add(box(0.02, 0.18, 0.025, metal, hx, H / 2, frontZ - 0.005));
+      }
+    }
+
+    // Under-cabinet LED that washes the marble backsplash below (фартук).
+    const under = box(W - 0.1, 0.02, 0.05, mat(0xffe9c4, { emissive: 0x000000 }), 0, 0.006, frontZ - 0.1);
+    under.name = 'emissive';
+    g.add(under);
+
+    g.add(tint(box(W + 0.05, 0.05, D + 0.04, frame, 0, H + 0.02, 0), c)); // slim crown
+    return g;
+  },
   cooktop: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(0.6, 0.04, 0.52, mat(0x141414, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), c));
@@ -2005,6 +2074,25 @@ const builders: Record<string, FurnitureBuilder> = {
     const strip = box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), 0, y0 + H / 2, 0.02);
     strip.name = 'emissive';
     g.add(tint(strip, c));
+    return g;
+  },
+  // Double vertical wall backlight — a PAIR (default) of the vertical reveals
+  // above. `count` strips, `spread` sets the GAP between them WITHOUT resizing
+  // any strip. Each strip is 'emissive', so binding a light/switch lights the
+  // pair together. Mounts on the wall surface, floor-to-ceiling.
+  wall_backlight_double: (c, opts) => {
+    const g = new THREE.Group();
+    const count = Math.max(1, Math.min(6, Math.round(opts?.count ?? 2)));
+    const spread = opts?.spread ?? 1;
+    const gap = 0.5 * spread;        // centre-to-centre at spread 1
+    const H = 2.3, y0 = 0.15;
+    for (let i = 0; i < count; i++) {
+      const x = (i - (count - 1) / 2) * gap;
+      g.add(box(0.09, H + 0.06, 0.03, mat(0x2f2620, { roughness: 0.9 }), x, y0 + H / 2, 0)); // channel
+      const strip = box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), x, y0 + H / 2, 0.02);
+      strip.name = 'emissive';
+      g.add(tint(strip, c));
+    }
     return g;
   },
   // Vertical fluted wood wall panel (реечная панель) — battens on a backing
@@ -3026,7 +3114,7 @@ export const WALL_MOUNT_KEYS = [
   'curtain_sheer', 'curtain_sheer_single', 'roller_blind', 'roman_blind', 'wall_cabinet', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
-  'wall_light_double', 'sconce_pair',
+  'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -3041,7 +3129,7 @@ export const SURFACE_MOUNT_KEYS = [
   'curtain', 'curtain_sheer', 'curtain_sheer_single', 'roller_blind', 'roman_blind', 'wall_sconce',
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
-  'wall_light_double', 'sconce_pair',
+  'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double',
 ];
 export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
@@ -3072,6 +3160,7 @@ export const LIGHT_KEYS = [
   'chandelier_double',
   'crystal_chandelier_double',
   'cabinet_pair',
+  'wall_backlight_double',
 ];
 
 /**
@@ -3091,6 +3180,7 @@ export function entityDomainsFor(model: string): string[] {
       return ['climate', 'switch'];
     case 'niche_shelf_wall':
     case 'feature_wall':
+    case 'glass_wall_cabinet':
       return ['light', 'switch']; // the cove-light strips glow when bound
 
     case 'ceiling_fan':
@@ -3171,6 +3261,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'ceiling_fan') return wallHeight - 0.25;
   if (model === 'ceiling_vent') return wallHeight - 0.02;
   if (model === 'wall_cabinet') return 1.55;
+  if (model === 'glass_wall_cabinet') return 1.4; // upper cabinet, origin at its base
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
   if (model === 'wall_shelf') return 1.4;
@@ -3245,7 +3336,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
-  track_double: '#fff4d6', wall_backlight: '#fff0d0', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
+  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
@@ -3255,7 +3346,7 @@ export function defaultColor(model: string): string {
 }
 
 /** Light "set" models whose Spread/Count are adjustable (spacing, not stretch). */
-export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double', 'chandelier_double', 'crystal_chandelier_double', 'cabinet_pair'];
+export const SET_LIGHT_KEYS = ['spotlight_bar', 'led_backlight', 'track_bar', 'wall_light_double', 'sconce_pair', 'ceiling_speaker_double', 'chandelier_double', 'crystal_chandelier_double', 'cabinet_pair', 'wall_backlight_double'];
 export function isLightSet(model: string): boolean {
   return SET_LIGHT_KEYS.includes(model);
 }
