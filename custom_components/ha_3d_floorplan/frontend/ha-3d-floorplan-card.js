@@ -24448,7 +24448,7 @@ function or(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.132.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.133.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28396,12 +28396,16 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     for (const e of t) this.setOptGroup(e, !0);
     this.svc("media_player", "join", { group_members: t }, i), this.requestUpdate();
   }
-  /** Leave the group. Optimistic so a second tap unsyncs instantly. */
+  /** Leave the group. unjoin is sent to EVERY member, not just the tapped one:
+   *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
+   *  dissolve the group, so HA kept reporting it grouped and the button snapped
+   *  back to "synced" — it looked like unsync did nothing. Unjoining each member
+   *  tears the whole group down. Optimistic, so the button flips at once. */
   unsyncSpeakers(i, t) {
-    this.setOptGroup(i, !1);
-    for (const e of t?.attributes?.group_members ?? [])
-      e !== i && this.setOptGroup(e, !1);
-    this.svc("media_player", "unjoin", {}, i), this.requestUpdate();
+    const e = t?.attributes?.group_members ?? [i];
+    for (const n of e)
+      this.setOptGroup(n, !1), this.svc("media_player", "unjoin", {}, n);
+    e.includes(i) || (this.setOptGroup(i, !1), this.svc("media_player", "unjoin", {}, i)), this.requestUpdate();
   }
   /** Other speakers in the plan (any room) that support HA grouping — the
    *  targets for a "sync speakers" join. Grouping-capable set only, so the TV

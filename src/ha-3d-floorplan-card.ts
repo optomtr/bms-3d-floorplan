@@ -3394,13 +3394,23 @@ export class Ha3dFloorplanCard extends LitElement {
     this.requestUpdate();
   }
 
-  /** Leave the group. Optimistic so a second tap unsyncs instantly. */
+  /** Leave the group. unjoin is sent to EVERY member, not just the tapped one:
+   *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
+   *  dissolve the group, so HA kept reporting it grouped and the button snapped
+   *  back to "synced" — it looked like unsync did nothing. Unjoining each member
+   *  tears the whole group down. Optimistic, so the button flips at once. */
   private unsyncSpeakers(id: string, ent: HassEntity | undefined): void {
-    this.setOptGroup(id, false);
-    for (const t of (ent?.attributes?.group_members as string[] | undefined) ?? []) {
-      if (t !== id) this.setOptGroup(t, false);
+    const members = (ent?.attributes?.group_members as string[] | undefined) ?? [id];
+    for (const m of members) {
+      this.setOptGroup(m, false);
+      this.svc('media_player', 'unjoin', {}, m);
     }
-    this.svc('media_player', 'unjoin', {}, id);
+    // The tapped speaker may not have listed itself in group_members on every
+    // integration; make sure it's covered.
+    if (!members.includes(id)) {
+      this.setOptGroup(id, false);
+      this.svc('media_player', 'unjoin', {}, id);
+    }
     this.requestUpdate();
   }
 
