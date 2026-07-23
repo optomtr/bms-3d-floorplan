@@ -310,6 +310,10 @@ export class Ha3dFloorplanCard extends LitElement {
    *  (join/unjoin take a moment to reflect in group_members). Cleared once HA
    *  reports the real grouping. */
   private optGroup = new Map<string, { grouped: boolean; timer: ReturnType<typeof setTimeout> }>();
+  /** Until this time (ms), further sync-button taps are ignored — mashing it
+   *  fired a storm of join/unjoin that fought each other and stuttered playback.
+   *  The button already flips optimistically, so one tap is all that's needed. */
+  private syncBusyUntil = 0;
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -3291,9 +3295,7 @@ export class Ha3dFloorplanCard extends LitElement {
               ? html`<div class="mpctl">
                   <button type="button" class="mpb ${grouped ? 'on' : ''}"
                     title=${grouped ? this.t('Unsync speakers') : this.t('Sync speakers')}
-                    @click=${() => grouped
-                      ? this.unsyncSpeakers(id, ent)
-                      : this.syncSpeakers(id, groupTargets)}>${this.ic('link')}</button>
+                    @click=${() => this.toggleSync(id, ent, grouped, groupTargets)}>${this.ic('link')}</button>
                 </div>`
               : nothing}
           </div>`
@@ -3381,6 +3383,18 @@ export class Ha3dFloorplanCard extends LitElement {
       this.requestUpdate();
     }, 8000);
     this.optGroup.set(id, { grouped, timer });
+  }
+
+  /** One clean sync toggle per tap, debounced. Mashing the button 2–3 times
+   *  used to queue conflicting join/unjoin calls that stuttered the audio; a
+   *  short cooldown collapses a burst of taps into the single action the button
+   *  already shows optimistically. */
+  private toggleSync(id: string, ent: HassEntity | undefined, grouped: boolean, targets: string[]): void {
+    const now = Date.now();
+    if (now < this.syncBusyUntil) return; // still settling the last toggle
+    this.syncBusyUntil = now + 1500;
+    if (grouped) this.unsyncSpeakers(id, ent);
+    else this.syncSpeakers(id, targets);
   }
 
   /** Group `targets` under `id`. Just the join — no volume_set afterward: that
