@@ -3398,18 +3398,20 @@ export class Ha3dFloorplanCard extends LitElement {
    *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
    *  dissolve the group, so HA kept reporting it grouped and the button snapped
    *  back to "synced" — it looked like unsync did nothing. Unjoining each member
-   *  tears the whole group down. Optimistic, so the button flips at once. */
+   *  tears the whole group down.
+   *
+   *  The speaker you tapped keeps playing (you're at it); every OTHER member is
+   *  stopped, so it falls silent instead of resuming its own old track — which is
+   *  what "the 2nd speaker plays nothing after unsync" means. Optimistic, so the
+   *  button flips and the followers read as idle at once. */
   private unsyncSpeakers(id: string, ent: HassEntity | undefined): void {
     const members = (ent?.attributes?.group_members as string[] | undefined) ?? [id];
-    for (const m of members) {
+    const all = members.includes(id) ? members : [...members, id];
+    for (const m of all) {
       this.setOptGroup(m, false);
       this.svc('media_player', 'unjoin', {}, m);
-    }
-    // The tapped speaker may not have listed itself in group_members on every
-    // integration; make sure it's covered.
-    if (!members.includes(id)) {
-      this.setOptGroup(id, false);
-      this.svc('media_player', 'unjoin', {}, id);
+      // Silence the followers so no old queue resumes; leave the tapped one alone.
+      if (m !== id) this.svc('media_player', 'media_stop', {}, m, 'idle');
     }
     this.requestUpdate();
   }
