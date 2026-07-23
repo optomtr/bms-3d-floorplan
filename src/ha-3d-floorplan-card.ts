@@ -306,6 +306,10 @@ export class Ha3dFloorplanCard extends LitElement {
    *  waiting a round-trip, and so repeated taps step from the pending value.
    *  Cleared when HA reports our value or any other. */
   private optVol = new Map<string, { vol: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
+  /** Pending speaker sync state so the link button flips the instant it's tapped
+   *  (join/unjoin take a moment to reflect in group_members). Cleared once HA
+   *  reports the real grouping. */
+  private optGroup = new Map<string, { grouped: boolean; timer: ReturnType<typeof setTimeout> }>();
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -476,6 +480,17 @@ export class Ha3dFloorplanCard extends LitElement {
         if (Math.abs(v - ov.vol) < 0.005 || v !== ov.base) {
           clearTimeout(ov.timer);
           this.optVol.delete(id);
+        }
+      }
+    }
+    // Pending sync state clears once HA's real grouping matches what we asked for.
+    if (this.optGroup.size) {
+      for (const [id, ov] of [...this.optGroup]) {
+        const g = hass.states[id]?.attributes?.group_members as string[] | undefined;
+        if (g === undefined) continue;
+        if ((g.length > 1) === ov.grouped) {
+          clearTimeout(ov.timer);
+          this.optGroup.delete(id);
         }
       }
     }
@@ -3250,7 +3265,7 @@ export class Ha3dFloorplanCard extends LitElement {
     // is to bind the pair together, not to skip tracks. Shown only when the
     // device supports GROUPING and there's another speaker in the plan to join.
     const canGroup = can(524288); // GROUPING
-    const grouped = ((ent?.attributes?.group_members as string[] | undefined)?.length ?? 0) > 1;
+    const grouped = this.effGrouped(id, ent);
     const groupTargets = canGroup ? this.planGroupSpeakers(id) : [];
     const hasSync = groupTargets.length > 0;
     // Still show the now-playing line when something is on, so the sync button
@@ -3277,8 +3292,8 @@ export class Ha3dFloorplanCard extends LitElement {
                   <button type="button" class="mpb ${grouped ? 'on' : ''}"
                     title=${grouped ? this.t('Unsync speakers') : this.t('Sync speakers')}
                     @click=${() => grouped
-                      ? this.svc('media_player', 'unjoin', {}, id)
-                      : this.syncSpeakers(id, ent, groupTargets)}>${this.ic('link')}</button>
+                      ? this.unsyncSpeakers(id, ent)
+                      : this.syncSpeakers(id, groupTargets)}>${this.ic('link')}</button>
                 </div>`
               : nothing}
           </div>`
@@ -3350,15 +3365,43 @@ export class Ha3dFloorplanCard extends LitElement {
     if (volStep) this.svc('media_player', dir > 0 ? 'volume_up' : 'volume_down', {}, id);
   }
 
-  /** Group `targets` under `id` and level their volume to `id`'s — so syncing
-   *  from the upstairs speaker pulls the others to the upstairs volume, and from
-   *  downstairs to the downstairs volume (the initiating speaker sets the level). */
-  private syncSpeakers(id: string, ent: HassEntity | undefined, targets: string[]): void {
+  /** Whether a speaker reads as grouped — the pending state right after a tap,
+   *  else HA's real group_members. Lets the link button flip at once. */
+  private effGrouped(id: string, ent: HassEntity | undefined): boolean {
+    const ov = this.optGroup.get(id);
+    if (ov) return ov.grouped;
+    return ((ent?.attributes?.group_members as string[] | undefined)?.length ?? 0) > 1;
+  }
+
+  private setOptGroup(id: string, grouped: boolean): void {
+    const prev = this.optGroup.get(id);
+    if (prev) clearTimeout(prev.timer);
+    const timer = setTimeout(() => {
+      this.optGroup.delete(id);
+      this.requestUpdate();
+    }, 8000);
+    this.optGroup.set(id, { grouped, timer });
+  }
+
+  /** Group `targets` under `id`. Just the join — no volume_set afterward: that
+   *  second command hit the speakers while they were still re-establishing the
+   *  stream and made the music stutter. The ± buttons already move a group as one
+   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).*/
+  private syncSpeakers(id: string, targets: string[]): void {
+    this.setOptGroup(id, true);
+    for (const t of targets) this.setOptGroup(t, true);
     this.svc('media_player', 'join', { group_members: targets }, id);
-    const vol = Number(ent?.attributes?.volume_level);
-    if (Number.isFinite(vol)) {
-      for (const t of targets) this.svc('media_player', 'volume_set', { volume_level: vol }, t);
+    this.requestUpdate();
+  }
+
+  /** Leave the group. Optimistic so a second tap unsyncs instantly. */
+  private unsyncSpeakers(id: string, ent: HassEntity | undefined): void {
+    this.setOptGroup(id, false);
+    for (const t of (ent?.attributes?.group_members as string[] | undefined) ?? []) {
+      if (t !== id) this.setOptGroup(t, false);
     }
+    this.svc('media_player', 'unjoin', {}, id);
+    this.requestUpdate();
   }
 
   /** Other speakers in the plan (any room) that support HA grouping — the

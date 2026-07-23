@@ -24448,7 +24448,7 @@ function or(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.131.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.132.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -26392,7 +26392,7 @@ const $d = [
 };
 let gt = class extends os {
   constructor() {
-    super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedEntity = null, this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.closeControl = () => {
+    super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedEntity = null, this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.optGroup = /* @__PURE__ */ new Map(), this.closeControl = () => {
       performance.now() - this.controlOpenedAt < 400 || (this.controlOpen = !1, this.controlRoom = null, this.controlCategory = null);
     }, this.openKiosk = () => {
       window.location.href = "/3d-floorplan-kiosk";
@@ -26494,6 +26494,11 @@ let gt = class extends os {
         for (const [t, e] of [...this.optVol]) {
           const n = i.states[t]?.attributes?.volume_level;
           typeof n == "number" && (Math.abs(n - e.vol) < 5e-3 || n !== e.base) && (clearTimeout(e.timer), this.optVol.delete(t));
+        }
+      if (this.optGroup.size)
+        for (const [t, e] of [...this.optGroup]) {
+          const n = i.states[t]?.attributes?.group_members;
+          n !== void 0 && n.length > 1 === e.grouped && (clearTimeout(e.timer), this.optGroup.delete(t));
         }
       this.lastHass = i, this.pushEffective(i), this.controlOpen && this.requestUpdate();
     }
@@ -28297,7 +28302,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   renderMediaCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (R) => (r & R) === R, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), u = !!e?.attributes?.is_volume_muted, f = Math.round(this.effVol(i) * 100), m = e?.attributes?.media_title ?? this.cardName(i, t), v = e?.attributes?.media_artist ?? "", p = a(524288), g = (e?.attributes?.group_members?.length ?? 0) > 1, y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0, M = b || o;
+    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (R) => (r & R) === R, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), u = !!e?.attributes?.is_volume_muted, f = Math.round(this.effVol(i) * 100), m = e?.attributes?.media_title ?? this.cardName(i, t), v = e?.attributes?.media_artist ?? "", p = a(524288), g = this.effGrouped(i, e), y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0, M = b || o;
     return G`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
@@ -28314,7 +28319,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             ${b ? G`<div class="mpctl">
                   <button type="button" class="mpb ${g ? "on" : ""}"
                     title=${g ? this.t("Unsync speakers") : this.t("Sync speakers")}
-                    @click=${() => g ? this.svc("media_player", "unjoin", {}, i) : this.syncSpeakers(i, e, y)}>${this.ic("link")}</button>
+                    @click=${() => g ? this.unsyncSpeakers(i, e) : this.syncSpeakers(i, y)}>${this.ic("link")}</button>
                 </div>` : et}
           </div>` : et}
       ${c || h || d ? G`<div class="seg vol">
@@ -28368,14 +28373,35 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }
     e && this.svc("media_player", n > 0 ? "volume_up" : "volume_down", {}, i);
   }
-  /** Group `targets` under `id` and level their volume to `id`'s — so syncing
-   *  from the upstairs speaker pulls the others to the upstairs volume, and from
-   *  downstairs to the downstairs volume (the initiating speaker sets the level). */
-  syncSpeakers(i, t, e) {
-    this.svc("media_player", "join", { group_members: e }, i);
-    const n = Number(t?.attributes?.volume_level);
-    if (Number.isFinite(n))
-      for (const s of e) this.svc("media_player", "volume_set", { volume_level: n }, s);
+  /** Whether a speaker reads as grouped — the pending state right after a tap,
+   *  else HA's real group_members. Lets the link button flip at once. */
+  effGrouped(i, t) {
+    const e = this.optGroup.get(i);
+    return e ? e.grouped : (t?.attributes?.group_members?.length ?? 0) > 1;
+  }
+  setOptGroup(i, t) {
+    const e = this.optGroup.get(i);
+    e && clearTimeout(e.timer);
+    const n = setTimeout(() => {
+      this.optGroup.delete(i), this.requestUpdate();
+    }, 8e3);
+    this.optGroup.set(i, { grouped: t, timer: n });
+  }
+  /** Group `targets` under `id`. Just the join — no volume_set afterward: that
+   *  second command hit the speakers while they were still re-establishing the
+   *  stream and made the music stutter. The ± buttons already move a group as one
+   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).*/
+  syncSpeakers(i, t) {
+    this.setOptGroup(i, !0);
+    for (const e of t) this.setOptGroup(e, !0);
+    this.svc("media_player", "join", { group_members: t }, i), this.requestUpdate();
+  }
+  /** Leave the group. Optimistic so a second tap unsyncs instantly. */
+  unsyncSpeakers(i, t) {
+    this.setOptGroup(i, !1);
+    for (const e of t?.attributes?.group_members ?? [])
+      e !== i && this.setOptGroup(e, !1);
+    this.svc("media_player", "unjoin", {}, i), this.requestUpdate();
   }
   /** Other speakers in the plan (any room) that support HA grouping — the
    *  targets for a "sync speakers" join. Grouping-capable set only, so the TV
