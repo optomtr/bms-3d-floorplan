@@ -1,11 +1,27 @@
 """Constants for the 3D Floor Plan integration."""
 
+import json
+import os
+
 DOMAIN = "ha_3d_floorplan"
 
-# URL where the bundled frontend JS is served from.
+# Integration version, read from the manifest so it lives in exactly one place.
+try:
+    with open(
+        os.path.join(os.path.dirname(__file__), "manifest.json"), encoding="utf-8"
+    ) as _mf:
+        VERSION = json.load(_mf).get("version", "")
+except (OSError, ValueError):
+    VERSION = ""
+
+# URL where the bundled frontend JS is served from. A ?v=<version> cache-buster is
+# appended so browsers and HA's frontend service worker fetch the fresh bundle
+# after every update instead of serving a stale cached copy — the static handler
+# resolves the file by path and ignores the query string, so serving still works.
 URL_BASE = "/ha_3d_floorplan_frontend"
 MODULE_FILE = "ha-3d-floorplan-card.js"
-MODULE_URL = f"{URL_BASE}/{MODULE_FILE}"
+_CACHE_BUST = f"?v={VERSION}" if VERSION else ""
+MODULE_URL = f"{URL_BASE}/{MODULE_FILE}{_CACHE_BUST}"
 
 # Sidebar panel.
 PANEL_URL = "3d-floorplan"
