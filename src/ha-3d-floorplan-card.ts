@@ -3203,25 +3203,20 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  /** Open / Stop / Close, mirroring the wall panel. No position slider: these
-   *  curtain motors advertise SET_POSITION but report current_position stale at
-   *  100 even once shut, so a slider (and an "opened to 100%" readout) just
-   *  states something false. The state string is the honest signal. */
+  /** Open / Stop / Close, mirroring the wall panel. No position slider and no
+   *  state readout: these curtain motors advertise SET_POSITION but report
+   *  current_position stale at 100 even once shut, so a slider or an
+   *  "Opening"/"Open" line under the name just states something false — the
+   *  status line was removed at the user's request, leaving the buttons as the
+   *  whole control. */
   private renderCoverCard(id: string) {
     const ent = this.hass!.states[id];
-    const state = this.effState(id);
     const feat = Number(ent?.attributes?.supported_features ?? 0);
-    const sub =
-      state === 'closed' ? this.t('Closed')
-        : state === 'opening' ? this.t('Opening')
-          : state === 'closing' ? this.t('Closing')
-            : this.t('Open');
     return html`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic('curtain')}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(id)}</div>
-          <div class="csub">${sub}</div>
         </div>
       </div>
       <div class="qbtns">

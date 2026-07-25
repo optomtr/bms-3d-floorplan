@@ -24521,7 +24521,7 @@ function or(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.139.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.140.0", kr = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28350,26 +28350,27 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           </div>` : et}
     </div>`;
   }
-  /** Open / Stop / Close, mirroring the wall panel. No position slider: these
-   *  curtain motors advertise SET_POSITION but report current_position stale at
-   *  100 even once shut, so a slider (and an "opened to 100%" readout) just
-   *  states something false. The state string is the honest signal. */
+  /** Open / Stop / Close, mirroring the wall panel. No position slider and no
+   *  state readout: these curtain motors advertise SET_POSITION but report
+   *  current_position stale at 100 even once shut, so a slider or an
+   *  "Opening"/"Open" line under the name just states something false — the
+   *  status line was removed at the user's request, leaving the buttons as the
+   *  whole control. */
   renderCoverCard(i) {
-    const t = this.hass.states[i], e = this.effState(i), n = Number(t?.attributes?.supported_features ?? 0), s = e === "closed" ? this.t("Closed") : e === "opening" ? this.t("Opening") : e === "closing" ? this.t("Closing") : this.t("Open");
+    const t = this.hass.states[i], e = Number(t?.attributes?.supported_features ?? 0);
     return G`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic("curtain")}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(i)}</div>
-          <div class="csub">${s}</div>
         </div>
       </div>
       <div class="qbtns">
-        ${n & 1 ? G`<button type="button" class="qb"
+        ${e & 1 ? G`<button type="button" class="qb"
               @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.t("Open blind")}</button>` : et}
-        ${n & 8 ? G`<button type="button" class="qb"
+        ${e & 8 ? G`<button type="button" class="qb"
               @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.t("Stop blind")}</button>` : et}
-        ${n & 2 ? G`<button type="button" class="qb"
+        ${e & 2 ? G`<button type="button" class="qb"
               @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.t("Close blind")}</button>` : et}
       </div>
     </div>`;
