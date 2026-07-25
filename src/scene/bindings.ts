@@ -34,6 +34,8 @@ interface ActiveBinding {
   curtains?: THREE.Object3D[];
   /** Vertical-blind pivots that open bottom→top (scale.y, anchored at the top). */
   blindsV?: THREE.Object3D[];
+  /** Top-hinged roof-vent pivots that tilt outward (rotation.x, 0 shut). */
+  vents?: THREE.Object3D[];
   /** Target open fraction for curtains (0 closed .. 1 open). */
   coverOpen?: number;
 }
@@ -131,6 +133,7 @@ export class BindingManager {
         emissiveMeshes: anchor ? collectEmissive(anchor) : [],
         curtains: anchor ? collectByName(anchor, 'curtainPivot') : [],
         blindsV: anchor ? collectByName(anchor, 'blindPivotV') : [],
+        vents: anchor ? collectByName(anchor, 'ventPivot') : [],
       };
 
       this.setupVisual(ab, floor);
@@ -194,6 +197,9 @@ export class BindingManager {
     }
     if (ab.blindsV && ab.blindsV.length) {
       for (const piv of ab.blindsV) disableShadowCasting(piv);
+    }
+    if (ab.vents && ab.vents.length) {
+      for (const piv of ab.vents) disableShadowCasting(piv);
     }
   }
 
@@ -277,8 +283,12 @@ export class BindingManager {
             : state === 'opening' ? 1
               : state === 'open' ? (typeof pos === 'number' ? pos / 100 : 1)
                 : typeof pos === 'number' ? pos / 100 : 0;
-        if ((ab.curtains && ab.curtains.length) || (ab.blindsV && ab.blindsV.length)) {
-          ab.coverOpen = open; // curtains slide / blinds lift in animate()
+        if (
+          (ab.curtains && ab.curtains.length) ||
+          (ab.blindsV && ab.blindsV.length) ||
+          (ab.vents && ab.vents.length)
+        ) {
+          ab.coverOpen = open; // curtains slide / blinds lift / vents tilt in animate()
         } else {
           this.setEmissive(ab, open > 0.5 ? 0x4fd06a : 0x000000, open > 0.5 ? 0.4 : 0);
         }
@@ -341,6 +351,19 @@ export class BindingManager {
           }
         }
       }
+      if (ab.vents && ab.vents.length && ab.coverOpen !== undefined) {
+        // Top-hinged roof vent: shut = rotation.x 0; open tilts outward ~34°.
+        const target = 0.6 * ab.coverOpen;
+        const k = Math.min(1, delta * 4);
+        for (const piv of ab.vents) {
+          if (Math.abs(target - piv.rotation.x) > 0.002) {
+            piv.rotation.x += (target - piv.rotation.x) * k;
+            active = true;
+          } else {
+            piv.rotation.x = target;
+          }
+        }
+      }
     }
     return active;
   }
@@ -365,6 +388,9 @@ export class BindingManager {
       }
       if (ab.blindsV && ab.blindsV.length && ab.coverOpen !== undefined) {
         for (const piv of ab.blindsV) piv.scale.y = 1 - 0.96 * ab.coverOpen;
+      }
+      if (ab.vents && ab.vents.length && ab.coverOpen !== undefined) {
+        for (const piv of ab.vents) piv.rotation.x = 0.6 * ab.coverOpen;
       }
     }
   }

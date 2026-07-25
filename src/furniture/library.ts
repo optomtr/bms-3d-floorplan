@@ -1217,6 +1217,97 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(0.012, 0.012, 0.006, dot, 0, -H * 0.3, 0.026));            // tiny status dot (static)
     return g;
   },
+  // Pyramidal glass roof lantern (световой фонарь / фонарь-крыша) that sits on TOP
+  // of a room, like the reference photo: a rectangular kerb rising through hip-
+  // sloped blue glazing to a short ridge, dark aluminium bars along every edge and
+  // hip, a central ridge box, and TWO opening vents on the middle of the long
+  // faces. Each vent is a top-hinged 'ventPivot' group — bind a `cover` and both
+  // tilt outward as it opens (see bindings.ts). Place it at ceiling height
+  // (defaultY = wallHeight). 2.6 x 1.8 x ~0.95 m.
+  roof_lantern: (c) => {
+    const g = new THREE.Group();
+    const W = 2.6, Dep = 1.8, Hh = 0.78, Rl = 1.0;
+    const hw = W / 2, hd = Dep / 2;
+    const frame = mat(0x3a3f45, { metalness: 0.6, roughness: 0.4 });
+    const glass = mat(0x9fc4e6, { transparent: true, opacity: 0.3, roughness: 0.12, metalness: 0.25, side: THREE.DoubleSide });
+    const kerb = mat(0xdfe3da, { roughness: 0.7 });
+
+    const C0: [number, number, number] = [-hw, 0, -hd];
+    const C1: [number, number, number] = [hw, 0, -hd];
+    const C2: [number, number, number] = [hw, 0, hd];
+    const C3: [number, number, number] = [-hw, 0, hd];
+    const R0: [number, number, number] = [-Rl / 2, Hh, 0];
+    const R1: [number, number, number] = [Rl / 2, Hh, 0];
+
+    // Kerb ring (the painted upstand the lantern sits on), just below y=0.
+    const kh = 0.16;
+    g.add(tint(box(W, kh, 0.06, kerb, 0, -kh / 2, -hd), c));
+    g.add(tint(box(W, kh, 0.06, kerb, 0, -kh / 2, hd), c));
+    g.add(tint(box(0.06, kh, Dep, kerb, -hw, -kh / 2, 0), c));
+    g.add(tint(box(0.06, kh, Dep, kerb, hw, -kh / 2, 0), c));
+
+    // Sloped glass faces (2 trapezoids + 2 hip triangles). DoubleSide → winding-agnostic.
+    const poly = (...pts: [number, number, number][]) => {
+      const idx = pts.length === 4 ? [0, 1, 2, 0, 2, 3] : [0, 1, 2];
+      const arr: number[] = [];
+      for (const i of idx) arr.push(...pts[i]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr), 3));
+      geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, glass);
+      m.castShadow = false;
+      return m;
+    };
+    g.add(poly(C0, C1, R1, R0)); // front
+    g.add(poly(C2, C3, R0, R1)); // back
+    g.add(poly(C3, C0, R0));     // left hip
+    g.add(poly(C1, C2, R1));     // right hip
+
+    // Dark aluminium bars: eaves, ridge, hips.
+    const bar = (p0: [number, number, number], p1: [number, number, number], r = 0.02) => {
+      const a = new THREE.Vector3(...p0), b = new THREE.Vector3(...p1);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 6), frame);
+      m.castShadow = false;
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      return m;
+    };
+    g.add(bar(C0, C1)); g.add(bar(C1, C2)); g.add(bar(C2, C3)); g.add(bar(C3, C0)); // eaves
+    g.add(bar(R0, R1, 0.025));                                                       // ridge
+    g.add(bar(C0, R0)); g.add(bar(C3, R0)); g.add(bar(C1, R1)); g.add(bar(C2, R1));  // hips
+    g.add(box(0.16, 0.34, 0.16, mat(0x2b2f33, { metalness: 0.4, roughness: 0.5 }), 0, Hh - 0.1, 0)); // ridge box
+
+    // Two opening vents on the middle of the long faces. Each: a mount oriented to
+    // lie IN the slope, holding a top-hinged 'ventPivot' the animation swings out.
+    const makeVent = (front: boolean) => {
+      const s = front ? -1 : 1;                       // z-sign of this face's eave
+      const zAt = (y: number) => s * hd * (1 - y / Hh);
+      const yTop = 0.6, yBot = 0.22;
+      const top = new THREE.Vector3(0, yTop, zAt(yTop));
+      const bot = new THREE.Vector3(0, yBot, zAt(yBot));
+      const ex = new THREE.Vector3(front ? 1 : -1, 0, 0);
+      const eyp = bot.clone().sub(top).normalize();               // down the slope
+      const ezp = new THREE.Vector3().crossVectors(ex, eyp).normalize(); // outward normal
+      const mount = new THREE.Group();
+      mount.position.copy(top).addScaledVector(ezp, 0.02);        // sit just proud of the fixed glass
+      mount.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(ex, eyp, ezp));
+      const pivot = new THREE.Group();
+      pivot.name = 'ventPivot';
+      const vlen = top.distanceTo(bot), vw = 0.86, th = 0.03;
+      const vg = mat(0x9fc4e6, { transparent: true, opacity: 0.42, roughness: 0.12, metalness: 0.25, side: THREE.DoubleSide });
+      const pane = box(vw, vlen, th, vg, 0, vlen / 2, 0); pane.castShadow = false;
+      pivot.add(pane);
+      pivot.add(box(vw, 0.03, th + 0.01, frame, 0, 0.015, 0));            // top rail (hinge)
+      pivot.add(box(vw, 0.03, th + 0.01, frame, 0, vlen - 0.015, 0));     // bottom rail
+      pivot.add(box(0.03, vlen, th + 0.01, frame, -vw / 2 + 0.015, vlen / 2, 0));
+      pivot.add(box(0.03, vlen, th + 0.01, frame, vw / 2 - 0.015, vlen / 2, 0));
+      mount.add(pivot);
+      return mount;
+    };
+    g.add(makeVent(true));
+    g.add(makeVent(false));
+    return g;
+  },
   cooktop: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(0.6, 0.04, 0.52, mat(0x141414, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), c));
@@ -3231,6 +3322,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'roman_blind':
     case 'blind_bottomup':
     case 'garage_door':
+    case 'roof_lantern':
       return ['cover'];
     case 'door':
     case 'double_door':
@@ -3289,6 +3381,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'wall_cabinet') return 1.55;
   if (model === 'glass_wall_cabinet') return 1.4; // upper cabinet, origin at its base
   if (model === 'wall_switch') return 1.15;       // switch height, centered at origin
+  if (model === 'roof_lantern') return wallHeight; // sits on top of the room, at ceiling level
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
   if (model === 'wall_shelf') return 1.4;
@@ -3363,7 +3456,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
-  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
+  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
