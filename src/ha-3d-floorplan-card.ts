@@ -310,10 +310,6 @@ export class Ha3dFloorplanCard extends LitElement {
    *  (join/unjoin take a moment to reflect in group_members). Cleared once HA
    *  reports the real grouping. */
   private optGroup = new Map<string, { grouped: boolean; timer: ReturnType<typeof setTimeout> }>();
-  /** Until this time (ms), further sync-button taps are ignored — mashing it
-   *  fired a storm of join/unjoin that fought each other and stuttered playback.
-   *  The button already flips optimistically, so one tap is all that's needed. */
-  private syncBusyUntil = 0;
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -3295,7 +3291,9 @@ export class Ha3dFloorplanCard extends LitElement {
               ? html`<div class="mpctl">
                   <button type="button" class="mpb ${grouped ? 'on' : ''}"
                     title=${grouped ? this.t('Unsync speakers') : this.t('Sync speakers')}
-                    @click=${() => this.toggleSync(id, ent, grouped, groupTargets)}>${this.ic('link')}</button>
+                    @click=${() => grouped
+                      ? this.unsyncSpeakers(id, ent)
+                      : this.syncSpeakers(id, groupTargets)}>${this.ic('link')}</button>
                 </div>`
               : nothing}
           </div>`
@@ -3385,18 +3383,6 @@ export class Ha3dFloorplanCard extends LitElement {
     this.optGroup.set(id, { grouped, timer });
   }
 
-  /** One clean sync toggle per tap, debounced. Mashing the button 2–3 times
-   *  used to queue conflicting join/unjoin calls that stuttered the audio; a
-   *  short cooldown collapses a burst of taps into the single action the button
-   *  already shows optimistically. */
-  private toggleSync(id: string, ent: HassEntity | undefined, grouped: boolean, targets: string[]): void {
-    const now = Date.now();
-    if (now < this.syncBusyUntil) return; // still settling the last toggle
-    this.syncBusyUntil = now + 1500;
-    if (grouped) this.unsyncSpeakers(id, ent);
-    else this.syncSpeakers(id, targets);
-  }
-
   /** Group `targets` under `id`. Just the join — no volume_set afterward: that
    *  second command hit the speakers while they were still re-establishing the
    *  stream and made the music stutter. The ± buttons already move a group as one
@@ -3412,20 +3398,18 @@ export class Ha3dFloorplanCard extends LitElement {
    *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
    *  dissolve the group, so HA kept reporting it grouped and the button snapped
    *  back to "synced" — it looked like unsync did nothing. Unjoining each member
-   *  tears the whole group down.
-   *
-   *  The speaker you tapped keeps playing (you're at it); every OTHER member is
-   *  stopped, so it falls silent instead of resuming its own old track — which is
-   *  what "the 2nd speaker plays nothing after unsync" means. Optimistic, so the
-   *  button flips and the followers read as idle at once. */
+   *  tears the whole group down. Optimistic, so the button flips at once. */
   private unsyncSpeakers(id: string, ent: HassEntity | undefined): void {
     const members = (ent?.attributes?.group_members as string[] | undefined) ?? [id];
-    const all = members.includes(id) ? members : [...members, id];
-    for (const m of all) {
+    for (const m of members) {
       this.setOptGroup(m, false);
       this.svc('media_player', 'unjoin', {}, m);
-      // Silence the followers so no old queue resumes; leave the tapped one alone.
-      if (m !== id) this.svc('media_player', 'media_stop', {}, m, 'idle');
+    }
+    // The tapped speaker may not have listed itself in group_members on every
+    // integration; make sure it's covered.
+    if (!members.includes(id)) {
+      this.setOptGroup(id, false);
+      this.svc('media_player', 'unjoin', {}, id);
     }
     this.requestUpdate();
   }
