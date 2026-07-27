@@ -2665,7 +2665,6 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private renderStageChrome() {
-    const hasRoom = !!this.activeRoom;
     return html`
       <div class="clock">
         <div class="ctime">${this.fmtClockTime()}</div>
@@ -2675,14 +2674,12 @@ export class Ha3dFloorplanCard extends LitElement {
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic('room')}</button>
         ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
         <button class="sdot" title="Screensaver" @click=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
+        <button class="sdot" title=${this.t('All off short')} @click=${() => this.allOffHouse()}>${this.ic('power')}</button>
         ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
         ${this.renderFloorTabs()}
         ${this.renderPills()}
-        ${!hasRoom
-          ? html`<div class="ahint">${this.ic('dot')}<span>${this.t('Select a room to control its devices')}</span></div>`
-          : nothing}
       </div>
     `;
   }
@@ -3550,6 +3547,9 @@ export class Ha3dFloorplanCard extends LitElement {
           offIds.push(e.entity_id);
         }
         if (e.behavior === 'media_player') {
+          // Keep TVs playing — "All off" turns off lights/speakers, not the TV,
+          // the AC or the warm floor (climate is never in the off list above).
+          if (this.hass?.states[e.entity_id]?.attributes?.device_class === 'tv') continue;
           const s = this.effState(e.entity_id);
           if (!['off', 'paused', 'idle', 'standby', 'unavailable', 'unknown'].includes(s)) {
             this.svc('media_player', 'media_pause', {}, e.entity_id, 'paused');
@@ -5876,13 +5876,14 @@ export class Ha3dFloorplanCard extends LitElement {
     /* One segment per light: on = accent, off = dim. Filling them raises the %. */
     .lightsegs {
       display: flex;
+      flex-wrap: wrap;
       gap: 4px;
       margin-top: 10px;
-      height: 38px;
     }
     .lightseg {
-      flex: 1;
+      flex: 1 1 74px;
       min-width: 0;
+      height: 34px;
       border: none;
       border-radius: 9px;
       background: rgba(255, 255, 255, 0.09);

@@ -24567,7 +24567,7 @@ function rr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.141.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.142.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28034,7 +28034,6 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.now = /* @__PURE__ */ new Date(), this.idle = !0;
   }
   renderStageChrome() {
-    const i = !!this.activeRoom;
     return W`
       <div class="clock">
         <div class="ctime">${this.fmtClockTime()}</div>
@@ -28043,13 +28042,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       <div class="topstat">
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic("room")}</button>
         ${this.panel ? W`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : et}
-        <button class="sdot" title="Screensaver" @click=${(t) => this.onSleep(t)}>${this.ic("moon")}</button>
+        <button class="sdot" title="Screensaver" @click=${(i) => this.onSleep(i)}>${this.ic("moon")}</button>
+        <button class="sdot" title=${this.t("All off short")} @click=${() => this.allOffHouse()}>${this.ic("power")}</button>
         ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
         ${this.renderFloorTabs()}
         ${this.renderPills()}
-        ${i ? et : W`<div class="ahint">${this.ic("dot")}<span>${this.t("Select a room to control its devices")}</span></div>`}
       </div>
     `;
   }
@@ -28629,6 +28628,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     for (const t of this.rooms)
       for (const e of t.entities)
         if (["light", "switch", "input_boolean", "fan"].includes(e.behavior) && this.effState(e.entity_id) === "on" && i.push(e.entity_id), e.behavior === "media_player") {
+          if (this.hass?.states[e.entity_id]?.attributes?.device_class === "tv") continue;
           const n = this.effState(e.entity_id);
           ["off", "paused", "idle", "standby", "unavailable", "unknown"].includes(n) || this.svc("media_player", "media_pause", {}, e.entity_id, "paused");
         }
@@ -30895,13 +30895,14 @@ gt.styles = eu`
     /* One segment per light: on = accent, off = dim. Filling them raises the %. */
     .lightsegs {
       display: flex;
+      flex-wrap: wrap;
       gap: 4px;
       margin-top: 10px;
-      height: 38px;
     }
     .lightseg {
-      flex: 1;
+      flex: 1 1 74px;
       min-width: 0;
+      height: 34px;
       border: none;
       border-radius: 9px;
       background: rgba(255, 255, 255, 0.09);
