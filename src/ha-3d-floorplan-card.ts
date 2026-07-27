@@ -2881,7 +2881,7 @@ export class Ha3dFloorplanCard extends LitElement {
     // ("Климат"), which hid the real names — "Тёплый пол", "Радиатор",
     // "Кондиционер" — exactly the ones that tell two heaters in a room apart.
     climates.forEach((e) => out.push(this.renderClimateCard(e.entity_id)));
-    fans.forEach((e) => out.push(this.renderToggleCard(e.entity_id, 'fan')));
+    fans.forEach((e) => out.push(this.renderFanCard(e.entity_id)));
     covers.forEach((e) => out.push(this.renderCoverCard(e.entity_id)));
     medias.forEach((e) => out.push(this.renderMediaCard(e.entity_id, medias.length === 1 ? this.t('Media') : undefined)));
     locks.forEach((e) => out.push(this.renderLockCard(e.entity_id)));
@@ -3150,6 +3150,44 @@ export class Ha3dFloorplanCard extends LitElement {
         <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
           @click=${() => this.svc(domain, 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
       </div>
+    </div>`;
+  }
+
+  /** Fan card: on/off toggle + a speed row. Preset-mode fans (e.g. 25/50/75/100)
+   *  show their presets as buttons; percentage fans show N even steps. */
+  private renderFanCard(id: string) {
+    const on = this.effState(id) === 'on';
+    const a = this.hass?.states[id]?.attributes ?? {};
+    const presets = (a.preset_modes as string[] | undefined) ?? [];
+    const curPreset = a.preset_mode as string | undefined;
+    const pct = a.percentage as number | undefined;
+    const step = a.percentage_step as number | undefined;
+    const count = step && step > 0 ? Math.round(100 / step) : 0;
+    const pcts = count > 1 && count <= 8
+      ? Array.from({ length: count }, (_, i) => Math.round(((i + 1) / count) * 100))
+      : [];
+    const sub = !on ? this.t('Off') : (curPreset ?? (pct != null ? `${pct}%` : this.t('On')));
+    return html`<div class="card ${on ? 'on' : ''}">
+      <div class="crow">
+        <div class="cicon ${on ? 'lit' : ''}">${this.ic('fan')}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(id)}</div>
+          <div class="csub">${sub}</div>
+        </div>
+        <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+          @click=${() => this.svc('fan', 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
+      </div>
+      ${presets.length
+        ? html`<div class="seg fan">
+            ${presets.map((p) => html`<button type="button" class="segb ${curPreset === p ? 'on' : ''}"
+              @click=${() => this.svc('fan', 'set_preset_mode', { preset_mode: p }, id)}>${p}</button>`)}
+          </div>`
+        : pcts.length
+          ? html`<div class="seg fan">
+              ${pcts.map((p) => html`<button type="button" class="segb ${pct === p ? 'on' : ''}"
+                @click=${() => this.svc('fan', 'set_percentage', { percentage: p }, id)}>${p}%</button>`)}
+            </div>`
+          : nothing}
     </div>`;
   }
 

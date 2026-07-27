@@ -264,7 +264,7 @@ ns.elementStyles = [], ns.shadowRootOptions = { mode: "open" }, ns[Zs("elementPr
  */
 const Gl = globalThis, Uc = (i) => i, wr = Gl.trustedTypes, kc = wr ? wr.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, nu = "$lit$", si = `lit$${Math.random().toFixed(9).slice(2)}$`, iu = "?" + si, kf = `<${iu}>`, Ci = document, eo = () => Ci.createComment(""), no = (i) => i === null || typeof i != "object" && typeof i != "function", Wl = Array.isArray, Of = (i) => Wl(i) || typeof i?.[Symbol.iterator] == "function", Jr = `[ 	
 \f\r]`, Ps = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Oc = /-->/g, Fc = />/g, mi = RegExp(`>|${Jr}(?:([^\\s"'>=/]+)(${Jr}*=${Jr}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), zc = /'/g, Bc = /"/g, su = /^(?:script|style|textarea|title)$/i, ou = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), W = ou(1), Ff = ou(2), us = Symbol.for("lit-noChange"), Q = Symbol.for("lit-nothing"), Hc = /* @__PURE__ */ new WeakMap(), Ti = Ci.createTreeWalker(Ci, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), zc = /'/g, Bc = /"/g, su = /^(?:script|style|textarea|title)$/i, ou = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), G = ou(1), Ff = ou(2), us = Symbol.for("lit-noChange"), Q = Symbol.for("lit-nothing"), Hc = /* @__PURE__ */ new WeakMap(), Ti = Ci.createTreeWalker(Ci, 129);
 function ru(i, t) {
   if (!Wl(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return kc !== void 0 ? kc.createHTML(t) : t;
@@ -2718,8 +2718,8 @@ class Yt {
     return this.multiplyMatrices(t, this);
   }
   multiplyMatrices(t, e) {
-    const n = t.elements, s = e.elements, o = this.elements, r = n[0], a = n[4], l = n[8], c = n[12], h = n[1], d = n[5], f = n[9], u = n[13], g = n[2], x = n[6], p = n[10], m = n[14], y = n[3], b = n[7], _ = n[11], T = n[15], A = s[0], R = s[4], I = s[8], U = s[12], w = s[1], S = s[5], B = s[9], O = s[13], z = s[2], q = s[6], G = s[10], nt = s[14], X = s[3], at = s[7], lt = s[11], ht = s[15];
-    return o[0] = r * A + a * w + l * z + c * X, o[4] = r * R + a * S + l * q + c * at, o[8] = r * I + a * B + l * G + c * lt, o[12] = r * U + a * O + l * nt + c * ht, o[1] = h * A + d * w + f * z + u * X, o[5] = h * R + d * S + f * q + u * at, o[9] = h * I + d * B + f * G + u * lt, o[13] = h * U + d * O + f * nt + u * ht, o[2] = g * A + x * w + p * z + m * X, o[6] = g * R + x * S + p * q + m * at, o[10] = g * I + x * B + p * G + m * lt, o[14] = g * U + x * O + p * nt + m * ht, o[3] = y * A + b * w + _ * z + T * X, o[7] = y * R + b * S + _ * q + T * at, o[11] = y * I + b * B + _ * G + T * lt, o[15] = y * U + b * O + _ * nt + T * ht, this;
+    const n = t.elements, s = e.elements, o = this.elements, r = n[0], a = n[4], l = n[8], c = n[12], h = n[1], d = n[5], f = n[9], u = n[13], g = n[2], x = n[6], p = n[10], m = n[14], y = n[3], b = n[7], _ = n[11], T = n[15], A = s[0], R = s[4], I = s[8], U = s[12], w = s[1], S = s[5], B = s[9], O = s[13], z = s[2], q = s[6], W = s[10], nt = s[14], X = s[3], at = s[7], lt = s[11], ht = s[15];
+    return o[0] = r * A + a * w + l * z + c * X, o[4] = r * R + a * S + l * q + c * at, o[8] = r * I + a * B + l * W + c * lt, o[12] = r * U + a * O + l * nt + c * ht, o[1] = h * A + d * w + f * z + u * X, o[5] = h * R + d * S + f * q + u * at, o[9] = h * I + d * B + f * W + u * lt, o[13] = h * U + d * O + f * nt + u * ht, o[2] = g * A + x * w + p * z + m * X, o[6] = g * R + x * S + p * q + m * at, o[10] = g * I + x * B + p * W + m * lt, o[14] = g * U + x * O + p * nt + m * ht, o[3] = y * A + b * w + _ * z + T * X, o[7] = y * R + b * S + _ * q + T * at, o[11] = y * I + b * B + _ * W + T * lt, o[15] = y * U + b * O + _ * nt + T * ht, this;
   }
   multiplyScalar(t) {
     const e = this.elements;
@@ -4513,10 +4513,10 @@ class Sn extends Me {
     let f = 0, u = 0;
     g("z", "y", "x", -1, -1, n, e, t, r, o, 0), g("z", "y", "x", 1, -1, n, e, -t, r, o, 1), g("x", "z", "y", 1, 1, t, n, e, s, r, 2), g("x", "z", "y", 1, -1, t, n, -e, s, r, 3), g("x", "y", "z", 1, -1, t, e, n, s, o, 4), g("x", "y", "z", -1, -1, t, e, -n, s, o, 5), this.setIndex(l), this.setAttribute("position", new ae(c, 3)), this.setAttribute("normal", new ae(h, 3)), this.setAttribute("uv", new ae(d, 2));
     function g(x, p, m, y, b, _, T, A, R, I, U) {
-      const w = _ / R, S = T / I, B = _ / 2, O = T / 2, z = A / 2, q = R + 1, G = I + 1;
+      const w = _ / R, S = T / I, B = _ / 2, O = T / 2, z = A / 2, q = R + 1, W = I + 1;
       let nt = 0, X = 0;
       const at = new N();
-      for (let lt = 0; lt < G; lt++) {
+      for (let lt = 0; lt < W; lt++) {
         const ht = lt * S - O;
         for (let Ht = 0; Ht < q; Ht++) {
           const se = Ht * w - B;
@@ -9370,8 +9370,8 @@ function uv(i, t) {
   let o = s, r = !1;
   function a(w, S, B, O, z) {
     let q = !1;
-    const G = d(O, B, S);
-    o !== G && (o = G, c(o.object)), q = u(w, O, B, z), q && g(w, O, B, z), z !== null && t.update(z, i.ELEMENT_ARRAY_BUFFER), (q || r) && (r = !1, _(w, S, B, O), z !== null && i.bindBuffer(i.ELEMENT_ARRAY_BUFFER, t.get(z).buffer));
+    const W = d(O, B, S);
+    o !== W && (o = W, c(o.object)), q = u(w, O, B, z), q && g(w, O, B, z), z !== null && t.update(z, i.ELEMENT_ARRAY_BUFFER), (q || r) && (r = !1, _(w, S, B, O), z !== null && i.bindBuffer(i.ELEMENT_ARRAY_BUFFER, t.get(z).buffer));
   }
   function l() {
     return i.createVertexArray();
@@ -9388,8 +9388,8 @@ function uv(i, t) {
     z === void 0 && (z = {}, n[w.id] = z);
     let q = z[S.id];
     q === void 0 && (q = {}, z[S.id] = q);
-    let G = q[O];
-    return G === void 0 && (G = f(l()), q[O] = G), G;
+    let W = q[O];
+    return W === void 0 && (W = f(l()), q[O] = W), W;
   }
   function f(w) {
     const S = [], B = [], O = [];
@@ -9410,29 +9410,29 @@ function uv(i, t) {
   }
   function u(w, S, B, O) {
     const z = o.attributes, q = S.attributes;
-    let G = 0;
+    let W = 0;
     const nt = B.getAttributes();
     for (const X in nt)
       if (nt[X].location >= 0) {
         const lt = z[X];
         let ht = q[X];
         if (ht === void 0 && (X === "instanceMatrix" && w.instanceMatrix && (ht = w.instanceMatrix), X === "instanceColor" && w.instanceColor && (ht = w.instanceColor)), lt === void 0 || lt.attribute !== ht || ht && lt.data !== ht.data) return !0;
-        G++;
+        W++;
       }
-    return o.attributesNum !== G || o.index !== O;
+    return o.attributesNum !== W || o.index !== O;
   }
   function g(w, S, B, O) {
     const z = {}, q = S.attributes;
-    let G = 0;
+    let W = 0;
     const nt = B.getAttributes();
     for (const X in nt)
       if (nt[X].location >= 0) {
         let lt = q[X];
         lt === void 0 && (X === "instanceMatrix" && w.instanceMatrix && (lt = w.instanceMatrix), X === "instanceColor" && w.instanceColor && (lt = w.instanceColor));
         const ht = {};
-        ht.attribute = lt, lt && lt.data && (ht.data = lt.data), z[X] = ht, G++;
+        ht.attribute = lt, lt && lt.data && (ht.data = lt.data), z[X] = ht, W++;
       }
-    o.attributes = z, o.attributesNum = G, o.index = O;
+    o.attributes = z, o.attributesNum = W, o.index = O;
   }
   function x() {
     const w = o.newAttributes;
@@ -9451,12 +9451,12 @@ function uv(i, t) {
     for (let B = 0, O = S.length; B < O; B++)
       S[B] !== w[B] && (i.disableVertexAttribArray(B), S[B] = 0);
   }
-  function b(w, S, B, O, z, q, G) {
-    G === !0 ? i.vertexAttribIPointer(w, S, B, z, q) : i.vertexAttribPointer(w, S, B, O, z, q);
+  function b(w, S, B, O, z, q, W) {
+    W === !0 ? i.vertexAttribIPointer(w, S, B, z, q) : i.vertexAttribPointer(w, S, B, O, z, q);
   }
   function _(w, S, B, O) {
     x();
-    const z = O.attributes, q = B.getAttributes(), G = S.defaultAttributeValues;
+    const z = O.attributes, q = B.getAttributes(), W = S.defaultAttributeValues;
     for (const nt in q) {
       const X = q[nt];
       if (X.location >= 0) {
@@ -9505,8 +9505,8 @@ function uv(i, t) {
                 It
               );
           }
-        } else if (G !== void 0) {
-          const lt = G[nt];
+        } else if (W !== void 0) {
+          const lt = W[nt];
           if (lt !== void 0)
             switch (lt.length) {
               case 2:
@@ -10503,8 +10503,8 @@ function Sv(i, t, e) {
       for (let w = 0; w < d; w++) {
         const S = p[w], B = m[w], O = y[w], z = _ * T * 4 * w;
         for (let q = 0; q < S.count; q++) {
-          const G = q * I;
-          u === !0 && (s.fromBufferAttribute(S, q), A[z + G + 0] = s.x, A[z + G + 1] = s.y, A[z + G + 2] = s.z, A[z + G + 3] = 0), g === !0 && (s.fromBufferAttribute(B, q), A[z + G + 4] = s.x, A[z + G + 5] = s.y, A[z + G + 6] = s.z, A[z + G + 7] = 0), x === !0 && (s.fromBufferAttribute(O, q), A[z + G + 8] = s.x, A[z + G + 9] = s.y, A[z + G + 10] = s.z, A[z + G + 11] = O.itemSize === 4 ? s.w : 1);
+          const W = q * I;
+          u === !0 && (s.fromBufferAttribute(S, q), A[z + W + 0] = s.x, A[z + W + 1] = s.y, A[z + W + 2] = s.z, A[z + W + 3] = 0), g === !0 && (s.fromBufferAttribute(B, q), A[z + W + 4] = s.x, A[z + W + 5] = s.y, A[z + W + 6] = s.z, A[z + W + 7] = 0), x === !0 && (s.fromBufferAttribute(O, q), A[z + W + 8] = s.x, A[z + W + 9] = s.y, A[z + W + 10] = s.z, A[z + W + 11] = O.itemSize === 4 ? s.w : 1);
         }
       }
       f = {
@@ -11493,7 +11493,7 @@ function kx(i, t, e, n) {
   function R(S) {
     if (i.debug.checkShaderErrors) {
       const B = s.getProgramInfoLog(x).trim(), O = s.getShaderInfoLog(T).trim(), z = s.getShaderInfoLog(A).trim();
-      let q = !0, G = !0;
+      let q = !0, W = !0;
       if (s.getProgramParameter(x, s.LINK_STATUS) === !1)
         if (q = !1, typeof i.debug.onShaderError == "function")
           i.debug.onShaderError(s, x, T, A);
@@ -11510,8 +11510,8 @@ Program Info Log: ` + B + `
 ` + X
           );
         }
-      else B !== "" ? console.warn("THREE.WebGLProgram: Program Info Log:", B) : (O === "" || z === "") && (G = !1);
-      G && (S.diagnostics = {
+      else B !== "" ? console.warn("THREE.WebGLProgram: Program Info Log:", B) : (O === "" || z === "") && (W = !1);
+      W && (S.diagnostics = {
         runnable: q,
         programLog: B,
         vertexShader: {
@@ -11605,11 +11605,11 @@ function Bx(i, t, e, n, s, o, r) {
     return c.add(w), w === 0 ? "uv" : `uv${w}`;
   }
   function m(w, S, B, O, z) {
-    const q = O.fog, G = z.geometry, nt = w.isMeshStandardMaterial ? O.environment : null, X = (w.isMeshStandardMaterial ? e : t).get(w.envMap || nt), at = X && X.mapping === Hr ? X.image.height : null, lt = x[w.type];
+    const q = O.fog, W = z.geometry, nt = w.isMeshStandardMaterial ? O.environment : null, X = (w.isMeshStandardMaterial ? e : t).get(w.envMap || nt), at = X && X.mapping === Hr ? X.image.height : null, lt = x[w.type];
     w.precision !== null && (g = s.getMaxPrecision(w.precision), g !== w.precision && console.warn("THREE.WebGLProgram.getParameters:", w.precision, "not supported, using", g, "instead."));
-    const ht = G.morphAttributes.position || G.morphAttributes.normal || G.morphAttributes.color, Ht = ht !== void 0 ? ht.length : 0;
+    const ht = W.morphAttributes.position || W.morphAttributes.normal || W.morphAttributes.color, Ht = ht !== void 0 ? ht.length : 0;
     let se = 0;
-    G.morphAttributes.position !== void 0 && (se = 1), G.morphAttributes.normal !== void 0 && (se = 2), G.morphAttributes.color !== void 0 && (se = 3);
+    W.morphAttributes.position !== void 0 && (se = 1), W.morphAttributes.normal !== void 0 && (se = 2), W.morphAttributes.color !== void 0 && (se = 3);
     let $, dt, It, wt;
     if (lt) {
       const Ze = An[lt];
@@ -11704,10 +11704,10 @@ function Bx(i, t, e, n, s, o, r) {
       thicknessMapUv: J && p(w.thicknessMap.channel),
       alphaMapUv: St && p(w.alphaMap.channel),
       //
-      vertexTangents: !!G.attributes.tangent && (xt || j),
+      vertexTangents: !!W.attributes.tangent && (xt || j),
       vertexColors: w.vertexColors,
-      vertexAlphas: w.vertexColors === !0 && !!G.attributes.color && G.attributes.color.itemSize === 4,
-      pointsUvs: z.isPoints === !0 && !!G.attributes.uv && (ne || St),
+      vertexAlphas: w.vertexColors === !0 && !!W.attributes.color && W.attributes.color.itemSize === 4,
+      pointsUvs: z.isPoints === !0 && !!W.attributes.uv && (ne || St),
       fog: !!q,
       useFog: w.fog === !0,
       fogExp2: !!q && q.isFogExp2,
@@ -11716,9 +11716,9 @@ function Bx(i, t, e, n, s, o, r) {
       logarithmicDepthBuffer: d,
       reverseDepthBuffer: f,
       skinning: z.isSkinnedMesh === !0,
-      morphTargets: G.morphAttributes.position !== void 0,
-      morphNormals: G.morphAttributes.normal !== void 0,
-      morphColors: G.morphAttributes.color !== void 0,
+      morphTargets: W.morphAttributes.position !== void 0,
+      morphNormals: W.morphAttributes.normal !== void 0,
+      morphColors: W.morphAttributes.color !== void 0,
       morphTargetsCount: Ht,
       morphTextureStride: se,
       numDirLights: S.directional.length,
@@ -12054,19 +12054,19 @@ function Kx(i) {
       if (S.isAmbientLight)
         h += B.r * O, d += B.g * O, f += B.b * O;
       else if (S.isLightProbe) {
-        for (let G = 0; G < 9; G++)
-          n.probe[G].addScaledVector(S.sh.coefficients[G], O);
+        for (let W = 0; W < 9; W++)
+          n.probe[W].addScaledVector(S.sh.coefficients[W], O);
         R++;
       } else if (S.isDirectionalLight) {
-        const G = t.get(S);
-        if (G.color.copy(S.color).multiplyScalar(S.intensity), S.castShadow) {
+        const W = t.get(S);
+        if (W.color.copy(S.color).multiplyScalar(S.intensity), S.castShadow) {
           const nt = S.shadow, X = e.get(S);
           X.shadowIntensity = nt.intensity, X.shadowBias = nt.bias, X.shadowNormalBias = nt.normalBias, X.shadowRadius = nt.radius, X.shadowMapSize = nt.mapSize, n.directionalShadow[u] = X, n.directionalShadowMap[u] = q, n.directionalShadowMatrix[u] = S.shadow.matrix, y++;
         }
-        n.directional[u] = G, u++;
+        n.directional[u] = W, u++;
       } else if (S.isSpotLight) {
-        const G = t.get(S);
-        G.position.setFromMatrixPosition(S.matrixWorld), G.color.copy(B).multiplyScalar(O), G.distance = z, G.coneCos = Math.cos(S.angle), G.penumbraCos = Math.cos(S.angle * (1 - S.penumbra)), G.decay = S.decay, n.spot[x] = G;
+        const W = t.get(S);
+        W.position.setFromMatrixPosition(S.matrixWorld), W.color.copy(B).multiplyScalar(O), W.distance = z, W.coneCos = Math.cos(S.angle), W.penumbraCos = Math.cos(S.angle * (1 - S.penumbra)), W.decay = S.decay, n.spot[x] = W;
         const nt = S.shadow;
         if (S.map && (n.spotLightMap[T] = S.map, T++, nt.updateMatrices(S), S.castShadow && A++), n.spotLightMatrix[x] = nt.matrix, S.castShadow) {
           const X = e.get(S);
@@ -12074,18 +12074,18 @@ function Kx(i) {
         }
         x++;
       } else if (S.isRectAreaLight) {
-        const G = t.get(S);
-        G.color.copy(B).multiplyScalar(O), G.halfWidth.set(S.width * 0.5, 0, 0), G.halfHeight.set(0, S.height * 0.5, 0), n.rectArea[p] = G, p++;
+        const W = t.get(S);
+        W.color.copy(B).multiplyScalar(O), W.halfWidth.set(S.width * 0.5, 0, 0), W.halfHeight.set(0, S.height * 0.5, 0), n.rectArea[p] = W, p++;
       } else if (S.isPointLight) {
-        const G = t.get(S);
-        if (G.color.copy(S.color).multiplyScalar(S.intensity), G.distance = S.distance, G.decay = S.decay, S.castShadow) {
+        const W = t.get(S);
+        if (W.color.copy(S.color).multiplyScalar(S.intensity), W.distance = S.distance, W.decay = S.decay, S.castShadow) {
           const nt = S.shadow, X = e.get(S);
           X.shadowIntensity = nt.intensity, X.shadowBias = nt.bias, X.shadowNormalBias = nt.normalBias, X.shadowRadius = nt.radius, X.shadowMapSize = nt.mapSize, X.shadowCameraNear = nt.camera.near, X.shadowCameraFar = nt.camera.far, n.pointShadow[g] = X, n.pointShadowMap[g] = q, n.pointShadowMatrix[g] = S.shadow.matrix, b++;
         }
-        n.point[g] = G, g++;
+        n.point[g] = W, g++;
       } else if (S.isHemisphereLight) {
-        const G = t.get(S);
-        G.skyColor.copy(S.color).multiplyScalar(O), G.groundColor.copy(S.groundColor).multiplyScalar(O), n.hemi[m] = G, m++;
+        const W = t.get(S);
+        W.skyColor.copy(S.color).multiplyScalar(O), W.groundColor.copy(S.groundColor).multiplyScalar(O), n.hemi[m] = W, m++;
       }
     }
     p > 0 && (i.has("OES_texture_float_linear") === !0 ? (n.rectAreaLTC1 = _t.LTC_FLOAT_1, n.rectAreaLTC2 = _t.LTC_FLOAT_2) : (n.rectAreaLTC1 = _t.LTC_HALF_1, n.rectAreaLTC2 = _t.LTC_HALF_2)), n.ambient[0] = h, n.ambient[1] = d, n.ambient[2] = f;
@@ -12245,7 +12245,7 @@ function tb(i, t, e) {
     const U = i.getRenderTarget(), w = i.getActiveCubeFace(), S = i.getActiveMipmapLevel(), B = i.state;
     B.setBlending(ci), B.buffers.color.setClear(1, 1, 1, 1), B.buffers.depth.setTest(!0), B.setScissorTest(!1);
     const O = m !== Hn && this.type === Hn, z = m === Hn && this.type !== Hn;
-    for (let q = 0, G = A.length; q < G; q++) {
+    for (let q = 0, W = A.length; q < W; q++) {
       const nt = A[q], X = nt.shadow;
       if (X === void 0) {
         console.warn("THREE.WebGLShadowMap:", nt, "has no shadow.");
@@ -12302,8 +12302,8 @@ function tb(i, t, e) {
       const O = t.update(A), z = A.material;
       if (Array.isArray(z)) {
         const q = O.groups;
-        for (let G = 0, nt = q.length; G < nt; G++) {
-          const X = q[G], at = z[X.materialIndex];
+        for (let W = 0, nt = q.length; W < nt; W++) {
+          const X = q[W], at = z[X.materialIndex];
           if (at && at.visible) {
             const lt = b(A, at, U, w);
             A.onBeforeShadow(i, A, R, I, O, lt, X), i.renderBufferDirect(I, null, O, lt, A, X), A.onAfterShadow(i, A, R, I, O, lt, X);
@@ -12442,9 +12442,9 @@ function nb(i) {
   const s = new t(), o = new e(), r = new n(), a = /* @__PURE__ */ new WeakMap(), l = /* @__PURE__ */ new WeakMap();
   let c = {}, h = {}, d = /* @__PURE__ */ new WeakMap(), f = [], u = null, g = !1, x = null, p = null, m = null, y = null, b = null, _ = null, T = null, A = new Ot(0, 0, 0), R = 0, I = !1, U = null, w = null, S = null, B = null, O = null;
   const z = i.getParameter(i.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
-  let q = !1, G = 0;
+  let q = !1, W = 0;
   const nt = i.getParameter(i.VERSION);
-  nt.indexOf("WebGL") !== -1 ? (G = parseFloat(/^WebGL (\d)/.exec(nt)[1]), q = G >= 1) : nt.indexOf("OpenGL ES") !== -1 && (G = parseFloat(/^OpenGL ES (\d)/.exec(nt)[1]), q = G >= 2);
+  nt.indexOf("WebGL") !== -1 ? (W = parseFloat(/^WebGL (\d)/.exec(nt)[1]), q = W >= 1) : nt.indexOf("OpenGL ES") !== -1 && (W = parseFloat(/^OpenGL ES (\d)/.exec(nt)[1]), q = W >= 2);
   let X = null, at = {};
   const lt = i.getParameter(i.SCISSOR_BOX), ht = i.getParameter(i.VIEWPORT), Ht = new de().fromArray(lt), se = new de().fromArray(ht);
   function $(F, Tt, J, rt) {
@@ -12958,7 +12958,7 @@ function sb(i, t, e, n, s, o, r) {
     }
     e.bindTexture(i.TEXTURE_2D_ARRAY, j.__webglTexture, i.TEXTURE0 + E);
   }
-  function G(L, E) {
+  function W(L, E) {
     const j = n.get(L);
     if (L.version > 0 && j.__version !== L.version) {
       se(j, L, E);
@@ -13369,7 +13369,7 @@ function sb(i, t, e, n, s, o, r) {
   function At(L) {
     return typeof HTMLImageElement < "u" && L instanceof HTMLImageElement ? (c.width = L.naturalWidth || L.width, c.height = L.naturalHeight || L.height) : typeof VideoFrame < "u" && L instanceof VideoFrame ? (c.width = L.displayWidth, c.height = L.displayHeight) : (c.width = L.width, c.height = L.height), c;
   }
-  this.allocateTextureUnit = B, this.resetTextureUnits = S, this.setTexture2D = z, this.setTexture2DArray = q, this.setTexture3D = G, this.setTextureCube = nt, this.rebindTextures = Wt, this.setupRenderTarget = Jt, this.updateRenderTargetMipmap = ne, this.updateMultisampleRenderTarget = vt, this.setupDepthRenderbuffer = jt, this.setupFrameBufferTexture = dt, this.useMultisampledRTT = ct;
+  this.allocateTextureUnit = B, this.resetTextureUnits = S, this.setTexture2D = z, this.setTexture2DArray = q, this.setTexture3D = W, this.setTextureCube = nt, this.rebindTextures = Wt, this.setupRenderTarget = Jt, this.updateRenderTargetMipmap = ne, this.updateMultisampleRenderTarget = vt, this.setupDepthRenderbuffer = jt, this.setupFrameBufferTexture = dt, this.useMultisampledRTT = ct;
 }
 function ob(i, t) {
   function e(n, s = oi) {
@@ -13726,10 +13726,10 @@ class db extends Di {
         jt && jt.connect(It);
       }
     }
-    const G = new N(), nt = new N();
+    const W = new N(), nt = new N();
     function X($, dt, It) {
-      G.setFromMatrixPosition(dt.matrixWorld), nt.setFromMatrixPosition(It.matrixWorld);
-      const wt = G.distanceTo(nt), jt = dt.projectionMatrix.elements, Wt = It.projectionMatrix.elements, Jt = jt[14] / (jt[10] - 1), ne = jt[14] / (jt[10] + 1), st = (jt[9] + 1) / jt[5], D = (jt[9] - 1) / jt[5], vt = (jt[8] - 1) / jt[0], mt = (Wt[8] + 1) / Wt[0], ct = Jt * vt, xt = Jt * mt, Ft = wt / (-vt + mt), At = Ft * -vt;
+      W.setFromMatrixPosition(dt.matrixWorld), nt.setFromMatrixPosition(It.matrixWorld);
+      const wt = W.distanceTo(nt), jt = dt.projectionMatrix.elements, Wt = It.projectionMatrix.elements, Jt = jt[14] / (jt[10] - 1), ne = jt[14] / (jt[10] + 1), st = (jt[9] + 1) / jt[5], D = (jt[9] - 1) / jt[5], vt = (jt[8] - 1) / jt[0], mt = (Wt[8] + 1) / Wt[0], ct = Jt * vt, xt = Jt * mt, Ft = wt / (-vt + mt), At = Ft * -vt;
       if (dt.matrixWorld.decompose($.position, $.quaternion, $.scale), $.translateX(At), $.translateZ(Ft), $.matrixWorld.compose($.position, $.quaternion, $.scale), $.matrixWorldInverse.copy($.matrixWorld).invert(), jt[10] === -1)
         $.projectionMatrix.copy(dt.projectionMatrix), $.projectionMatrixInverse.copy(dt.projectionMatrixInverse);
       else {
@@ -13900,8 +13900,8 @@ function pb(i, t, e, n) {
           const B = S.__offset, O = Array.isArray(S.value) ? S.value : [S.value];
           let z = 0;
           for (let q = 0; q < O.length; q++) {
-            const G = O[q], nt = x(G);
-            typeof G == "number" || typeof G == "boolean" ? (S.__data[0] = G, i.bufferSubData(i.UNIFORM_BUFFER, B + z, S.__data)) : G.isMatrix3 ? (S.__data[0] = G.elements[0], S.__data[1] = G.elements[1], S.__data[2] = G.elements[2], S.__data[3] = 0, S.__data[4] = G.elements[3], S.__data[5] = G.elements[4], S.__data[6] = G.elements[5], S.__data[7] = 0, S.__data[8] = G.elements[6], S.__data[9] = G.elements[7], S.__data[10] = G.elements[8], S.__data[11] = 0) : (G.toArray(S.__data, z), z += nt.storage / Float32Array.BYTES_PER_ELEMENT);
+            const W = O[q], nt = x(W);
+            typeof W == "number" || typeof W == "boolean" ? (S.__data[0] = W, i.bufferSubData(i.UNIFORM_BUFFER, B + z, S.__data)) : W.isMatrix3 ? (S.__data[0] = W.elements[0], S.__data[1] = W.elements[1], S.__data[2] = W.elements[2], S.__data[3] = 0, S.__data[4] = W.elements[3], S.__data[5] = W.elements[4], S.__data[6] = W.elements[5], S.__data[7] = 0, S.__data[8] = W.elements[6], S.__data[9] = W.elements[7], S.__data[10] = W.elements[8], S.__data[11] = 0) : (W.toArray(S.__data, z), z += nt.storage / Float32Array.BYTES_PER_ELEMENT);
           }
           i.bufferSubData(i.UNIFORM_BUFFER, B, S.__data);
         }
@@ -13932,7 +13932,7 @@ function pb(i, t, e, n) {
       for (let w = 0, S = U.length; w < S; w++) {
         const B = U[w], O = Array.isArray(B.value) ? B.value : [B.value];
         for (let z = 0, q = O.length; z < q; z++) {
-          const G = O[z], nt = x(G), X = _ % T, at = X % nt.boundary, lt = X + at;
+          const W = O[z], nt = x(W), X = _ % T, at = X % nt.boundary, lt = X + at;
           _ += at, lt !== 0 && T - lt < nt.storage && (_ += T - lt), B.__data = new Float32Array(nt.storage / Float32Array.BYTES_PER_ELEMENT), B.__offset = _, _ += nt.storage;
         }
       }
@@ -14008,8 +14008,8 @@ class Fu {
     const w = new de(), S = new de();
     let B = null;
     const O = new Ot(0);
-    let z = 0, q = e.width, G = e.height, nt = 1, X = null, at = null;
-    const lt = new de(0, 0, q, G), ht = new de(0, 0, q, G);
+    let z = 0, q = e.width, W = e.height, nt = 1, X = null, at = null;
+    const lt = new de(0, 0, q, W), ht = new de(0, 0, q, W);
     let Ht = !1;
     const se = new rc();
     let $ = !1, dt = !1;
@@ -14060,19 +14060,19 @@ class Fu {
     }, this.getPixelRatio = function() {
       return nt;
     }, this.setPixelRatio = function(C) {
-      C !== void 0 && (nt = C, this.setSize(q, G, !1));
+      C !== void 0 && (nt = C, this.setSize(q, W, !1));
     }, this.getSize = function(C) {
-      return C.set(q, G);
+      return C.set(q, W);
     }, this.setSize = function(C, H, Z = !0) {
       if (J.isPresenting) {
         console.warn("THREE.WebGLRenderer: Can't change size while VR device is presenting.");
         return;
       }
-      q = C, G = H, e.width = Math.floor(C * nt), e.height = Math.floor(H * nt), Z === !0 && (e.style.width = C + "px", e.style.height = H + "px"), this.setViewport(0, 0, C, H);
+      q = C, W = H, e.width = Math.floor(C * nt), e.height = Math.floor(H * nt), Z === !0 && (e.style.width = C + "px", e.style.height = H + "px"), this.setViewport(0, 0, C, H);
     }, this.getDrawingBufferSize = function(C) {
-      return C.set(q * nt, G * nt).floor();
+      return C.set(q * nt, W * nt).floor();
     }, this.setDrawingBufferSize = function(C, H, Z) {
-      q = C, G = H, nt = Z, e.width = Math.floor(C * Z), e.height = Math.floor(H * Z), this.setViewport(0, 0, C, H);
+      q = C, W = H, nt = Z, e.width = Math.floor(C * Z), e.height = Math.floor(H * Z), this.setViewport(0, 0, C, H);
     }, this.getCurrentViewport = function(C) {
       return C.copy(w);
     }, this.getViewport = function(C) {
@@ -14402,7 +14402,7 @@ class Fu {
       }
       V.isBatchedMesh && (Ee.setOptional(D, V, "batchingTexture"), Ee.setValue(D, "batchingTexture", V._matricesTexture, L), Ee.setOptional(D, V, "batchingIdTexture"), Ee.setValue(D, "batchingIdTexture", V._indirectTexture, L), Ee.setOptional(D, V, "batchingColorTexture"), V._colorsTexture !== null && Ee.setValue(D, "batchingColorTexture", V._colorsTexture, L));
       const Zr = Z.morphAttributes;
-      if ((Zr.position !== void 0 || Zr.normal !== void 0 || Zr.color !== void 0) && Zt.update(V, Z, pn), (tn || zt.receiveShadow !== V.receiveShadow) && (zt.receiveShadow = V.receiveShadow, Ee.setValue(D, "receiveShadow", V.receiveShadow)), Y.isMeshGouraudMaterial && Y.envMap !== null && (Yn.envMap.value = Ut, Yn.flipEnvMap.value = Ut.isCubeTexture && Ut.isRenderTargetTexture === !1 ? -1 : 1), Y.isMeshStandardMaterial && Y.envMap === null && H.environment !== null && (Yn.envMapIntensity.value = H.environmentIntensity), tn && (Ee.setValue(D, "toneMappingExposure", b.toneMappingExposure), zt.needsLights && Mf(Yn, Kr), pt && Y.fog === !0 && yt.refreshFogUniforms(Yn, pt), yt.refreshMaterialUniforms(Yn, Y, nt, G, p.state.transmissionRenderTarget[C.id]), br.upload(D, Rc(zt), Yn, L)), Y.isShaderMaterial && Y.uniformsNeedUpdate === !0 && (br.upload(D, Rc(zt), Yn, L), Y.uniformsNeedUpdate = !1), Y.isSpriteMaterial && Ee.setValue(D, "center", V.center), Ee.setValue(D, "modelViewMatrix", V.modelViewMatrix), Ee.setValue(D, "normalMatrix", V.normalMatrix), Ee.setValue(D, "modelMatrix", V.matrixWorld), Y.isShaderMaterial || Y.isRawShaderMaterial) {
+      if ((Zr.position !== void 0 || Zr.normal !== void 0 || Zr.color !== void 0) && Zt.update(V, Z, pn), (tn || zt.receiveShadow !== V.receiveShadow) && (zt.receiveShadow = V.receiveShadow, Ee.setValue(D, "receiveShadow", V.receiveShadow)), Y.isMeshGouraudMaterial && Y.envMap !== null && (Yn.envMap.value = Ut, Yn.flipEnvMap.value = Ut.isCubeTexture && Ut.isRenderTargetTexture === !1 ? -1 : 1), Y.isMeshStandardMaterial && Y.envMap === null && H.environment !== null && (Yn.envMapIntensity.value = H.environmentIntensity), tn && (Ee.setValue(D, "toneMappingExposure", b.toneMappingExposure), zt.needsLights && Mf(Yn, Kr), pt && Y.fog === !0 && yt.refreshFogUniforms(Yn, pt), yt.refreshMaterialUniforms(Yn, Y, nt, W, p.state.transmissionRenderTarget[C.id]), br.upload(D, Rc(zt), Yn, L)), Y.isShaderMaterial && Y.uniformsNeedUpdate === !0 && (br.upload(D, Rc(zt), Yn, L), Y.uniformsNeedUpdate = !1), Y.isSpriteMaterial && Ee.setValue(D, "center", V.center), Ee.setValue(D, "modelViewMatrix", V.modelViewMatrix), Ee.setValue(D, "normalMatrix", V.normalMatrix), Ee.setValue(D, "modelMatrix", V.matrixWorld), Y.isShaderMaterial || Y.isRawShaderMaterial) {
         const rn = Y.uniformsGroups;
         for (let Yr = 0, Ef = rn.length; Yr < Ef; Yr++) {
           const Pc = rn[Yr];
@@ -15967,8 +15967,8 @@ class Ri extends Me {
       for (let I = 0; I <= o; I++) {
         const U = [], w = I / o, S = w * (e - t) + t;
         for (let B = 0; B <= s; B++) {
-          const O = B / s, z = O * l + a, q = Math.sin(z), G = Math.cos(z);
-          T.x = S * q, T.y = -w * n + p, T.z = S * G, d.push(T.x, T.y, T.z), _.set(q, R, G).normalize(), f.push(_.x, _.y, _.z), u.push(O, 1 - w), U.push(g++);
+          const O = B / s, z = O * l + a, q = Math.sin(z), W = Math.cos(z);
+          T.x = S * q, T.y = -w * n + p, T.z = S * W, d.push(T.x, T.y, T.z), _.set(q, R, W).normalize(), f.push(_.x, _.y, _.z), u.push(O, 1 - w), U.push(g++);
         }
         x.push(U);
       }
@@ -15987,8 +15987,8 @@ class Ri extends Me {
         d.push(0, p * w, 0), f.push(0, w, 0), u.push(0.5, 0.5), g++;
       const S = g;
       for (let B = 0; B <= s; B++) {
-        const z = B / s * l + a, q = Math.cos(z), G = Math.sin(z);
-        R.x = U * G, R.y = p * w, R.z = U * q, d.push(R.x, R.y, R.z), f.push(0, w, 0), A.x = q * 0.5 + 0.5, A.y = G * 0.5 * w + 0.5, u.push(A.x, A.y), g++;
+        const z = B / s * l + a, q = Math.cos(z), W = Math.sin(z);
+        R.x = U * W, R.y = p * w, R.z = U * q, d.push(R.x, R.y, R.z), f.push(0, w, 0), A.x = q * 0.5 + 0.5, A.y = W * 0.5 * w + 0.5, u.push(A.x, A.y), g++;
       }
       for (let B = 0; B < s; B++) {
         const O = T + B, z = S + B;
@@ -16439,7 +16439,7 @@ class Ir extends Me {
       function q(st, D, vt) {
         return D || console.error("THREE.ExtrudeGeometry: vec does not exist"), st.clone().addScaledVector(D, vt);
       }
-      const G = w.length, nt = O.length;
+      const W = w.length, nt = O.length;
       function X(st, D, vt) {
         let mt, ct, xt;
         const Ft = st.x - D.x, At = st.y - D.y, L = vt.x - st.x, E = vt.y - st.y, j = Ft * Ft + At * At, tt = Ft * E - At * L;
@@ -16484,12 +16484,12 @@ class Ir extends Me {
         }
       }
       const se = g + x;
-      for (let st = 0; st < G; st++) {
+      for (let st = 0; st < W; st++) {
         const D = f ? q(w[st], Ht[st], se) : w[st];
         _ ? (R.copy(T.normals[0]).multiplyScalar(D.x), A.copy(T.binormals[0]).multiplyScalar(D.y), I.copy(b[0]).add(R).add(A), wt(I.x, I.y, I.z)) : wt(D.x, D.y, 0);
       }
       for (let st = 1; st <= h; st++)
-        for (let D = 0; D < G; D++) {
+        for (let D = 0; D < W; D++) {
           const vt = f ? q(w[D], Ht[D], se) : w[D];
           _ ? (R.copy(T.normals[st]).multiplyScalar(vt.x), A.copy(T.binormals[st]).multiplyScalar(vt.y), I.copy(b[st]).add(R).add(A), wt(I.x, I.y, I.z)) : wt(vt.x, vt.y, d / h * st);
         }
@@ -16512,12 +16512,12 @@ class Ir extends Me {
       function $() {
         const st = s.length / 3;
         if (f) {
-          let D = 0, vt = G * D;
+          let D = 0, vt = W * D;
           for (let mt = 0; mt < nt; mt++) {
             const ct = O[mt];
             jt(ct[2] + vt, ct[1] + vt, ct[0] + vt);
           }
-          D = h + p * 2, vt = G * D;
+          D = h + p * 2, vt = W * D;
           for (let mt = 0; mt < nt; mt++) {
             const ct = O[mt];
             jt(ct[0] + vt, ct[1] + vt, ct[2] + vt);
@@ -16529,7 +16529,7 @@ class Ir extends Me {
           }
           for (let D = 0; D < nt; D++) {
             const vt = O[D];
-            jt(vt[0] + G * h, vt[1] + G * h, vt[2] + G * h);
+            jt(vt[0] + W * h, vt[1] + W * h, vt[2] + W * h);
           }
         }
         n.addGroup(st, s.length / 3 - st, 0);
@@ -16551,7 +16551,7 @@ class Ir extends Me {
           let ct = vt - 1;
           ct < 0 && (ct = st.length - 1);
           for (let xt = 0, Ft = h + p * 2; xt < Ft; xt++) {
-            const At = G * xt, L = G * (xt + 1), E = D + mt + At, j = D + ct + At, tt = D + ct + L, ot = D + mt + L;
+            const At = W * xt, L = W * (xt + 1), E = D + mt + At, j = D + ct + At, tt = D + ct + L, ot = D + mt + L;
             Wt(E, j, tt, ot);
           }
         }
@@ -21340,10 +21340,10 @@ const po = {
     const _ = (T) => {
       const A = T ? -1 : 1, R = (Ht) => A * a * (1 - Ht / s), I = 0.6, U = 0.22, w = new N(0, I, R(I)), S = new N(0, U, R(U)), B = new N(T ? 1 : -1, 0, 0), O = S.clone().sub(w).normalize(), z = new N().crossVectors(B, O).normalize(), q = new k();
       q.position.copy(w).addScaledVector(z, 0.02), q.quaternion.setFromRotationMatrix(new Yt().makeBasis(B, O, z));
-      const G = new k();
-      G.name = "ventPivot";
+      const W = new k();
+      W.name = "ventPivot";
       const nt = w.distanceTo(S), X = 0.86, at = 0.03, lt = M(10470630, { transparent: !0, opacity: 0.42, roughness: 0.12, metalness: 0.25, side: Je }), ht = v(X, nt, at, lt, 0, nt / 2, 0);
-      return ht.castShadow = !1, G.add(ht), G.add(v(X, 0.03, at + 0.01, l, 0, 0.015, 0)), G.add(v(X, 0.03, at + 0.01, l, 0, nt - 0.015, 0)), G.add(v(0.03, nt, at + 0.01, l, -X / 2 + 0.015, nt / 2, 0)), G.add(v(0.03, nt, at + 0.01, l, X / 2 - 0.015, nt / 2, 0)), q.add(G), q;
+      return ht.castShadow = !1, W.add(ht), W.add(v(X, 0.03, at + 0.01, l, 0, 0.015, 0)), W.add(v(X, 0.03, at + 0.01, l, 0, nt - 0.015, 0)), W.add(v(0.03, nt, at + 0.01, l, -X / 2 + 0.015, nt / 2, 0)), W.add(v(0.03, nt, at + 0.01, l, X / 2 - 0.015, nt / 2, 0)), q.add(W), q;
     };
     return t.add(_(!0)), t.add(_(!1)), t;
   },
@@ -23118,7 +23118,7 @@ function Dd(i, t, e, n) {
     }
     const B = new k();
     n >= 0 && (B.userData.openingWall = n, B.userData.openingIndex = R), c.add(B);
-    const O = (X, at, lt, ht, Ht, se) => Ws(B, s, l, d, X, at, lt, ht, Ht, se), z = (X, at) => O(X - 0.025, X + 0.025, at - 0.05, at + 0.05, u * 1.5, m), q = 0.06, G = (I + U) / 2, nt = (w + S) / 2;
+    const O = (X, at, lt, ht, Ht, se) => Ws(B, s, l, d, X, at, lt, ht, Ht, se), z = (X, at) => O(X - 0.025, X + 0.025, at - 0.05, at + 0.05, u * 1.5, m), q = 0.06, W = (I + U) / 2, nt = (w + S) / 2;
     if (A.kind === "door") {
       const X = A.variant || "single";
       O(I, I + q, w, S, u * 1.15, p), O(U - q, U, w, S, u * 1.15, p), O(I, U, S - q, S, u * 1.15, p);
@@ -23127,9 +23127,9 @@ function Dd(i, t, e, n) {
     } else {
       const X = A.variant || "single";
       if (O(I, I + q, w, S, u * 1.05, b), O(U - q, U, w, S, u * 1.05, b), O(I, U, w, w + q, u * 1.05, b), O(I, U, S - q, S, u * 1.05, b), O(I + q, U - q, w + q, S - q, u, y), X === "single")
-        O(G - 0.03, G + 0.03, w + q, S - q, u * 1.05, b), O(I + q, U - q, nt - 0.03, nt + 0.03, u * 1.05, b);
+        O(W - 0.03, W + 0.03, w + q, S - q, u * 1.05, b), O(I + q, U - q, nt - 0.03, nt + 0.03, u * 1.05, b);
       else if (X === "double" || X === "sliding")
-        O(G - 0.03, G + 0.03, w + q, S - q, u * 1.05, b);
+        O(W - 0.03, W + 0.03, w + q, S - q, u * 1.05, b);
       else if (X === "terrace") {
         const at = Math.max(2, Math.round((U - I) / 0.95));
         for (let ht = 1; ht < at; ht++) {
@@ -24567,7 +24567,7 @@ function rr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.144.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.145.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25807,7 +25807,7 @@ class P_ {
       if (z < 1e-6) return;
       let q = ((t.x - R) * B + (t.z - I) * O) / z;
       q = Math.max(0, Math.min(1, q));
-      const G = R + B * q, nt = I + O * q, X = Math.hypot(t.x - G, t.z - nt);
+      const W = R + B * q, nt = I + O * q, X = Math.hypot(t.x - W, t.z - nt);
       if (X < r) {
         r = X;
         const at = Math.sqrt(z);
@@ -25854,10 +25854,10 @@ class P_ {
       let z = Math.atan2(B, S);
       const q = Math.abs((z - _ + Math.PI) % Math.PI);
       if (q > 0.03 && Math.abs(q - Math.PI) > 0.03) return null;
-      const G = Math.sqrt(O), nt = ((y - R) * S + (b - I) * B) / O, X = R + S * nt, at = I + B * nt;
+      const W = Math.sqrt(O), nt = ((y - R) * S + (b - I) * B) / O, X = R + S * nt, at = I + B * nt;
       if (Math.hypot(y - X, b - at) > 0.12) return null;
-      const lt = nt * G;
-      return lt < 0 || lt > G ? null : Math.max(0, Math.min(G - s, lt - s / 2));
+      const lt = nt * W;
+      return lt < 0 || lt > W ? null : Math.max(0, Math.min(W - s, lt - s / 2));
     };
     for (const R of n.walls ?? []) {
       if (c.type === "wall" && R === c.wall) continue;
@@ -27323,7 +27323,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     this.idle && (this.idle = !1), this.armIdle();
   }
   renderPaletteCell(i, t) {
-    return W`
+    return G`
       <button
         class="palette-cell ${i === this.editSelectedModel ? "active" : ""}"
         title=${t}
@@ -27336,7 +27336,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderEditor() {
     const i = this.editTool, t = (r) => r.replace(/_/g, " ").replace(/\b\w/g, (a) => a.toUpperCase()), e = Ly.filter((r) => !Nr.includes(r)), n = this.editSelectedKind, s = i === "select" && !!n, o = n === "furniture";
-    return W`
+    return G`
       <div class="overlay top-left toolbar">
         <div class="ed-head"><span>✎ Editor</span></div>
 
@@ -27370,7 +27370,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <button class="btn span2 ${i === "select" ? "active" : ""}" title="Select / move / bind (camera always works: drag empty = orbit)"
             @click=${() => this.onEditTool("select")}>☝ Select</button>
         </div>
-        ${i === "arc" ? W`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>` : Q}
+        ${i === "arc" ? G`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>` : Q}
         <span class="hint">Camera always on: drag empty space = orbit · two fingers = pan/zoom · tap = act</span>
 
         <div class="panel-group">Building parts — drop a room</div>
@@ -27382,7 +27382,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <span class="hint">then drag / rotate / resize it</span>
 
         <div class="panel-group">Reference image — trace a 2D plan</div>
-        ${this.editUnderlay ? W`<div class="toolrow">
+        ${this.editUnderlay ? G`<div class="toolrow">
                 <label class="hint">Width (m):</label>
                 <input class="num-input" type="number" min="0.5" step="0.1"
                   .value=${String(this.editUnderlay.widthM)}
@@ -27405,7 +27405,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 <button class="btn" title="Set scale by tapping two points of known length"
                   @click=${this.onCalibrateUnderlay}>📏 Calibrate (2 pts)</button>
                 <button class="btn" title="Remove reference image" @click=${this.onRemoveUnderlay}>🗑 Remove</button>
-              </div>` : W`<div class="toolrow">
+              </div>` : G`<div class="toolrow">
               <label class="btn" title="Import a top-down 2D plan image to trace over">
                 📷 Import image
                 <input type="file" accept="image/*" style="display:none"
@@ -27427,7 +27427,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       this.editAllWallMat = r.target.value, this.editor?.setAllWallsMaterial(this.editAllWallMat);
     }}>
             ${Cd.map(
-      (r) => W`<option value=${r} ?selected=${r === this.editAllWallMat}>${r}</option>`
+      (r) => G`<option value=${r} ?selected=${r === this.editAllWallMat}>${r}</option>`
     )}
           </select>
         </div>
@@ -27443,7 +27443,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       this.editAllFloorMat = r.target.value, this.editor?.setAllFloorsMaterial(this.editAllFloorMat);
     }}>
             ${Pd.map(
-      (r) => W`<option value=${r} ?selected=${r === this.editAllFloorMat}>${r}</option>`
+      (r) => G`<option value=${r} ?selected=${r === this.editAllFloorMat}>${r}</option>`
     )}
           </select>
         </div>
@@ -27451,17 +27451,17 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         ${(() => {
       const r = this.editor?.plan.floors ?? [], a = r[this.editFloorIndex]?.name ?? "";
-      return W`<div class="panel-group">Floors</div>
+      return G`<div class="panel-group">Floors</div>
           <div class="toolrow">
-            ${r.length > 1 ? W`<select class="select" @change=${this.onSelectEditFloor}>
+            ${r.length > 1 ? G`<select class="select" @change=${this.onSelectEditFloor}>
                   ${r.map(
-        (l, c) => W`<option value=${c} ?selected=${c === this.editFloorIndex}>
+        (l, c) => G`<option value=${c} ?selected=${c === this.editFloorIndex}>
                       ${l.name || `Floor ${c + 1}`}
                     </option>`
       )}
                 </select>` : Q}
             <button class="btn" title="Add a floor above" @click=${this.onAddFloor}>➕ Floor</button>
-            ${r.length > 1 ? W`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>` : Q}
+            ${r.length > 1 ? G`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>` : Q}
           </div>
           <div class="toolrow">
             <input class="name-input" type="text" placeholder="Floor name"
@@ -27482,16 +27482,16 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="toolrow">
           <button class="btn" title="Add a room control icon you place by hand"
             @click=${this.onAddZone}>➕ Add room</button>
-          ${this.editZones.length ? W`<select class="select" @change=${(r) => this.onSelectZone(r.target.value || null)}>
+          ${this.editZones.length ? G`<select class="select" @change=${(r) => this.onSelectZone(r.target.value || null)}>
                 <option value="">— select —</option>
                 ${this.editZones.map(
-      (r) => W`<option value=${r.id} ?selected=${r.id === this.editSelectedZoneId}>${r.name || "Room"}</option>`
+      (r) => G`<option value=${r.id} ?selected=${r.id === this.editSelectedZoneId}>${r.name || "Room"}</option>`
     )}
               </select>` : Q}
         </div>
         ${this.editSelectedZoneId && this.editZones.length > 1 ? (() => {
       const r = this.editZones.findIndex((a) => a.id === this.editSelectedZoneId);
-      return W`<div class="toolrow">
+      return G`<div class="toolrow">
                 <span class="hint">Room order:</span>
                 <button class="btn" title="Move room up" ?disabled=${r <= 0}
                   @click=${() => this.onMoveZone(this.editSelectedZoneId, -1)}>▲ Up</button>
@@ -27501,9 +27501,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     })() : Q}
         ${(() => {
       const r = this.editZones.find((l) => l.id === this.editSelectedZoneId);
-      if (!r) return this.editZones.length ? W`<span class="hint">select a room to place its icon &amp; pick devices</span>` : W`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
+      if (!r) return this.editZones.length ? G`<span class="hint">select a room to place its icon &amp; pick devices</span>` : G`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
       const a = this.editor?.floorEntities ?? [];
-      return W`<div class="toolrow">
+      return G`<div class="toolrow">
               <input class="name-input" type="text" placeholder="Room name"
                 .value=${r.name ?? ""} @input=${(l) => this.onSetZoneName(r.id, l)} />
             </div>
@@ -27511,7 +27511,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               <label class="hint">Внутри комнаты (подкомната):</label>
               <select class="select" @change=${(l) => this.onSetZoneParent(r.id, l)}>
                 <option value="" ?selected=${!r.parentId}>— (отдельная комната)</option>
-                ${this.editZones.filter((l) => l.id !== r.id && !l.parentId).map((l) => W`<option value=${l.id} ?selected=${r.parentId === l.id}>${l.name || "Room"}</option>`)}
+                ${this.editZones.filter((l) => l.id !== r.id && !l.parentId).map((l) => G`<option value=${l.id} ?selected=${r.parentId === l.id}>${l.name || "Room"}</option>`)}
               </select>
             </div>
             <div class="toolrow">
@@ -27529,13 +27529,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
                 type="file" accept="image/*" style="display:none"
                 @change=${(l) => this.onUploadZoneBg(r.id, l)} /></label>
-              ${r.bgImage ? W`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(r.id)}>🗑</button>
-                    <span class="hint">${r.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : W`<span class="hint">не задан</span>`}
+              ${r.bgImage ? G`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(r.id)}>🗑</button>
+                    <span class="hint">${r.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : G`<span class="hint">не задан</span>`}
             </div>
-            ${r.entities.length ? W`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
+            ${r.entities.length ? G`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
                   <div class="zone-order">
                     ${r.entities.map(
-        (l, c) => W`<div class="zrow">
+        (l, c) => G`<div class="zrow">
                         <span class="zname" title=${l}>${this.entityShort(l)}</span>
                         <button class="zbtn" title="Move up" ?disabled=${c === 0}
                           @click=${() => this.onMoveZoneEntity(r.id, l, -1)}>▲</button>
@@ -27548,20 +27548,20 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                   </div>` : Q}
             ${(() => {
         const l = a.filter((c) => !r.entities.includes(c.entity_id));
-        return l.length ? W`<span class="hint">Add device (· room = already assigned):</span>
+        return l.length ? G`<span class="hint">Add device (· room = already assigned):</span>
                 <div class="zone-devs">
                   ${l.map((c) => {
           const h = this.boundElsewhere(c.entity_id, r.id);
-          return W`<label class="zone-dev ${h ? "taken" : ""}">
+          return G`<label class="zone-dev ${h ? "taken" : ""}">
                       <input type="checkbox" @change=${() => this.onToggleZoneDevice(r.id, c.entity_id)} />
-                      <span>${this.entityShort(c.entity_id)}${h ? W`<em class="taken-tag"> · ${h}</em>` : Q}</span>
+                      <span>${this.entityShort(c.entity_id)}${h ? G`<em class="taken-tag"> · ${h}</em>` : Q}</span>
                     </label>`;
         })}
-                </div>` : a.length ? Q : W`<span class="hint">bind entities to furniture first, then add them here</span>`;
+                </div>` : a.length ? Q : G`<span class="hint">bind entities to furniture first, then add them here</span>`;
       })()}`;
     })()}
 
-        ${i === "wall" || i === "floor" ? W`<div class="toolrow">
+        ${i === "wall" || i === "floor" ? G`<div class="toolrow">
               <button class="btn" title="Remove the last point" @click=${this.onUndoPoint}>⤺ Undo point</button>
               <button class="btn" title="Finish this run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
               <button class="btn ${this.editSnap ? "active" : ""}"
@@ -27570,7 +27570,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               <span class="hint">${i === "floor" ? "trace a floor: tap corners · tap start (or Finish) to close" : "tap to add points · tap start to close (adds floor) · Finish/Enter to end"}</span>
             </div>` : Q}
 
-        ${i === "furniture" ? W`<div class="toolrow">
+        ${i === "furniture" ? G`<div class="toolrow">
               <button class="btn palette-btn" title="Choose a model" @click=${this.togglePalette}>
                 <img class="palette-thumb" src=${Jd(this.editSelectedModel)} alt="" />
                 ${t(this.editSelectedModel)} ▾
@@ -27579,64 +27579,64 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             </div>
             ${this.paletteOpen ? (() => {
       const r = this.editFurnSearch.trim().toLowerCase(), a = (h) => !r || t(h).toLowerCase().includes(r) || h.includes(r), l = Nr.filter(a), c = e.filter(a);
-      return W`<div class="palette">
+      return G`<div class="palette">
                     <input class="select wide" type="search" placeholder="🔍 search models…"
                       .value=${this.editFurnSearch}
                       @input=${(h) => this.editFurnSearch = h.target.value} />
-                    ${l.length ? W`<div class="palette-group">Lighting</div>
+                    ${l.length ? G`<div class="palette-group">Lighting</div>
                           <div class="palette-grid">
                             ${l.map((h) => this.renderPaletteCell(h, t(h)))}
                           </div>` : Q}
-                    ${c.length ? W`<div class="palette-group">Furniture</div>
+                    ${c.length ? G`<div class="palette-group">Furniture</div>
                           <div class="palette-grid">
                             ${c.map((h) => this.renderPaletteCell(h, t(h)))}
                           </div>` : Q}
-                    ${!l.length && !c.length ? W`<span class="hint">no models match "${this.editFurnSearch}"</span>` : Q}
+                    ${!l.length && !c.length ? G`<span class="hint">no models match "${this.editFurnSearch}"</span>` : Q}
                   </div>`;
     })() : Q}` : Q}
 
-        ${s ? W`<div class="toolrow">
+        ${s ? G`<div class="toolrow">
               <span class="hint">${n === "room" && !this.editRoom?.shape ? "floor" : n} selected</span>
-              ${o ? W`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
+              ${o ? G`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>` : Q}
-              ${n === "opening" ? W`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
+              ${n === "opening" ? G`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
                     <button class="btn" title="Slide right along the wall" @click=${() => this.onSlideOpening(0.1)}>Right ▶</button>` : Q}
               <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>
-            ${o && this.editIsLight ? W`<div class="toolrow">
+            ${o && this.editIsLight ? G`<div class="toolrow">
                   <span class="hint">Brightness:</span>
                   <input type="range" min="0" max="1" step="0.05"
                     .value=${String(this.editBrightness)}
                     title="Manual glow level (bound light overrides)"
                     @input=${this.onSetBrightness} />
                 </div>` : Q}
-            ${o && this.editIsLightSet ? W`<div class="toolrow">
+            ${o && this.editIsLightSet ? G`<div class="toolrow">
                     <span class="hint">Spread:</span>
                     <input type="range" min="0.6" max="10" step="0.1"
                       .value=${String(this.editSpread)}
                       title="Spacing between elements (each keeps its size)"
                       @input=${this.onSetSpread} />
                   </div>
-                  ${this.editSelectedObjModel === "spotlight_bar" ? W`<div class="toolrow">
+                  ${this.editSelectedObjModel === "spotlight_bar" ? G`<div class="toolrow">
                         <span class="hint">Spots:</span>
                         <input class="num-input" type="number" min="1" max="12" step="1"
                           .value=${String(this.editCount)}
                           @change=${this.onSetCount} />
                       </div>` : Q}` : Q}
-            ${n === "opening" ? W`<div class="toolrow">
+            ${n === "opening" ? G`<div class="toolrow">
                     <span class="hint">Type:</span>
                     <select class="select" @change=${this.onSetOpeningKind}>
                       ${["door", "window", "opening"].map(
-      (r) => W`<option value=${r} ?selected=${r === this.editOpeningKind}>${r}</option>`
+      (r) => G`<option value=${r} ?selected=${r === this.editOpeningKind}>${r}</option>`
     )}
                     </select>
                   </div>
-                  ${this.editOpeningKind !== "opening" ? W`<div class="toolrow">
+                  ${this.editOpeningKind !== "opening" ? G`<div class="toolrow">
                         <span class="hint">Style:</span>
                         <select class="select" @change=${this.onSetOpeningVariant}>
                           ${(this.editOpeningKind === "door" ? Jy : Qy).map(
-      (r) => W`<option value=${r} ?selected=${r === this.editOpeningVariant}>${r}</option>`
+      (r) => G`<option value=${r} ?selected=${r === this.editOpeningVariant}>${r}</option>`
     )}
                         </select>
                       </div>` : Q}
@@ -27646,7 +27646,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       .value=${this.editOpeningWidth != null ? this.editOpeningWidth.toFixed(2) : ""}
                       @change=${this.onSetOpeningWidth} />
                   </div>` : Q}
-            ${n !== "opening" ? W`<div class="toolrow">
+            ${n !== "opening" ? G`<div class="toolrow">
                   <span class="hint">Color:</span>
                   <input
                     class="color"
@@ -27654,14 +27654,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editSelectedColor ?? (n === "room" ? "#c6a87e" : n === "wall" ? "#dcc3a0" : "#ffffff")}
                     @input=${this.onSetColor}
                   />
-                  ${n === "wall" || n === "room" ? W`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
+                  ${n === "wall" || n === "room" ? G`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
                         <select class="select" @change=${this.onSetMaterial}>
                           ${(n === "room" ? Pd : Cd).map(
-      (r) => W`<option value=${r} ?selected=${r === this.editMaterial}>${r}</option>`
+      (r) => G`<option value=${r} ?selected=${r === this.editMaterial}>${r}</option>`
     )}
                         </select>` : Q}
                 </div>` : Q}
-            ${o && this.editFurnScale && !this.editIsLightSet ? W`<div class="toolrow">
+            ${o && this.editFurnScale && !this.editIsLightSet ? G`<div class="toolrow">
                   <span class="hint">Size</span>
                   <input class="num-input" type="number" min="0.1" step="0.1" title="Width"
                     .value=${this.editFurnScale[0].toFixed(1)}
@@ -27673,7 +27673,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editFurnScale[2].toFixed(1)}
                     @change=${(r) => this.onSetFurnScale(2, r)} />
                 </div>` : Q}
-            ${n === "wall" ? W`<div class="toolrow">
+            ${n === "wall" ? G`<div class="toolrow">
                   <span class="hint">Length (m):</span>
                   <input
                     class="num-input"
@@ -27695,15 +27695,15 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editSelectedWallAngle != null ? this.editSelectedWallAngle.toFixed(0) : ""}
                     @change=${this.onSetWallAngle} />
                 </div>
-                ${this.editor && this.editor.selectedWallOpenings.length ? W`<div class="panel-group">Openings (tap 🗑 to remove)</div>
+                ${this.editor && this.editor.selectedWallOpenings.length ? G`<div class="panel-group">Openings (tap 🗑 to remove)</div>
                       ${this.editor.selectedWallOpenings.map(
-      (r, a) => W`<div class="toolrow">
+      (r, a) => G`<div class="toolrow">
                           <span class="hint">${r.kind} @ ${r.position.toFixed(1)}m · ${r.width.toFixed(1)}m</span>
                           <button class="btn" title="Delete this opening"
                             @click=${() => this.onDeleteWallOpening(a)}>🗑</button>
                         </div>`
     )}` : Q}` : Q}
-            ${n === "room" && this.editRoom?.shape ? W`<div class="toolrow">
+            ${n === "room" && this.editRoom?.shape ? G`<div class="toolrow">
                     <input class="name-input" type="text" placeholder="Room name"
                       .value=${this.editRoom.name ?? ""}
                       @change=${(r) => this.onSetRoomField("name", r)} />
@@ -27729,9 +27729,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       @change=${(r) => this.onSetRoomField("rotation", r)} />
                   </div>
                   <span class="hint">drag body=move · ring=rotate · corners=resize · Shift=no snap</span>
-                  ${this.editor && this.editor.selectedRoomOpenings.length ? W`<div class="panel-group">Openings (tap 🗑 to remove)</div>
+                  ${this.editor && this.editor.selectedRoomOpenings.length ? G`<div class="panel-group">Openings (tap 🗑 to remove)</div>
                         ${this.editor.selectedRoomOpenings.map(
-      (r, a) => W`<div class="toolrow">
+      (r, a) => G`<div class="toolrow">
                             <span class="hint">${r.kind} · ${r.width.toFixed(1)}m</span>
                             <button class="btn" title="Delete this opening"
                               @click=${() => this.onDeleteRoomOpening(a)}>🗑</button>
@@ -27739,7 +27739,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     )}` : Q}` : Q}
             ${o && this.hass ? (() => {
       const r = this.editShowAllEntities || !this.editSelectedObjModel ? [] : ky(this.editSelectedObjModel), { ids: a, fellBack: l } = this.candidateEntities(r), c = this.editEntitySearch.trim().toLowerCase(), h = c ? a.filter((d) => this.entityOptionText(d).toLowerCase().includes(c)) : a;
-      return W`<div class="toolrow">
+      return G`<div class="toolrow">
                       <input class="select wide" type="search" placeholder="🔍 search entity / room…"
                         .value=${this.editEntitySearch}
                         @input=${(d) => this.editEntitySearch = d.target.value} />
@@ -27750,7 +27750,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                           — bind entity —
                         </option>
                         ${h.map(
-        (d) => W`<option value=${d} ?selected=${d === this.editSelectedEntity}
+        (d) => G`<option value=${d} ?selected=${d === this.editSelectedEntity}
                             title=${d}>
                             ${this.entityOptionText(d)}
                           </option>`
@@ -27769,9 +27769,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     </span>`;
     })() : Q}` : Q}
 
-        ${i === "select" && !n ? W`<span class="hint">tap to select · DRAG furniture to move it · drag a wall end to reshape</span>` : Q}
-        ${i === "door" || i === "window" ? W`<span class="hint">tap a wall to add a ${i}</span>` : Q}
-        ${i === "wall" ? W`<span class="hint">tap 2 points = 1 wall · 🧲 snaps parallel/right-angle + equal length · drag empty space = orbit</span>` : Q}
+        ${i === "select" && !n ? G`<span class="hint">tap to select · DRAG furniture to move it · drag a wall end to reshape</span>` : Q}
+        ${i === "door" || i === "window" ? G`<span class="hint">tap a wall to add a ${i}</span>` : Q}
+        ${i === "wall" ? G`<span class="hint">tap 2 points = 1 wall · 🧲 snaps parallel/right-angle + equal length · drag empty space = orbit</span>` : Q}
 
         <div class="panel-section">
           <div class="toolrow">
@@ -27784,11 +27784,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               @input=${this.onRenamePlan}
             />
           </div>
-          ${this.projectList.length > 0 ? W`<div class="toolrow">
+          ${this.projectList.length > 0 ? G`<div class="toolrow">
                 <select class="select wide" @change=${this.onSelectStorageProject}>
-                  ${this.editingProjectId ? Q : W`<option value="" selected>(unsaved new)</option>`}
+                  ${this.editingProjectId ? Q : G`<option value="" selected>(unsaved new)</option>`}
                   ${this.projectList.map(
-      (r) => W`<option value=${r.id} ?selected=${r.id === this.editingProjectId}>${r.name}</option>`
+      (r) => G`<option value=${r.id} ?selected=${r.id === this.editingProjectId}>${r.name}</option>`
     )}
                 </select>
                 <button class="btn" title="Delete this project" @click=${this.onDeleteProject}>🗑</button>
@@ -27814,10 +27814,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               ${this.hasEditPin() ? "Update" : "Set"}
             </button>
           </div>
-          ${this.hasEditPin() ? W`<div class="toolrow">
+          ${this.hasEditPin() ? G`<div class="toolrow">
                 <span class="hint">🔒 PIN required to enter Edit</span>
                 <button class="btn" title="Remove the edit PIN" @click=${this.onRemoveEditPin}>Remove</button>
-              </div>` : W`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
+              </div>` : G`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
         </div>
       </div>
     `;
@@ -27829,7 +27829,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const i = this.hass, t = this.controlEntities.filter((n) => i?.states[n]);
     if (!i || !t.length) return Q;
     const [e] = this.controlPos;
-    return W`
+    return G`
       <div class="control-backdrop" @click=${this.closeControl}></div>
       <div class="control-popup" style="left:${e}px"
         @click=${(n) => n.stopPropagation()}>
@@ -27852,18 +27852,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     })).filter((l) => l.ents.length), s = new Set($d.flatMap((l) => l.behaviors)), o = e.filter((l) => !s.has(l.behavior));
     o.length && n.push({ key: "other", label: "Other", icon: "dot", behaviors: [], ents: o });
     const [r] = this.controlPos, a = this.controlCategory ? n.find((l) => l.key === this.controlCategory) : null;
-    return W`
+    return G`
       <div class="control-backdrop" @click=${this.closeControl}></div>
       <div class="control-popup" style="left:${r}px"
         @click=${(l) => l.stopPropagation()}>
         <div class="control-head">
-          <span>${a ? W`<button type="button" class="ctl back" title="Back"
+          <span>${a ? G`<button type="button" class="ctl back" title="Back"
                 @click=${() => this.controlCategory = null}>${this.ic("chevUp")}</button> ${this.t(a.label)}` : i.name || this.t("Room")}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
-        ${a ? W`${a.key === "lights" ? (() => {
+        ${a ? G`${a.key === "lights" ? (() => {
       const l = a.ents.some((c) => this.effState(c.entity_id) === "on");
-      return W`<div class="control-row">
+      return G`<div class="control-row">
                       <span class="control-name">${this.t(l ? "All off" : "All on")}</span>
                       <div class="control-ctls">
                         <button type="button" class="ctl big ${l ? "on" : ""}" title="Toggle all"
@@ -27871,13 +27871,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       </div>
                     </div>`;
     })() : Q}
-              ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? W`<div class="cat-grid">
+              ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? G`<div class="cat-grid">
                 ${n.map(
-      (l) => W`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
+      (l) => G`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
                     ${this.ic(l.icon)}<span>${this.t(l.label)}</span><small>${l.ents.length}</small>
                   </button>`
     )}
-              </div>` : W`<span class="hint">${this.t("No controllable devices")}</span>`}
+              </div>` : G`<span class="hint">${this.t("No controllable devices")}</span>`}
       </div>
     `;
   }
@@ -27885,7 +27885,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  on every tablet/browser instead of a tofu box. */
   ic(i) {
     const t = kr[i] ?? kr.dot;
-    return W`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    return G`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
     >${t.map((e) => Ff`<path d=${e}></path>`)}</svg>`;
   }
@@ -27893,45 +27893,45 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const e = this.hass.states[i], n = i.split(".")[0], s = this.effState(i), o = e?.attributes?.friendly_name ?? i, r = s === "on" || s === "open" || s === "playing" || s === "home" || s === "unlocked";
     let a;
     if (n === "light" || n === "switch" || n === "fan" || n === "input_boolean")
-      a = W`<button type="button" class="ctl big ${r ? "on" : ""}" title="Toggle"
+      a = G`<button type="button" class="ctl big ${r ? "on" : ""}" title="Toggle"
         @click=${() => this.svc(n, "toggle", {}, i, r ? "off" : "on")}>${this.ic("power")}</button>`;
     else if (n === "cover")
-      a = W`
+      a = G`
         <button type="button" class="ctl" title="Open" @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.ic("chevUp")}</button>
         <button type="button" class="ctl" title="Stop" @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.ic("stop")}</button>
         <button type="button" class="ctl" title="Close" @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.ic("chevDown")}</button>`;
     else if (n === "lock")
-      a = W`<button type="button" class="ctl ${r ? "" : "on"}" title=${r ? "Lock" : "Unlock"}
+      a = G`<button type="button" class="ctl ${r ? "" : "on"}" title=${r ? "Lock" : "Unlock"}
         @click=${() => this.svc("lock", r ? "lock" : "unlock", {}, i, r ? "locked" : "unlocked")}>${this.ic(r ? "lockOpen" : "lockClosed")}</button>`;
     else if (n === "climate") {
       const l = this.effTarget(i), c = e?.attributes?.current_temperature, h = Qd(e), d = e?.attributes?.hvac_modes ?? ["off", "cool", "heat", "auto"], f = (u) => {
         typeof l == "number" && this.stepTemp(i, e, l, h, u);
       };
-      a = W`<div class="ctl-col">
+      a = G`<div class="ctl-col">
         <div class="ctl-row">
           <button type="button" class="ctl" title="Cooler" @click=${() => f(-h)}>${this.ic("minus")}</button>
-          <span class="ctl-temp">${l != null ? `${l}°` : "—"}${c != null ? W`<small> · ${c}°</small>` : Q}</span>
+          <span class="ctl-temp">${l != null ? `${l}°` : "—"}${c != null ? G`<small> · ${c}°</small>` : Q}</span>
           <button type="button" class="ctl" title="Warmer" @click=${() => f(h)}>${this.ic("plus")}</button>
         </div>
         <div class="ctl-row wrap">
           ${d.map((u) => {
         const g = kd(u);
-        return W`<button type="button" class="ctl ${s === u ? "on" : ""}" title=${u}
+        return G`<button type="button" class="ctl ${s === u ? "on" : ""}" title=${u}
               @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: u }, i, u)}>${g ? this.ic(g) : u}</button>`;
       })}
         </div>
       </div>`;
     } else if (n === "media_player") {
       const l = !!e?.attributes?.is_volume_muted, c = !["off", "standby", "unavailable", "unknown"].includes(s);
-      a = W`<div class="ctl-row">
+      a = G`<div class="ctl-row">
         <button type="button" class="ctl ${c ? "on" : ""}" title="Power" @click=${() => this.svc("media_player", "toggle", {}, i, c ? "off" : "playing")}>${this.ic("power")}</button>
         <button type="button" class="ctl" title="Volume down" @click=${() => this.svc("media_player", "volume_down", {}, i)}>${this.ic("volDown")}</button>
         <button type="button" class="ctl ${l ? "on" : ""}" title="Mute" @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !l }, i)}>${this.ic("mute")}</button>
         <button type="button" class="ctl" title="Volume up" @click=${() => this.svc("media_player", "volume_up", {}, i)}>${this.ic("volUp")}</button>
       </div>`;
     } else
-      a = W`<span class="ctl-state">${s}${e?.attributes?.unit_of_measurement ?? ""}</span>`;
-    return W`<div class="control-row">
+      a = G`<span class="ctl-state">${s}${e?.attributes?.unit_of_measurement ?? ""}</span>`;
+    return G`<div class="control-row">
       <span class="control-name" title=${i}>${o}</span>
       <div class="control-ctls">${a}</div>
     </div>`;
@@ -28036,9 +28036,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     );
   }
   renderPills() {
-    return this.rooms.length ? W`<div class="pills">
+    return this.rooms.length ? G`<div class="pills">
       ${this.rooms.map(
-      (i) => W`<button
+      (i) => G`<button
           type="button"
           class="pill ${i.key === this.activeRoomKey ? "on" : ""}"
           @click=${() => this.selectRoom(i.key)}
@@ -28047,9 +28047,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>` : Q;
   }
   renderFloorTabs() {
-    return this.floorNames.length <= 1 ? Q : W`<div class="ftabs">
+    return this.floorNames.length <= 1 ? Q : G`<div class="ftabs">
       ${this.floorNames.map(
-      (i, t) => W`<button type="button" class="ftab ${t === this.activeFloorIndex ? "on" : ""}"
+      (i, t) => G`<button type="button" class="ftab ${t === this.activeFloorIndex ? "on" : ""}"
           @click=${() => this.onSelectFloor(t)}>${i}</button>`
     )}
     </div>`;
@@ -28058,14 +28058,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.now = /* @__PURE__ */ new Date(), this.idle = !0;
   }
   renderStageChrome() {
-    return W`
+    return G`
       <div class="clock">
         <div class="ctime">${this.fmtClockTime()}</div>
         <div class="cdate">${this.fmtClockDate()}</div>
       </div>
       <div class="topstat">
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic("room")}</button>
-        ${this.panel ? W`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : Q}
+        ${this.panel ? G`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : Q}
         <button class="sdot" title="Screensaver" @click=${(i) => this.onSleep(i)}>${this.ic("moon")}</button>
         <button class="sdot" title=${this.t("All off short")} @click=${() => this.allOffHouse()}>${this.ic("power")}</button>
         ${this.renderViewToggle()}
@@ -28101,7 +28101,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderScreensaver() {
     const i = this.homeSummary();
-    return W`<div class="saver" @pointerdown=${() => this.wake()}>
+    return G`<div class="saver" @pointerdown=${() => this.wake()}>
       <div class="saver-aurora"></div>
       <div class="saver-in">
         <div class="saver-home">${this.t("My home")}</div>
@@ -28126,20 +28126,20 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const f = Number(h);
       return Number.isFinite(f) ? f.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
     }, a = t != null ? `${r(t.state, 1)}°` : o != null ? `${r(o, 1)}°` : null, l = e != null ? `${r(e.state, 0)}%` : null, c = this.roomCards(i, n);
-    return W`
+    return G`
       <div class="room-panel">
         <div class="rp-head">
           <div class="rp-top">
             <div class="rp-name">${i.name || this.t("Room")}</div>
             <button type="button" class="closebtn" title="Close" @click=${() => this.selectRoom(null)}>${this.ic("close")}</button>
           </div>
-          ${a || l ? W`<div class="rp-chips">
-                ${a ? W`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : Q}
-                ${l ? W`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : Q}
+          ${a || l ? G`<div class="rp-chips">
+                ${a ? G`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : Q}
+                ${l ? G`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : Q}
               </div>` : Q}
         </div>
         <div class="rp-body">
-          ${c.length ? c : W`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
+          ${c.length ? c : G`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
         </div>
         <div class="rp-foot">
           <button type="button" class="rp-master" @click=${() => this.onRoomAllOff(i)}>
@@ -28174,7 +28174,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const f = Number(h);
       return Number.isFinite(f) ? f.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
     }, a = t != null ? `${r(t.state, 1)}°` : o != null ? `${r(o, 1)}°` : null, l = e != null ? `${r(e.state, 0)}%` : null, c = this.deviceCount(i);
-    return W`
+    return G`
       <div class="detail-back" @click=${() => this.closeDetail()}></div>
       <div class="detail" @click=${(h) => h.stopPropagation()}>
         <div class="dhead">
@@ -28183,9 +28183,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             <div class="dtitle">${i.name || this.t("Room")}</div>
             <div class="dsub">${c} ${this.ruPlural(c, "устройство", "устройства", "устройств")}</div>
           </div>
-          ${a || l ? W`<div class="rp-chips">
-                ${a ? W`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : Q}
-                ${l ? W`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : Q}
+          ${a || l ? G`<div class="rp-chips">
+                ${a ? G`<div class="rp-chip">${this.ic("thermo")}${a}</div>` : Q}
+                ${l ? G`<div class="rp-chip cool">${this.ic("drop")}${l}</div>` : Q}
               </div>` : Q}
         </div>
         <div class="dbody">${this.roomCards(i, n)}</div>
@@ -28197,7 +28197,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const e = this.hass;
     if (!e) return [];
     const n = i.entities.filter((m) => e.states[m.entity_id] && !t.has(m.entity_id)), s = this.detectIntercom(n), o = s ? n.filter((m) => !s.ids.has(m.entity_id)) : n, r = (...m) => o.filter((y) => m.includes(y.behavior)), a = r("light"), l = r("switch", "input_boolean"), c = r("climate"), h = r("fan"), d = r("cover"), f = r("media_player"), u = r("lock"), g = /* @__PURE__ */ new Set(["light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "lock"]), x = o.filter((m) => !g.has(m.behavior)), p = [];
-    return s && p.push(this.renderIntercomCard(s)), a.length && p.push(this.renderLightCard(a.map((m) => m.entity_id))), l.forEach((m) => p.push(this.renderToggleCard(m.entity_id, "power"))), c.forEach((m) => p.push(this.renderClimateCard(m.entity_id))), h.forEach((m) => p.push(this.renderToggleCard(m.entity_id, "fan"))), d.forEach((m) => p.push(this.renderCoverCard(m.entity_id))), f.forEach((m) => p.push(this.renderMediaCard(m.entity_id, f.length === 1 ? this.t("Media") : void 0))), u.forEach((m) => p.push(this.renderLockCard(m.entity_id))), x.forEach((m) => p.push(this.renderInfoCard(m.entity_id))), p;
+    return s && p.push(this.renderIntercomCard(s)), a.length && p.push(this.renderLightCard(a.map((m) => m.entity_id))), l.forEach((m) => p.push(this.renderToggleCard(m.entity_id, "power"))), c.forEach((m) => p.push(this.renderClimateCard(m.entity_id))), h.forEach((m) => p.push(this.renderFanCard(m.entity_id))), d.forEach((m) => p.push(this.renderCoverCard(m.entity_id))), f.forEach((m) => p.push(this.renderMediaCard(m.entity_id, f.length === 1 ? this.t("Media") : void 0))), u.forEach((m) => p.push(this.renderLockCard(m.entity_id))), x.forEach((m) => p.push(this.renderInfoCard(m.entity_id))), p;
   }
   /** The leak as of the latest state push. Recomputed once per hass object, not
    *  once per render — render runs far more often, and this scans every entity. */
@@ -28245,7 +28245,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const i = this.leak;
     if (!i || this.leakAck) return Q;
     const t = i.wet ? this.roomOfEntity(i.sensors[0]) : void 0, e = i.sensors.map((o) => this.cardName(o)).join(", "), n = i.valve, s = n ? !this.valveShut(n) : !0;
-    return W`<div class="leak-alert">
+    return G`<div class="leak-alert">
       <button type="button" class="leak-x" title=${this.t("Close")}
         @click=${() => this.leakAck = !0}>✕</button>
       <div class="leak-ic">${this.ic("drop")}</div>
@@ -28253,11 +28253,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       <div class="leak-sub">
         ${i.wet ? t?.name ? `${t.name} · ${e}` : e : this.t("Fix the leak, then open the valve")}
       </div>
-      ${i.wet && !t ? W`<div class="leak-hint">${this.t("Place this sensor on the plan to see the room")}</div>` : Q}
+      ${i.wet && !t ? G`<div class="leak-hint">${this.t("Place this sensor on the plan to see the room")}</div>` : Q}
       <div class="leak-btns">
-        ${t ? W`<button type="button" class="leak-b" @click=${() => this.selectRoom(t.key)}>
+        ${t ? G`<button type="button" class="leak-b" @click=${() => this.selectRoom(t.key)}>
               ${this.t("Show")}</button>` : Q}
-        ${n ? W`<button type="button" class="leak-b primary" ?disabled=${s}
+        ${n ? G`<button type="button" class="leak-b primary" ?disabled=${s}
               @click=${() => n.startsWith("valve.") ? this.svc("valve", "open_valve", {}, n, "open") : this.svc("switch", "turn_on", {}, n, "on")}>
               ${s ? this.t("Valve is open") : this.t("Open the valve")}</button>` : Q}
       </div>
@@ -28302,7 +28302,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  here it's just "peek at the door + open it", per the agreed design. */
   renderIntercomCard(i) {
     const t = this.hass.states, e = this.effState(i.prosmotr) === "on", n = t[i.vyzov]?.attributes?.call_state, s = n === "ringing" || n == null && this.effState(i.vyzov) === "on", o = s ? this.t("Ringing") : e ? this.t("Viewing") : this.t("Idle");
-    return W`<div class="card intercom ${s ? "ring" : ""}">
+    return G`<div class="card intercom ${s ? "ring" : ""}">
       <div class="crow">
         <div class="cicon ${s || e ? "lit" : ""}">${this.ic("camera")}</div>
         <div class="cgrow">
@@ -28314,7 +28314,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="qb ${e ? "on" : ""}"
           @click=${() => this.svc("switch", e ? "turn_off" : "turn_on", {}, i.prosmotr, e ? "off" : "on")}>
           <span class="qb-ic">${this.ic("eye")}</span><span>${this.t("View")}</span></button>
-        ${i.open ? W`<button type="button" class="qb primary"
+        ${i.open ? G`<button type="button" class="qb primary"
               @click=${() => this.svc("button", "press", {}, i.open)}>
               <span class="qb-ic">${this.ic("doorOpen")}</span><span>${this.t("Open door")}</span></button>` : Q}
       </div>
@@ -28341,7 +28341,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }, d = i.filter((T) => this.lightSupportsCT(T)), f = d.find((T) => this.effState(T) === "on") ?? d[0], u = f ? this.hass?.states[f]?.attributes ?? {} : {}, g = Number(u.min_color_temp_kelvin) || 2200, x = Number(u.max_color_temp_kelvin) || 6500, p = Number(u.color_temp_kelvin), m = Number.isFinite(p) ? Math.round((p - g) / (x - g) * 100) : 50, y = `${i[0]}#ct`, b = this.sliderValue(y, Math.max(0, Math.min(100, m))), _ = (T) => {
       for (const A of d) this.setLightCT(A, T);
     };
-    return W`<div class="card lights ${e ? "on" : ""}">
+    return G`<div class="card lights ${e ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${e ? "lit" : ""}">${this.ic("bulb")}</div>
         <div class="cgrow">
@@ -28351,21 +28351,21 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="sw ${e ? "on" : ""}" title="Toggle all"
           @click=${() => this.onToggleAll(i.map((T) => ({ entity_id: T, behavior: "light" })))}><span class="sw-k"></span></button>
       </div>
-      ${i.length > 1 ? W`<div class="lgrid">
+      ${i.length > 1 ? G`<div class="lgrid">
             ${i.map((T) => {
       const A = this.effState(T) === "on";
-      return W`<button type="button" class="ltile ${A ? "on" : ""}" title=${this.cardName(T)}
+      return G`<button type="button" class="ltile ${A ? "on" : ""}" title=${this.cardName(T)}
                 @click=${() => this.svc(T.split(".")[0], "toggle", {}, T, A ? "off" : "on")}>
                 <span class="lti ${A ? "lit" : ""}">${this.ic("bulb")}</span>
                 <span class="ltn">${this.cardName(T)}</span>
               </button>`;
     })}
           </div>` : Q}
-      ${e && s ? W`<div class="slider" @pointerdown=${(T) => this.onSliderDown(T, l, h)}>
+      ${e && s ? G`<div class="slider" @pointerdown=${(T) => this.onSliderDown(T, l, h)}>
               <div class="slider-fill" style="width:${c}%"></div>
               <div class="slider-lab"><span>${this.t("Brightness")}</span><span>${c}%</span></div>
             </div>
-            ${d.length ? W`<div class="ctwrap">
+            ${d.length ? G`<div class="ctwrap">
                   <div class="ctlab"><span>${this.t("Warm")}</span><span>${this.t("Cool")}</span></div>
                   <div class="cttrack" @pointerdown=${(T) => this.onSliderDown(T, y, _)}>
                     <div class="ctthumb" style="left:${b}%"></div>
@@ -28375,7 +28375,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderToggleCard(i, t) {
     const e = this.effState(i) === "on", n = i.split(".")[0];
-    return W`<div class="card ${e ? "on" : ""}">
+    return G`<div class="card ${e ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${e ? "lit" : ""}">${this.ic(t)}</div>
         <div class="cgrow">
@@ -28387,11 +28387,34 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>
     </div>`;
   }
+  /** Fan card: on/off toggle + a speed row. Preset-mode fans (e.g. 25/50/75/100)
+   *  show their presets as buttons; percentage fans show N even steps. */
+  renderFanCard(i) {
+    const t = this.effState(i) === "on", e = this.hass?.states[i]?.attributes ?? {}, n = e.preset_modes ?? [], s = e.preset_mode, o = e.percentage, r = e.percentage_step, a = r && r > 0 ? Math.round(100 / r) : 0, l = a > 1 && a <= 8 ? Array.from({ length: a }, (h, d) => Math.round((d + 1) / a * 100)) : [], c = t ? s ?? (o != null ? `${o}%` : this.t("On")) : this.t("Off");
+    return G`<div class="card ${t ? "on" : ""}">
+      <div class="crow">
+        <div class="cicon ${t ? "lit" : ""}">${this.ic("fan")}</div>
+        <div class="cgrow">
+          <div class="clabel">${this.cardName(i)}</div>
+          <div class="csub">${c}</div>
+        </div>
+        <button type="button" class="sw ${t ? "on" : ""}" title="Toggle"
+          @click=${() => this.svc("fan", "toggle", {}, i, t ? "off" : "on")}><span class="sw-k"></span></button>
+      </div>
+      ${n.length ? G`<div class="seg fan">
+            ${n.map((h) => G`<button type="button" class="segb ${s === h ? "on" : ""}"
+              @click=${() => this.svc("fan", "set_preset_mode", { preset_mode: h }, i)}>${h}</button>`)}
+          </div>` : l.length ? G`<div class="seg fan">
+              ${l.map((h) => G`<button type="button" class="segb ${o === h ? "on" : ""}"
+                @click=${() => this.svc("fan", "set_percentage", { percentage: h }, i)}>${h}%</button>`)}
+            </div>` : Q}
+    </div>`;
+  }
   renderClimateCard(i) {
     const t = this.hass.states[i], e = this.effState(i), n = e !== "off" && e !== "unavailable" && e !== "unknown", s = this.effTarget(i), o = Qd(t), r = (y) => {
       typeof s == "number" && this.stepTemp(i, t, s, o, y);
     }, a = t?.attributes?.current_temperature, l = a != null ? Number(a).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, c = n ? l != null ? `${l}° ${this.t("now")}` : this.climateModeLabel(e) : this.t("Off"), h = t?.attributes?.hvac_modes?.length ? t.attributes.hvac_modes : ["off"], d = h.filter((y) => y !== "off"), f = d[0] ?? "heat", u = [...d, ...h.includes("off") ? ["off"] : []], g = kd(n ? e : f) ?? "power", x = t?.attributes?.fan_modes ?? [], p = t?.attributes?.fan_mode, m = (y) => this.t({ low: "Low", mid: "Medium", medium: "Medium", high: "High", auto: "Auto" }[y] ?? y);
-    return W`<div class="card ${n ? "on cool" : ""}">
+    return G`<div class="card ${n ? "on cool" : ""}">
       <div class="crow">
         <button type="button" class="cicon ${n ? "lit" : ""}" title="Toggle"
           @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: n ? "off" : f }, i, n ? "off" : f)}>${this.ic(g)}</button>
@@ -28407,13 +28430,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>
       <div class="seg">
         ${u.map(
-      (y) => W`<button type="button" class="segb ${e === y ? "on" : ""}"
+      (y) => G`<button type="button" class="segb ${e === y ? "on" : ""}"
             @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: y }, i, y)}>${y === "off" ? this.t("Off mode") : this.climateModeLabel(y)}</button>`
     )}
       </div>
-      ${x.length && n ? W`<div class="seg fan">
+      ${x.length && n ? G`<div class="seg fan">
             ${x.map(
-      (y) => W`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
+      (y) => G`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
                 @click=${() => this.svc("climate", "set_fan_mode", { fan_mode: y }, i)}>${m(y)}</button>`
     )}
           </div>` : Q}
@@ -28427,7 +28450,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  whole control. */
   renderCoverCard(i) {
     const t = this.hass.states[i], e = Number(t?.attributes?.supported_features ?? 0);
-    return W`<div class="card">
+    return G`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic("curtain")}</div>
         <div class="cgrow">
@@ -28435,38 +28458,38 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         </div>
       </div>
       <div class="qbtns">
-        ${e & 1 ? W`<button type="button" class="qb"
+        ${e & 1 ? G`<button type="button" class="qb"
               @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.t("Open blind")}</button>` : Q}
-        ${e & 8 ? W`<button type="button" class="qb"
+        ${e & 8 ? G`<button type="button" class="qb"
               @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.t("Stop blind")}</button>` : Q}
-        ${e & 2 ? W`<button type="button" class="qb"
+        ${e & 2 ? G`<button type="button" class="qb"
               @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.t("Close blind")}</button>` : Q}
       </div>
     </div>`;
   }
   renderMediaCard(i, t) {
     const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (T) => (r & T) === T, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), f = !!e?.attributes?.is_volume_muted, u = Math.round(this.effVol(i) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), x = e?.attributes?.media_artist ?? "", p = a(524288), m = this.effGrouped(i, e), y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0, _ = b || o;
-    return W`<div class="card ${s ? "on" : ""}">
+    return G`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(i, t)}</div>
           <div class="csub">${o ? this.t("Playing now") : s ? this.t("On") : this.t("Off")}</div>
         </div>
-        ${l ? W`<button type="button" class="sw ${s ? "on" : ""}" title="Toggle"
+        ${l ? G`<button type="button" class="sw ${s ? "on" : ""}" title="Toggle"
               @click=${() => this.svc("media_player", s ? "turn_off" : "turn_on", {}, i, s ? "off" : "on")}><span class="sw-k"></span></button>` : Q}
       </div>
-      ${_ ? W`<div class="mp">
+      ${_ ? G`<div class="mp">
             <div class="mpart">${this.ic("album")}</div>
             <div class="mptxt"><div class="mptrack">${g}</div><div class="mpartist">${x}</div></div>
-            ${b ? W`<div class="mpctl">
+            ${b ? G`<div class="mpctl">
                   <button type="button" class="mpb ${m ? "on" : ""}"
                     title=${m ? this.t("Unsync speakers") : this.t("Sync speakers")}
                     @click=${() => m ? this.unsyncSpeakers(i, e) : this.syncSpeakers(i, y)}>${this.ic("link")}</button>
                 </div>` : Q}
           </div>` : Q}
-      ${c || h || d ? W`<div class="seg vol">
-            ${d ? W`<button type="button" class="segb ${f ? "on" : ""}" title="Mute"
+      ${c || h || d ? G`<div class="seg vol">
+            ${d ? G`<button type="button" class="segb ${f ? "on" : ""}" title="Mute"
               @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !f }, i)}>${this.ic("mute")}</button>` : Q}
             <button type="button" class="segb" title="Volume down"
               @click=${() => this.mediaVolStep(i, e, h, -1)}>${this.ic("volDown")}</button>
@@ -28566,7 +28589,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderLockCard(i) {
     const t = this.effState(i) === "locked";
-    return W`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
+    return G`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
       @click=${() => this.svc("lock", t ? "unlock" : "lock", {}, i, t ? "unlocked" : "locked")}>
       ${this.ic(t ? "lockClosed" : "lockOpen")}
       <div class="cgrow"><div class="lktxt">${t ? this.t("Locked") : this.t("Unlocked")}</div>
@@ -28576,7 +28599,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderInfoCard(i) {
     const e = this.hass.states[i]?.attributes?.unit_of_measurement ?? "";
-    return W`<div class="card">
+    return G`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic("gauge")}</div>
         <div class="cgrow"><div class="clabel">${this.cardName(i)}</div></div>
@@ -28611,7 +28634,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderViewToggle() {
     const i = (t) => this.viewMode === t ? "on" : "";
-    return W`<div class="view-toggle">
+    return G`<div class="view-toggle">
       <button type="button" class="vt-btn ${i("room")}" @click=${() => this.setViewMode("room")}>
         ${this.ic("room")}<span>${this.t("Room")}</span>
       </button>
@@ -28715,7 +28738,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const o = Number(n);
       return Number.isFinite(o) ? o.toLocaleString(this.uiLocale, { minimumFractionDigits: s, maximumFractionDigits: s }) : "—";
     };
-    return W`
+    return G`
       <div class="ov-top">
         <div class="ov-clock">
           <div class="ctime">${this.fmtClockTime()}</div>
@@ -28753,14 +28776,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const r = /* @__PURE__ */ new Map();
       for (const h of s) h.id && r.set(h.id, h);
       const a = (h) => !!(h.parentId && h.parentId !== h.id && r.has(h.parentId)), l = (h) => h ? s.filter((d) => a(d) && d.parentId === h) : [], c = s.filter((h) => !a(h));
-      return W`${e ? W`<div class="ov-floor-h">${this.floorNames[o] ?? ""}</div>` : Q}
+      return G`${e ? G`<div class="ov-floor-h">${this.floorNames[o] ?? ""}</div>` : Q}
         ${c.map((h) => this.renderOverviewCard(h, i, l(h.id)))}`;
-    }) : W`<div class="rp-empty">${this.t("No devices in this room")}</div>`;
+    }) : G`<div class="rp-empty">${this.t("No devices in this room")}</div>`;
   }
   /** One light "segment" button (used by the room card and its sub-rooms). */
   renderLightChip(i, t) {
     const e = this.effState(i) === "on", n = this.hass?.states[i]?.attributes?.friendly_name ?? i;
-    return W`<button type="button" class="lightseg ${e ? "on" : ""}" title=${n}
+    return G`<button type="button" class="lightseg ${e ? "on" : ""}" title=${n}
       @click=${(s) => {
       s.stopPropagation(), this.svc(i.split(".")[0], "toggle", {}, i, e ? "off" : "on");
     }}><span>${this.shortLightName(i, t)}</span></button>`;
@@ -28770,43 +28793,43 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     let b = Q;
     if (g) {
       const _ = this.effState(g.entity_id) === "locked";
-      b = W`<button type="button" class="qstat lockq ${_ ? "locked" : "unlocked"}"
+      b = G`<button type="button" class="qstat lockq ${_ ? "locked" : "unlocked"}"
         @click=${(T) => {
         T.stopPropagation(), this.svc("lock", _ ? "unlock" : "lock", {}, g.entity_id, _ ? "unlocked" : "locked");
       }}>
         ${this.ic(_ ? "lockClosed" : "lockOpen")}${_ ? this.t("Locked") : this.t("Unlocked")}</button>`;
     } else if (u) {
       const _ = this.hass?.states[u.entity_id]?.attributes?.temperature;
-      b = W`<div class="qstat">${this.ic("heat")}${_ != null ? `${_}°` : "—"}</div>`;
+      b = G`<div class="qstat">${this.ic("heat")}${_ != null ? `${_}°` : "—"}</div>`;
     } else if (x) {
       const _ = this.hass?.states[x.entity_id]?.attributes?.current_position;
-      b = W`<div class="qstat">${this.ic("curtain")}${_ != null ? `${_}%` : "—"}</div>`;
+      b = G`<div class="qstat">${this.ic("curtain")}${_ != null ? `${_}%` : "—"}</div>`;
     }
-    return W`<div class="rcard link ${a ? "on" : ""}" @click=${() => this.openDetail(i.key)}>
+    return G`<div class="rcard link ${a ? "on" : ""}" @click=${() => this.openDetail(i.key)}>
       <div class="rchead">
         <div class="rcicon">${this.ic(this.roomIcon(i.name))}</div>
         <div class="cgrow">
           <div class="rcname">${i.name || this.t("Room")}<span class="rcchev">${this.ic("chevRight")}</span></div>
           <div class="rctemp">${[m, y].filter(Boolean).join(" · ") || "—"}</div>
         </div>
-        ${r.length ? W`<button type="button" class="sw ${a ? "on" : ""}" title="Toggle"
+        ${r.length ? G`<button type="button" class="sw ${a ? "on" : ""}" title="Toggle"
               @click=${(_) => {
       _.stopPropagation(), this.onToggleAll(h);
     }}><span class="sw-k"></span></button>` : Q}
       </div>
-      ${r.length ? W`
+      ${r.length ? G`
           <div class="rcmid">
             <span class="icn-mid">${this.ic("bulb")}</span><span class="lbltxt">${this.t("Light")}</span>
             <div class="grow"></div><span class="brival">${l}/${r.length} · ${c}%</span>
           </div>
-          ${s.length ? W`<div class="lightsegs">${s.map((_) => this.renderLightChip(_, i.name))}</div>` : Q}
-          ${o.map((_) => _.ids.length ? W`<div class="subroom">
+          ${s.length ? G`<div class="lightsegs">${s.map((_) => this.renderLightChip(_, i.name))}</div>` : Q}
+          ${o.map((_) => _.ids.length ? G`<div class="subroom">
                 <div class="subroom-h">${this.ic(this.roomIcon(_.room.name))}<span>${_.room.name || this.t("Room")}</span>
                   <div class="grow"></div><span class="subroom-n">${_.ids.filter((T) => this.effState(T) === "on").length}/${_.ids.length}</span></div>
                 <div class="lightsegs">${_.ids.map((T) => this.renderLightChip(T, _.room.name))}</div>
               </div>` : Q)}` : Q}
-      ${y || b !== Q ? W`<div class="rcfoot">
-            ${y ? W`<div class="qstat">${this.ic("drop")}${y}</div>` : Q}
+      ${y || b !== Q ? G`<div class="rcfoot">
+            ${y ? G`<div class="qstat">${this.ic("drop")}${y}</div>` : Q}
             ${b}
           </div>` : Q}
     </div>`;
@@ -28815,35 +28838,35 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   render() {
     if (!this.config) return Q;
     const i = this.config.height ?? "500px", t = this.config.projects ?? [];
-    return W`
+    return G`
       <ha-card
         class=${this.editing ? "editing" : `view ${this.viewMode}${this.viewMode === "room" && this.activeRoom ? " has-room" : ""}${this.viewMode === "room" && this.roomPhoto ? " has-photo" : ""}${this.idle ? " idle" : ""}`}
         style=${this.editing ? "" : `height:${i}`}
       >
-        ${this.viewMode === "room" && this.roomPhoto ? W`<div
+        ${this.viewMode === "room" && this.roomPhoto ? G`<div
               class="roombg${this.roomPhotoBaked ? "" : " raw"}"
               style=${`background-image:url("${(this.roomPhotoBaked ?? this.roomPhoto).replace(/"/g, "%22")}")`}
             ></div>` : Q}
         <div class="viewport" style=${this.editing ? `height:${i}` : ""}></div>
 
-        ${this.loadError ? W`<div class="error">⚠ ${this.loadError}</div>` : Q}
+        ${this.loadError ? G`<div class="error">⚠ ${this.loadError}</div>` : Q}
 
         ${this.editing ? Q : this.renderLeakAlert()}
 
-        ${this.editing ? Q : this.viewMode === "overview" ? W`${this.renderOverview()}${this.renderDetail()}` : W`${this.renderStageChrome()}${this.renderRoomPanel()}`}
+        ${this.editing ? Q : this.viewMode === "overview" ? G`${this.renderOverview()}${this.renderDetail()}` : G`${this.renderStageChrome()}${this.renderRoomPanel()}`}
 
         ${!this.editing && this.idle ? this.renderScreensaver() : Q}
 
-        ${this.editing ? W`<div class="overlay top-right">
+        ${this.editing ? G`<div class="overlay top-right">
               <button class="btn" title="Reset view" @click=${this.onResetView}>⌂ ${this.t("Reset")}</button>
               <div class="quality-wrap">
                 <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
                   @click=${() => this.qualityMenuOpen = !this.qualityMenuOpen}>
                   ⚙ ${this.qualityLabel(this.qualityChoice)}
                 </button>
-                ${this.qualityMenuOpen ? W`<div class="quality-menu">
+                ${this.qualityMenuOpen ? G`<div class="quality-menu">
                       ${d_.map(
-      (e) => W`<button
+      (e) => G`<button
                           class="qopt ${e === this.qualityChoice ? "on" : ""}"
                           @click=${() => this.onPickQuality(e)}>${this.qualityLabel(e)}</button>`
     )}
@@ -28858,7 +28881,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
              opens the editor (then the PIN prompt if one is set). A long-press,
              NOT a tap count, so it never clashes with a kiosk browser's own
              multi-tap menu gesture. -->
-        ${this.editing ? Q : W`<div
+        ${this.editing ? Q : G`<div
               class="edit-hotspot"
               @pointerdown=${this.onHotspotDown}
               @pointermove=${this.onHotspotMove}
@@ -28867,11 +28890,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               @pointerleave=${this.onHotspotUp}
             ></div>`}
 
-        ${this.qualityMenuOpen ? W`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : Q}
+        ${this.qualityMenuOpen ? G`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : Q}
 
         ${this.editing ? this.renderEditor() : Q}
 
-        ${this.importOpen ? W`<div class="import-modal">
+        ${this.importOpen ? G`<div class="import-modal">
               <div class="import-box">
                 <div class="import-title">Import / Export plan JSON</div>
                 <textarea
@@ -28888,12 +28911,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>
             </div>` : Q}
 
-        ${this.pinPromptOpen ? W`<div class="import-modal" @click=${this.cancelPin}>
+        ${this.pinPromptOpen ? G`<div class="import-modal" @click=${this.cancelPin}>
               <form class="pin-box" @click=${(e) => e.stopPropagation()} @submit=${this.submitPin}>
                 <div class="import-title">🔒 Enter edit PIN</div>
                 <input class="pin-input name-input" type="password" inputmode="numeric"
                   autocomplete="off" placeholder="PIN" />
-                ${this.pinError ? W`<div class="pin-error">${this.pinError}</div>` : Q}
+                ${this.pinError ? G`<div class="pin-error">${this.pinError}</div>` : Q}
                 <div class="toolrow">
                   <button type="submit" class="btn primary">Unlock</button>
                   <button type="button" class="btn" @click=${this.cancelPin}>Cancel</button>
@@ -28903,13 +28926,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         ${this.controlOpen && !this.editing ? this.renderControlPopup() : Q}
 
-        ${this.toast ? W`<div class="toast">${this.toast}</div>` : Q}
+        ${this.toast ? G`<div class="toast">${this.toast}</div>` : Q}
 
-        ${t.length > 1 ? W`
+        ${t.length > 1 ? G`
               <div class="overlay top-left">
                 <select class="select" @change=${this.onSelectProject}>
                   ${t.map(
-      (e) => W`<option value=${e.id} ?selected=${e.id === this.activeProjectId}>
+      (e) => G`<option value=${e.id} ?selected=${e.id === this.activeProjectId}>
                       ${e.name || e.id}
                     </option>`
     )}
@@ -28917,10 +28940,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>
             ` : Q}
 
-        ${this.floorNames.length > 1 && this.editing ? W`
+        ${this.floorNames.length > 1 && this.editing ? G`
               <div class="overlay bottom">
                 ${this.floorNames.map(
-      (e, n) => W`
+      (e, n) => G`
                     <button
                       class="tab ${n === this.activeFloorIndex ? "active" : ""}"
                       @click=${() => this.onSelectFloor(n)}
@@ -31536,7 +31559,7 @@ let fi = class extends rs {
     }
   }
   render() {
-    return this._config ? W`
+    return this._config ? G`
       <div class="form">
         <label>
           Card height
@@ -31587,7 +31610,7 @@ let fi = class extends rs {
             @input=${this._onPlanInput}
           ></textarea>
         </label>
-        ${this._jsonError ? W`<div class="err">⚠ ${this._jsonError}</div>` : Q}
+        ${this._jsonError ? G`<div class="err">⚠ ${this._jsonError}</div>` : Q}
 
         <p class="hint">
           A full visual wall-drawing editor with a furniture palette and
