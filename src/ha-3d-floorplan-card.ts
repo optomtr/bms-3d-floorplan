@@ -1207,6 +1207,11 @@ export class Ha3dFloorplanCard extends LitElement {
   private onSetZoneName(id: string, e: Event): void {
     this.editor?.setZoneName(id, (e.target as HTMLInputElement).value);
   }
+  private onSetZoneParent(id: string, e: Event): void {
+    const v = (e.target as HTMLSelectElement).value;
+    this.editor?.setZoneParent(id, v || null);
+    if (this.editor) this.editZones = [...this.editor.zones];
+  }
   private onZonePlace(): void {
     this.editor?.beginZonePlace();
   }
@@ -1945,6 +1950,15 @@ export class Ha3dFloorplanCard extends LitElement {
           return html`<div class="toolrow">
               <input class="name-input" type="text" placeholder="Room name"
                 .value=${z.name ?? ''} @input=${(e: Event) => this.onSetZoneName(z.id, e)} />
+            </div>
+            <div class="toolrow">
+              <label class="hint">Внутри комнаты (подкомната):</label>
+              <select class="select" @change=${(e: Event) => this.onSetZoneParent(z.id, e)}>
+                <option value="" ?selected=${!z.parentId}>— (отдельная комната)</option>
+                ${this.editZones
+                  .filter((o) => o.id !== z.id && !o.parentId)
+                  .map((o) => html`<option value=${o.id} ?selected=${z.parentId === o.id}>${o.name || 'Room'}</option>`)}
+              </select>
             </div>
             <div class="toolrow">
               <button class="btn ${this.editZonePlacing ? 'active' : ''}" title="Then tap the floor"
@@ -3648,19 +3662,38 @@ export class Ha3dFloorplanCard extends LitElement {
     const multi = this.floorNames.length > 1;
     const anyRoom = floors.some((rs) => rs.length);
     if (!anyRoom) return html`<div class="rp-empty">${this.t('No devices in this room')}</div>`;
-    return floors.map((rs, fi) =>
-      rs.length
-        ? html`${multi ? html`<div class="ov-floor-h">${this.floorNames[fi] ?? ''}</div>` : nothing}
-            ${rs.map((r) => this.renderOverviewCard(r, num))}`
-        : nothing,
-    );
+    return floors.map((rs, fi) => {
+      if (!rs.length) return nothing;
+      // Nest sub-rooms (zones whose parentId resolves to a sibling zone) inside
+      // their parent's card; everything else stays a top-level card.
+      const byId = new Map<string, RoomInfo>();
+      for (const r of rs) if (r.id) byId.set(r.id, r);
+      const isChild = (r: RoomInfo) => !!(r.parentId && r.parentId !== r.id && byId.has(r.parentId));
+      const childrenOf = (id?: string) => (id ? rs.filter((r) => isChild(r) && r.parentId === id) : []);
+      const tops = rs.filter((r) => !isChild(r));
+      return html`${multi ? html`<div class="ov-floor-h">${this.floorNames[fi] ?? ''}</div>` : nothing}
+        ${tops.map((r) => this.renderOverviewCard(r, num, childrenOf(r.id)))}`;
+    });
   }
 
-  private renderOverviewCard(room: RoomInfo, num: (v: any, d: number) => string) {
-    const { ids, anyOn } = this.roomLights(room);
-    // Each light = one segment; the % is how many are on (1 of 5 = 20%, …).
-    const onCount = ids.filter((id) => this.effState(id) === 'on').length;
-    const pct = ids.length ? Math.round((onCount / ids.length) * 100) : 0;
+  /** One light "segment" button (used by the room card and its sub-rooms). */
+  private renderLightChip(id: string, roomName?: string) {
+    const lon = this.effState(id) === 'on';
+    const nm = this.hass?.states[id]?.attributes?.friendly_name ?? id;
+    return html`<button type="button" class="lightseg ${lon ? 'on' : ''}" title=${nm}
+      @click=${(e: Event) => { e.stopPropagation(); this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}><span>${this.shortLightName(id, roomName)}</span></button>`;
+  }
+
+  private renderOverviewCard(room: RoomInfo, num: (v: any, d: number) => string, children: RoomInfo[] = []) {
+    const self = this.roomLights(room);
+    const ids = self.ids;
+    const kids = children.map((c) => ({ room: c, ids: this.roomLights(c).ids }));
+    // Header count/toggle span the room AND its sub-rooms.
+    const allIds = [...ids, ...kids.flatMap((k) => k.ids)];
+    const anyOn = allIds.some((id) => this.effState(id) === 'on');
+    const onCount = allIds.filter((id) => this.effState(id) === 'on').length;
+    const pct = allIds.length ? Math.round((onCount / allIds.length) * 100) : 0;
+    const toggleEnts = [room, ...children].flatMap((r) => r.entities.filter((x) => ['light', 'switch', 'input_boolean'].includes(x.behavior)));
     const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
     const humEnt = this.roomSensor(room, 'humidity', ['%']);
     const climate = room.entities.find((e) => e.behavior === 'climate');
@@ -3692,25 +3725,27 @@ export class Ha3dFloorplanCard extends LitElement {
           <div class="rcname">${room.name || this.t('Room')}<span class="rcchev">${this.ic('chevRight')}</span></div>
           <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ') || '—'}</div>
         </div>
-        ${ids.length
+        ${allIds.length
           ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle"
-              @click=${(e: Event) => { e.stopPropagation(); this.onToggleAll(room.entities.filter((x) => ['light', 'switch', 'input_boolean'].includes(x.behavior))); }}><span class="sw-k"></span></button>`
+              @click=${(e: Event) => { e.stopPropagation(); this.onToggleAll(toggleEnts); }}><span class="sw-k"></span></button>`
           : nothing}
       </div>
-      ${ids.length
+      ${allIds.length
         ? html`
           <div class="rcmid">
             <span class="icn-mid">${this.ic('bulb')}</span><span class="lbltxt">${this.t('Light')}</span>
-            <div class="grow"></div><span class="brival">${onCount}/${ids.length} · ${pct}%</span>
+            <div class="grow"></div><span class="brival">${onCount}/${allIds.length} · ${pct}%</span>
           </div>
-          <div class="lightsegs">
-            ${ids.map((id) => {
-              const lon = this.effState(id) === 'on';
-              const nm = this.hass?.states[id]?.attributes?.friendly_name ?? id;
-              return html`<button type="button" class="lightseg ${lon ? 'on' : ''}" title=${nm}
-                @click=${(e: Event) => { e.stopPropagation(); this.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}><span>${this.shortLightName(id, room.name)}</span></button>`;
-            })}
-          </div>`
+          ${ids.length
+            ? html`<div class="lightsegs">${ids.map((id) => this.renderLightChip(id, room.name))}</div>`
+            : nothing}
+          ${kids.map((k) => k.ids.length
+            ? html`<div class="subroom">
+                <div class="subroom-h">${this.ic(this.roomIcon(k.room.name))}<span>${k.room.name || this.t('Room')}</span>
+                  <div class="grow"></div><span class="subroom-n">${k.ids.filter((id) => this.effState(id) === 'on').length}/${k.ids.length}</span></div>
+                <div class="lightsegs">${k.ids.map((id) => this.renderLightChip(id, k.room.name))}</div>
+              </div>`
+            : nothing)}`
         : nothing}
       ${humStr || extraChip !== nothing
         ? html`<div class="rcfoot">
@@ -5918,6 +5953,35 @@ export class Ha3dFloorplanCard extends LitElement {
     .lightseg.on:hover {
       background: #f4b358;
       color: #241a08;
+    }
+    .subroom {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.12);
+    }
+    .subroom-h {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--mut);
+      margin-bottom: 2px;
+    }
+    .subroom-h svg {
+      width: 15px;
+      height: 15px;
+      opacity: 0.8;
+    }
+    .subroom-h .grow {
+      flex: 1;
+    }
+    .subroom-n {
+      font-variant-numeric: tabular-nums;
+      opacity: 0.85;
+    }
+    .subroom .lightsegs {
+      margin-top: 4px;
     }
     .rcfoot {
       display: flex;

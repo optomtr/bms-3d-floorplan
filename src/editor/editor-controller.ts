@@ -1349,6 +1349,22 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Make a zone a SUB-ROOM of `parentId` (or top-level when null). The parent
+   *  must be a top-level zone (no grandparent) so nesting stays one level deep. */
+  setZoneParent(id: string, parentId: string | null): void {
+    const z = this.zones.find((x) => x.id === id);
+    if (!z || parentId === id) return;
+    this.pushUndo();
+    if (parentId) {
+      z.parentId = parentId;
+      // A zone that becomes a parent can't itself stay a sub-room.
+      for (const c of this.zones) if (c.parentId === id) delete c.parentId;
+    } else {
+      delete z.parentId;
+    }
+    this.onChange?.();
+  }
+
   deleteZone(id: string): void {
     const fl = this.floor();
     if (!fl.zones) return;

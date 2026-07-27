@@ -208,6 +208,10 @@ export interface ZoneDef {
   z: number;
   /** entity_ids controlled from this room icon. */
   entities: string[];
+  /** Optional parent zone id. When set this zone is a SUB-ROOM: the Обзор nests
+   *  it inside its parent's card (compact) instead of as its own top-level card,
+   *  and the parent's toggle/count include it. */
+  parentId?: string;
   /** Optional design photo, exactly like RoomDef.bgImage. A zone owns its own
    *  photo: several zones can sit inside one floor polygon, so the polygon's
    *  photo can't tell them apart (that made two zones share one picture). */

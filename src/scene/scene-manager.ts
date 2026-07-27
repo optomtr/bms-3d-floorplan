@@ -212,6 +212,10 @@ export function normalizeAssetRef(value: string): string {
 /** A room surfaced to the card for the pills + right-side control panel. */
 export interface RoomInfo {
   key: string;
+  /** Manual-zone id (absent for auto-grouped rooms). */
+  id?: string;
+  /** Parent zone id, when this room is a sub-room (Обзор nests it). */
+  parentId?: string;
   name?: string;
   entities: { entity_id: string; behavior: string }[];
   /** World-space centre of the room's marker (metres). */
@@ -1176,7 +1180,7 @@ export class SceneManager {
         }
         if (host && zones.filter((o) => pointInPoly(o.x, o.z, host!.poly)).length === 1) zoneBg = host.bgImage;
       }
-      out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg });
+      out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), id: z.id, parentId: z.parentId, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg });
     }
     const devices = allDevices.filter((d) => !claimed.has(d.entity_id));
     const perRoom = new Map<number, typeof devices>();
