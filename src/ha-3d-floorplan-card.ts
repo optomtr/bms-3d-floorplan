@@ -3554,19 +3554,33 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Master "everything off" across the whole home (overview). */
   private allOffHouse(): void {
     if (!this.hass) return;
+    // "All off" turns off everything EXCEPT the TV and heating (warm floor /
+    // radiators). Only two categories need a keep/off split — climate and media:
+    //   climate → turn off anything that can COOL (an AC); keep heat-only units.
+    //   media   → pause speakers; keep the TV.
+    // Lights, switches, input_booleans and fans are always turned off.
     const offIds: string[] = [];
+    const seen = new Set<string>();
     for (const room of this.rooms) {
       for (const e of room.entities) {
-        if (['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior) && this.effState(e.entity_id) === 'on') {
-          offIds.push(e.entity_id);
-        }
-        if (e.behavior === 'media_player') {
-          // Keep TVs playing — "All off" turns off lights/speakers, not the TV,
-          // the AC or the warm floor (climate is never in the off list above).
-          if (this.hass?.states[e.entity_id]?.attributes?.device_class === 'tv') continue;
+        if (seen.has(e.entity_id)) continue;
+        seen.add(e.entity_id);
+        const attrs = this.hass.states[e.entity_id]?.attributes ?? {};
+        if (['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior)) {
+          if (this.effState(e.entity_id) === 'on') offIds.push(e.entity_id);
+        } else if (e.behavior === 'media_player') {
+          if (attrs.device_class === 'tv') continue; // keep the TV
           const s = this.effState(e.entity_id);
           if (!['off', 'paused', 'idle', 'standby', 'unavailable', 'unknown'].includes(s)) {
             this.svc('media_player', 'media_pause', {}, e.entity_id, 'paused');
+          }
+        } else if (e.behavior === 'climate') {
+          // Heat-only (modes ⊆ {off, heat}) = warm floor / radiator → keep.
+          // Anything that can cool (cool/heat_cool/dry/fan_only/auto) = AC → off.
+          const modes: string[] = attrs.hvac_modes ?? [];
+          const heatOnly = modes.length > 0 && modes.every((m) => m === 'off' || m === 'heat');
+          if (!heatOnly && this.effState(e.entity_id) !== 'off') {
+            this.svc('climate', 'set_hvac_mode', { hvac_mode: 'off' }, e.entity_id, 'off');
           }
         }
       }

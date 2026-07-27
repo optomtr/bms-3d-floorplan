@@ -24567,7 +24567,7 @@ function rr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.143.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.144.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28648,23 +28648,32 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   /** Master "everything off" across the whole home (overview). */
   allOffHouse() {
     if (!this.hass) return;
-    const i = [];
-    for (const t of this.rooms)
-      for (const e of t.entities)
-        if (["light", "switch", "input_boolean", "fan"].includes(e.behavior) && this.effState(e.entity_id) === "on" && i.push(e.entity_id), e.behavior === "media_player") {
-          if (this.hass?.states[e.entity_id]?.attributes?.device_class === "tv") continue;
-          const n = this.effState(e.entity_id);
-          ["off", "paused", "idle", "standby", "unavailable", "unknown"].includes(n) || this.svc("media_player", "media_pause", {}, e.entity_id, "paused");
+    const i = [], t = /* @__PURE__ */ new Set();
+    for (const e of this.rooms)
+      for (const n of e.entities) {
+        if (t.has(n.entity_id)) continue;
+        t.add(n.entity_id);
+        const s = this.hass.states[n.entity_id]?.attributes ?? {};
+        if (["light", "switch", "input_boolean", "fan"].includes(n.behavior))
+          this.effState(n.entity_id) === "on" && i.push(n.entity_id);
+        else if (n.behavior === "media_player") {
+          if (s.device_class === "tv") continue;
+          const o = this.effState(n.entity_id);
+          ["off", "paused", "idle", "standby", "unavailable", "unknown"].includes(o) || this.svc("media_player", "media_pause", {}, n.entity_id, "paused");
+        } else if (n.behavior === "climate") {
+          const o = s.hvac_modes ?? [];
+          !(o.length > 0 && o.every((a) => a === "off" || a === "heat")) && this.effState(n.entity_id) !== "off" && this.svc("climate", "set_hvac_mode", { hvac_mode: "off" }, n.entity_id, "off");
         }
+      }
     if (i.length) {
-      const t = i.map((n) => this.setOptimistic(n, "off")), e = () => i.forEach((n, s) => {
-        this.optimistic.get(n)?.gen === t[s] && this.clearOptimistic(n);
+      const e = i.map((s) => this.setOptimistic(s, "off")), n = () => i.forEach((s, o) => {
+        this.optimistic.get(s)?.gen === e[o] && this.clearOptimistic(s);
       });
       try {
-        const n = this.hass.callService("homeassistant", "turn_off", { entity_id: i });
-        n && typeof n.catch == "function" && n.catch(e);
+        const s = this.hass.callService("homeassistant", "turn_off", { entity_id: i });
+        s && typeof s.catch == "function" && s.catch(n);
       } catch {
-        e();
+        n();
       }
     }
   }
