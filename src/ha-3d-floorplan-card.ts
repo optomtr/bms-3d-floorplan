@@ -2780,21 +2780,23 @@ export class Ha3dFloorplanCard extends LitElement {
   private renderRoomPanel() {
     const room = this.activeRoom;
     if (!room) return nothing;
-    const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
     const humEnt = this.roomSensor(room, 'humidity', ['%']);
     const skip = new Set<string>();
-    if (tempEnt) skip.add(tempEnt.entity_id);
+    // Hide ALL temperature sensors from the device cards (aggregated in the chips).
+    for (const e of room.entities) {
+      if (e.behavior !== 'sensor') continue;
+      const a = this.hass?.states[e.entity_id]?.attributes;
+      if (a?.device_class === 'temperature' || a?.unit_of_measurement === '°C' || a?.unit_of_measurement === '°F') {
+        skip.add(e.entity_id);
+      }
+    }
     if (humEnt) skip.add(humEnt.entity_id);
-    // A climate entity's current_temperature is a good fallback temp chip.
-    const climate = room.entities.find((e) => e.behavior === 'climate');
-    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
 
     const num = (v: any, digits: number) => {
       const n = Number(v);
       return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—';
     };
-    const tempChip =
-      tempEnt != null ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    const { air: tempChip, floor: floorChip } = this.roomTempStrs(room, num);
     const humChip = humEnt != null ? `${num(humEnt.state, 0)}%` : null;
 
     const cards = this.roomCards(room, skip);
@@ -2805,9 +2807,10 @@ export class Ha3dFloorplanCard extends LitElement {
             <div class="rp-name">${room.name || this.t('Room')}</div>
             <button type="button" class="closebtn" title="Close" @click=${() => this.selectRoom(null)}>${this.ic('close')}</button>
           </div>
-          ${tempChip || humChip
+          ${tempChip || humChip || floorChip
             ? html`<div class="rp-chips">
                 ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
+                ${floorChip ? html`<div class="rp-chip warm" title=${this.t('Floor')}>${this.ic('heat')}${floorChip}</div>` : nothing}
                 ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
               </div>`
             : nothing}
@@ -2847,10 +2850,16 @@ export class Ha3dFloorplanCard extends LitElement {
   private renderDetail() {
     const room = this.detailRoom;
     if (!room) return nothing;
-    const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
     const humEnt = this.roomSensor(room, 'humidity', ['%']);
     const skip = new Set<string>();
-    if (tempEnt) skip.add(tempEnt.entity_id);
+    // Hide ALL temperature sensors from the device cards (aggregated in the chips).
+    for (const e of room.entities) {
+      if (e.behavior !== 'sensor') continue;
+      const a = this.hass?.states[e.entity_id]?.attributes;
+      if (a?.device_class === 'temperature' || a?.unit_of_measurement === '°C' || a?.unit_of_measurement === '°F') {
+        skip.add(e.entity_id);
+      }
+    }
     if (humEnt) skip.add(humEnt.entity_id);
     const num = (v: any, d: number) => {
       const n = Number(v);
