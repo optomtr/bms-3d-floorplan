@@ -2557,14 +2557,31 @@ export class Ha3dFloorplanCard extends LitElement {
    *  probe ("Температура пола"); otherwise the single reading is the room temp. */
   private roomTempStrs(room: RoomInfo, num: (v: any, d: number) => string): { air: string | null; floor: string | null } {
     const sensorEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
-    const climate = room.entities.find((e) => e.behavior === 'climate');
-    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
-    const sVal = sensorEnt && Number.isFinite(Number(sensorEnt.state)) ? sensorEnt.state : undefined;
-    if (climateCur != null && sVal != null) {
-      return { air: `${num(climateCur, 1)}°`, floor: `${num(sVal, 1)}°` };
+    const sVal = sensorEnt && Number.isFinite(Number(sensorEnt.state)) ? Number(sensorEnt.state) : undefined;
+    // ACs on this install report NO current_temperature (target only), while a
+    // warm-floor/radiator thermostat carries the reading — so scan every climate
+    // in the room for a usable current, and remember the heat-only one as floor.
+    let floorCur: number | undefined;
+    let anyCur: number | undefined;
+    for (const e of room.entities) {
+      if (e.behavior !== 'climate') continue;
+      const a = this.hass?.states[e.entity_id]?.attributes;
+      if (a?.current_temperature == null) continue; // ACs here report null → skip
+      const cur = Number(a.current_temperature);
+      if (!Number.isFinite(cur)) continue;
+      if (anyCur == null) anyCur = cur;
+      const modes: string[] = a?.hvac_modes ?? [];
+      const heatOnly = modes.length > 0 && modes.every((m) => m === 'off' || m === 'heat');
+      if (heatOnly && floorCur == null) floorCur = cur;
     }
-    const air = sVal != null ? `${num(sVal, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
-    return { air, floor: null };
+    // Air temp: a bound temperature sensor, else any climate that reports one.
+    const airVal = sVal != null ? sVal : anyCur;
+    // Show a separate "Пол" line only when we have BOTH a distinct air reading
+    // and a heat-only floor reading.
+    if (airVal != null && floorCur != null && Math.round(airVal * 10) !== Math.round(floorCur * 10)) {
+      return { air: `${num(airVal, 1)}°`, floor: `${num(floorCur, 1)}°` };
+    }
+    return { air: airVal != null ? `${num(airVal, 1)}°` : null, floor: null };
   }
 
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
