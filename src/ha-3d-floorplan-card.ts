@@ -146,6 +146,7 @@ const RU_STRINGS: Record<string, string> = {
   'lights on': 'свет включён',
   'on average': 'в среднем',
   'All off short': 'Всё выкл.',
+  Floor: 'Пол',
   'My home': 'Мой дом',
   rooms: 'комнат',
   'light sources active': 'источников света активно',
@@ -2551,6 +2552,21 @@ export class Ha3dFloorplanCard extends LitElement {
     return undefined;
   }
 
+  /** Room AIR temp + optional FLOOR temp. When a room has BOTH a climate/AC air
+   *  reading AND a bound temperature sensor, the sensor is treated as the floor
+   *  probe ("Температура пола"); otherwise the single reading is the room temp. */
+  private roomTempStrs(room: RoomInfo, num: (v: any, d: number) => string): { air: string | null; floor: string | null } {
+    const sensorEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
+    const climate = room.entities.find((e) => e.behavior === 'climate');
+    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
+    const sVal = sensorEnt && Number.isFinite(Number(sensorEnt.state)) ? sensorEnt.state : undefined;
+    if (climateCur != null && sVal != null) {
+      return { air: `${num(climateCur, 1)}°`, floor: `${num(sVal, 1)}°` };
+    }
+    const air = sVal != null ? `${num(sVal, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    return { air, floor: null };
+  }
+
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
    *  ones bound to a room). Humidity sensors are usually auxiliary AC readings
    *  that aren't placed in the 3D scene, so a room-only lookup shows nothing. */
@@ -2819,13 +2835,11 @@ export class Ha3dFloorplanCard extends LitElement {
     const skip = new Set<string>();
     if (tempEnt) skip.add(tempEnt.entity_id);
     if (humEnt) skip.add(humEnt.entity_id);
-    const climate = room.entities.find((e) => e.behavior === 'climate');
-    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
     const num = (v: any, d: number) => {
       const n = Number(v);
       return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
     };
-    const tempChip = tempEnt != null ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    const { air: tempChip, floor: floorChip } = this.roomTempStrs(room, num);
     const humChip = humEnt != null ? `${num(humEnt.state, 0)}%` : null;
     const n = this.deviceCount(room);
     return html`
@@ -2837,9 +2851,10 @@ export class Ha3dFloorplanCard extends LitElement {
             <div class="dtitle">${room.name || this.t('Room')}</div>
             <div class="dsub">${n} ${this.ruPlural(n, 'устройство', 'устройства', 'устройств')}</div>
           </div>
-          ${tempChip || humChip
+          ${tempChip || humChip || floorChip
             ? html`<div class="rp-chips">
                 ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
+                ${floorChip ? html`<div class="rp-chip warm" title=${this.t('Floor')}>${this.ic('heat')}${floorChip}</div>` : nothing}
                 ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
               </div>`
             : nothing}
@@ -3797,13 +3812,11 @@ export class Ha3dFloorplanCard extends LitElement {
     const onCount = allIds.filter((id) => this.effState(id) === 'on').length;
     const pct = allIds.length ? Math.round((onCount / allIds.length) * 100) : 0;
     const toggleEnts = [room, ...children].flatMap((r) => r.entities.filter((x) => ['light', 'switch', 'input_boolean'].includes(x.behavior)));
-    const tempEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
     const humEnt = this.roomSensor(room, 'humidity', ['%']);
     const climate = room.entities.find((e) => e.behavior === 'climate');
     const lock = room.entities.find((e) => e.behavior === 'lock');
     const cover = room.entities.find((e) => e.behavior === 'cover');
-    const climateCur = climate ? this.hass?.states[climate.entity_id]?.attributes?.current_temperature : undefined;
-    const tempStr = tempEnt ? `${num(tempEnt.state, 1)}°` : climateCur != null ? `${num(climateCur, 1)}°` : null;
+    const { air: tempStr, floor: floorStr } = this.roomTempStrs(room, num);
     const humStr = humEnt ? `${num(humEnt.state, 0)}%` : null;
 
     // One extra footer chip (lock > climate > cover), mirroring the mockup.
@@ -3826,7 +3839,7 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="rcicon">${this.ic(this.roomIcon(room.name))}</div>
         <div class="cgrow">
           <div class="rcname">${room.name || this.t('Room')}<span class="rcchev">${this.ic('chevRight')}</span></div>
-          <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ') || '—'}</div>
+          <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ') || '—'}${floorStr ? html`<span class="rcfloor"> · ${this.t('Floor')} ${floorStr}</span>` : nothing}</div>
         </div>
         ${allIds.length
           ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle"
@@ -5261,6 +5274,9 @@ export class Ha3dFloorplanCard extends LitElement {
     .rp-chip.cool .icn {
       color: var(--cool);
     }
+    .rp-chip.warm .icn {
+      color: var(--accent, #f3a83c);
+    }
     .rp-body {
       flex: 1;
       overflow-y: auto;
@@ -5979,6 +5995,9 @@ export class Ha3dFloorplanCard extends LitElement {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .rctemp .rcfloor {
+      color: var(--accent, #f3a83c);
     }
     .rcmid {
       display: flex;

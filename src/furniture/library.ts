@@ -3285,10 +3285,10 @@ export function entityDomainsFor(model: string): string[] {
   switch (model) {
     case 'ac_unit':
     case 'convector':
-      return ['climate', 'fan', 'switch'];
+      return ['climate', 'fan', 'switch', 'sensor'];
     case 'warm_floor':
     case 'radiator':
-      return ['climate', 'switch'];
+      return ['climate', 'switch', 'sensor']; // allow binding a floor-temp sensor
     case 'niche_shelf_wall':
     case 'feature_wall':
     case 'glass_wall_cabinet':
