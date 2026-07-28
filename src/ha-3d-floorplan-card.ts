@@ -3311,7 +3311,10 @@ export class Ha3dFloorplanCard extends LitElement {
     const canGroup = can(524288); // GROUPING
     const grouped = this.effGrouped(id, ent);
     const groupTargets = canGroup ? this.planGroupSpeakers(id) : [];
-    const hasSync = groupTargets.length > 0;
+    // Show the sync button when there's another speaker to join OR the speaker
+    // has a native sync switch (Yandex stations don't advertise GROUPING but
+    // still sync natively via their …_sinxron switch).
+    const hasSync = groupTargets.length > 0 || !!this.syncSwitchFor(id);
     // Still show the now-playing line when something is on, so the sync button
     // has context; without either there is nothing for this block to hold.
     const showMedia = hasSync || playing;
@@ -3409,9 +3412,39 @@ export class Ha3dFloorplanCard extends LitElement {
     if (volStep) this.svc('media_player', dir > 0 ? 'volume_up' : 'volume_down', {}, id);
   }
 
-  /** Whether a speaker reads as grouped — the pending state right after a tap,
-   *  else HA's real group_members. Lets the link button flip at once. */
+  /** The native "sync" switch paired with a speaker, if the install exposes one.
+   *  Yandex / LinkPlay / Arylic multiroom is often surfaced as a `switch.…sinxron`
+   *  (…_sync) toggle that forms the group in the speaker's own firmware — seamless
+   *  in BOTH directions with no re-buffer, unlike HA's `media_player.join` (which
+   *  stalls when the weaker unit has to become host). Paired to the speaker by
+   *  shared device first (naming-independent, bullet-proof), then by the switch id
+   *  starting with the speaker id (…_sinxron named after the speaker). Needs no
+   *  config, so it works on any object; returns undefined when there's no such
+   *  switch and the card then falls back to `media_player.join`. */
+  private syncSwitchFor(id: string): string | undefined {
+    const h = this.hass as any;
+    if (!h?.states || !id.startsWith('media_player.')) return undefined;
+    const isSyncName = (obj: string) =>
+      /(?:^|_)(?:sinxron|synxron|synchron)(?:_|$)/i.test(obj) || /_sync$/i.test(obj);
+    const dev = h.entities?.[id]?.device_id;
+    const obj = id.slice(id.indexOf('.') + 1); // speaker object_id
+    let byName: string | undefined;
+    for (const sid of Object.keys(h.states)) {
+      if (!sid.startsWith('switch.')) continue;
+      const sobj = sid.slice(sid.indexOf('.') + 1);
+      if (!isSyncName(sobj)) continue;
+      if (dev && h.entities?.[sid]?.device_id === dev) return sid; // same device — best
+      if (!byName && sobj.startsWith(obj + '_')) byName = sid; // switch named after the speaker
+    }
+    return byName;
+  }
+
+  /** Whether a speaker reads as synced — its native sync switch (optimistic-
+   *  aware), else the pending group state right after a tap, else HA's real
+   *  group_members. Lets the link button flip at once. */
   private effGrouped(id: string, ent: HassEntity | undefined): boolean {
+    const sw = this.syncSwitchFor(id);
+    if (sw) return this.effState(sw) === 'on';
     const ov = this.optGroup.get(id);
     if (ov) return ov.grouped;
     return ((ent?.attributes?.group_members as string[] | undefined)?.length ?? 0) > 1;
@@ -3427,16 +3460,20 @@ export class Ha3dFloorplanCard extends LitElement {
     this.optGroup.set(id, { grouped, timer });
   }
 
-  /** Group `targets` under `id`. Just the join — no volume_set afterward: that
-   *  second command hit the speakers while they were still re-establishing the
-   *  stream and made the music stutter. The ± buttons already move a group as one
-   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).
-   *
-   *  A 0.146.0 experiment fired a delayed media_play here to "un-pause" the
-   *  leader; on real Arylic hardware it broke the 1st-floor-as-leader direction
-   *  (join never settled). Reverted — this is now byte-for-byte the 1.2.16 sync,
-   *  which the user confirms works cleanly in both directions with no pause. */
+  /** Sync `id` with the home's other speakers. If the speaker exposes a native
+   *  sync switch (see syncSwitchFor), just flip THAT on — the firmware forms the
+   *  group seamlessly in both directions, which is the whole reason this path
+   *  exists (HA's media_player.join stalls the 1st-floor-as-leader direction on
+   *  this hardware). Otherwise fall back to a plain join: no volume_set afterward
+   *  (that used to stutter the re-buffering stream); the ± buttons already move a
+   *  group as one volume. Either way the link flips to "synced" at once. */
   private syncSpeakers(id: string, targets: string[]): void {
+    const sw = this.syncSwitchFor(id);
+    if (sw) {
+      this.svc('switch', 'turn_on', {}, sw, 'on');
+      this.requestUpdate();
+      return;
+    }
     this.setOptGroup(id, true);
     for (const t of targets) this.setOptGroup(t, true);
     this.svc('media_player', 'join', { group_members: targets }, id);
@@ -3447,8 +3484,17 @@ export class Ha3dFloorplanCard extends LitElement {
    *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
    *  dissolve the group, so HA kept reporting it grouped and the button snapped
    *  back to "synced" — it looked like unsync did nothing. Unjoining each member
-   *  tears the whole group down. Optimistic, so the button flips at once. */
+   *  tears the whole group down. Optimistic, so the button flips at once.
+   *
+   *  When the speaker has a native sync switch, unsync is just flipping it off —
+   *  the firmware dissolves the group, same seamless path as syncing. */
   private unsyncSpeakers(id: string, ent: HassEntity | undefined): void {
+    const sw = this.syncSwitchFor(id);
+    if (sw) {
+      this.svc('switch', 'turn_off', {}, sw, 'off');
+      this.requestUpdate();
+      return;
+    }
     const members = (ent?.attributes?.group_members as string[] | undefined) ?? [id];
     for (const m of members) {
       this.setOptGroup(m, false);

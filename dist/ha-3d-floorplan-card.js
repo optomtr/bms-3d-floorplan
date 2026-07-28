@@ -24567,7 +24567,7 @@ function rr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.147.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.148.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28468,7 +28468,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>`;
   }
   renderMediaCard(i, t) {
-    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (T) => (r & T) === T, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), f = !!e?.attributes?.is_volume_muted, u = Math.round(this.effVol(i) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), x = e?.attributes?.media_artist ?? "", p = a(524288), m = this.effGrouped(i, e), y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0, _ = b || o;
+    const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (T) => (r & T) === T, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), f = !!e?.attributes?.is_volume_muted, u = Math.round(this.effVol(i) * 100), g = e?.attributes?.media_title ?? this.cardName(i, t), x = e?.attributes?.media_artist ?? "", p = a(524288), m = this.effGrouped(i, e), y = p ? this.planGroupSpeakers(i) : [], b = y.length > 0 || !!this.syncSwitchFor(i), _ = b || o;
     return G`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
@@ -28539,11 +28539,38 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }
     e && this.svc("media_player", n > 0 ? "volume_up" : "volume_down", {}, i);
   }
-  /** Whether a speaker reads as grouped — the pending state right after a tap,
-   *  else HA's real group_members. Lets the link button flip at once. */
+  /** The native "sync" switch paired with a speaker, if the install exposes one.
+   *  Yandex / LinkPlay / Arylic multiroom is often surfaced as a `switch.…sinxron`
+   *  (…_sync) toggle that forms the group in the speaker's own firmware — seamless
+   *  in BOTH directions with no re-buffer, unlike HA's `media_player.join` (which
+   *  stalls when the weaker unit has to become host). Paired to the speaker by
+   *  shared device first (naming-independent, bullet-proof), then by the switch id
+   *  starting with the speaker id (…_sinxron named after the speaker). Needs no
+   *  config, so it works on any object; returns undefined when there's no such
+   *  switch and the card then falls back to `media_player.join`. */
+  syncSwitchFor(i) {
+    const t = this.hass;
+    if (!t?.states || !i.startsWith("media_player.")) return;
+    const e = (r) => /(?:^|_)(?:sinxron|synxron|synchron)(?:_|$)/i.test(r) || /_sync$/i.test(r), n = t.entities?.[i]?.device_id, s = i.slice(i.indexOf(".") + 1);
+    let o;
+    for (const r of Object.keys(t.states)) {
+      if (!r.startsWith("switch.")) continue;
+      const a = r.slice(r.indexOf(".") + 1);
+      if (e(a)) {
+        if (n && t.entities?.[r]?.device_id === n) return r;
+        !o && a.startsWith(s + "_") && (o = r);
+      }
+    }
+    return o;
+  }
+  /** Whether a speaker reads as synced — its native sync switch (optimistic-
+   *  aware), else the pending group state right after a tap, else HA's real
+   *  group_members. Lets the link button flip at once. */
   effGrouped(i, t) {
-    const e = this.optGroup.get(i);
-    return e ? e.grouped : (t?.attributes?.group_members?.length ?? 0) > 1;
+    const e = this.syncSwitchFor(i);
+    if (e) return this.effState(e) === "on";
+    const n = this.optGroup.get(i);
+    return n ? n.grouped : (t?.attributes?.group_members?.length ?? 0) > 1;
   }
   setOptGroup(i, t) {
     const e = this.optGroup.get(i);
@@ -28553,30 +28580,41 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }, 8e3);
     this.optGroup.set(i, { grouped: t, timer: n });
   }
-  /** Group `targets` under `id`. Just the join — no volume_set afterward: that
-   *  second command hit the speakers while they were still re-establishing the
-   *  stream and made the music stutter. The ± buttons already move a group as one
-   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).
-   *
-   *  A 0.146.0 experiment fired a delayed media_play here to "un-pause" the
-   *  leader; on real Arylic hardware it broke the 1st-floor-as-leader direction
-   *  (join never settled). Reverted — this is now byte-for-byte the 1.2.16 sync,
-   *  which the user confirms works cleanly in both directions with no pause. */
+  /** Sync `id` with the home's other speakers. If the speaker exposes a native
+   *  sync switch (see syncSwitchFor), just flip THAT on — the firmware forms the
+   *  group seamlessly in both directions, which is the whole reason this path
+   *  exists (HA's media_player.join stalls the 1st-floor-as-leader direction on
+   *  this hardware). Otherwise fall back to a plain join: no volume_set afterward
+   *  (that used to stutter the re-buffering stream); the ± buttons already move a
+   *  group as one volume. Either way the link flips to "synced" at once. */
   syncSpeakers(i, t) {
+    const e = this.syncSwitchFor(i);
+    if (e) {
+      this.svc("switch", "turn_on", {}, e, "on"), this.requestUpdate();
+      return;
+    }
     this.setOptGroup(i, !0);
-    for (const e of t) this.setOptGroup(e, !0);
+    for (const n of t) this.setOptGroup(n, !0);
     this.svc("media_player", "join", { group_members: t }, i), this.requestUpdate();
   }
   /** Leave the group. unjoin is sent to EVERY member, not just the tapped one:
    *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
    *  dissolve the group, so HA kept reporting it grouped and the button snapped
    *  back to "synced" — it looked like unsync did nothing. Unjoining each member
-   *  tears the whole group down. Optimistic, so the button flips at once. */
+   *  tears the whole group down. Optimistic, so the button flips at once.
+   *
+   *  When the speaker has a native sync switch, unsync is just flipping it off —
+   *  the firmware dissolves the group, same seamless path as syncing. */
   unsyncSpeakers(i, t) {
-    const e = t?.attributes?.group_members ?? [i];
-    for (const n of e)
-      this.setOptGroup(n, !1), this.svc("media_player", "unjoin", {}, n);
-    e.includes(i) || (this.setOptGroup(i, !1), this.svc("media_player", "unjoin", {}, i)), this.requestUpdate();
+    const e = this.syncSwitchFor(i);
+    if (e) {
+      this.svc("switch", "turn_off", {}, e, "off"), this.requestUpdate();
+      return;
+    }
+    const n = t?.attributes?.group_members ?? [i];
+    for (const s of n)
+      this.setOptGroup(s, !1), this.svc("media_player", "unjoin", {}, s);
+    n.includes(i) || (this.setOptGroup(i, !1), this.svc("media_player", "unjoin", {}, i)), this.requestUpdate();
   }
   /** Other speakers in the plan (any room) that support HA grouping — the
    *  targets for a "sync speakers" join. Grouping-capable set only, so the TV
