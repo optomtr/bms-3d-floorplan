@@ -3430,11 +3430,28 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Group `targets` under `id`. Just the join — no volume_set afterward: that
    *  second command hit the speakers while they were still re-establishing the
    *  stream and made the music stutter. The ± buttons already move a group as one
-   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).*/
+   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).
+   *
+   *  Pause fix: some LinkPlay/Arylic leaders drop to 'paused' while the multiroom
+   *  group forms and never come back on their own — the music just stops after
+   *  you hit sync. So once the group has had ~2s to settle (well past the
+   *  re-buffer window that made an immediate command stutter), if the leader was
+   *  playing before and now reads paused/idle, nudge it back to playing. A leader
+   *  that is already playing gets no command, so a healthy sync is never touched
+   *  and nothing else about the sync changes. */
   private syncSpeakers(id: string, targets: string[]): void {
     this.setOptGroup(id, true);
     for (const t of targets) this.setOptGroup(t, true);
+    const wasPlaying = this.hass?.states[id]?.state === 'playing';
     this.svc('media_player', 'join', { group_members: targets }, id);
+    if (wasPlaying) {
+      setTimeout(() => {
+        const st = this.hass?.states[id]?.state;
+        if (st === 'paused' || st === 'idle') {
+          this.svc('media_player', 'media_play', {}, id, 'playing');
+        }
+      }, 2000);
+    }
     this.requestUpdate();
   }
 

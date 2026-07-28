@@ -24567,7 +24567,7 @@ function rr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const g_ = "0.145.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
+const g_ = "0.146.0", Or = "ha-3d-floorplan-sidebar-item", zd = "ha-3d-floorplan-overlay";
 function v_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28556,11 +28556,23 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   /** Group `targets` under `id`. Just the join — no volume_set afterward: that
    *  second command hit the speakers while they were still re-establishing the
    *  stream and made the music stutter. The ± buttons already move a group as one
-   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).*/
+   *  volume, so nothing is lost. The link flips to "synced" at once (optimistic).
+   *
+   *  Pause fix: some LinkPlay/Arylic leaders drop to 'paused' while the multiroom
+   *  group forms and never come back on their own — the music just stops after
+   *  you hit sync. So once the group has had ~2s to settle (well past the
+   *  re-buffer window that made an immediate command stutter), if the leader was
+   *  playing before and now reads paused/idle, nudge it back to playing. A leader
+   *  that is already playing gets no command, so a healthy sync is never touched
+   *  and nothing else about the sync changes. */
   syncSpeakers(i, t) {
     this.setOptGroup(i, !0);
-    for (const e of t) this.setOptGroup(e, !0);
-    this.svc("media_player", "join", { group_members: t }, i), this.requestUpdate();
+    for (const n of t) this.setOptGroup(n, !0);
+    const e = this.hass?.states[i]?.state === "playing";
+    this.svc("media_player", "join", { group_members: t }, i), e && setTimeout(() => {
+      const n = this.hass?.states[i]?.state;
+      (n === "paused" || n === "idle") && this.svc("media_player", "media_play", {}, i, "playing");
+    }, 2e3), this.requestUpdate();
   }
   /** Leave the group. unjoin is sent to EVERY member, not just the tapped one:
    *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
