@@ -105,8 +105,6 @@ const RU_STRINGS: Record<string, string> = {
   'Fix the leak, then open the valve': 'Устраните протечку и откройте кран',
   'Valve is open': 'Кран открыт',
   Show: 'Показать',
-  'Sync speakers': 'Объединить колонки',
-  'Unsync speakers': 'Разъединить колонки',
   'Place this sensor on the plan to see the room': 'Разместите датчик на плане, чтобы видеть комнату',
   Room: 'Комната',
   'All on': 'Включить всё',
@@ -307,10 +305,6 @@ export class Ha3dFloorplanCard extends LitElement {
    *  waiting a round-trip, and so repeated taps step from the pending value.
    *  Cleared when HA reports our value or any other. */
   private optVol = new Map<string, { vol: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
-  /** Pending speaker sync state so the link button flips the instant it's tapped
-   *  (join/unjoin take a moment to reflect in group_members). Cleared once HA
-   *  reports the real grouping. */
-  private optGroup = new Map<string, { grouped: boolean; timer: ReturnType<typeof setTimeout> }>();
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -481,17 +475,6 @@ export class Ha3dFloorplanCard extends LitElement {
         if (Math.abs(v - ov.vol) < 0.005 || v !== ov.base) {
           clearTimeout(ov.timer);
           this.optVol.delete(id);
-        }
-      }
-    }
-    // Pending sync state clears once HA's real grouping matches what we asked for.
-    if (this.optGroup.size) {
-      for (const [id, ov] of [...this.optGroup]) {
-        const g = hass.states[id]?.attributes?.group_members as string[] | undefined;
-        if (g === undefined) continue;
-        if ((g.length > 1) === ov.grouped) {
-          clearTimeout(ov.timer);
-          this.optGroup.delete(id);
         }
       }
     }
@@ -3343,22 +3326,11 @@ export class Ha3dFloorplanCard extends LitElement {
     const volReal = Math.round(this.effVol(id) * 100);
     const track = ent?.attributes?.media_title ?? this.cardName(id, title);
     const artist = ent?.attributes?.media_artist ?? '';
-    // Speaker grouping (HA media_player.join): sync this speaker with the home's
-    // other groupable speakers so they play in step. Transport controls
-    // (play/pause/next/…) were removed on purpose — these panels drive speakers
-    // that play from a phone or an HA automation, and the one thing wanted here
-    // is to bind the pair together, not to skip tracks. Shown only when the
-    // device supports GROUPING and there's another speaker in the plan to join.
-    const canGroup = can(524288); // GROUPING
-    const grouped = this.effGrouped(id, ent);
-    const groupTargets = canGroup ? this.planGroupSpeakers(id) : [];
-    // Show the sync button when there's another speaker to join OR the speaker
-    // has a native sync switch (Yandex stations don't advertise GROUPING but
-    // still sync natively via their …_sinxron switch).
-    const hasSync = groupTargets.length > 0 || !!this.syncSwitchFor(id);
-    // Still show the now-playing line when something is on, so the sync button
-    // has context; without either there is nothing for this block to hold.
-    const showMedia = hasSync || playing;
+    // Now-playing line, shown while the speaker is playing. Transport controls
+    // (play/pause/next/…) are omitted on purpose — these panels drive speakers
+    // that play from a phone or an HA automation; power + volume is all that's
+    // needed here.
+    const showMedia = playing;
     return html`<div class="card ${on ? 'on' : ''}">
       <div class="crow">
         <div class="cicon ${on ? 'lit' : ''}">${this.ic('tv')}</div>
@@ -3375,15 +3347,6 @@ export class Ha3dFloorplanCard extends LitElement {
         ? html`<div class="mp">
             <div class="mpart">${this.ic('album')}</div>
             <div class="mptxt"><div class="mptrack">${track}</div><div class="mpartist">${artist}</div></div>
-            ${hasSync
-              ? html`<div class="mpctl">
-                  <button type="button" class="mpb ${grouped ? 'on' : ''}"
-                    title=${grouped ? this.t('Unsync speakers') : this.t('Sync speakers')}
-                    @click=${() => grouped
-                      ? this.unsyncSpeakers(id, ent)
-                      : this.syncSpeakers(id, groupTargets)}>${this.ic('link')}</button>
-                </div>`
-              : nothing}
           </div>`
         : nothing}
       ${volSet || volStep || volMute
@@ -3451,124 +3414,6 @@ export class Ha3dFloorplanCard extends LitElement {
       return;
     }
     if (volStep) this.svc('media_player', dir > 0 ? 'volume_up' : 'volume_down', {}, id);
-  }
-
-  /** The native "sync" switch paired with a speaker, if the install exposes one.
-   *  Yandex / LinkPlay / Arylic multiroom is often surfaced as a `switch.…sinxron`
-   *  (…_sync) toggle that forms the group in the speaker's own firmware — seamless
-   *  in BOTH directions with no re-buffer, unlike HA's `media_player.join` (which
-   *  stalls when the weaker unit has to become host). Paired to the speaker by
-   *  shared device first (naming-independent, bullet-proof), then by the switch id
-   *  starting with the speaker id (…_sinxron named after the speaker). Needs no
-   *  config, so it works on any object; returns undefined when there's no such
-   *  switch and the card then falls back to `media_player.join`. */
-  private syncSwitchFor(id: string): string | undefined {
-    const h = this.hass as any;
-    if (!h?.states || !id.startsWith('media_player.')) return undefined;
-    const isSyncName = (obj: string) =>
-      /(?:^|_)(?:sinxron|synxron|synchron)(?:_|$)/i.test(obj) || /_sync$/i.test(obj);
-    const dev = h.entities?.[id]?.device_id;
-    const obj = id.slice(id.indexOf('.') + 1); // speaker object_id
-    let byName: string | undefined;
-    for (const sid of Object.keys(h.states)) {
-      if (!sid.startsWith('switch.')) continue;
-      const sobj = sid.slice(sid.indexOf('.') + 1);
-      if (!isSyncName(sobj)) continue;
-      if (dev && h.entities?.[sid]?.device_id === dev) return sid; // same device — best
-      if (!byName && sobj.startsWith(obj + '_')) byName = sid; // switch named after the speaker
-    }
-    return byName;
-  }
-
-  /** Whether a speaker reads as synced — its native sync switch (optimistic-
-   *  aware), else the pending group state right after a tap, else HA's real
-   *  group_members. Lets the link button flip at once. */
-  private effGrouped(id: string, ent: HassEntity | undefined): boolean {
-    const sw = this.syncSwitchFor(id);
-    if (sw) return this.effState(sw) === 'on';
-    const ov = this.optGroup.get(id);
-    if (ov) return ov.grouped;
-    return ((ent?.attributes?.group_members as string[] | undefined)?.length ?? 0) > 1;
-  }
-
-  private setOptGroup(id: string, grouped: boolean): void {
-    const prev = this.optGroup.get(id);
-    if (prev) clearTimeout(prev.timer);
-    const timer = setTimeout(() => {
-      this.optGroup.delete(id);
-      this.requestUpdate();
-    }, 8000);
-    this.optGroup.set(id, { grouped, timer });
-  }
-
-  /** Sync `id` with the home's other speakers. If the speaker exposes a native
-   *  sync switch (see syncSwitchFor), just flip THAT on — the firmware forms the
-   *  group seamlessly in both directions, which is the whole reason this path
-   *  exists (HA's media_player.join stalls the 1st-floor-as-leader direction on
-   *  this hardware). Otherwise fall back to a plain join: no volume_set afterward
-   *  (that used to stutter the re-buffering stream); the ± buttons already move a
-   *  group as one volume. Either way the link flips to "synced" at once. */
-  private syncSpeakers(id: string, targets: string[]): void {
-    const sw = this.syncSwitchFor(id);
-    if (sw) {
-      this.svc('switch', 'turn_on', {}, sw, 'on');
-      this.requestUpdate();
-      return;
-    }
-    this.setOptGroup(id, true);
-    for (const t of targets) this.setOptGroup(t, true);
-    this.svc('media_player', 'join', { group_members: targets }, id);
-    this.requestUpdate();
-  }
-
-  /** Leave the group. unjoin is sent to EVERY member, not just the tapped one:
-   *  on some speakers (LinkPlay/Arylic) unjoin on a single member doesn't
-   *  dissolve the group, so HA kept reporting it grouped and the button snapped
-   *  back to "synced" — it looked like unsync did nothing. Unjoining each member
-   *  tears the whole group down. Optimistic, so the button flips at once.
-   *
-   *  When the speaker has a native sync switch, unsync is just flipping it off —
-   *  the firmware dissolves the group, same seamless path as syncing. */
-  private unsyncSpeakers(id: string, ent: HassEntity | undefined): void {
-    const sw = this.syncSwitchFor(id);
-    if (sw) {
-      this.svc('switch', 'turn_off', {}, sw, 'off');
-      this.requestUpdate();
-      return;
-    }
-    const members = (ent?.attributes?.group_members as string[] | undefined) ?? [id];
-    for (const m of members) {
-      this.setOptGroup(m, false);
-      this.svc('media_player', 'unjoin', {}, m);
-    }
-    // The tapped speaker may not have listed itself in group_members on every
-    // integration; make sure it's covered.
-    if (!members.includes(id)) {
-      this.setOptGroup(id, false);
-      this.svc('media_player', 'unjoin', {}, id);
-    }
-    this.requestUpdate();
-  }
-
-  /** Other speakers in the plan (any room) that support HA grouping — the
-   *  targets for a "sync speakers" join. Grouping-capable set only, so the TV
-   *  (no GROUPING feature) is never swept in. */
-  private planGroupSpeakers(exceptId: string): string[] {
-    const floors = this.sceneManager?.roomsByFloor() ?? [this.rooms];
-    const out: string[] = [];
-    const seen = new Set<string>([exceptId]);
-    for (const rs of floors) {
-      for (const r of rs) {
-        for (const e of r.entities) {
-          const eid = e.entity_id;
-          if (!eid.startsWith('media_player.') || seen.has(eid)) continue;
-          seen.add(eid);
-          const sf = Number(this.hass?.states[eid]?.attributes?.supported_features) || 0;
-          if (sf & 524288) out.push(eid); // GROUPING
-        }
-      }
-    }
-    return out;
   }
 
   private renderLockCard(id: string) {
