@@ -1196,6 +1196,31 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.setZoneParent(id, v || null);
     if (this.editor) this.editZones = [...this.editor.zones];
   }
+  private onSetZoneSensor(id: string, kind: 'temp' | 'floor' | 'humidity', e: Event): void {
+    this.editor?.setZoneSensor(id, kind, (e.target as HTMLSelectElement).value);
+    if (this.editor) this.editZones = [...this.editor.zones];
+  }
+  /** Entities that make sense to bind as a room's temperature (also floor) or
+   *  humidity readout — temp/humidity sensors by device_class or unit, plus
+   *  climate units for temperature. Sorted by friendly name, for the editor
+   *  dropdowns. `keep` guarantees an already-bound id stays selectable even if
+   *  it's momentarily missing from hass. */
+  private sensorCandidates(kind: 'temp' | 'humidity', keep?: string): { id: string; label: string }[] {
+    const out: { id: string; label: string }[] = [];
+    for (const [id, st] of Object.entries(this.hass?.states ?? {})) {
+      const a = (st as HassEntity).attributes;
+      const dc = a?.device_class;
+      const u = a?.unit_of_measurement;
+      const ok =
+        kind === 'temp'
+          ? (id.startsWith('sensor.') && (dc === 'temperature' || u === '°C' || u === '°F')) || id.startsWith('climate.')
+          : id.startsWith('sensor.') && (dc === 'humidity' || u === '%');
+      if (ok) out.push({ id, label: (a?.friendly_name as string) || id });
+    }
+    if (keep && !out.some((o) => o.id === keep)) out.push({ id: keep, label: keep });
+    out.sort((x, y) => x.label.localeCompare(y.label));
+    return out;
+  }
   private onZonePlace(): void {
     this.editor?.beginZonePlace();
   }
@@ -1931,6 +1956,9 @@ export class Ha3dFloorplanCard extends LitElement {
             ? html`<span class="hint">select a room to place its icon &amp; pick devices</span>`
             : html`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
           const ents = this.editor?.floorEntities ?? [];
+          const tOpts = this.sensorCandidates('temp', z.tempSensor);
+          const fOpts = this.sensorCandidates('temp', z.floorSensor);
+          const hOpts = this.sensorCandidates('humidity', z.humiditySensor);
           return html`<div class="toolrow">
               <input class="name-input" type="text" placeholder="Room name"
                 .value=${z.name ?? ''} @input=${(e: Event) => this.onSetZoneName(z.id, e)} />
@@ -1942,6 +1970,28 @@ export class Ha3dFloorplanCard extends LitElement {
                 ${this.editZones
                   .filter((o) => o.id !== z.id && !o.parentId)
                   .map((o) => html`<option value=${o.id} ?selected=${z.parentId === o.id}>${o.name || 'Room'}</option>`)}
+              </select>
+            </div>
+            <div class="panel-group">Датчики комнаты (нет = пусто, без догадок)</div>
+            <div class="toolrow">
+              <label class="hint">Температура:</label>
+              <select class="select" @change=${(e: Event) => this.onSetZoneSensor(z.id, 'temp', e)}>
+                <option value="" ?selected=${!z.tempSensor}>— (нет)</option>
+                ${tOpts.map((o) => html`<option value=${o.id} ?selected=${z.tempSensor === o.id}>${o.label}</option>`)}
+              </select>
+            </div>
+            <div class="toolrow">
+              <label class="hint">Температура пола:</label>
+              <select class="select" @change=${(e: Event) => this.onSetZoneSensor(z.id, 'floor', e)}>
+                <option value="" ?selected=${!z.floorSensor}>— (нет)</option>
+                ${fOpts.map((o) => html`<option value=${o.id} ?selected=${z.floorSensor === o.id}>${o.label}</option>`)}
+              </select>
+            </div>
+            <div class="toolrow">
+              <label class="hint">Влажность:</label>
+              <select class="select" @change=${(e: Event) => this.onSetZoneSensor(z.id, 'humidity', e)}>
+                <option value="" ?selected=${!z.humiditySensor}>— (нет)</option>
+                ${hOpts.map((o) => html`<option value=${o.id} ?selected=${z.humiditySensor === o.id}>${o.label}</option>`)}
               </select>
             </div>
             <div class="toolrow">
@@ -2538,33 +2588,24 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Room AIR temp + optional FLOOR temp. When a room has BOTH a climate/AC air
    *  reading AND a bound temperature sensor, the sensor is treated as the floor
    *  probe ("Температура пола"); otherwise the single reading is the room temp. */
+  /** The numeric reading of a bound sensor — a `sensor.*` state, or a
+   *  `climate.*` current_temperature. null when unbound or not a finite number. */
+  private boundReading(id?: string): number | null {
+    if (!id) return null;
+    const st = this.hass?.states[id];
+    if (!st) return null;
+    const raw = id.startsWith('climate.') ? st.attributes?.current_temperature : st.state;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : null;
+  }
+
   private roomTempStrs(room: RoomInfo, num: (v: any, d: number) => string): { air: string | null; floor: string | null } {
-    const sensorEnt = this.roomSensor(room, 'temperature', ['°C', '°F']);
-    const sVal = sensorEnt && Number.isFinite(Number(sensorEnt.state)) ? Number(sensorEnt.state) : undefined;
-    // ACs on this install report NO current_temperature (target only), while a
-    // warm-floor/radiator thermostat carries the reading — so scan every climate
-    // in the room for a usable current, and remember the heat-only one as floor.
-    let floorCur: number | undefined;
-    let anyCur: number | undefined;
-    for (const e of room.entities) {
-      if (e.behavior !== 'climate') continue;
-      const a = this.hass?.states[e.entity_id]?.attributes;
-      if (a?.current_temperature == null) continue; // ACs here report null → skip
-      const cur = Number(a.current_temperature);
-      if (!Number.isFinite(cur)) continue;
-      if (anyCur == null) anyCur = cur;
-      const modes: string[] = a?.hvac_modes ?? [];
-      const heatOnly = modes.length > 0 && modes.every((m) => m === 'off' || m === 'heat');
-      if (heatOnly && floorCur == null) floorCur = cur;
-    }
-    // Air temp: a bound temperature sensor, else any climate that reports one.
-    const airVal = sVal != null ? sVal : anyCur;
-    // Show a separate "Пол" line only when we have BOTH a distinct air reading
-    // and a heat-only floor reading.
-    if (airVal != null && floorCur != null && Math.round(airVal * 10) !== Math.round(floorCur * 10)) {
-      return { air: `${num(airVal, 1)}°`, floor: `${num(floorCur, 1)}°` };
-    }
-    return { air: airVal != null ? `${num(airVal, 1)}°` : null, floor: null };
+    // Read ONLY the sensors explicitly bound to the room in the editor
+    // (zone.tempSensor / zone.floorSensor). No auto-detect: an unbound metric is
+    // blank (null), never a guess or a dash.
+    const air = this.boundReading(room.tempSensor);
+    const floor = this.boundReading(room.floorSensor);
+    return { air: air != null ? `${num(air, 1)}°` : null, floor: floor != null ? `${num(floor, 1)}°` : null };
   }
 
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
@@ -2763,7 +2804,7 @@ export class Ha3dFloorplanCard extends LitElement {
   private renderRoomPanel() {
     const room = this.activeRoom;
     if (!room) return nothing;
-    const humEnt = this.roomSensor(room, 'humidity', ['%']);
+    const humEnt = room.humiditySensor ? this.hass?.states[room.humiditySensor] : undefined;
     const skip = new Set<string>();
     // Hide ALL temperature sensors from the device cards (aggregated in the chips).
     for (const e of room.entities) {
@@ -2780,7 +2821,7 @@ export class Ha3dFloorplanCard extends LitElement {
       return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—';
     };
     const { air: tempChip, floor: floorChip } = this.roomTempStrs(room, num);
-    const humChip = humEnt != null ? `${num(humEnt.state, 0)}%` : null;
+    const humChip = humEnt && Number.isFinite(Number(humEnt.state)) ? `${num(humEnt.state, 0)}%` : null;
 
     const cards = this.roomCards(room, skip);
     return html`
@@ -2833,7 +2874,7 @@ export class Ha3dFloorplanCard extends LitElement {
   private renderDetail() {
     const room = this.detailRoom;
     if (!room) return nothing;
-    const humEnt = this.roomSensor(room, 'humidity', ['%']);
+    const humEnt = room.humiditySensor ? this.hass?.states[room.humiditySensor] : undefined;
     const skip = new Set<string>();
     // Hide ALL temperature sensors from the device cards (aggregated in the chips).
     for (const e of room.entities) {
@@ -2849,7 +2890,7 @@ export class Ha3dFloorplanCard extends LitElement {
       return Number.isFinite(n) ? n.toLocaleString(this.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
     };
     const { air: tempChip, floor: floorChip } = this.roomTempStrs(room, num);
-    const humChip = humEnt != null ? `${num(humEnt.state, 0)}%` : null;
+    const humChip = humEnt && Number.isFinite(Number(humEnt.state)) ? `${num(humEnt.state, 0)}%` : null;
     const n = this.deviceCount(room);
     return html`
       <div class="detail-back" @click=${() => this.closeDetail()}></div>
@@ -3683,12 +3724,12 @@ export class Ha3dFloorplanCard extends LitElement {
     const onCount = allIds.filter((id) => this.effState(id) === 'on').length;
     const pct = allIds.length ? Math.round((onCount / allIds.length) * 100) : 0;
     const toggleEnts = [room, ...children].flatMap((r) => r.entities.filter((x) => ['light', 'switch', 'input_boolean'].includes(x.behavior)));
-    const humEnt = this.roomSensor(room, 'humidity', ['%']);
+    const humEnt = room.humiditySensor ? this.hass?.states[room.humiditySensor] : undefined;
     const climate = room.entities.find((e) => e.behavior === 'climate');
     const lock = room.entities.find((e) => e.behavior === 'lock');
     const cover = room.entities.find((e) => e.behavior === 'cover');
     const { air: tempStr, floor: floorStr } = this.roomTempStrs(room, num);
-    const humStr = humEnt ? `${num(humEnt.state, 0)}%` : null;
+    const humStr = humEnt && Number.isFinite(Number(humEnt.state)) ? `${num(humEnt.state, 0)}%` : null;
 
     // One extra footer chip (lock > climate > cover), mirroring the mockup.
     let extraChip = nothing as unknown;
@@ -3710,7 +3751,7 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="rcicon">${this.ic(this.roomIcon(room.name))}</div>
         <div class="cgrow">
           <div class="rcname">${room.name || this.t('Room')}<span class="rcchev">${this.ic('chevRight')}</span></div>
-          <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ') || '—'}${floorStr ? html`<span class="rcfloor"> · ${this.t('Floor')} ${floorStr}</span>` : nothing}</div>
+          <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ')}${floorStr ? html`<span class="rcfloor"> · ${this.t('Floor')} ${floorStr}</span>` : nothing}</div>
         </div>
         ${allIds.length
           ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle"

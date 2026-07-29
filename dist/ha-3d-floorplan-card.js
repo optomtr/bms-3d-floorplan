@@ -24135,7 +24135,7 @@ class x_ {
         }
         x && s.filter((R) => ns(R.x, R.z, x.poly)).length === 1 && (y = x.bgImage);
       }
-      this.activeRooms.push({ key: m, name: f.name, entities: p, center: [f.x, o + 1.6, f.z], bgImage: y, sprite: b });
+      this.activeRooms.push({ key: m, name: f.name, entities: p, center: [f.x, o + 1.6, f.z], bgImage: y, tempSensor: f.tempSensor, floorSensor: f.floorSensor, humiditySensor: f.humiditySensor, sprite: b });
       for (const x of g) this.markerByEntity.set(x, b);
     }
     const l = e.filter((f) => !a.has(f.entity_id)), c = /* @__PURE__ */ new Map(), h = [], d = n.map((f) => cr(f.poly));
@@ -24178,7 +24178,7 @@ class x_ {
   }
   /** Rooms on the active floor, in build order (zones first, then auto-grouped). */
   getRooms() {
-    return this.activeRooms.map((t) => ({ key: t.key, name: t.name, entities: t.entities, center: t.center, bgImage: t.bgImage }));
+    return this.activeRooms.map((t) => ({ key: t.key, name: t.name, entities: t.entities, center: t.center, bgImage: t.bgImage, tempSensor: t.tempSensor, floorSensor: t.floorSensor, humiditySensor: t.humiditySensor }));
   }
   /** Room grouping for ANY floor, WITHOUT touching the active-floor markers —
    *  the whole-home Обзор needs every floor's rooms at once. Mirrors the zone +
@@ -24205,7 +24205,7 @@ class x_ {
         }
         y && o.filter((M) => ns(M.x, M.z, y.poly)).length === 1 && (m = y.bgImage);
       }
-      a.push({ key: l(g.id ?? g.name ?? "zone"), id: g.id, parentId: g.parentId, name: g.name, entities: p, center: [g.x, r + 1.6, g.z], bgImage: m });
+      a.push({ key: l(g.id ?? g.name ?? "zone"), id: g.id, parentId: g.parentId, name: g.name, entities: p, center: [g.x, r + 1.6, g.z], bgImage: m, tempSensor: g.tempSensor, floorSensor: g.floorSensor, humiditySensor: g.humiditySensor });
     }
     const d = n.filter((g) => !h.has(g.entity_id)), u = /* @__PURE__ */ new Map(), f = s.map((g) => cr(g.poly));
     for (const g of d) {
@@ -24673,7 +24673,7 @@ function cr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const y_ = "0.152.0", Br = "ha-3d-floorplan-sidebar-item", Vd = "ha-3d-floorplan-overlay";
+const y_ = "0.153.0", Br = "ha-3d-floorplan-sidebar-item", Vd = "ha-3d-floorplan-overlay";
 function __() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25566,6 +25566,16 @@ class N_ {
         delete n.parentId;
       this.onChange?.();
     }
+  }
+  /** Bind (or clear, with an empty value) the sensor a room reads for one of its
+   *  readouts — air temperature, floor probe or humidity. Empty → no reading is
+   *  shown for that metric (blank), no auto-detect. */
+  setZoneSensor(t, e, n) {
+    const s = this.zones.find((a) => a.id === t);
+    if (!s) return;
+    this.pushUndo();
+    const o = e === "temp" ? "tempSensor" : e === "floor" ? "floorSensor" : "humiditySensor", r = String(n).trim();
+    r ? s[o] = r : delete s[o], this.onChange?.();
   }
   deleteZone(t) {
     const e = this.floor();
@@ -27120,6 +27130,22 @@ Enter their REAL length in meters:`
     const e = t.target.value;
     this.editor?.setZoneParent(i, e || null), this.editor && (this.editZones = [...this.editor.zones]);
   }
+  onSetZoneSensor(i, t, e) {
+    this.editor?.setZoneSensor(i, t, e.target.value), this.editor && (this.editZones = [...this.editor.zones]);
+  }
+  /** Entities that make sense to bind as a room's temperature (also floor) or
+   *  humidity readout — temp/humidity sensors by device_class or unit, plus
+   *  climate units for temperature. Sorted by friendly name, for the editor
+   *  dropdowns. `keep` guarantees an already-bound id stays selectable even if
+   *  it's momentarily missing from hass. */
+  sensorCandidates(i, t) {
+    const e = [];
+    for (const [n, s] of Object.entries(this.hass?.states ?? {})) {
+      const o = s.attributes, r = o?.device_class, a = o?.unit_of_measurement;
+      (i === "temp" ? n.startsWith("sensor.") && (r === "temperature" || a === "°C" || a === "°F") || n.startsWith("climate.") : n.startsWith("sensor.") && (r === "humidity" || a === "%")) && e.push({ id: n, label: o?.friendly_name || n });
+    }
+    return t && !e.some((n) => n.id === t) && e.push({ id: t, label: t }), e.sort((n, s) => n.label.localeCompare(s.label)), e;
+  }
   onZonePlace() {
     this.editor?.beginZonePlace();
   }
@@ -27600,18 +27626,40 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>`;
     })() : Q}
         ${(() => {
-      const r = this.editZones.find((l) => l.id === this.editSelectedZoneId);
+      const r = this.editZones.find((d) => d.id === this.editSelectedZoneId);
       if (!r) return this.editZones.length ? G`<span class="hint">select a room to place its icon &amp; pick devices</span>` : G`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
-      const a = this.editor?.floorEntities ?? [];
+      const a = this.editor?.floorEntities ?? [], l = this.sensorCandidates("temp", r.tempSensor), c = this.sensorCandidates("temp", r.floorSensor), h = this.sensorCandidates("humidity", r.humiditySensor);
       return G`<div class="toolrow">
               <input class="name-input" type="text" placeholder="Room name"
-                .value=${r.name ?? ""} @input=${(l) => this.onSetZoneName(r.id, l)} />
+                .value=${r.name ?? ""} @input=${(d) => this.onSetZoneName(r.id, d)} />
             </div>
             <div class="toolrow">
               <label class="hint">Внутри комнаты (подкомната):</label>
-              <select class="select" @change=${(l) => this.onSetZoneParent(r.id, l)}>
+              <select class="select" @change=${(d) => this.onSetZoneParent(r.id, d)}>
                 <option value="" ?selected=${!r.parentId}>— (отдельная комната)</option>
-                ${this.editZones.filter((l) => l.id !== r.id && !l.parentId).map((l) => G`<option value=${l.id} ?selected=${r.parentId === l.id}>${l.name || "Room"}</option>`)}
+                ${this.editZones.filter((d) => d.id !== r.id && !d.parentId).map((d) => G`<option value=${d.id} ?selected=${r.parentId === d.id}>${d.name || "Room"}</option>`)}
+              </select>
+            </div>
+            <div class="panel-group">Датчики комнаты (нет = пусто, без догадок)</div>
+            <div class="toolrow">
+              <label class="hint">Температура:</label>
+              <select class="select" @change=${(d) => this.onSetZoneSensor(r.id, "temp", d)}>
+                <option value="" ?selected=${!r.tempSensor}>— (нет)</option>
+                ${l.map((d) => G`<option value=${d.id} ?selected=${r.tempSensor === d.id}>${d.label}</option>`)}
+              </select>
+            </div>
+            <div class="toolrow">
+              <label class="hint">Температура пола:</label>
+              <select class="select" @change=${(d) => this.onSetZoneSensor(r.id, "floor", d)}>
+                <option value="" ?selected=${!r.floorSensor}>— (нет)</option>
+                ${c.map((d) => G`<option value=${d.id} ?selected=${r.floorSensor === d.id}>${d.label}</option>`)}
+              </select>
+            </div>
+            <div class="toolrow">
+              <label class="hint">Влажность:</label>
+              <select class="select" @change=${(d) => this.onSetZoneSensor(r.id, "humidity", d)}>
+                <option value="" ?selected=${!r.humiditySensor}>— (нет)</option>
+                ${h.map((d) => G`<option value=${d.id} ?selected=${r.humiditySensor === d.id}>${d.label}</option>`)}
               </select>
             </div>
             <div class="toolrow">
@@ -27623,38 +27671,38 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             <div class="toolrow">
               <input class="name-input" type="text" placeholder="URL или /local/room.jpg"
                 .value=${r.bgImage && !r.bgImage.startsWith("data:") ? r.bgImage : ""}
-                @change=${(l) => this.onSetZoneBg(r.id, l)} />
+                @change=${(d) => this.onSetZoneBg(r.id, d)} />
             </div>
             <div class="toolrow">
               <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
                 type="file" accept="image/*" style="display:none"
-                @change=${(l) => this.onUploadZoneBg(r.id, l)} /></label>
+                @change=${(d) => this.onUploadZoneBg(r.id, d)} /></label>
               ${r.bgImage ? G`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(r.id)}>🗑</button>
                     <span class="hint">${r.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : G`<span class="hint">не задан</span>`}
             </div>
             ${r.entities.length ? G`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
                   <div class="zone-order">
                     ${r.entities.map(
-        (l, c) => G`<div class="zrow">
-                        <span class="zname" title=${l}>${this.entityShort(l)}</span>
-                        <button class="zbtn" title="Move up" ?disabled=${c === 0}
-                          @click=${() => this.onMoveZoneEntity(r.id, l, -1)}>▲</button>
-                        <button class="zbtn" title="Move down" ?disabled=${c === r.entities.length - 1}
-                          @click=${() => this.onMoveZoneEntity(r.id, l, 1)}>▼</button>
+        (d, u) => G`<div class="zrow">
+                        <span class="zname" title=${d}>${this.entityShort(d)}</span>
+                        <button class="zbtn" title="Move up" ?disabled=${u === 0}
+                          @click=${() => this.onMoveZoneEntity(r.id, d, -1)}>▲</button>
+                        <button class="zbtn" title="Move down" ?disabled=${u === r.entities.length - 1}
+                          @click=${() => this.onMoveZoneEntity(r.id, d, 1)}>▼</button>
                         <button class="zbtn del" title="Remove from room"
-                          @click=${() => this.onToggleZoneDevice(r.id, l)}>✕</button>
+                          @click=${() => this.onToggleZoneDevice(r.id, d)}>✕</button>
                       </div>`
       )}
                   </div>` : Q}
             ${(() => {
-        const l = a.filter((c) => !r.entities.includes(c.entity_id));
-        return l.length ? G`<span class="hint">Add device (· room = already assigned):</span>
+        const d = a.filter((u) => !r.entities.includes(u.entity_id));
+        return d.length ? G`<span class="hint">Add device (· room = already assigned):</span>
                 <div class="zone-devs">
-                  ${l.map((c) => {
-          const h = this.boundElsewhere(c.entity_id, r.id);
-          return G`<label class="zone-dev ${h ? "taken" : ""}">
-                      <input type="checkbox" @change=${() => this.onToggleZoneDevice(r.id, c.entity_id)} />
-                      <span>${this.entityShort(c.entity_id)}${h ? G`<em class="taken-tag"> · ${h}</em>` : Q}</span>
+                  ${d.map((u) => {
+          const f = this.boundElsewhere(u.entity_id, r.id);
+          return G`<label class="zone-dev ${f ? "taken" : ""}">
+                      <input type="checkbox" @change=${() => this.onToggleZoneDevice(r.id, u.entity_id)} />
+                      <span>${this.entityShort(u.entity_id)}${f ? G`<em class="taken-tag"> · ${f}</em>` : Q}</span>
                     </label>`;
         })}
                 </div>` : a.length ? Q : G`<span class="hint">bind entities to furniture first, then add them here</span>`;
@@ -28070,21 +28118,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   /** Room AIR temp + optional FLOOR temp. When a room has BOTH a climate/AC air
    *  reading AND a bound temperature sensor, the sensor is treated as the floor
    *  probe ("Температура пола"); otherwise the single reading is the room temp. */
+  /** The numeric reading of a bound sensor — a `sensor.*` state, or a
+   *  `climate.*` current_temperature. null when unbound or not a finite number. */
+  boundReading(i) {
+    if (!i) return null;
+    const t = this.hass?.states[i];
+    if (!t) return null;
+    const e = i.startsWith("climate.") ? t.attributes?.current_temperature : t.state, n = Number(e);
+    return Number.isFinite(n) ? n : null;
+  }
   roomTempStrs(i, t) {
-    const e = this.roomSensor(i, "temperature", ["°C", "°F"]), n = e && Number.isFinite(Number(e.state)) ? Number(e.state) : void 0;
-    let s, o;
-    for (const a of i.entities) {
-      if (a.behavior !== "climate") continue;
-      const l = this.hass?.states[a.entity_id]?.attributes;
-      if (l?.current_temperature == null) continue;
-      const c = Number(l.current_temperature);
-      if (!Number.isFinite(c)) continue;
-      o == null && (o = c);
-      const h = l?.hvac_modes ?? [];
-      h.length > 0 && h.every((u) => u === "off" || u === "heat") && s == null && (s = c);
-    }
-    const r = n ?? o;
-    return r != null && s != null && Math.round(r * 10) !== Math.round(s * 10) ? { air: `${t(r, 1)}°`, floor: `${t(s, 1)}°` } : { air: r != null ? `${t(r, 1)}°` : null, floor: null };
+    const e = this.boundReading(i.tempSensor), n = this.boundReading(i.floorSensor);
+    return { air: e != null ? `${t(e, 1)}°` : null, floor: n != null ? `${t(n, 1)}°` : null };
   }
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
    *  ones bound to a room). Humidity sensors are usually auxiliary AC readings
@@ -28239,7 +28284,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   renderRoomPanel() {
     const i = this.activeRoom;
     if (!i) return Q;
-    const t = this.roomSensor(i, "humidity", ["%"]), e = /* @__PURE__ */ new Set();
+    const t = i.humiditySensor ? this.hass?.states[i.humiditySensor] : void 0, e = /* @__PURE__ */ new Set();
     for (const l of i.entities) {
       if (l.behavior !== "sensor") continue;
       const c = this.hass?.states[l.entity_id]?.attributes;
@@ -28249,7 +28294,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const n = (l, c) => {
       const h = Number(l);
       return Number.isFinite(h) ? h.toLocaleString(this.uiLocale, { minimumFractionDigits: c, maximumFractionDigits: c }) : "—";
-    }, { air: s, floor: o } = this.roomTempStrs(i, n), r = t != null ? `${n(t.state, 0)}%` : null, a = this.roomCards(i, e);
+    }, { air: s, floor: o } = this.roomTempStrs(i, n), r = t && Number.isFinite(Number(t.state)) ? `${n(t.state, 0)}%` : null, a = this.roomCards(i, e);
     return G`
       <div class="room-panel">
         <div class="rp-head">
@@ -28293,7 +28338,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   renderDetail() {
     const i = this.detailRoom;
     if (!i) return Q;
-    const t = this.roomSensor(i, "humidity", ["%"]), e = /* @__PURE__ */ new Set();
+    const t = i.humiditySensor ? this.hass?.states[i.humiditySensor] : void 0, e = /* @__PURE__ */ new Set();
     for (const l of i.entities) {
       if (l.behavior !== "sensor") continue;
       const c = this.hass?.states[l.entity_id]?.attributes;
@@ -28303,7 +28348,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const n = (l, c) => {
       const h = Number(l);
       return Number.isFinite(h) ? h.toLocaleString(this.uiLocale, { minimumFractionDigits: c, maximumFractionDigits: c }) : "—";
-    }, { air: s, floor: o } = this.roomTempStrs(i, n), r = t != null ? `${n(t.state, 0)}%` : null, a = this.deviceCount(i);
+    }, { air: s, floor: o } = this.roomTempStrs(i, n), r = t && Number.isFinite(Number(t.state)) ? `${n(t.state, 0)}%` : null, a = this.deviceCount(i);
     return G`
       <div class="detail-back" @click=${() => this.closeDetail()}></div>
       <div class="detail" @click=${(l) => l.stopPropagation()}>
@@ -28867,7 +28912,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }}><span>${this.shortLightName(i, t)}</span></button>`;
   }
   renderOverviewCard(i, t, e = []) {
-    const s = this.roomLights(i).ids, o = e.map((x) => ({ room: x, ids: this.roomLights(x).ids })), r = [...s, ...o.flatMap((x) => x.ids)], a = r.some((x) => this.effState(x) === "on"), l = r.filter((x) => this.effState(x) === "on").length, c = r.length ? Math.round(l / r.length * 100) : 0, h = [i, ...e].flatMap((x) => x.entities.filter((M) => ["light", "switch", "input_boolean"].includes(M.behavior))), d = this.roomSensor(i, "humidity", ["%"]), u = i.entities.find((x) => x.behavior === "climate"), f = i.entities.find((x) => x.behavior === "lock"), g = i.entities.find((x) => x.behavior === "cover"), { air: b, floor: p } = this.roomTempStrs(i, t), m = d ? `${t(d.state, 0)}%` : null;
+    const s = this.roomLights(i).ids, o = e.map((x) => ({ room: x, ids: this.roomLights(x).ids })), r = [...s, ...o.flatMap((x) => x.ids)], a = r.some((x) => this.effState(x) === "on"), l = r.filter((x) => this.effState(x) === "on").length, c = r.length ? Math.round(l / r.length * 100) : 0, h = [i, ...e].flatMap((x) => x.entities.filter((M) => ["light", "switch", "input_boolean"].includes(M.behavior))), d = i.humiditySensor ? this.hass?.states[i.humiditySensor] : void 0, u = i.entities.find((x) => x.behavior === "climate"), f = i.entities.find((x) => x.behavior === "lock"), g = i.entities.find((x) => x.behavior === "cover"), { air: b, floor: p } = this.roomTempStrs(i, t), m = d && Number.isFinite(Number(d.state)) ? `${t(d.state, 0)}%` : null;
     let y = Q;
     if (f) {
       const x = this.effState(f.entity_id) === "locked";
@@ -28888,7 +28933,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="rcicon">${this.ic(this.roomIcon(i.name))}</div>
         <div class="cgrow">
           <div class="rcname">${i.name || this.t("Room")}<span class="rcchev">${this.ic("chevRight")}</span></div>
-          <div class="rctemp">${[b, m].filter(Boolean).join(" · ") || "—"}${p ? G`<span class="rcfloor"> · ${this.t("Floor")} ${p}</span>` : Q}</div>
+          <div class="rctemp">${[b, m].filter(Boolean).join(" · ")}${p ? G`<span class="rcfloor"> · ${this.t("Floor")} ${p}</span>` : Q}</div>
         </div>
         ${r.length ? G`<button type="button" class="sw ${a ? "on" : ""}" title="Toggle"
               @click=${(x) => {

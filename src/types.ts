@@ -216,6 +216,14 @@ export interface ZoneDef {
    *  photo: several zones can sit inside one floor polygon, so the polygon's
    *  photo can't tell them apart (that made two zones share one picture). */
   bgImage?: string;
+  /** Explicitly bound sensors for this room's readouts, chosen in the editor.
+   *  When set, the room shows exactly this entity's value; when unset the
+   *  readout is blank (no auto-detect / guessing). `tempSensor` is the air
+   *  temperature, `floorSensor` the warm-floor probe (shown as "Пол"), and
+   *  `humiditySensor` the humidity. */
+  tempSensor?: string;
+  floorSensor?: string;
+  humiditySensor?: string;
 }
 
 /** A building groups floors. Optional — a plan with top-level `floors` is

@@ -223,6 +223,11 @@ export interface RoomInfo {
   /** Optional per-room design photo (URL/`/local/` path) used as the 3D
    *  backdrop while this room is focused in view mode. */
   bgImage?: string;
+  /** Explicitly bound sensors (from the zone editor). When present the room
+   *  readout uses exactly these; when absent it's blank (no auto-detect). */
+  tempSensor?: string;
+  floorSensor?: string;
+  humiditySensor?: string;
 }
 
 export class SceneManager {
@@ -1062,7 +1067,7 @@ export class SceneManager {
           zoneBg = host.bgImage;
         }
       }
-      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, sprite: sp });
+      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, tempSensor: z.tempSensor, floorSensor: z.floorSensor, humiditySensor: z.humiditySensor, sprite: sp });
       for (const id of ents) this.markerByEntity.set(id, sp);
     }
     // 2) Auto-group the remaining (unclaimed) devices by their room polygon.
@@ -1140,7 +1145,7 @@ export class SceneManager {
 
   /** Rooms on the active floor, in build order (zones first, then auto-grouped). */
   getRooms(): RoomInfo[] {
-    return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center, bgImage: r.bgImage }));
+    return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center, bgImage: r.bgImage, tempSensor: r.tempSensor, floorSensor: r.floorSensor, humiditySensor: r.humiditySensor }));
   }
 
   /** Room grouping for ANY floor, WITHOUT touching the active-floor markers —
@@ -1180,7 +1185,7 @@ export class SceneManager {
         }
         if (host && zones.filter((o) => pointInPoly(o.x, o.z, host!.poly)).length === 1) zoneBg = host.bgImage;
       }
-      out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), id: z.id, parentId: z.parentId, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg });
+      out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), id: z.id, parentId: z.parentId, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, tempSensor: z.tempSensor, floorSensor: z.floorSensor, humiditySensor: z.humiditySensor });
     }
     const devices = allDevices.filter((d) => !claimed.has(d.entity_id));
     const perRoom = new Map<number, typeof devices>();

@@ -1365,6 +1365,20 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Bind (or clear, with an empty value) the sensor a room reads for one of its
+   *  readouts — air temperature, floor probe or humidity. Empty → no reading is
+   *  shown for that metric (blank), no auto-detect. */
+  setZoneSensor(id: string, kind: 'temp' | 'floor' | 'humidity', entityId: string): void {
+    const z = this.zones.find((x) => x.id === id);
+    if (!z) return;
+    this.pushUndo();
+    const key = kind === 'temp' ? 'tempSensor' : kind === 'floor' ? 'floorSensor' : 'humiditySensor';
+    const v = String(entityId).trim();
+    if (v) z[key] = v;
+    else delete z[key];
+    this.onChange?.();
+  }
+
   deleteZone(id: string): void {
     const fl = this.floor();
     if (!fl.zones) return;
