@@ -946,6 +946,84 @@ const builders: Record<string, FurnitureBuilder> = {
       }
     return g;
   },
+  // Boxy off-road SUV — an upright, flat-sided 4x4 in the spirit of a classic
+  // G-class wagon: round headlights, a rear door-mounted spare, wide fender
+  // flares and big dark wheels. All original primitive geometry (no badges or
+  // logos), recolorable via the body tint; defaults to gloss black. Length runs
+  // along Z like `car`, nose toward +Z.
+  offroader: (c) => {
+    const g = new THREE.Group();
+    const paint = () => mat(0x0c0c0e, { roughness: 0.3, metalness: 0.5 }); // glossy body (fresh per panel so tint is independent)
+    const drk = mat(0x141417, { roughness: 0.55, metalness: 0.35 });        // bumpers / trim / flares
+    const glass = mat(0x0a0e14, { roughness: 0.12, metalness: 0.5 });       // tinted greenhouse
+    const tireMat = mat(0x0f0f11, { roughness: 0.95 });
+    const rimMat = mat(0x1b1b1f, { roughness: 0.35, metalness: 0.7 });
+    const chrome = mat(METAL, { roughness: 0.3, metalness: 0.8 });
+    const lamp = mat(0xeef3ff, { roughness: 0.25, emissive: 0x38466a, emissiveIntensity: 0.8 });
+    const tail = mat(0x5a0d0d, { roughness: 0.4, emissive: 0x4a0808, emissiveIntensity: 0.6 });
+
+    // lower body (one big upright box) + a subtle raised hood
+    g.add(tint(box(1.94, 0.82, 4.5, paint(), 0, 0.8, 0), c));
+    g.add(tint(box(1.5, 0.08, 1.2, paint(), 0, 1.24, 1.35), c));
+
+    // upright greenhouse (rear-biased) + flat roof + 4 corner pillars
+    g.add(box(1.74, 0.72, 2.5, glass, 0, 1.56, -0.35));
+    g.add(tint(box(1.88, 0.12, 2.64, paint(), 0, 1.96, -0.35), c));
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1])
+        g.add(tint(box(0.13, 0.72, 0.13, paint(), sx * 0.84, 1.56, -0.35 + sz * 1.22), c));
+
+    // wheels (big), rims, hubs, and wide fender flares
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) {
+        const wl = cyl(0.45, 0.45, 0.3, tireMat, sx * 0.98, 0.45, sz * 1.5, 26);
+        wl.rotation.z = Math.PI / 2;
+        g.add(wl);
+        const rim = cyl(0.31, 0.31, 0.34, rimMat, sx * 0.99, 0.45, sz * 1.5, 22);
+        rim.rotation.z = Math.PI / 2;
+        g.add(rim);
+        const hub = cyl(0.08, 0.08, 0.36, chrome, sx * 1.0, 0.45, sz * 1.5, 10);
+        hub.rotation.z = Math.PI / 2;
+        g.add(hub);
+        g.add(box(0.16, 0.52, 1.08, drk, sx * 1.0, 0.72, sz * 1.5));
+      }
+
+    // round headlights (chrome ring + glowing lens) + slatted grille
+    for (const sx of [-1, 1]) {
+      const ring = cyl(0.17, 0.17, 0.06, chrome, sx * 0.62, 0.98, 2.27, 22);
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+      const lens = cyl(0.13, 0.13, 0.09, lamp, sx * 0.62, 0.98, 2.3, 22);
+      lens.rotation.x = Math.PI / 2;
+      g.add(lens);
+    }
+    g.add(box(0.94, 0.42, 0.06, drk, 0, 0.98, 2.27));
+    for (let i = -3; i <= 3; i++) g.add(box(0.04, 0.4, 0.09, chrome, i * 0.13, 0.98, 2.29));
+
+    // front bumper + LED day strips
+    g.add(box(1.92, 0.44, 0.36, drk, 0, 0.5, 2.36));
+    for (const sx of [-1, 1]) g.add(box(0.42, 0.06, 0.05, lamp, sx * 0.6, 0.56, 2.55));
+
+    // rear bumper, tail lights, and the door-mounted spare wheel
+    g.add(box(1.92, 0.44, 0.36, drk, 0, 0.5, -2.36));
+    for (const sx of [-1, 1]) g.add(box(0.34, 0.34, 0.06, tail, sx * 0.72, 1.02, -2.28));
+    const spare = cyl(0.45, 0.45, 0.2, tireMat, 0, 1.02, -2.44, 26);
+    spare.rotation.x = Math.PI / 2;
+    g.add(spare);
+    const cover = cyl(0.32, 0.32, 0.22, paint(), 0, 1.02, -2.47, 22);
+    cover.rotation.x = Math.PI / 2;
+    g.add(tint(cover, c));
+
+    // running boards, door mirrors, and a roof light bar with LED dots
+    for (const sx of [-1, 1]) {
+      g.add(box(0.12, 0.08, 2.6, drk, sx * 0.99, 0.52, -0.1));
+      g.add(tint(box(0.14, 0.12, 0.22, paint(), sx * 1.01, 1.36, 0.78), c));
+    }
+    g.add(box(1.5, 0.1, 0.16, drk, 0, 2.04, 0.72));
+    for (let i = -3; i <= 3; i++) g.add(box(0.12, 0.06, 0.04, lamp, i * 0.2, 2.04, 0.81));
+
+    return g;
+  },
   // Curved exterior entrance porch — stacked half-round stone treads + railing
   // posts. Self-contained (does not need a curved wall).
   porch: (c) => {
@@ -3414,7 +3492,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   bar_stool: '#9c6b3f', stairs: '#b08a5a', stairs_down: '#b08a5a', wall_shelf: '#9c6b3f', door: '#9c6b3f',
   swing: '#8a6a4a', slide: '#dcc5a0', round_table: '#e9e2d5', roly_chair: '#9aa878',
   stairs_switchback: '#b08a5a', stairs_flat: '#9c6b3f', column_sq: '#d8d2c6', column_round: '#d8d2c6',
-  elevator: '#e8eaec', reception: '#9c6b3f', canopy: '#d8d8dc', car: '#30506e', porch: '#d7d2c8',
+  elevator: '#e8eaec', reception: '#9c6b3f', canopy: '#d8d8dc', car: '#30506e', offroader: '#0c0c0e', porch: '#d7d2c8',
   double_door: '#9c6b3f', sliding_door: '#b8c4cc', // sliding door's tinted part is glass → keep it glassy
   // Cabinetry (darker wood)
   wardrobe: '#8a5a34', wardrobe_glass: '#7a4f2e', wardrobe_lit: '#7a4f2e',
