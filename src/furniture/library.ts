@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /** Optional per-placement build options. `spread` widens the SPACING of a light
  *  set (keeping each element's size); `count` sets how many elements. */
@@ -47,6 +48,26 @@ function box(
   z = 0,
 ): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
+/** Rounded-corner box. Soft edges read far less "LEGO" than a hard BoxGeometry —
+ *  it's what makes molded car panels look molded rather than blocky. */
+function rbox(
+  w: number,
+  h: number,
+  d: number,
+  material: THREE.Material,
+  x = 0,
+  y = 0,
+  z = 0,
+  r = 0.06,
+): THREE.Mesh {
+  const rr = Math.max(0.01, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, rr), material);
   m.position.set(x, y, z);
   m.castShadow = true;
   m.receiveShadow = true;
@@ -946,81 +967,92 @@ const builders: Record<string, FurnitureBuilder> = {
       }
     return g;
   },
-  // Boxy off-road SUV — an upright, flat-sided 4x4 in the spirit of a classic
-  // G-class wagon: round headlights, a rear door-mounted spare, wide fender
-  // flares and big dark wheels. All original primitive geometry (no badges or
-  // logos), recolorable via the body tint; defaults to gloss black. Length runs
-  // along Z like `car`, nose toward +Z.
+  // Off-road SUV — an upright 4x4 in the spirit of a classic G-class wagon, but
+  // with molded (rounded) panels, gloss paint, alloy wheels with spokes and
+  // arch trims, tinted glass and lit LED details so it reads as a real vehicle
+  // rather than a block. All original primitive geometry (no badges or logos),
+  // recolorable via the body tint; defaults to gloss black. Length runs along Z
+  // like `car`, nose toward +Z.
   offroader: (c) => {
     const g = new THREE.Group();
-    const paint = () => mat(0x0c0c0e, { roughness: 0.3, metalness: 0.5 }); // glossy body (fresh per panel so tint is independent)
-    const drk = mat(0x141417, { roughness: 0.55, metalness: 0.35 });        // bumpers / trim / flares
-    const glass = mat(0x0a0e14, { roughness: 0.12, metalness: 0.5 });       // tinted greenhouse
-    const tireMat = mat(0x0f0f11, { roughness: 0.95 });
-    const rimMat = mat(0x1b1b1f, { roughness: 0.35, metalness: 0.7 });
-    const chrome = mat(METAL, { roughness: 0.3, metalness: 0.8 });
-    const lamp = mat(0xeef3ff, { roughness: 0.25, emissive: 0x38466a, emissiveIntensity: 0.8 });
-    const tail = mat(0x5a0d0d, { roughness: 0.4, emissive: 0x4a0808, emissiveIntensity: 0.6 });
+    const paint = () => mat(0x15171d, { roughness: 0.15, metalness: 0.68 }); // gloss paint (fresh per panel so tint is independent)
+    const clad = mat(0x0c0d10, { roughness: 0.72, metalness: 0.12 });         // matte black bumpers / cladding / arches
+    const glass = mat(0x1b2432, { roughness: 0.05, metalness: 0.92 });        // reflective tinted glass
+    const tireMat = mat(0x131418, { roughness: 0.86, metalness: 0.05 });
+    const rimMat = mat(0x34373f, { roughness: 0.28, metalness: 0.85 });       // machined dark alloy
+    const chrome = mat(0xd0d4dc, { roughness: 0.18, metalness: 0.95 });
+    const silver = mat(0x9aa0aa, { roughness: 0.4, metalness: 0.7 });
+    const lamp = mat(0xf2f6ff, { roughness: 0.2, metalness: 0.1, emissive: 0x93a9d8, emissiveIntensity: 0.9 });
+    const tail = mat(0x7a1414, { roughness: 0.35, metalness: 0.2, emissive: 0x6a0d0d, emissiveIntensity: 0.85 });
 
-    // lower body (one big upright box) + a subtle raised hood
-    g.add(tint(box(1.94, 0.82, 4.5, paint(), 0, 0.8, 0), c));
-    g.add(tint(box(1.5, 0.08, 1.2, paint(), 0, 1.24, 1.35), c));
+    // ---- body: rocker, main sides, beltline, sloped hood + power dome ----
+    g.add(rbox(1.96, 0.3, 4.2, clad, 0, 0.46, 0, 0.06));                 // rocker/sill (dark cladding)
+    g.add(tint(rbox(1.9, 0.68, 4.42, paint(), 0, 0.86, 0, 0.16), c));    // lower body
+    g.add(tint(rbox(1.86, 0.18, 4.34, paint(), 0, 1.2, 0, 0.09), c));    // beltline shoulder
+    const hood = tint(rbox(1.64, 0.14, 1.6, paint(), 0, 1.25, 1.4, 0.06), c);
+    hood.rotation.x = -0.03; g.add(hood);                               // slightly sloped hood
+    g.add(tint(rbox(0.82, 0.1, 1.1, paint(), 0, 1.33, 1.42, 0.05), c)); // power dome
 
-    // upright greenhouse (rear-biased) + flat roof + 4 corner pillars
-    g.add(box(1.74, 0.72, 2.5, glass, 0, 1.56, -0.35));
-    g.add(tint(box(1.88, 0.12, 2.64, paint(), 0, 1.96, -0.35), c));
-    for (const sx of [-1, 1])
-      for (const sz of [-1, 1])
-        g.add(tint(box(0.13, 0.72, 0.13, paint(), sx * 0.84, 1.56, -0.35 + sz * 1.22), c));
+    // ---- greenhouse: paint shell + raked windshield, side & rear glass ----
+    g.add(tint(rbox(1.72, 0.66, 2.5, paint(), 0, 1.6, -0.3, 0.1), c));   // cabin shell (pillars + roof structure)
+    const wsh = rbox(1.5, 0.6, 0.07, glass, 0, 1.62, 0.98, 0.03);
+    wsh.rotation.x = 0.16; g.add(wsh);                                  // raked windshield
+    for (const sx of [-1, 1]) {
+      g.add(rbox(0.05, 0.42, 0.94, glass, sx * 0.88, 1.62, 0.16, 0.02));  // front side window
+      g.add(rbox(0.05, 0.42, 0.94, glass, sx * 0.88, 1.62, -0.84, 0.02)); // rear side window
+    }
+    g.add(rbox(1.46, 0.5, 0.07, glass, 0, 1.62, -1.56, 0.03));           // rear glass
+    g.add(tint(rbox(1.8, 0.14, 2.56, paint(), 0, 1.98, -0.3, 0.07), c)); // roof
+    for (const sx of [-1, 1]) g.add(rbox(0.06, 0.07, 2.3, clad, sx * 0.76, 2.08, -0.3, 0.02)); // roof rails
 
-    // wheels (big), rims, hubs, and wide fender flares
-    for (const sx of [-1, 1])
-      for (const sz of [-1, 1]) {
-        const wl = cyl(0.45, 0.45, 0.3, tireMat, sx * 0.98, 0.45, sz * 1.5, 26);
-        wl.rotation.z = Math.PI / 2;
-        g.add(wl);
-        const rim = cyl(0.31, 0.31, 0.34, rimMat, sx * 0.99, 0.45, sz * 1.5, 22);
-        rim.rotation.z = Math.PI / 2;
-        g.add(rim);
-        const hub = cyl(0.08, 0.08, 0.36, chrome, sx * 1.0, 0.45, sz * 1.5, 10);
-        hub.rotation.z = Math.PI / 2;
-        g.add(hub);
-        g.add(box(0.16, 0.52, 1.08, drk, sx * 1.0, 0.72, sz * 1.5));
+    // ---- alloy wheels (spoked) + arch trims ----
+    const wheel = (wx: number, wz: number) => {
+      const w = new THREE.Group();
+      w.position.set(wx, 0.46, wz);
+      const dir = wx < 0 ? -1 : 1;
+      const tire = cyl(0.46, 0.46, 0.34, tireMat, 0, 0, 0, 30); tire.rotation.z = Math.PI / 2; w.add(tire);
+      const barrel = cyl(0.35, 0.35, 0.36, rimMat, 0, 0, 0, 26); barrel.rotation.z = Math.PI / 2; w.add(barrel);
+      const face = cyl(0.34, 0.34, 0.05, rimMat, dir * 0.16, 0, 0, 26); face.rotation.z = Math.PI / 2; w.add(face);
+      for (let k = 0; k < 3; k++) { const sp = box(0.05, 0.6, 0.09, rimMat, dir * 0.19, 0, 0); sp.rotation.x = (k * Math.PI) / 3; w.add(sp); }
+      const hub = cyl(0.1, 0.1, 0.06, chrome, dir * 0.22, 0, 0, 18); hub.rotation.z = Math.PI / 2; w.add(hub);
+      return w;
+    };
+    for (const wx of [-0.95, 0.95])
+      for (const wz of [-1.5, 1.5]) {
+        g.add(wheel(wx, wz));
+        const a = new THREE.Mesh(new THREE.TorusGeometry(0.57, 0.1, 8, 20, Math.PI), clad);
+        a.position.set(wx * 1.03, 0.46, wz); a.rotation.y = Math.PI / 2; a.castShadow = true; g.add(a);
       }
 
-    // round headlights (chrome ring + glowing lens) + slatted grille
+    // ---- front: grille, halo headlights, bumper, skid plate, LED strips ----
+    g.add(rbox(0.98, 0.46, 0.08, clad, 0, 1.0, 2.19, 0.03));            // grille recess
+    for (let i = -3; i <= 3; i++) g.add(box(0.04, 0.4, 0.1, chrome, i * 0.13, 1.0, 2.22));
     for (const sx of [-1, 1]) {
-      const ring = cyl(0.17, 0.17, 0.06, chrome, sx * 0.62, 0.98, 2.27, 22);
-      ring.rotation.x = Math.PI / 2;
-      g.add(ring);
-      const lens = cyl(0.13, 0.13, 0.09, lamp, sx * 0.62, 0.98, 2.3, 22);
-      lens.rotation.x = Math.PI / 2;
-      g.add(lens);
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.028, 8, 24), lamp);
+      halo.position.set(sx * 0.62, 1.0, 2.24); g.add(halo);
+      const lens = cyl(0.13, 0.13, 0.06, lamp, sx * 0.62, 1.0, 2.24, 24); lens.rotation.x = Math.PI / 2; g.add(lens);
     }
-    g.add(box(0.94, 0.42, 0.06, drk, 0, 0.98, 2.27));
-    for (let i = -3; i <= 3; i++) g.add(box(0.04, 0.4, 0.09, chrome, i * 0.13, 0.98, 2.29));
+    g.add(rbox(1.92, 0.5, 0.4, clad, 0, 0.56, 2.32, 0.1));              // front bumper
+    g.add(rbox(0.94, 0.1, 0.22, silver, 0, 0.35, 2.44, 0.04));          // skid plate
+    for (const sx of [-1, 1]) g.add(box(0.42, 0.06, 0.05, lamp, sx * 0.6, 0.64, 2.53)); // LED day strips
 
-    // front bumper + LED day strips
-    g.add(box(1.92, 0.44, 0.36, drk, 0, 0.5, 2.36));
-    for (const sx of [-1, 1]) g.add(box(0.42, 0.06, 0.05, lamp, sx * 0.6, 0.56, 2.55));
+    // ---- rear: bumper, tail lights, spare (body-colour cover), exhausts ----
+    g.add(rbox(1.92, 0.5, 0.4, clad, 0, 0.56, -2.32, 0.1));
+    for (const sx of [-1, 1]) g.add(rbox(0.3, 0.4, 0.08, tail, sx * 0.74, 1.06, -2.24, 0.04));
+    const spare = cyl(0.46, 0.46, 0.22, tireMat, 0, 1.06, -2.42, 30); spare.rotation.x = Math.PI / 2; g.add(spare);
+    const cover = cyl(0.4, 0.4, 0.1, paint(), 0, 1.06, -2.5, 28); cover.rotation.x = Math.PI / 2; g.add(tint(cover, c));
+    for (const sx of [-1, 1]) { const ex = cyl(0.05, 0.05, 0.16, chrome, sx * 0.55, 0.32, -2.46, 12); ex.rotation.x = Math.PI / 2; g.add(ex); }
 
-    // rear bumper, tail lights, and the door-mounted spare wheel
-    g.add(box(1.92, 0.44, 0.36, drk, 0, 0.5, -2.36));
-    for (const sx of [-1, 1]) g.add(box(0.34, 0.34, 0.06, tail, sx * 0.72, 1.02, -2.28));
-    const spare = cyl(0.45, 0.45, 0.2, tireMat, 0, 1.02, -2.44, 26);
-    spare.rotation.x = Math.PI / 2;
-    g.add(spare);
-    const cover = cyl(0.32, 0.32, 0.22, paint(), 0, 1.02, -2.47, 22);
-    cover.rotation.x = Math.PI / 2;
-    g.add(tint(cover, c));
-
-    // running boards, door mirrors, and a roof light bar with LED dots
+    // ---- sides: running boards, mirrors, handles, roof light bar ----
     for (const sx of [-1, 1]) {
-      g.add(box(0.12, 0.08, 2.6, drk, sx * 0.99, 0.52, -0.1));
-      g.add(tint(box(0.14, 0.12, 0.22, paint(), sx * 1.01, 1.36, 0.78), c));
+      g.add(rbox(0.1, 0.08, 2.4, clad, sx * 0.98, 0.42, -0.1, 0.03));                     // running board
+      g.add(tint(rbox(0.18, 0.12, 0.12, paint(), sx * 1.04, 1.42, 0.62, 0.04), c));       // mirror housing
+      g.add(box(0.06, 0.04, 0.08, clad, sx * 0.99, 1.4, 0.62));                           // mirror arm
+      g.add(box(0.02, 0.04, 0.16, chrome, sx * 0.96, 1.16, 0.2));                         // front door handle
+      g.add(box(0.02, 0.04, 0.16, chrome, sx * 0.96, 1.16, -0.7));                        // rear door handle
     }
-    g.add(box(1.5, 0.1, 0.16, drk, 0, 2.04, 0.72));
-    for (let i = -3; i <= 3; i++) g.add(box(0.12, 0.06, 0.04, lamp, i * 0.2, 2.04, 0.81));
+    g.add(rbox(1.5, 0.1, 0.14, clad, 0, 2.12, 0.75, 0.03));                               // roof light bar
+    for (let i = -3; i <= 3; i++) g.add(box(0.12, 0.06, 0.04, lamp, i * 0.2, 2.12, 0.83));
 
     return g;
   },
