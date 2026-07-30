@@ -433,8 +433,8 @@ export class BindingManager {
   /** One floating-marker descriptor per bound entity (live anchor position).
    *  Covers (curtains) that sit close together collapse to a single marker so
    *  2-3 stacked curtains don't spawn an overlapping pile of icons. */
-  markerData(): { entity_id: string; behavior: BindingBehavior; pos: [number, number, number] }[] {
-    const out: { entity_id: string; behavior: BindingBehavior; pos: [number, number, number] }[] = [];
+  markerData(): { entity_id: string; behavior: BindingBehavior; pos: [number, number, number]; model?: string }[] {
+    const out: { entity_id: string; behavior: BindingBehavior; pos: [number, number, number]; model?: string }[] = [];
     const seen = new Set<string>();
     const coverPts: THREE.Vector3[] = [];
     const p = new THREE.Vector3();
@@ -450,7 +450,12 @@ export class BindingManager {
         coverPts.push(p.clone());
       }
       seen.add(ab.def.entity_id);
-      out.push({ entity_id: ab.def.entity_id, behavior: ab.behavior, pos: [p.x, p.y, p.z] });
+      out.push({
+        entity_id: ab.def.entity_id,
+        behavior: ab.behavior,
+        pos: [p.x, p.y, p.z],
+        model: (ab.anchor?.userData?.model as string) ?? undefined,
+      });
     }
     return out;
   }

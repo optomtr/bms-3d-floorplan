@@ -217,7 +217,7 @@ export interface RoomInfo {
   /** Parent zone id, when this room is a sub-room (Обзор nests it). */
   parentId?: string;
   name?: string;
-  entities: { entity_id: string; behavior: string }[];
+  entities: { entity_id: string; behavior: string; model?: string }[];
   /** World-space centre of the room's marker (metres). */
   center: [number, number, number];
   /** Optional per-room design photo (URL/`/local/` path) used as the 3D
@@ -1022,6 +1022,7 @@ export class SceneManager {
     // 1) Manual zones (hand-placed icons) come first and OWN their listed
     //    entities, overriding the automatic grouping for those devices.
     const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
+    const modelOf = new Map(allDevices.map((d) => [d.entity_id, d.model]));
     const claimed = new Set<string>();
     for (const z of zones) {
       // First zone to list an entity wins it (no duplicate markers). A zone is an
@@ -1035,7 +1036,7 @@ export class SceneManager {
       if (!ents.length) continue;
       for (const id of ents) claimed.add(id);
       const sp = this.makeMarkerSprite('room', z.x, elev + 1.6, z.z);
-      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0] }));
+      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0], model: modelOf.get(id) }));
       const key = `${z.id ?? z.name ?? 'zone'}#${this.activeRooms.length}`;
       sp.userData = {
         roomMarker: true,
@@ -1097,7 +1098,7 @@ export class SceneManager {
       const room = rooms[ri];
       const [cx, cz] = polyCentroid(room.poly);
       const sp = this.makeMarkerSprite('room', cx, room.elev + 1.6, cz);
-      const roomEntities = ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior }));
+      const roomEntities = ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior, model: d.model }));
       const key = `${room.name ?? 'room'}#${this.activeRooms.length}`;
       sp.userData = {
         roomMarker: true,
@@ -1163,6 +1164,7 @@ export class SceneManager {
     const keyOf = (base: string) => `f${floor}::${base}#${out.length}`;
 
     const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
+    const modelOf = new Map(allDevices.map((d) => [d.entity_id, d.model]));
     const claimed = new Set<string>();
     for (const z of zones) {
       const ents = (z.entities ?? []).filter(
@@ -1170,7 +1172,7 @@ export class SceneManager {
       );
       if (!ents.length) continue;
       for (const id of ents) claimed.add(id);
-      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0] }));
+      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0], model: modelOf.get(id) }));
       let zoneBg: string | undefined = z.bgImage;
       if (!zoneBg) {
         let host: (typeof rooms)[number] | null = null;
@@ -1204,7 +1206,7 @@ export class SceneManager {
     for (const [ri, ds] of perRoom) {
       const room = rooms[ri];
       const [cx, cz] = polyCentroid(room.poly);
-      out.push({ key: keyOf(room.name ?? 'room'), name: room.name, entities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior })), center: [cx, room.elev + 1.6, cz], bgImage: room.bgImage });
+      out.push({ key: keyOf(room.name ?? 'room'), name: room.name, entities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior, model: d.model })), center: [cx, room.elev + 1.6, cz], bgImage: room.bgImage });
     }
     return out;
   }

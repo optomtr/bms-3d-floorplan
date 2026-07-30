@@ -2724,6 +2724,24 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
+  /** Temperature sensors to HIDE from the room's device cards: they're already
+   *  summarised in the header chips, so a per-sensor card would be redundant.
+   *  EXCEPTION — a sensor bound to a `wall_switch` (an inert info/control plate):
+   *  the user placed it there precisely to surface that reading, so it stays as a
+   *  full-name info card in the panel. */
+  private tempSensorsToHide(room: RoomInfo): Set<string> {
+    const skip = new Set<string>();
+    for (const e of room.entities) {
+      if (e.behavior !== 'sensor') continue;
+      if (e.model === 'wall_switch') continue; // deliberately surfaced as info
+      const a = this.hass?.states[e.entity_id]?.attributes;
+      if (a?.device_class === 'temperature' || a?.unit_of_measurement === '°C' || a?.unit_of_measurement === '°F') {
+        skip.add(e.entity_id);
+      }
+    }
+    return skip;
+  }
+
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
    *  ones bound to a room). Humidity sensors are usually auxiliary AC readings
    *  that aren't placed in the 3D scene, so a room-only lookup shows nothing. */
@@ -2945,15 +2963,7 @@ export class Ha3dFloorplanCard extends LitElement {
     const room = this.activeRoom;
     if (!room) return nothing;
     const humEnt = room.humiditySensor ? this.hass?.states[room.humiditySensor] : undefined;
-    const skip = new Set<string>();
-    // Hide ALL temperature sensors from the device cards (aggregated in the chips).
-    for (const e of room.entities) {
-      if (e.behavior !== 'sensor') continue;
-      const a = this.hass?.states[e.entity_id]?.attributes;
-      if (a?.device_class === 'temperature' || a?.unit_of_measurement === '°C' || a?.unit_of_measurement === '°F') {
-        skip.add(e.entity_id);
-      }
-    }
+    const skip = this.tempSensorsToHide(room);
     if (humEnt) skip.add(humEnt.entity_id);
 
     const num = (v: any, digits: number) => {
@@ -3016,15 +3026,7 @@ export class Ha3dFloorplanCard extends LitElement {
     const room = this.detailRoom;
     if (!room) return nothing;
     const humEnt = room.humiditySensor ? this.hass?.states[room.humiditySensor] : undefined;
-    const skip = new Set<string>();
-    // Hide ALL temperature sensors from the device cards (aggregated in the chips).
-    for (const e of room.entities) {
-      if (e.behavior !== 'sensor') continue;
-      const a = this.hass?.states[e.entity_id]?.attributes;
-      if (a?.device_class === 'temperature' || a?.unit_of_measurement === '°C' || a?.unit_of_measurement === '°F') {
-        skip.add(e.entity_id);
-      }
-    }
+    const skip = this.tempSensorsToHide(room);
     if (humEnt) skip.add(humEnt.entity_id);
     const num = (v: any, d: number) => {
       const n = Number(v);

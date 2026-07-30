@@ -334,6 +334,7 @@ export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): Built
   const furnitureById = new Map<string, THREE.Object3D>();
   for (const f of floor.furniture ?? []) {
     const obj = resolveFurniture(f);
+    obj.userData.model = f.model; // so a binding can tell WHAT it's anchored to
     // Manual brightness: glow the emissive parts even without a bound entity
     // (a bound light still overrides this on state updates).
     if (f.brightness != null && f.brightness > 0) {
