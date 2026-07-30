@@ -23430,7 +23430,10 @@ class u_ {
       // indicator floated up high (worst on upper floors, where the AC has no
       // placed model so it anchors to the floor centre). Climate stays fully
       // controllable via its room marker + the room panel.
-      n === "sensor" || n === "binary_sensor" || n === "lock" || n === "label"
+      (n === "sensor" || n === "binary_sensor" || n === "lock" || n === "label") && // A wall_switch is an INERT control plate: anything bound to it (a sensor
+      // reading, a lock) is surfaced only in the room panel — as an info card or
+      // a tap target — never as a floating 3D label. So skip the label here.
+      t.anchor?.userData?.model !== "wall_switch"
     ) {
       const o = new vf(1.2), r = t.anchor ? 0.6 : 0;
       o.setPosition(s.x, s.y + r + 0.4, s.z), this.root.add(o.sprite), e.labels.push(o), t.label = o;
@@ -24691,7 +24694,7 @@ function dr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const __ = "0.158.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
+const __ = "0.158.1", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
 function w_() {
   return window.ha3dFloorplan ?? {};
 }

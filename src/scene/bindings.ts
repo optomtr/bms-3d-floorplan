@@ -179,10 +179,14 @@ export class BindingManager {
       // indicator floated up high (worst on upper floors, where the AC has no
       // placed model so it anchors to the floor centre). Climate stays fully
       // controllable via its room marker + the room panel.
-      behavior === 'sensor' ||
-      behavior === 'binary_sensor' ||
-      behavior === 'lock' ||
-      behavior === 'label'
+      (behavior === 'sensor' ||
+        behavior === 'binary_sensor' ||
+        behavior === 'lock' ||
+        behavior === 'label') &&
+      // A wall_switch is an INERT control plate: anything bound to it (a sensor
+      // reading, a lock) is surfaced only in the room panel — as an info card or
+      // a tap target — never as a floating 3D label. So skip the label here.
+      (ab.anchor?.userData?.model as string | undefined) !== 'wall_switch'
       // 'media_player' intentionally omitted — no floating playing/paused/idle
       // text; the speaker still glows green when playing and stays controllable
       // from its room marker + panel.
