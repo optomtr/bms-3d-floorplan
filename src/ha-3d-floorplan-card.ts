@@ -3545,13 +3545,16 @@ export class Ha3dFloorplanCard extends LitElement {
       const moving = st === 'opening' || st === 'closing';
       const action = moving ? 'stop' : st === 'closed' ? 'open' : 'close';
       const svcName = action === 'stop' ? 'stop_cover' : action === 'open' ? 'open_cover' : 'close_cover';
-      const label = action === 'stop' ? this.t('Stop blind') : action === 'open' ? this.t('Open blind') : this.t('Close blind');
+      const title = action === 'stop' ? this.t('Stop blind') : action === 'open' ? this.t('Open blind') : this.t('Close blind');
       const opt = action === 'open' ? 'opening' : action === 'close' ? 'closing' : 'open';
+      // ONE button with a fixed, unchanging icon (no Open/Stop/Close text). A
+      // press still runs the gate's one-touch open/stop/close logic; the title
+      // carries the current action for hover / accessibility only.
       return html`<div class="card">
         ${head}
         <div class="qbtns">
-          <button type="button" class="qb gate ${moving ? 'on' : ''}"
-            @click=${() => this.svc('cover', svcName, {}, id, opt)}>${label}</button>
+          <button type="button" class="qb gate icon-only" title=${title}
+            @click=${() => this.svc('cover', svcName, {}, id, opt)}>${this.ic('power')}</button>
         </div>
       </div>`;
     }
@@ -5220,6 +5223,15 @@ export class Ha3dFloorplanCard extends LitElement {
       border-color: var(--accent, #f3a83c);
       color: #fff;
       background: rgba(243, 168, 60, 0.14);
+    }
+    .qb.icon-only {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qb.icon-only .icn {
+      width: 20px;
+      height: 20px;
     }
     .qb:hover {
       background: rgba(255, 255, 255, 0.12);

@@ -24694,7 +24694,7 @@ function dr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const __ = "0.163.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
+const __ = "0.164.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
 function w_() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28808,12 +28808,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         </div>
       </div>`, n = String(t?.attributes?.device_class ?? "").toLowerCase(), s = (String(t?.attributes?.friendly_name ?? "") + " " + i).toLowerCase();
     if (n === "gate" || n === "garage" || n === "door" || /ворот|gate|darvoza|калитк/.test(s)) {
-      const a = this.effState(i), l = a === "opening" || a === "closing", c = l ? "stop" : a === "closed" ? "open" : "close", h = c === "stop" ? "stop_cover" : c === "open" ? "open_cover" : "close_cover", d = c === "stop" ? this.t("Stop blind") : c === "open" ? this.t("Open blind") : this.t("Close blind"), u = c === "open" ? "opening" : c === "close" ? "closing" : "open";
+      const a = this.effState(i), c = a === "opening" || a === "closing" ? "stop" : a === "closed" ? "open" : "close", h = c === "stop" ? "stop_cover" : c === "open" ? "open_cover" : "close_cover", d = c === "stop" ? this.t("Stop blind") : c === "open" ? this.t("Open blind") : this.t("Close blind"), u = c === "open" ? "opening" : c === "close" ? "closing" : "open";
       return V`<div class="card">
         ${e}
         <div class="qbtns">
-          <button type="button" class="qb gate ${l ? "on" : ""}"
-            @click=${() => this.svc("cover", h, {}, i, u)}>${d}</button>
+          <button type="button" class="qb gate icon-only" title=${d}
+            @click=${() => this.svc("cover", h, {}, i, u)}>${this.ic("power")}</button>
         </div>
       </div>`;
     }
@@ -30326,6 +30326,15 @@ mt.styles = ou`
       border-color: var(--accent, #f3a83c);
       color: #fff;
       background: rgba(243, 168, 60, 0.14);
+    }
+    .qb.icon-only {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qb.icon-only .icn {
+      width: 20px;
+      height: 20px;
     }
     .qb:hover {
       background: rgba(255, 255, 255, 0.12);
