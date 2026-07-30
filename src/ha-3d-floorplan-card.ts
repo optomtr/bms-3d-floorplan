@@ -305,6 +305,11 @@ export class Ha3dFloorplanCard extends LitElement {
    *  waiting a round-trip, and so repeated taps step from the pending value.
    *  Cleared when HA reports our value or any other. */
   private optVol = new Map<string, { vol: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
+  /** Recent history for a room's bound degree sensors, for the compact sparkline
+   *  in the room panel. Keyed by entity_id → sampled [timeMs, value] points +
+   *  fetch time. Fetched on demand from HA's history API, refreshed every ~5min. */
+  private histCache = new Map<string, { pts: [number, number][]; ts: number }>();
+  private histInFlight = new Set<string>();
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -2614,6 +2619,86 @@ export class Ha3dFloorplanCard extends LitElement {
     return { air: air != null ? `${num(air, 1)}°` : null, floor: floor != null ? `${num(floor, 1)}°` : null };
   }
 
+  /** Recent samples for a sensor (the sparkline). Returns cached points and, when
+   *  the cache is missing or older than 5 min, kicks off a background fetch
+   *  (guarded, so a render may call it freely). null until the first fetch lands. */
+  private historyPts(entityId?: string): [number, number][] | null {
+    if (!entityId) return null;
+    const c = this.histCache.get(entityId);
+    if (!c || Date.now() - c.ts > 5 * 60 * 1000) void this.fetchHistory(entityId);
+    return c ? c.pts : null;
+  }
+
+  /** Pull the last 24h of a sensor from HA's history over the websocket. Failures
+   *  (old core, permissions) cache an empty series so we don't hammer, and the
+   *  sparkline simply doesn't show. */
+  private async fetchHistory(entityId: string): Promise<void> {
+    const hass = this.hass as any;
+    if (!hass?.callWS || this.histInFlight.has(entityId)) return;
+    this.histInFlight.add(entityId);
+    try {
+      const end = new Date();
+      const start = new Date(end.getTime() - 24 * 3600 * 1000);
+      const res = await hass.callWS({
+        type: 'history/history_during_period',
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        entity_ids: [entityId],
+        minimal_response: true,
+        no_attributes: true,
+        significant_changes_only: false,
+      });
+      const rows: any[] = res?.[entityId] ?? [];
+      const pts: [number, number][] = [];
+      for (const r of rows) {
+        const v = Number(r.s ?? r.state);
+        const lu = r.lu ?? r.last_updated ?? r.last_changed;
+        const t = typeof lu === 'number' ? lu * 1000 : Date.parse(lu);
+        if (Number.isFinite(v) && Number.isFinite(t)) pts.push([t, v]);
+      }
+      // Down-sample a long series so the SVG stays light (≤120 points).
+      const step = Math.ceil(pts.length / 120) || 1;
+      this.histCache.set(entityId, { pts: step > 1 ? pts.filter((_, i) => i % step === 0) : pts, ts: Date.now() });
+    } catch {
+      this.histCache.set(entityId, { pts: [], ts: Date.now() });
+    } finally {
+      this.histInFlight.delete(entityId);
+      this.requestUpdate();
+    }
+  }
+
+  /** Compact history sparkline for a room's bound degree sensors (air + floor on
+   *  one shared axis). Appears automatically once a temperature sensor is bound
+   *  and its history has loaded; renders nothing with no bound sensor or no data. */
+  private renderRoomSpark(room: RoomInfo) {
+    const series = ([
+      { id: room.tempSensor, cls: 'air' },
+      { id: room.floorSensor, cls: 'warm' },
+    ] as { id?: string; cls: string }[])
+      .filter((s) => !!s.id)
+      .map((s) => ({ cls: s.cls, pts: this.historyPts(s.id) }))
+      .filter((s): s is { cls: string; pts: [number, number][] } => !!s.pts && s.pts.length >= 2);
+    if (!series.length) return nothing;
+    const all = series.flatMap((s) => s.pts);
+    const ts = all.map((p) => p[0]);
+    const vs = all.map((p) => p[1]);
+    const t0 = Math.min(...ts);
+    const t1 = Math.max(...ts);
+    let vmin = Math.min(...vs);
+    let vmax = Math.max(...vs);
+    if (vmax - vmin < 1) { const m = (vmin + vmax) / 2; vmin = m - 0.6; vmax = m + 0.6; }
+    const W = 240, H = 44, pad = 4;
+    const sx = (t: number) => (t1 === t0 ? W / 2 : pad + ((t - t0) / (t1 - t0)) * (W - 2 * pad));
+    const sy = (v: number) => H - pad - ((v - vmin) / (vmax - vmin)) * (H - 2 * pad);
+    const lines = series.map((s) => {
+      const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(' ');
+      return svg`<path class="spark ${s.cls}" d=${d}></path>`;
+    });
+    return html`<div class="rp-spark-wrap" title="24h">
+      <svg class="rp-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${lines}</svg>
+    </div>`;
+  }
+
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
    *  ones bound to a room). Humidity sensors are usually auxiliary AC readings
    *  that aren't placed in the 3D scene, so a room-only lookup shows nothing. */
@@ -2844,6 +2929,7 @@ export class Ha3dFloorplanCard extends LitElement {
                 ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
               </div>`
             : nothing}
+          ${this.renderRoomSpark(room)}
         </div>
         <div class="rp-body">
           ${cards.length ? cards : html`<div class="rp-empty">${this.t('No devices in this room')}</div>`}
@@ -2914,6 +3000,7 @@ export class Ha3dFloorplanCard extends LitElement {
                 ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
               </div>`
             : nothing}
+          ${this.renderRoomSpark(room)}
         </div>
         <div class="dbody">${this.roomCards(room, skip)}</div>
       </div>
@@ -5194,6 +5281,32 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     .rp-chip.warm .icn {
       color: var(--accent, #f3a83c);
+    }
+    .rp-spark-wrap {
+      margin-top: 10px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--brd, rgba(255, 255, 255, 0.08));
+    }
+    .rp-spark {
+      display: block;
+      width: 100%;
+      height: 44px;
+    }
+    .rp-spark .spark {
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+    .rp-spark .spark.air {
+      stroke: var(--accent, #f3a83c);
+    }
+    .rp-spark .spark.warm {
+      stroke: #ff6b5e;
+      opacity: 0.85;
     }
     .rp-body {
       flex: 1;
