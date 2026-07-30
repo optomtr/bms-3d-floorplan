@@ -253,6 +253,8 @@ export class Ha3dFloorplanCard extends LitElement {
   private idleTimer?: number;
   /** "Отчёт": a full-screen overlay of every room's temperature line graph. */
   @state() private showReport = false;
+  /** Which metric the "Отчёт" grid graphs for every room (its category tab). */
+  @state() private reportMetric: 'temp' | 'floor' | 'humidity' = 'temp';
   /** Which metric the room-panel graph shows: 'auto' = air + floor together,
    *  else just the one whose chip was tapped. */
   @state() private sparkMetric: 'auto' | 'temp' | 'floor' | 'humidity' = 'auto';
@@ -2988,25 +2990,39 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  /** "Отчёт" overlay: every room (across all floors) with a temperature sensor
-   *  bound, shown as just its name + the 24h line graph — no device controls. */
+  /** "Отчёт" overlay: every room's 24h graph, split into category tabs —
+   *  Температура (air), Тёплый пол (floor) and Влажность. The active tab graphs
+   *  that one metric for every room that has it bound; just name + graph. */
   private renderReport() {
-    const floors = this.sceneManager?.roomsByFloor() ?? [this.rooms];
-    const rooms = floors.flat().filter((r) => r.tempSensor || r.floorSensor);
+    const rooms = (this.sceneManager?.roomsByFloor() ?? [this.rooms]).flat();
+    const cats: { key: 'temp' | 'floor' | 'humidity'; label: string; has: (r: RoomInfo) => boolean }[] = [
+      { key: 'temp', label: 'Температура', has: (r) => !!r.tempSensor },
+      { key: 'floor', label: 'Тёплый пол', has: (r) => !!r.floorSensor },
+      { key: 'humidity', label: 'Влажность', has: (r) => !!r.humiditySensor },
+    ];
+    const active = this.reportMetric;
+    const shown = rooms.filter((r) => cats.find((c) => c.key === active)!.has(r));
     return html`
       <div class="report-back" @click=${() => { this.showReport = false; }}></div>
       <div class="report" @click=${(e: Event) => e.stopPropagation()}>
         <div class="report-head">
-          <div class="report-title">${this.ic('chart')}<span>Отчёт — температура (24ч)</span></div>
+          <div class="report-title">${this.ic('chart')}<span>Отчёт — 24ч</span></div>
           <button type="button" class="closebtn" title="Close" @click=${() => { this.showReport = false; }}>${this.ic('close')}</button>
         </div>
+        <div class="report-tabs">
+          ${cats.map((c) => {
+            const n = rooms.filter(c.has).length;
+            return html`<button type="button" class="report-tab ${active === c.key ? 'sel' : ''}"
+              @click=${() => { this.reportMetric = c.key; }}>${c.label}${n ? html` <em>${n}</em>` : nothing}</button>`;
+          })}
+        </div>
         <div class="report-grid">
-          ${rooms.length
-            ? rooms.map((r) => html`<div class="report-item">
+          ${shown.length
+            ? shown.map((r) => html`<div class="report-item">
                 <div class="report-room">${r.name || this.t('Room')}</div>
-                ${this.renderRoomSpark(r)}
+                ${this.renderRoomSpark(r, active)}
               </div>`)
-            : html`<div class="rp-empty">Нет комнат с привязанным датчиком температуры</div>`}
+            : html`<div class="rp-empty">Нет комнат с этим датчиком</div>`}
         </div>
       </div>`;
   }
@@ -5469,6 +5485,33 @@ export class Ha3dFloorplanCard extends LitElement {
       justify-content: space-between;
       padding: 16px 20px;
       border-bottom: 1px solid var(--brd);
+    }
+    .report-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 20px 0;
+    }
+    .report-tab {
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--mut, #9aa0a6);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--brd, rgba(255, 255, 255, 0.08));
+      border-radius: 10px;
+      padding: 8px 14px;
+    }
+    .report-tab.sel {
+      color: #fff;
+      background: rgba(243, 168, 60, 0.16);
+      border-color: var(--accent, #f3a83c);
+    }
+    .report-tab em {
+      font-style: normal;
+      opacity: 0.6;
+      font-size: 12px;
     }
     .report-title {
       display: flex;
