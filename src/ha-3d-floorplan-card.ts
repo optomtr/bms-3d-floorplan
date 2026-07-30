@@ -28,7 +28,7 @@ import {
   ProjectInfo,
   StoredProjects,
 } from './storage';
-import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor } from './furniture/library';
+import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor, ventCount } from './furniture/library';
 import { getThumbnail } from './furniture/thumbnails';
 import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
 import { isZirconPlan, convertZircon } from './import/zircon';
@@ -145,6 +145,7 @@ const RU_STRINGS: Record<string, string> = {
   'on average': 'в среднем',
   'All off short': 'Всё выкл.',
   Floor: 'Пол',
+  Window: 'Окно',
   'My home': 'Мой дом',
   rooms: 'комнат',
   'light sources active': 'источников света активно',
@@ -186,7 +187,6 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editing = false;
   @state() private editTool: EditTool = 'wall';
   @state() private editSelectedModel = 'sofa';
-  @state() private editSelectedEntity: string | null = null;
   @state() private editSelectedObjModel: string | null = null;
   @state() private editShowAllEntities = false;
   @state() private editSnap = true;
@@ -1059,7 +1059,6 @@ export class Ha3dFloorplanCard extends LitElement {
       const ed = this.editor!;
       this.editTool = ed.tool;
       this.editSelectedModel = ed.selectedModel;
-      this.editSelectedEntity = ed.selectedEntity;
       this.editSelectedObjModel = ed.selectedObjectModel;
       this.editSelectedKind = ed.selectedKind;
       this.editOpeningKind = ed.selectedOpeningKind;
@@ -1597,9 +1596,11 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor?.deleteSelected();
   }
 
-  private onPickEntity(e: Event): void {
+  /** Bind an entity to a specific opening (`part`) of a model (part 0 = whole). */
+  private onPickEntityPart(e: Event, part: number): void {
     const entityId = (e.target as HTMLSelectElement).value || null;
-    this.editor?.bindEntity(entityId);
+    this.editor?.bindEntity(entityId, part);
+    this.requestUpdate();
     this.showToast(entityId ? `Bound ${entityId}` : 'Binding cleared');
   }
 
@@ -2272,49 +2273,54 @@ export class Ha3dFloorplanCard extends LitElement {
               : nothing}
             ${isFurniture && this.hass
               ? (() => {
-                  const domains =
-                    this.editShowAllEntities || !this.editSelectedObjModel
-                      ? []
-                      : entityDomainsFor(this.editSelectedObjModel);
+                  const model = this.editSelectedObjModel ?? '';
+                  const domains = this.editShowAllEntities || !model ? [] : entityDomainsFor(model);
                   const { ids, fellBack } = this.candidateEntities(domains);
                   const q = this.editEntitySearch.trim().toLowerCase();
                   const fids = q
                     ? ids.filter((id) => this.entityOptionText(id).toLowerCase().includes(q))
                     : ids;
+                  const vc = ventCount(model);
+                  const hint = (bound: string | null) =>
+                    bound
+                      ? `bound: ${bound}`
+                      : fellBack
+                        ? `${ids.length} entities (no ${domains.join(' / ')} found)`
+                        : domains.length
+                          ? `${ids.length} ${domains.join(' / ')} entities (tap All for every entity)`
+                          : `${ids.length} entities`;
+                  // One picker normally; a roof lantern gets one cover picker per
+                  // opening window so its two vents bind to two covers.
+                  const picker = (part: number, label: string | null) => {
+                    const bound = this.editor?.selectedEntityPart(part) ?? null;
+                    return html`
+                      ${label ? html`<div class="panel-group">${label}</div>` : nothing}
+                      <div class="toolrow">
+                        <select class="select wide" size=${vc >= 2 ? 4 : 6}
+                          @change=${(e: Event) => this.onPickEntityPart(e, part)}>
+                          <option value="" ?selected=${!bound}>— bind entity —</option>
+                          ${fids.map(
+                            (id) => html`<option value=${id} ?selected=${id === bound} title=${id}>
+                              ${this.entityOptionText(id)}
+                            </option>`,
+                          )}
+                        </select>
+                        ${part === 0
+                          ? html`<button class="btn ${this.editShowAllEntities ? 'active' : ''}"
+                              title="Show all entities (ignore type filter)"
+                              @click=${() => (this.editShowAllEntities = !this.editShowAllEntities)}>All</button>`
+                          : nothing}
+                      </div>
+                      <span class="hint">${hint(bound)}</span>`;
+                  };
                   return html`<div class="toolrow">
                       <input class="select wide" type="search" placeholder="🔍 search entity / room…"
                         .value=${this.editEntitySearch}
                         @input=${(e: Event) => (this.editEntitySearch = (e.target as HTMLInputElement).value)} />
                     </div>
-                    <div class="toolrow">
-                      <select class="select wide" size="6" @change=${this.onPickEntity}>
-                        <option value="" ?selected=${!this.editSelectedEntity}>
-                          — bind entity —
-                        </option>
-                        ${fids.map(
-                          (id) => html`<option value=${id} ?selected=${id === this.editSelectedEntity}
-                            title=${id}>
-                            ${this.entityOptionText(id)}
-                          </option>`,
-                        )}
-                      </select>
-                      <button
-                        class="btn ${this.editShowAllEntities ? 'active' : ''}"
-                        title="Show all entities (ignore type filter)"
-                        @click=${() => (this.editShowAllEntities = !this.editShowAllEntities)}
-                      >
-                        All
-                      </button>
-                    </div>
-                    <span class="hint">
-                      ${this.editSelectedEntity
-                        ? `bound: ${this.editSelectedEntity}`
-                        : fellBack
-                          ? `${ids.length} entities (no ${domains.join(' / ')} found)`
-                          : domains.length
-                            ? `${ids.length} ${domains.join(' / ')} entities (tap All for every entity)`
-                            : `${ids.length} entities`}
-                    </span>`;
+                    ${vc >= 2
+                      ? Array.from({ length: vc }, (_, i) => picker(i, `${this.t('Window')} ${i + 1}`))
+                      : picker(0, null)}`;
                 })()
               : nothing}`
           : nothing}

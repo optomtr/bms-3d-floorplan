@@ -550,8 +550,16 @@ export class EditorController {
   }
 
   get selectedEntity(): string | null {
+    return this.selectedEntityPart(0);
+  }
+
+  /** Entity bound to the selected furniture's `part`-th opening (0 = the whole
+   *  piece / first vent). Lets a roof lantern hold one cover per window. */
+  selectedEntityPart(part: number): string | null {
     if (this.selectedKind !== 'furniture' || !this.selectedId) return null;
-    const b = this.floor().bindings?.find((x) => x.anchor_object === this.selectedId);
+    const b = this.floor().bindings?.find(
+      (x) => x.anchor_object === this.selectedId && (x.part ?? 0) === part,
+    );
     return b?.entity_id ?? null;
   }
 
@@ -1553,13 +1561,18 @@ export class EditorController {
     this.rebuild();
   }
 
-  bindEntity(entityId: string | null): void {
+  bindEntity(entityId: string | null, part = 0): void {
     if (this.selectedKind !== 'furniture' || !this.selectedId) return;
     const fl = this.floor();
     if (!fl.bindings) fl.bindings = [];
-    fl.bindings = fl.bindings.filter((b) => b.anchor_object !== this.selectedId);
+    // Replace only the binding for THIS part, so other windows' covers survive.
+    fl.bindings = fl.bindings.filter(
+      (b) => !(b.anchor_object === this.selectedId && (b.part ?? 0) === part),
+    );
     if (entityId) {
-      fl.bindings.push({ entity_id: entityId, anchor_object: this.selectedId, behavior: 'auto' });
+      const def: import('../types').BindingDef = { entity_id: entityId, anchor_object: this.selectedId, behavior: 'auto' };
+      if (part) def.part = part;
+      fl.bindings.push(def);
     }
     this.rebuild();
     this.reselect();

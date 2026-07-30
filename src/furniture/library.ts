@@ -3356,6 +3356,12 @@ export function isSurfaceMount(model: string): boolean {
   return SURFACE_MOUNT_KEYS.includes(model);
 }
 
+/** How many independently-bindable opening vents a model exposes. roof_lantern
+ *  has two (each its own `cover`); 0 means a single binding drives the whole. */
+export function ventCount(model: string): number {
+  return model === 'roof_lantern' ? 2 : 0;
+}
+
 /** Lighting fixtures (have an emissive mesh; bind a light.* entity to them). */
 export const LIGHT_KEYS = [
   'ceiling_light',

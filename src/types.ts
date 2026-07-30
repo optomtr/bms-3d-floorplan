@@ -158,6 +158,9 @@ export interface BindingDef {
   behavior?: BindingBehavior;
   /** Optional friendly label override for floating text. */
   label?: string;
+  /** For a multi-vent model (e.g. roof_lantern): which opening (0-based) this
+   *  cover controls, so two covers can drive the two windows independently. */
+  part?: number;
 }
 
 /** A reference image (e.g. a scanned/exported 2D floor plan) laid flat on the

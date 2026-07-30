@@ -133,7 +133,14 @@ export class BindingManager {
         emissiveMeshes: anchor ? collectEmissive(anchor) : [],
         curtains: anchor ? collectByName(anchor, 'curtainPivot') : [],
         blindsV: anchor ? collectByName(anchor, 'blindPivotV') : [],
-        vents: anchor ? collectByName(anchor, 'ventPivot') : [],
+        // A cover with an explicit `part` drives just that one vent, so two
+        // covers can open a roof lantern's two windows independently; without a
+        // part it drives every vent (a single cover opens them together).
+        vents: (() => {
+          const vs = anchor ? collectByName(anchor, 'ventPivot') : [];
+          const p = def.part;
+          return behavior === 'cover' && p != null && p >= 0 && p < vs.length ? [vs[p]] : vs;
+        })(),
       };
 
       this.setupVisual(ab, floor);
