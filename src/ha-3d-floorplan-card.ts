@@ -2640,32 +2640,49 @@ export class Ha3dFloorplanCard extends LitElement {
     return c ? c.pts : null;
   }
 
-  /** Pull the last 24h of a sensor from HA's history over the websocket. Failures
-   *  (old core, permissions) cache an empty series so we don't hammer, and the
-   *  sparkline simply doesn't show. */
+  /** Pull the last 24h of a sensor from HA's history. Tries the websocket
+   *  (history/history_during_period) first, then falls back to the REST history
+   *  API — the data is all in HA, so one of the two reaches it on any core.
+   *  Failures cache an empty series so we don't hammer, and the graph just
+   *  doesn't show. */
   private async fetchHistory(entityId: string): Promise<void> {
     const hass = this.hass as any;
-    if (!hass?.callWS || this.histInFlight.has(entityId)) return;
+    if ((!hass?.callWS && !hass?.callApi) || this.histInFlight.has(entityId)) return;
     this.histInFlight.add(entityId);
-    try {
-      const end = new Date();
-      const start = new Date(end.getTime() - 24 * 3600 * 1000);
-      const res = await hass.callWS({
-        type: 'history/history_during_period',
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        entity_ids: [entityId],
-        minimal_response: true,
-        no_attributes: true,
-        significant_changes_only: false,
-      });
-      const rows: any[] = res?.[entityId] ?? [];
-      const pts: [number, number][] = [];
-      for (const r of rows) {
+    const end = new Date();
+    const start = new Date(end.getTime() - 24 * 3600 * 1000);
+    const toPts = (rows: any[]): [number, number][] => {
+      const out: [number, number][] = [];
+      for (const r of rows ?? []) {
         const v = Number(r.s ?? r.state);
         const lu = r.lu ?? r.last_updated ?? r.last_changed;
         const t = typeof lu === 'number' ? lu * 1000 : Date.parse(lu);
-        if (Number.isFinite(v) && Number.isFinite(t)) pts.push([t, v]);
+        if (Number.isFinite(v) && Number.isFinite(t)) out.push([t, v]);
+      }
+      return out;
+    };
+    try {
+      let pts: [number, number][] = [];
+      if (hass.callWS) {
+        try {
+          const res = await hass.callWS({
+            type: 'history/history_during_period',
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+            entity_ids: [entityId],
+            minimal_response: true,
+            no_attributes: true,
+            significant_changes_only: false,
+          });
+          pts = toPts(res?.[entityId] ?? []);
+        } catch { /* fall through to REST */ }
+      }
+      if (!pts.length && hass.callApi) {
+        const path =
+          `history/period/${start.toISOString()}?filter_entity_id=${entityId}` +
+          `&end_time=${encodeURIComponent(end.toISOString())}&minimal_response&no_attributes`;
+        const rest = await hass.callApi('GET', path);
+        pts = toPts(Array.isArray(rest) ? (rest[0] ?? []) : []);
       }
       // Down-sample a long series so the SVG stays light (≤120 points).
       const step = Math.ceil(pts.length / 120) || 1;
@@ -2700,10 +2717,11 @@ export class Ha3dFloorplanCard extends LitElement {
     if (!series.length) return nothing;
     const unit = series[0].unit;
     const all = series.flatMap((s) => s.pts);
-    const ts = all.map((p) => p[0]);
     const vs = all.map((p) => p[1]);
-    const t0 = Math.min(...ts);
-    const t1 = Math.max(...ts);
+    // Fixed, exact 24-hour window (now − 24h → now), so the time axis always
+    // reads as a clear 24h regardless of how dense the recorder data is.
+    const t1 = Date.now();
+    const t0 = t1 - 24 * 3600 * 1000;
     // Value scale with headroom; minimum span 2° for temperature, 5% for humidity.
     const minSpan = unit === '%' ? 5 : 2;
     let lo = Math.floor(Math.min(...vs));
