@@ -24159,7 +24159,9 @@ class b_ {
       this.activeRooms.push({ key: y, name: g.name, entities: m, center: [g.x, o + 1.6, g.z], bgImage: b, tempSensor: g.tempSensor, floorSensor: g.floorSensor, humiditySensor: g.humiditySensor, sprite: p });
       for (const M of v) this.markerByEntity.set(M, p);
     }
-    const c = e.filter((g) => !l.has(g.entity_id)), h = /* @__PURE__ */ new Map(), d = [], u = n.map((g) => dr(g.poly));
+    const c = e.filter(
+      (g) => !l.has(g.entity_id) && (!this.lastHass || !!this.lastHass.states?.[g.entity_id])
+    ), h = /* @__PURE__ */ new Map(), d = [], u = n.map((g) => dr(g.poly));
     for (const g of c) {
       let v = -1, p = 1 / 0;
       for (let m = 0; m < n.length; m++)
@@ -24228,7 +24230,9 @@ class b_ {
       }
       a.push({ key: l(v.id ?? v.name ?? "zone"), id: v.id, parentId: v.parentId, name: v.name, entities: m, center: [v.x, r + 1.6, v.z], bgImage: y, tempSensor: v.tempSensor, floorSensor: v.floorSensor, humiditySensor: v.humiditySensor });
     }
-    const u = n.filter((v) => !d.has(v.entity_id)), f = /* @__PURE__ */ new Map(), g = s.map((v) => dr(v.poly));
+    const u = n.filter(
+      (v) => !d.has(v.entity_id) && (!this.lastHass || !!this.lastHass.states?.[v.entity_id])
+    ), f = /* @__PURE__ */ new Map(), g = s.map((v) => dr(v.poly));
     for (const v of u) {
       let p = -1, m = 1 / 0;
       for (let y = 0; y < s.length; y++)
@@ -24694,7 +24698,7 @@ function dr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const __ = "0.164.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
+const __ = "0.164.1", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
 function w_() {
   return window.ha3dFloorplan ?? {};
 }

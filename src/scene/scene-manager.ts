@@ -1072,7 +1072,14 @@ export class SceneManager {
       for (const id of ents) this.markerByEntity.set(id, sp);
     }
     // 2) Auto-group the remaining (unclaimed) devices by their room polygon.
-    const devices = allDevices.filter((d) => !claimed.has(d.entity_id));
+    //    Skip a binding whose entity no longer exists in HA (renamed/deleted):
+    //    an anchored-but-dead entity would otherwise spawn a phantom "empty room"
+    //    marker next to the real one. Only filter once hass is loaded so the
+    //    scene isn't blanked during the first render (an *unavailable* entity is
+    //    still present in states — only a truly removed id is dropped).
+    const devices = allDevices.filter(
+      (d) => !claimed.has(d.entity_id) && (!this.lastHass || !!this.lastHass.states?.[d.entity_id]),
+    );
     const perRoom = new Map<number, typeof devices>();
     const loose: typeof devices = [];
     const roomAreas = rooms.map((r) => polyArea(r.poly)); // constant across devices
@@ -1189,7 +1196,11 @@ export class SceneManager {
       }
       out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), id: z.id, parentId: z.parentId, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, tempSensor: z.tempSensor, floorSensor: z.floorSensor, humiditySensor: z.humiditySensor });
     }
-    const devices = allDevices.filter((d) => !claimed.has(d.entity_id));
+    // Same guard as buildActiveRooms: a binding to a renamed/deleted entity must
+    // not create a phantom auto-room. Filter dead entities once hass is loaded.
+    const devices = allDevices.filter(
+      (d) => !claimed.has(d.entity_id) && (!this.lastHass || !!this.lastHass.states?.[d.entity_id]),
+    );
     const perRoom = new Map<number, typeof devices>();
     const roomAreas = rooms.map((r) => polyArea(r.poly));
     for (const d of devices) {
