@@ -3523,29 +3523,54 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  /** ONE gate-style button instead of three: the classic one-touch logic — while
-   *  the cover is moving a press stops it; a closed cover opens; anything else
-   *  closes. The label shows what the NEXT press will do (Открыть / Стоп /
-   *  Закрыть). No position slider or state line. */
+  /** Gates get ONE one-touch button (moving→stop, closed→open, else close, with
+   *  the label showing the next action); every other cover keeps the explicit
+   *  Open / Stop / Close buttons. No position slider or state line. */
   private renderCoverCard(id: string) {
-    const st = this.effState(id);
-    const moving = st === 'opening' || st === 'closing';
-    const action = moving ? 'stop' : st === 'closed' ? 'open' : 'close';
-    const svcName = action === 'stop' ? 'stop_cover' : action === 'open' ? 'open_cover' : 'close_cover';
-    const label = action === 'stop' ? this.t('Stop blind') : action === 'open' ? this.t('Open blind') : this.t('Close blind');
-    // Optimistic so the label flips at once: open→opening, close→closing, and a
-    // stop lands as "open" (a partially-open cover isn't closed).
-    const opt = action === 'open' ? 'opening' : action === 'close' ? 'closing' : 'open';
-    return html`<div class="card">
-      <div class="crow">
+    const ent = this.hass!.states[id];
+    const head = html`<div class="crow">
         <div class="cicon">${this.ic('curtain')}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(id)}</div>
         </div>
-      </div>
+      </div>`;
+    // The one-touch single button is ONLY for gates (device_class gate/garage/
+    // door, or a gate-like name). Every other cover — curtains, blinds — keeps
+    // the explicit Open / Stop / Close buttons.
+    const dc = String(ent?.attributes?.device_class ?? '').toLowerCase();
+    const nm = (String(ent?.attributes?.friendly_name ?? '') + ' ' + id).toLowerCase();
+    const isGate = dc === 'gate' || dc === 'garage' || dc === 'door' || /ворот|gate|darvoza|калитк/.test(nm);
+    if (isGate) {
+      const st = this.effState(id);
+      const moving = st === 'opening' || st === 'closing';
+      const action = moving ? 'stop' : st === 'closed' ? 'open' : 'close';
+      const svcName = action === 'stop' ? 'stop_cover' : action === 'open' ? 'open_cover' : 'close_cover';
+      const label = action === 'stop' ? this.t('Stop blind') : action === 'open' ? this.t('Open blind') : this.t('Close blind');
+      const opt = action === 'open' ? 'opening' : action === 'close' ? 'closing' : 'open';
+      return html`<div class="card">
+        ${head}
+        <div class="qbtns">
+          <button type="button" class="qb gate ${moving ? 'on' : ''}"
+            @click=${() => this.svc('cover', svcName, {}, id, opt)}>${label}</button>
+        </div>
+      </div>`;
+    }
+    const feat = Number(ent?.attributes?.supported_features ?? 0);
+    return html`<div class="card">
+      ${head}
       <div class="qbtns">
-        <button type="button" class="qb gate ${moving ? 'on' : ''}"
-          @click=${() => this.svc('cover', svcName, {}, id, opt)}>${label}</button>
+        ${feat & 1
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('cover', 'open_cover', {}, id, 'open')}>${this.t('Open blind')}</button>`
+          : nothing}
+        ${feat & 8
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('cover', 'stop_cover', {}, id)}>${this.t('Stop blind')}</button>`
+          : nothing}
+        ${feat & 2
+          ? html`<button type="button" class="qb"
+              @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.t('Close blind')}</button>`
+          : nothing}
       </div>
     </div>`;
   }
