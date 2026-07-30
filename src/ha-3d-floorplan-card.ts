@@ -2667,9 +2667,11 @@ export class Ha3dFloorplanCard extends LitElement {
     }
   }
 
-  /** Compact history sparkline for a room's bound degree sensors (air + floor on
-   *  one shared axis). Appears automatically once a temperature sensor is bound
-   *  and its history has loaded; renders nothing with no bound sensor or no data. */
+  /** Compact 24h LINE GRAPH for a room's bound degree sensors (air + floor on one
+   *  shared axis). A left gutter shows the temperature scale in degrees with
+   *  faint horizontal gridlines. Uniform-scaled (so the axis text isn't
+   *  distorted). Appears once a temperature sensor is bound and its history
+   *  loads; renders nothing with no bound sensor or no data. */
   private renderRoomSpark(room: RoomInfo) {
     const series = ([
       { id: room.tempSensor, cls: 'air' },
@@ -2684,18 +2686,27 @@ export class Ha3dFloorplanCard extends LitElement {
     const vs = all.map((p) => p[1]);
     const t0 = Math.min(...ts);
     const t1 = Math.max(...ts);
-    let vmin = Math.min(...vs);
-    let vmax = Math.max(...vs);
-    if (vmax - vmin < 1) { const m = (vmin + vmax) / 2; vmin = m - 0.6; vmax = m + 0.6; }
-    const W = 240, H = 44, pad = 4;
-    const sx = (t: number) => (t1 === t0 ? W / 2 : pad + ((t - t0) / (t1 - t0)) * (W - 2 * pad));
-    const sy = (v: number) => H - pad - ((v - vmin) / (vmax - vmin)) * (H - 2 * pad);
+    // Whole-degree scale with a little headroom, minimum 2° span.
+    let lo = Math.floor(Math.min(...vs));
+    let hi = Math.ceil(Math.max(...vs));
+    if (hi - lo < 2) { const m = (lo + hi) / 2; lo = Math.floor(m - 1); hi = Math.ceil(m + 1); }
+    const W = 260, H = 104, axisW = 30, top = 8, bot = H - 8, right = W - 6;
+    const xFor = (t: number) => (t1 === t0 ? (axisW + right) / 2 : axisW + ((t - t0) / (t1 - t0)) * (right - axisW));
+    const yFor = (v: number) => bot - ((v - lo) / (hi - lo)) * (bot - top);
+    const TICKS = 4;
+    const grid: unknown[] = [];
+    for (let i = 0; i <= TICKS; i++) {
+      const v = lo + ((hi - lo) * i) / TICKS;
+      const y = yFor(v);
+      grid.push(svg`<line class="spark-grid" x1=${axisW} y1=${y.toFixed(1)} x2=${right} y2=${y.toFixed(1)}></line>`);
+      grid.push(svg`<text class="spark-axis" x=${axisW - 5} y=${(y + 3).toFixed(1)} text-anchor="end">${Math.round(v)}°</text>`);
+    }
     const lines = series.map((s) => {
-      const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(' ');
+      const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xFor(p[0]).toFixed(1)} ${yFor(p[1]).toFixed(1)}`).join(' ');
       return svg`<path class="spark ${s.cls}" d=${d}></path>`;
     });
     return html`<div class="rp-spark-wrap" title="24h">
-      <svg class="rp-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${lines}</svg>
+      <svg class="rp-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${grid}${lines}</svg>
     </div>`;
   }
 
@@ -5292,7 +5303,7 @@ export class Ha3dFloorplanCard extends LitElement {
     .rp-spark {
       display: block;
       width: 100%;
-      height: 44px;
+      height: auto;
     }
     .rp-spark .spark {
       fill: none;
@@ -5307,6 +5318,15 @@ export class Ha3dFloorplanCard extends LitElement {
     .rp-spark .spark.warm {
       stroke: #ff6b5e;
       opacity: 0.85;
+    }
+    .rp-spark .spark-grid {
+      stroke: rgba(255, 255, 255, 0.09);
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+    .rp-spark .spark-axis {
+      fill: rgba(255, 255, 255, 0.55);
+      font-size: 9px;
     }
     .rp-body {
       flex: 1;
