@@ -2744,11 +2744,17 @@ export class Ha3dFloorplanCard extends LitElement {
     // Time scale along the bottom (HH:MM), faint vertical gridlines. Edge labels
     // are start/end-anchored so they don't clip.
     const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString(this.uiLocale, { hour: '2-digit', minute: '2-digit' });
-    const XT = 3;
-    for (let i = 0; i <= XT; i++) {
-      const t = t0 + ((t1 - t0) * i) / XT;
+    // Ticks on ROUND local 6-hour marks (00:00 / 06:00 / 12:00 / 18:00), so the
+    // labels are clean and each sits exactly where that clock time falls on the
+    // line (positioned by real timestamp, not an even fraction of the window).
+    const mark = new Date(t0);
+    mark.setMinutes(0, 0, 0);
+    while (mark.getHours() % 6 !== 0 || mark.getTime() < t0) mark.setHours(mark.getHours() + 1);
+    for (; mark.getTime() <= t1; mark.setHours(mark.getHours() + 6)) {
+      const t = mark.getTime();
       const x = xFor(t);
-      const anchor = i === 0 ? 'start' : i === XT ? 'end' : 'middle';
+      const frac = (t - t0) / (t1 - t0);
+      const anchor = frac < 0.05 ? 'start' : frac > 0.95 ? 'end' : 'middle';
       grid.push(svg`<line class="spark-grid" x1=${x.toFixed(1)} y1=${top} x2=${x.toFixed(1)} y2=${bot}></line>`);
       grid.push(svg`<text class="spark-axis" x=${x.toFixed(1)} y=${H - 7} text-anchor=${anchor}>${fmtTime(t)}</text>`);
     }
