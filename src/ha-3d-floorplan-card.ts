@@ -253,6 +253,9 @@ export class Ha3dFloorplanCard extends LitElement {
   private idleTimer?: number;
   /** "Отчёт": a full-screen overlay of every room's temperature line graph. */
   @state() private showReport = false;
+  /** Which metric the room-panel graph shows: 'auto' = air + floor together,
+   *  else just the one whose chip was tapped. */
+  @state() private sparkMetric: 'auto' | 'temp' | 'floor' | 'humidity' = 'auto';
   /** Transient value (0..100) shown while dragging a slider, before HA confirms. */
   @state() private dragEntity: string | null = null;
   private dragValue = 0;
@@ -787,8 +790,14 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Select a room (or toggle off if it's already selected). */
   private selectRoom(key: string | null): void {
     this.activeRoomKey = this.activeRoomKey === key ? null : key;
+    this.sparkMetric = 'auto'; // fresh graph view when a different room opens
     this.sceneManager?.selectRoom(this.activeRoomKey);
     this.requestUpdate();
+  }
+  /** Tap a temperature/humidity chip to graph just that metric; tap it again
+   *  (or another) to switch. */
+  private toggleSparkMetric(m: 'temp' | 'floor' | 'humidity'): void {
+    this.sparkMetric = this.sparkMetric === m ? 'auto' : m;
   }
 
   private get activeRoom(): RoomInfo | undefined {
@@ -2674,24 +2683,32 @@ export class Ha3dFloorplanCard extends LitElement {
    *  faint horizontal gridlines. Uniform-scaled (so the axis text isn't
    *  distorted). Appears once a temperature sensor is bound and its history
    *  loads; renders nothing with no bound sensor or no data. */
-  private renderRoomSpark(room: RoomInfo) {
-    const series = ([
-      { id: room.tempSensor, cls: 'air' },
-      { id: room.floorSensor, cls: 'warm' },
-    ] as { id?: string; cls: string }[])
-      .filter((s) => !!s.id)
-      .map((s) => ({ cls: s.cls, pts: this.historyPts(s.id) }))
-      .filter((s): s is { cls: string; pts: [number, number][] } => !!s.pts && s.pts.length >= 2);
+  private renderRoomSpark(room: RoomInfo, metric: 'auto' | 'temp' | 'floor' | 'humidity' = 'auto') {
+    const defs = ([
+      { key: 'temp', id: room.tempSensor, cls: 'air', label: 'Воздух', unit: '°' },
+      { key: 'floor', id: room.floorSensor, cls: 'warm', label: 'Пол', unit: '°' },
+      { key: 'humidity', id: room.humiditySensor, cls: 'hum', label: 'Влажность', unit: '%' },
+    ] as { key: string; id?: string; cls: string; label: string; unit: string }[]).filter((m) => !!m.id);
+    // Tapping a chip graphs just that metric; 'auto' shows the degree metrics
+    // (air + floor) together, else the single bound one.
+    const chosen = metric === 'auto'
+      ? (defs.some((m) => m.unit === '°') ? defs.filter((m) => m.unit === '°') : defs.slice(0, 1))
+      : defs.filter((m) => m.key === metric);
+    const series = chosen
+      .map((m) => ({ cls: m.cls, label: m.label, unit: m.unit, pts: this.historyPts(m.id) }))
+      .filter((m) => !!m.pts && m.pts.length >= 2) as { cls: string; label: string; unit: string; pts: [number, number][] }[];
     if (!series.length) return nothing;
+    const unit = series[0].unit;
     const all = series.flatMap((s) => s.pts);
     const ts = all.map((p) => p[0]);
     const vs = all.map((p) => p[1]);
     const t0 = Math.min(...ts);
     const t1 = Math.max(...ts);
-    // Whole-degree scale with a little headroom, minimum 2° span.
+    // Value scale with headroom; minimum span 2° for temperature, 5% for humidity.
+    const minSpan = unit === '%' ? 5 : 2;
     let lo = Math.floor(Math.min(...vs));
     let hi = Math.ceil(Math.max(...vs));
-    if (hi - lo < 2) { const m = (lo + hi) / 2; lo = Math.floor(m - 1); hi = Math.ceil(m + 1); }
+    if (hi - lo < minSpan) { const m = (lo + hi) / 2; lo = Math.floor(m - minSpan / 2); hi = Math.ceil(m + minSpan / 2); }
     const W = 260, H = 116, axisW = 30, top = 8, bot = H - 22, right = W - 6;
     const xFor = (t: number) => (t1 === t0 ? (axisW + right) / 2 : axisW + ((t - t0) / (t1 - t0)) * (right - axisW));
     const yFor = (v: number) => bot - ((v - lo) / (hi - lo)) * (bot - top);
@@ -2702,7 +2719,7 @@ export class Ha3dFloorplanCard extends LitElement {
       const v = lo + ((hi - lo) * i) / TICKS;
       const y = yFor(v);
       grid.push(svg`<line class="spark-grid" x1=${axisW} y1=${y.toFixed(1)} x2=${right} y2=${y.toFixed(1)}></line>`);
-      grid.push(svg`<text class="spark-axis" x=${axisW - 5} y=${(y + 3).toFixed(1)} text-anchor="end">${Math.round(v)}°</text>`);
+      grid.push(svg`<text class="spark-axis" x=${axisW - 5} y=${(y + 3).toFixed(1)} text-anchor="end">${Math.round(v)}${unit}</text>`);
     }
     // Time scale along the bottom (HH:MM), faint vertical gridlines. Edge labels
     // are start/end-anchored so they don't clip.
@@ -2720,6 +2737,7 @@ export class Ha3dFloorplanCard extends LitElement {
       return svg`<path class="spark ${s.cls}" d=${d}></path>`;
     });
     return html`<div class="rp-spark-wrap" title="24h">
+      <div class="spark-legend">${series.map((s) => html`<span class="spark-leg ${s.cls}"><i></i>${s.label}</span>`)}</div>
       <svg class="rp-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${grid}${lines}</svg>
     </div>`;
   }
@@ -2936,6 +2954,22 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
+  /** The temperature / floor / humidity chips, tappable to filter the graph to
+   *  just that metric (the active one is highlighted). */
+  private renderTempChips(t: string | null, f: string | null, h: string | null) {
+    if (!t && !f && !h) return nothing;
+    const chip = (val: string | null, m: 'temp' | 'floor' | 'humidity', cls: string, icon: string, title = '') =>
+      val
+        ? html`<button type="button" class="rp-chip ${cls} ${this.sparkMetric === m ? 'sel' : ''}" title=${title}
+            @click=${() => this.toggleSparkMetric(m)}>${this.ic(icon)}${val}</button>`
+        : nothing;
+    return html`<div class="rp-chips">
+      ${chip(t, 'temp', '', 'thermo')}
+      ${chip(f, 'floor', 'warm', 'heat', this.t('Floor'))}
+      ${chip(h, 'humidity', 'cool', 'drop')}
+    </div>`;
+  }
+
   /** "Отчёт" overlay: every room (across all floors) with a temperature sensor
    *  bound, shown as just its name + the 24h line graph — no device controls. */
   private renderReport() {
@@ -2981,14 +3015,8 @@ export class Ha3dFloorplanCard extends LitElement {
             <div class="rp-name">${room.name || this.t('Room')}</div>
             <button type="button" class="closebtn" title="Close" @click=${() => this.selectRoom(null)}>${this.ic('close')}</button>
           </div>
-          ${tempChip || humChip || floorChip
-            ? html`<div class="rp-chips">
-                ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
-                ${floorChip ? html`<div class="rp-chip warm" title=${this.t('Floor')}>${this.ic('heat')}${floorChip}</div>` : nothing}
-                ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
-              </div>`
-            : nothing}
-          ${this.renderRoomSpark(room)}
+          ${this.renderTempChips(tempChip, floorChip, humChip)}
+          ${this.renderRoomSpark(room, this.sparkMetric)}
         </div>
         <div class="rp-body">
           ${cards.length ? cards : html`<div class="rp-empty">${this.t('No devices in this room')}</div>`}
@@ -3044,14 +3072,8 @@ export class Ha3dFloorplanCard extends LitElement {
             <div class="dtitle">${room.name || this.t('Room')}</div>
             <div class="dsub">${n} ${this.ruPlural(n, 'устройство', 'устройства', 'устройств')}</div>
           </div>
-          ${tempChip || humChip || floorChip
-            ? html`<div class="rp-chips">
-                ${tempChip ? html`<div class="rp-chip">${this.ic('thermo')}${tempChip}</div>` : nothing}
-                ${floorChip ? html`<div class="rp-chip warm" title=${this.t('Floor')}>${this.ic('heat')}${floorChip}</div>` : nothing}
-                ${humChip ? html`<div class="rp-chip cool">${this.ic('drop')}${humChip}</div>` : nothing}
-              </div>`
-            : nothing}
-          ${this.renderRoomSpark(room)}
+          ${this.renderTempChips(tempChip, floorChip, humChip)}
+          ${this.renderRoomSpark(room, this.sparkMetric)}
         </div>
         <div class="dbody">${this.roomCards(room, skip)}</div>
       </div>
@@ -5335,6 +5357,14 @@ export class Ha3dFloorplanCard extends LitElement {
     .rp-chip.warm .icn {
       color: var(--accent, #f3a83c);
     }
+    button.rp-chip {
+      cursor: pointer;
+      font: inherit;
+    }
+    .rp-chip.sel {
+      border-color: var(--accent, #f3a83c);
+      box-shadow: inset 0 0 0 1px var(--accent, #f3a83c);
+    }
     .rp-spark-wrap {
       margin-top: 10px;
       padding: 6px 8px;
@@ -5361,6 +5391,9 @@ export class Ha3dFloorplanCard extends LitElement {
       stroke: #ff6b5e;
       opacity: 0.85;
     }
+    .rp-spark .spark.hum {
+      stroke: var(--cool, #5aa9e6);
+    }
     .rp-spark .spark-grid {
       stroke: rgba(255, 255, 255, 0.09);
       stroke-width: 1;
@@ -5370,6 +5403,28 @@ export class Ha3dFloorplanCard extends LitElement {
       fill: rgba(255, 255, 255, 0.55);
       font-size: 9px;
     }
+    .spark-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .spark-leg {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .spark-leg i {
+      width: 11px;
+      height: 3px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .spark-leg.air i { background: var(--accent, #f3a83c); }
+    .spark-leg.warm i { background: #ff6b5e; }
+    .spark-leg.hum i { background: var(--cool, #5aa9e6); }
     .report-back {
       position: absolute;
       inset: 0;
