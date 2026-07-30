@@ -28,8 +28,11 @@ interface ActiveBinding {
   pointLight?: THREE.PointLight;
   label?: TextLabel;
   lastState?: string;
-  /** Domain-default fan/cover spin handle. */
+  /** Domain-default fan/cover spin handle (the currently-spinning object). */
   spin?: THREE.Object3D;
+  /** The blade group to spin for a fan — only models with a 'fanBlade' child
+   *  spin; a tower like the air purifier has none, so it stays still. */
+  spinTarget?: THREE.Object3D;
   /** Curtain pivot groups to slide open/closed (cover behavior). */
   curtains?: THREE.Object3D[];
   /** Vertical-blind pivots that open bottom→top (scale.y, anchored at the top). */
@@ -193,8 +196,11 @@ export class BindingManager {
     }
 
     if (behavior === 'fan') {
-      ab.spin = ab.anchor ?? undefined;
-      disableShadowCasting(ab.anchor); // a spinning fan can't leave a frozen shadow
+      // Spin ONLY a 'fanBlade' child (a ceiling fan's blades). Models without
+      // one — an air purifier tower, a convector — stay still when fan-bound.
+      ab.spinTarget = ab.anchor ? collectByName(ab.anchor, 'fanBlade')[0] : undefined;
+      ab.spin = ab.spinTarget;
+      disableShadowCasting(ab.spinTarget); // a spinning blade can't leave a frozen shadow
     }
 
     // Sliding curtain panels: same reasoning — don't cast a shadow that would
@@ -302,7 +308,7 @@ export class BindingManager {
         break;
       }
       case 'fan': {
-        ab.spin = state === 'on' ? ab.anchor ?? undefined : undefined;
+        ab.spin = state === 'on' ? ab.spinTarget : undefined;
         break;
       }
     }

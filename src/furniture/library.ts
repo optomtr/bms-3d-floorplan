@@ -2744,8 +2744,11 @@ const builders: Record<string, FurnitureBuilder> = {
   ceiling_fan: (c) => {
     const g = new THREE.Group();
     g.add(cyl(0.1, 0.1, 0.1, mat(METAL), 0, 0, 0, 16));
-    g.add(tint(box(1.4, 0.02, 0.18, mat(WOOD), 0, -0.02, 0), c));
-    g.add(tint(box(0.18, 0.02, 1.4, mat(WOOD), 0, -0.02, 0), c));
+    const blades = new THREE.Group();
+    blades.name = 'fanBlade'; // only this group spins when a fan is bound
+    blades.add(tint(box(1.4, 0.02, 0.18, mat(WOOD), 0, -0.02, 0), c));
+    blades.add(tint(box(0.18, 0.02, 1.4, mat(WOOD), 0, -0.02, 0), c));
+    g.add(blades);
     g.add(cyl(0.04, 0.04, 0.22, mat(METAL), 0, 0.14, 0, 10));
     return g;
   },
@@ -2764,12 +2767,15 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(cyl(0.055, 0.06, 0.045, hubMat, 0, -0.07, 0, 20));
     // Radial fan blades — discrete spokes so the spin reads when it's running.
     const blade = mat(0xeceef1, { metalness: 0.2, roughness: 0.5 });
+    const blades = new THREE.Group();
+    blades.name = 'fanBlade'; // only this group spins when a fan is bound
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
       const b = box(0.15, 0.006, 0.05, blade, Math.cos(a) * 0.11, -0.062, Math.sin(a) * 0.11);
       b.rotation.y = -a;
-      g.add(b);
+      blades.add(b);
     }
+    g.add(blades);
     return g;
   },
   // Underfloor heating mat (тёплый пол) — lies flat on the floor; the serpentine
