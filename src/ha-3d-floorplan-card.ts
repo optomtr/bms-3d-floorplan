@@ -251,6 +251,8 @@ export class Ha3dFloorplanCard extends LitElement {
   /** Idle screensaver (big clock + home summary) after N minutes of no input. */
   @state() private idle = false;
   private idleTimer?: number;
+  /** "Отчёт": a full-screen overlay of every room's temperature line graph. */
+  @state() private showReport = false;
   /** Transient value (0..100) shown while dragging a slider, before HA confirms. */
   @state() private dragEntity: string | null = null;
   private dragValue = 0;
@@ -2690,9 +2692,10 @@ export class Ha3dFloorplanCard extends LitElement {
     let lo = Math.floor(Math.min(...vs));
     let hi = Math.ceil(Math.max(...vs));
     if (hi - lo < 2) { const m = (lo + hi) / 2; lo = Math.floor(m - 1); hi = Math.ceil(m + 1); }
-    const W = 260, H = 104, axisW = 30, top = 8, bot = H - 8, right = W - 6;
+    const W = 260, H = 116, axisW = 30, top = 8, bot = H - 22, right = W - 6;
     const xFor = (t: number) => (t1 === t0 ? (axisW + right) / 2 : axisW + ((t - t0) / (t1 - t0)) * (right - axisW));
     const yFor = (v: number) => bot - ((v - lo) / (hi - lo)) * (bot - top);
+    // Degree scale down the left, faint horizontal gridlines.
     const TICKS = 4;
     const grid: unknown[] = [];
     for (let i = 0; i <= TICKS; i++) {
@@ -2700,6 +2703,17 @@ export class Ha3dFloorplanCard extends LitElement {
       const y = yFor(v);
       grid.push(svg`<line class="spark-grid" x1=${axisW} y1=${y.toFixed(1)} x2=${right} y2=${y.toFixed(1)}></line>`);
       grid.push(svg`<text class="spark-axis" x=${axisW - 5} y=${(y + 3).toFixed(1)} text-anchor="end">${Math.round(v)}°</text>`);
+    }
+    // Time scale along the bottom (HH:MM), faint vertical gridlines. Edge labels
+    // are start/end-anchored so they don't clip.
+    const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString(this.uiLocale, { hour: '2-digit', minute: '2-digit' });
+    const XT = 3;
+    for (let i = 0; i <= XT; i++) {
+      const t = t0 + ((t1 - t0) * i) / XT;
+      const x = xFor(t);
+      const anchor = i === 0 ? 'start' : i === XT ? 'end' : 'middle';
+      grid.push(svg`<line class="spark-grid" x1=${x.toFixed(1)} y1=${top} x2=${x.toFixed(1)} y2=${bot}></line>`);
+      grid.push(svg`<text class="spark-axis" x=${x.toFixed(1)} y=${H - 7} text-anchor=${anchor}>${fmtTime(t)}</text>`);
     }
     const lines = series.map((s) => {
       const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xFor(p[0]).toFixed(1)} ${yFor(p[1]).toFixed(1)}`).join(' ');
@@ -2848,6 +2862,7 @@ export class Ha3dFloorplanCard extends LitElement {
         ${this.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic('shield')}</button>` : nothing}
         <button class="sdot" title="Screensaver" @click=${(e: Event) => this.onSleep(e)}>${this.ic('moon')}</button>
         <button class="sdot" title=${this.t('All off short')} @click=${() => this.allOffHouse()}>${this.ic('power')}</button>
+        <button class="sdot" title="Отчёт — графики температуры" @click=${() => { this.showReport = true; }}>${this.ic('chart')}</button>
         ${this.renderViewToggle()}
       </div>
       <div class="stage-bottom">
@@ -2901,6 +2916,29 @@ export class Ha3dFloorplanCard extends LitElement {
         <div class="saver-hint">${this.ic('dot')}<span>${this.t('Touch the screen to return')}</span></div>
       </div>
     </div>`;
+  }
+
+  /** "Отчёт" overlay: every room (across all floors) with a temperature sensor
+   *  bound, shown as just its name + the 24h line graph — no device controls. */
+  private renderReport() {
+    const floors = this.sceneManager?.roomsByFloor() ?? [this.rooms];
+    const rooms = floors.flat().filter((r) => r.tempSensor || r.floorSensor);
+    return html`
+      <div class="report-back" @click=${() => { this.showReport = false; }}></div>
+      <div class="report" @click=${(e: Event) => e.stopPropagation()}>
+        <div class="report-head">
+          <div class="report-title">${this.ic('chart')}<span>Отчёт — температура (24ч)</span></div>
+          <button type="button" class="closebtn" title="Close" @click=${() => { this.showReport = false; }}>${this.ic('close')}</button>
+        </div>
+        <div class="report-grid">
+          ${rooms.length
+            ? rooms.map((r) => html`<div class="report-item">
+                <div class="report-room">${r.name || this.t('Room')}</div>
+                ${this.renderRoomSpark(r)}
+              </div>`)
+            : html`<div class="rp-empty">Нет комнат с привязанным датчиком температуры</div>`}
+        </div>
+      </div>`;
   }
 
   private renderRoomPanel() {
@@ -3921,6 +3959,8 @@ export class Ha3dFloorplanCard extends LitElement {
           : this.viewMode === 'overview'
             ? html`${this.renderOverview()}${this.renderDetail()}`
             : html`${this.renderStageChrome()}${this.renderRoomPanel()}`}
+
+        ${this.showReport && !this.editing ? this.renderReport() : nothing}
 
         ${!this.editing && this.idle ? this.renderScreensaver() : nothing}
 
@@ -5327,6 +5367,70 @@ export class Ha3dFloorplanCard extends LitElement {
     .rp-spark .spark-axis {
       fill: rgba(255, 255, 255, 0.55);
       font-size: 9px;
+    }
+    .report-back {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 20;
+      animation: panel-in 0.2s ease both;
+    }
+    .report {
+      position: absolute;
+      inset: 4%;
+      z-index: 21;
+      display: flex;
+      flex-direction: column;
+      background: var(--model, #141519);
+      border: 1px solid var(--brd);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      animation: panel-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .report-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--brd);
+    }
+    .report-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .report-title .icn {
+      width: 22px;
+      height: 22px;
+      color: var(--accent, #f3a83c);
+    }
+    .report-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      align-content: start;
+    }
+    .report-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--brd, rgba(255, 255, 255, 0.08));
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .report-room {
+      font-size: 14px;
+      font-weight: 600;
+      color: #dfe3e8;
+      margin-bottom: 6px;
+    }
+    .report-item .rp-spark-wrap {
+      margin-top: 0;
     }
     .rp-body {
       flex: 1;
