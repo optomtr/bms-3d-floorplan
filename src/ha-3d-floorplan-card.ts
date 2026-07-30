@@ -3523,15 +3523,19 @@ export class Ha3dFloorplanCard extends LitElement {
     </div>`;
   }
 
-  /** Open / Stop / Close, mirroring the wall panel. No position slider and no
-   *  state readout: these curtain motors advertise SET_POSITION but report
-   *  current_position stale at 100 even once shut, so a slider or an
-   *  "Opening"/"Open" line under the name just states something false — the
-   *  status line was removed at the user's request, leaving the buttons as the
-   *  whole control. */
+  /** ONE gate-style button instead of three: the classic one-touch logic — while
+   *  the cover is moving a press stops it; a closed cover opens; anything else
+   *  closes. The label shows what the NEXT press will do (Открыть / Стоп /
+   *  Закрыть). No position slider or state line. */
   private renderCoverCard(id: string) {
-    const ent = this.hass!.states[id];
-    const feat = Number(ent?.attributes?.supported_features ?? 0);
+    const st = this.effState(id);
+    const moving = st === 'opening' || st === 'closing';
+    const action = moving ? 'stop' : st === 'closed' ? 'open' : 'close';
+    const svcName = action === 'stop' ? 'stop_cover' : action === 'open' ? 'open_cover' : 'close_cover';
+    const label = action === 'stop' ? this.t('Stop blind') : action === 'open' ? this.t('Open blind') : this.t('Close blind');
+    // Optimistic so the label flips at once: open→opening, close→closing, and a
+    // stop lands as "open" (a partially-open cover isn't closed).
+    const opt = action === 'open' ? 'opening' : action === 'close' ? 'closing' : 'open';
     return html`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic('curtain')}</div>
@@ -3540,18 +3544,8 @@ export class Ha3dFloorplanCard extends LitElement {
         </div>
       </div>
       <div class="qbtns">
-        ${feat & 1
-          ? html`<button type="button" class="qb"
-              @click=${() => this.svc('cover', 'open_cover', {}, id, 'open')}>${this.t('Open blind')}</button>`
-          : nothing}
-        ${feat & 8
-          ? html`<button type="button" class="qb"
-              @click=${() => this.svc('cover', 'stop_cover', {}, id)}>${this.t('Stop blind')}</button>`
-          : nothing}
-        ${feat & 2
-          ? html`<button type="button" class="qb"
-              @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.t('Close blind')}</button>`
-          : nothing}
+        <button type="button" class="qb gate ${moving ? 'on' : ''}"
+          @click=${() => this.svc('cover', svcName, {}, id, opt)}>${label}</button>
       </div>
     </div>`;
   }
@@ -5196,6 +5190,11 @@ export class Ha3dFloorplanCard extends LitElement {
       font-weight: 600;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
+    }
+    .qb.gate.on {
+      border-color: var(--accent, #f3a83c);
+      color: #fff;
+      background: rgba(243, 168, 60, 0.14);
     }
     .qb:hover {
       background: rgba(255, 255, 255, 0.12);
