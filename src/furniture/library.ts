@@ -1418,6 +1418,63 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(makeVent(false));
     return g;
   },
+  // Retractable louvered pergola roof — a ceiling-level slatted canopy that FOLDS
+  // toward its mounting (house) side. The cream louvres live in a 'curtainPivot'
+  // group, so a bound `cover` gathers them: cover-closed = full canopy over the
+  // terrace, cover-open = retracted to the house. Fixed dark side-tracks stay put.
+  // Place at ceiling height (defaultY = wallHeight). ~3.2 x 2.8 m.
+  pergola_retractable: (c) => {
+    const g = new THREE.Group();
+    const W = 3.2, Dep = 2.8, hw = W / 2, hd = Dep / 2;
+    const frame = mat(0x2b2f33, { metalness: 0.55, roughness: 0.4 });
+    const cream = mat(0xede4cc, { roughness: 0.85 });
+    // Fixed side tracks (run house->terrace along x) + a house-side mount beam.
+    g.add(box(W + 0.06, 0.14, 0.11, frame, 0, 0, -hd));
+    g.add(box(W + 0.06, 0.14, 0.11, frame, 0, 0, hd));
+    g.add(box(0.14, 0.2, Dep + 0.1, frame, -hw - 0.02, 0, 0));
+    // Retractable louvre pack — curtainPivot hinged at the house side (-hw), so
+    // scale.x gathers the slats toward the house as the cover opens.
+    const pivot = new THREE.Group();
+    pivot.name = 'curtainPivot';
+    pivot.position.x = -hw;
+    const n = 18, seg = W / n;
+    for (let i = 0; i < n; i++) {
+      const px = (i + 0.5) * seg;
+      pivot.add(tint(box(seg * 0.86, 0.05, Dep - 0.14, cream, px, 0.03, 0), c));
+    }
+    // Leading-edge beam travels with the slats (at the far/terrace end).
+    pivot.add(box(0.1, 0.16, Dep, frame, W - 0.05, 0, 0));
+    g.add(pivot);
+    return g;
+  },
+  // Half-height terrace parapet — a warm vertical-slat clad low wall topped by a
+  // frameless glass balustrade with a slim metal handrail. Free-standing: sits on
+  // the deck at the terrace edge. ~2.4 m long, ~0.95 m wall + 0.5 m glass.
+  terrace_parapet: (c) => {
+    const g = new THREE.Group();
+    const W = 2.4, H = 0.95, D = 0.14;
+    const wood = mat(0x9c6b3f, { roughness: 0.7 });
+    const frame = mat(0x2b2f33, { metalness: 0.5, roughness: 0.4 });
+    const glass = mat(0xaecbe0, { transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.2, side: THREE.DoubleSide });
+    const core = mat(0xcfc8bd, { roughness: 0.9 });
+    g.add(box(W, H, D * 0.6, core, 0, H / 2, 0)); // solid core
+    // Vertical wood slats cladding both faces.
+    const n = Math.max(6, Math.round(W / 0.085)), seg = W / n;
+    for (let i = 0; i < n; i++) {
+      const x = -W / 2 + (i + 0.5) * seg;
+      g.add(tint(box(seg * 0.68, H - 0.06, 0.022, wood, x, H / 2, D * 0.3 + 0.011), c));
+      g.add(tint(box(seg * 0.68, H - 0.06, 0.022, wood, x, H / 2, -D * 0.3 - 0.011), c));
+    }
+    g.add(box(W + 0.04, 0.04, D + 0.04, frame, 0, H + 0.02, 0)); // coping cap
+    // Glass balustrade + posts + handrail on top.
+    const gh = 0.5;
+    g.add(box(W - 0.08, gh, 0.014, glass, 0, H + 0.04 + gh / 2, 0));
+    for (const x of [-W / 2 + 0.06, 0, W / 2 - 0.06]) g.add(box(0.028, gh, 0.03, frame, x, H + 0.04 + gh / 2, 0));
+    const rail = cyl(0.018, 0.018, W, frame, 0, H + 0.04 + gh, 0, 8);
+    rail.rotation.z = Math.PI / 2;
+    g.add(rail);
+    return g;
+  },
   cooktop: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(0.6, 0.04, 0.52, mat(0x141414, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), c));
@@ -3445,6 +3502,7 @@ export function entityDomainsFor(model: string): string[] {
     case 'blind_bottomup':
     case 'garage_door':
     case 'roof_lantern':
+    case 'pergola_retractable':
       return ['cover'];
     case 'door':
     case 'double_door':
@@ -3503,7 +3561,7 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'wall_cabinet') return 1.55;
   if (model === 'glass_wall_cabinet') return 1.4; // upper cabinet, origin at its base
   if (model === 'wall_switch') return 1.15;       // switch height, centered at origin
-  if (model === 'roof_lantern') return wallHeight; // sits on top of the room, at ceiling level
+  if (model === 'roof_lantern' || model === 'pergola_retractable') return wallHeight; // ceiling-level canopy
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
   if (model === 'wall_shelf') return 1.4;
@@ -3578,7 +3636,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
-  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
+  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', pergola_retractable: '#ede4cc', terrace_parapet: '#9c6b3f', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
