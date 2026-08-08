@@ -750,7 +750,7 @@ const builders: Record<string, FurnitureBuilder> = {
     return g;
   },
   // Freestanding bath — an open shell (4 walls + floor) so it reads as a real
-  // basin with water, on a slim plinth, with a chrome mixer at one end.
+  // empty basin, on a slim plinth, with a chrome mixer at one end.
   bathtub: (c) => {
     const g = new THREE.Group();
     const W = 1.7, H = 0.58, D = 0.78, t = 0.09;
@@ -762,7 +762,6 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(tint(box(W, wallH, t, shell, 0, cy, -(D / 2 - t / 2)), c));
     g.add(tint(box(t, wallH, D - 2 * t, shell, W / 2 - t / 2, cy, 0), c));
     g.add(tint(box(t, wallH, D - 2 * t, shell, -(W / 2 - t / 2), cy, 0), c));
-    g.add(box(W - 2 * t, 0.02, D - 2 * t, mat(0xbfe0ea, { transparent: true, opacity: 0.72, roughness: 0.15 }), 0, H - 0.07, 0)); // water
     const chrome = mat(METAL, { metalness: 0.8, roughness: 0.2 });
     g.add(cyl(0.018, 0.022, 0.2, chrome, -W / 2 + 0.16, H + 0.1, -D / 2 + 0.15, 12)); // riser
     g.add(box(0.14, 0.025, 0.028, chrome, -W / 2 + 0.24, H + 0.185, -D / 2 + 0.15)); // spout

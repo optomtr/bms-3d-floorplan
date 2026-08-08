@@ -21050,12 +21050,12 @@ const xo = {
     return t.add(I(v(0.6, 0.85, 0.6, w($t), 0, 0.42, 0), i)), t.add(j(0.2, 0.2, 0.04, w(Vt), 0, 0.45, 0.31).rotateX(Math.PI / 2)), t;
   },
   // Freestanding bath — an open shell (4 walls + floor) so it reads as a real
-  // basin with water, on a slim plinth, with a chrome mixer at one end.
+  // empty basin, on a slim plinth, with a chrome mixer at one end.
   bathtub: (i) => {
     const t = new N(), e = 1.7, n = 0.58, s = 0.78, o = 0.09, r = w($t, { roughness: 0.3, metalness: 0.05 });
     t.add(v(e - 0.04, 0.05, s - 0.04, w(15001835, { roughness: 0.6 }), 0, 0.025, 0)), t.add(I(v(e, o, s, r, 0, 0.05 + o / 2, 0), i));
     const a = n - 0.05 - o, l = 0.05 + o + a / 2;
-    t.add(I(v(e, a, o, r, 0, l, s / 2 - o / 2), i)), t.add(I(v(e, a, o, r, 0, l, -0.34500000000000003), i)), t.add(I(v(o, a, s - 2 * o, r, e / 2 - o / 2, l, 0), i)), t.add(I(v(o, a, s - 2 * o, r, -0.8049999999999999, l, 0), i)), t.add(v(e - 2 * o, 0.02, s - 2 * o, w(12574954, { transparent: !0, opacity: 0.72, roughness: 0.15 }), 0, n - 0.07, 0));
+    t.add(I(v(e, a, o, r, 0, l, s / 2 - o / 2), i)), t.add(I(v(e, a, o, r, 0, l, -0.34500000000000003), i)), t.add(I(v(o, a, s - 2 * o, r, e / 2 - o / 2, l, 0), i)), t.add(I(v(o, a, s - 2 * o, r, -0.8049999999999999, l, 0), i));
     const c = w(ft, { metalness: 0.8, roughness: 0.2 });
     return t.add(j(0.018, 0.022, 0.2, c, -e / 2 + 0.16, n + 0.1, -s / 2 + 0.15, 12)), t.add(v(0.14, 0.025, 0.028, c, -e / 2 + 0.24, n + 0.185, -s / 2 + 0.15)), t;
   },
@@ -24736,7 +24736,7 @@ function dr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const __ = "0.165.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
+const __ = "0.165.1", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
 function w_() {
   return window.ha3dFloorplan ?? {};
 }
