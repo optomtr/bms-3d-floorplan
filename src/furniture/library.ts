@@ -1862,6 +1862,74 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(box(iw, 0.02, id, mat(0x2f9fd0, { transparent: true, opacity: 0.75, roughness: 0.15 }), 0, wallH - 0.05, 0));
     return g;
   },
+  // Raised star-plan granite fountain (the terrace "hauz") — a two-step polished
+  // black granite plinth whose zig-zag parapet rings a circular water basin, with
+  // slatted teak decking filling the space between. ~3.2 m square, 0.75 m tall.
+  fountain_pool: (c) => {
+    const g = new THREE.Group();
+    const gran = mat(0x24262b, { roughness: 0.25, metalness: 0.25 }); // polished
+    const speck = mat(0x44484e, { roughness: 0.7 }); // speckled granite copings
+    const wood = mat(0x8a5a30, { roughness: 0.75 });
+    const water = mat(0x8fc8dc, { transparent: true, opacity: 0.82, roughness: 0.1 });
+    // Two-step plinth, each course finished with a speckled cap.
+    const S = 3.2;
+    g.add(tint(box(S, 0.1, S, gran, 0, 0.05, 0), c));
+    g.add(box(S + 0.02, 0.025, S + 0.02, speck, 0, 0.112, 0));
+    const S2 = S - 0.62;
+    g.add(tint(box(S2, 0.14, S2, gran, 0, 0.195, 0), c));
+    g.add(box(S2 + 0.02, 0.025, S2 + 0.02, speck, 0, 0.278, 0));
+    // Teak deck, laid inside the parapet and hidden under the basin.
+    const dHalf = 0.98, nb = 13, sw = (dHalf * 2) / nb;
+    for (let i = 0; i < nb; i++) {
+      g.add(box(sw * 0.66, 0.035, dHalf * 2, wood, -dHalf + (i + 0.5) * sw, 0.308, 0));
+    }
+    // Zig-zag parapet: 8 tangent panels at ALTERNATING radii, which is what gives
+    // the plan its star. Each panel is turned to face radially outward.
+    const n = 8, ph = 0.46;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const even = i % 2 === 0;
+      const s = new THREE.Group();
+      const wSeg = even ? 1.12 : 0.92;
+      s.add(tint(box(wSeg, ph, 0.1, gran, 0, ph / 2, 0), c));
+      s.add(box(wSeg + 0.06, 0.04, 0.17, speck, 0, ph + 0.02, 0));
+      const r = even ? 1.36 : 1.12;
+      s.position.set(Math.cos(a) * r, 0.29, Math.sin(a) * r);
+      s.rotation.y = Math.PI / 2 - a;
+      g.add(s);
+    }
+    // Circular basin: a speckled granite drum whose top face reads as the rim,
+    // with the water disc set just below it so the pool looks sunken.
+    const R = 0.72;
+    g.add(cyl(R + 0.13, R + 0.13, 0.17, speck, 0, 0.36, 0, 32));
+    g.add(cyl(R, R, 0.02, water, 0, 0.432, 0, 32));
+    return g;
+  },
+  // Built-in stone planter — cream stone facing over a dark skirting, capped by a
+  // dark granite frame around a sunken bed. The window-side boxes that run along
+  // the terrace glazing. ~1.6 x 0.6 m, 0.6 m tall.
+  stone_planter: (c) => {
+    const g = new THREE.Group();
+    const W = 1.6, H = 0.55, D = 0.6;
+    const stone = mat(0xe3d9c4, { roughness: 0.85 });
+    const dark = mat(0x33363b, { roughness: 0.4, metalness: 0.2 });
+    const soil = mat(0x2e2a26, { roughness: 0.95 });
+    g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c));
+    const np = Math.max(3, Math.round(W / 0.4)), pw = W / np;
+    for (let i = 0; i < np; i++) {
+      const x = -W / 2 + (i + 0.5) * pw;
+      for (const sz of [1, -1]) g.add(tint(box(pw - 0.012, H - 0.14, 0.012, stone, x, H / 2 + 0.03, sz * (D / 2 + 0.006)), c));
+    }
+    g.add(box(W + 0.02, 0.07, D + 0.02, dark, 0, 0.035, 0)); // dark skirting
+    // Granite cap as a frame, so the middle reads as a sunken bed.
+    const cw = 0.13, cy = H + 0.025;
+    g.add(box(W + 0.04, 0.05, cw, dark, 0, cy, (D - cw) / 2 + 0.02));
+    g.add(box(W + 0.04, 0.05, cw, dark, 0, cy, -((D - cw) / 2 + 0.02)));
+    g.add(box(cw, 0.05, D + 0.04, dark, (W - cw) / 2 + 0.02, cy, 0));
+    g.add(box(cw, 0.05, D + 0.04, dark, -((W - cw) / 2 + 0.02), cy, 0));
+    g.add(box(W - cw * 2, 0.02, D - cw * 2, soil, 0, H - 0.03, 0)); // bed
+    return g;
+  },
   sauna_bench: (c) => {
     const g = new THREE.Group();
     const wood = mat(WOOD);
@@ -3562,6 +3630,8 @@ export function entityDomainsFor(model: string): string[] {
       return ['media_player', 'switch'];
     case 'air_purifier':
       return ['fan', 'switch'];
+    case 'fountain_pool':
+      return ['switch', 'light']; // the pump, and any underwater lighting
     case 'curtain':
     case 'curtain_single':
     case 'curtain_sheer':
@@ -3707,6 +3777,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
   track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', pergola_retractable: '#ede4cc', terrace_parapet: '#9c6b3f',
   terrace_glass_parapet: '#e3d9c4', terrace_stone_parapet: '#e3d9c4', balustrade: '#e3d9c4',
+  fountain_pool: '#24262b', stone_planter: '#e3d9c4',
   wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
