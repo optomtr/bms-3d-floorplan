@@ -1474,6 +1474,76 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(rail);
     return g;
   },
+  // Stone terrace parapet under a REEDED glass screen — the enclosed-terrace
+  // wall: cream stone facing panels, a dark stone coping, then a fluted
+  // translucent screen between dark end posts. Free-standing at the terrace
+  // edge. ~2.4 m long; 0.9 m of wall + 0.62 m of glass.
+  terrace_glass_parapet: (c) => {
+    const g = new THREE.Group();
+    const W = 2.4, H = 0.9, D = 0.16;
+    const stone = mat(0xe3d9c4, { roughness: 0.85 });
+    const dark = mat(0x33363b, { roughness: 0.55, metalness: 0.25 });
+    const glass = mat(0xd8e2df, { transparent: true, opacity: 0.34, roughness: 0.12, metalness: 0.1, side: THREE.DoubleSide });
+    g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c)); // core
+    // Large-format facing panels on both faces, with a slim joint between them.
+    const np = Math.max(3, Math.round(W / 0.62)), pw = W / np;
+    for (let i = 0; i < np; i++) {
+      const x = -W / 2 + (i + 0.5) * pw;
+      for (const sz of [1, -1]) g.add(tint(box(pw - 0.012, H - 0.05, 0.014, stone, x, H / 2, sz * (D / 2 + 0.007)), c));
+    }
+    g.add(box(W + 0.03, 0.05, D + 0.05, dark, 0, H + 0.025, 0)); // dark coping
+    // Reeded screen: one translucent pane, with vertical flutes proud of its face.
+    const gy = H + 0.05, gh = 0.62;
+    g.add(box(W - 0.06, gh, 0.016, glass, 0, gy + gh / 2, 0));
+    const nr = Math.max(8, Math.round(W / 0.075)), rw = (W - 0.06) / nr;
+    for (let i = 0; i < nr; i++) {
+      const x = -W / 2 + 0.03 + (i + 0.5) * rw;
+      g.add(box(rw * 0.72, gh - 0.02, 0.012, glass, x, gy + gh / 2, 0.012));
+    }
+    g.add(box(W - 0.06, 0.035, 0.05, dark, 0, gy + gh + 0.017, 0)); // cap rail
+    for (const sx of [-1, 1]) g.add(box(0.05, gh, 0.05, dark, sx * (W / 2 - 0.025), gy + gh / 2, 0)); // end posts
+    return g;
+  },
+  // Plain stone terrace parapet — cream facing panels between a dark skirting and
+  // a dark coping cap. The solid low wall that rings the open roof terrace, and
+  // the bench-height ledge inside it. ~2.4 m long, ~1.0 m tall.
+  terrace_stone_parapet: (c) => {
+    const g = new THREE.Group();
+    const W = 2.4, H = 1.0, D = 0.18;
+    const stone = mat(0xe3d9c4, { roughness: 0.85 });
+    const dark = mat(0x33363b, { roughness: 0.55, metalness: 0.25 });
+    g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c));
+    const np = Math.max(3, Math.round(W / 0.6)), pw = W / np;
+    for (let i = 0; i < np; i++) {
+      const x = -W / 2 + (i + 0.5) * pw;
+      for (const sz of [1, -1]) g.add(tint(box(pw - 0.014, H - 0.08, 0.014, stone, x, H / 2 + 0.01, sz * (D / 2 + 0.007)), c));
+    }
+    g.add(box(W + 0.04, 0.055, D + 0.06, dark, 0, H + 0.028, 0)); // coping cap
+    g.add(box(W, 0.05, D + 0.02, dark, 0, 0.025, 0)); // skirting
+    return g;
+  },
+  // Classical stone balustrade — turned vase balusters between a moulded plinth
+  // and a handrail, as on the open (unroofed) terrace. ~2.4 m long, ~0.8 m tall.
+  balustrade: (c) => {
+    const g = new THREE.Group();
+    const W = 2.4, D = 0.2;
+    const stone = mat(0xe3d9c4, { roughness: 0.85 });
+    g.add(tint(box(W, 0.06, D, stone, 0, 0.03, 0), c)); // plinth
+    g.add(tint(box(W - 0.05, 0.06, D - 0.05, stone, 0, 0.09, 0), c)); // base moulding
+    const bY = 0.12, bH = 0.56;
+    const n = Math.max(4, Math.round(W / 0.17)), seg = W / n;
+    for (let i = 0; i < n; i++) {
+      const x = -W / 2 + (i + 0.5) * seg;
+      // Vase profile: a wide belly tapering up to a narrow neck, then a flare.
+      g.add(tint(cyl(0.032, 0.058, bH * 0.62, stone, x, bY + bH * 0.31, 0, 10), c));
+      g.add(tint(cyl(0.052, 0.030, bH * 0.28, stone, x, bY + bH * 0.76, 0, 10), c));
+      g.add(tint(box(0.085, bH * 0.1, 0.085, stone, x, bY + bH * 0.95, 0), c));
+    }
+    const rY = bY + bH;
+    g.add(tint(box(W, 0.05, D - 0.02, stone, 0, rY + 0.025, 0), c)); // rail underside
+    g.add(tint(box(W + 0.05, 0.06, D + 0.02, stone, 0, rY + 0.08, 0), c)); // handrail cap
+    return g;
+  },
   cooktop: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(0.6, 0.04, 0.52, mat(0x141414, { roughness: 0.3, metalness: 0.2 }), 0, 0.9, 0), c));
@@ -3635,7 +3705,9 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_light: '#fff4d6', led_panel: '#f7faff', led_strip: '#ffffff',
   spotlight_bar: '#fff4d6', led_backlight: '#f2f7ff', track_bar: '#fff4d6', wall_sconce: '#fff2d6',
   wall_light_double: '#fff2d6', sconce_pair: '#fff4d6',
-  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', pergola_retractable: '#ede4cc', terrace_parapet: '#9c6b3f', wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
+  track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', pergola_retractable: '#ede4cc', terrace_parapet: '#9c6b3f',
+  terrace_glass_parapet: '#e3d9c4', terrace_stone_parapet: '#e3d9c4', balustrade: '#e3d9c4',
+  wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
 
