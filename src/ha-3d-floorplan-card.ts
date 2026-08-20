@@ -1110,7 +1110,10 @@ export class Ha3dFloorplanCard extends LitElement {
       const s = window.prompt(
         `Measured ${measured.toFixed(2)} m on screen between those points.\nEnter their REAL length in meters:`,
       );
-      const real = parseFloat(s ?? '');
+      // Accept a comma decimal: on a RU/UZ keyboard "8,1" is the natural way to
+      // type 8.1, and parseFloat reads it as 8 — silently mis-scaling the plan by
+      // whatever the fraction was, with nothing on screen to show it happened.
+      const real = parseFloat(String(s ?? '').trim().replace(',', '.'));
       if (real > 0) this.editor?.applyUnderlayScale(measured, real);
       else this.showToast('Calibration cancelled');
     };

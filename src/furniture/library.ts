@@ -609,6 +609,29 @@ const builders: Record<string, FurnitureBuilder> = {
       g.add(box(0.08, 0.75, 0.08, mat(WOOD), sx * 0.8, 0.37, sz * 0.4));
     return g;
   },
+  // Long racetrack dining table — a flat top with straight sides and semicircular
+  // ends, on two pedestal bases. The "yoni yumaloq" table: rectangular in the
+  // middle, half-round at each end, so it seats a long side without hard corners.
+  // ~2.6 x 1.1 m. (dining_table is the plain rectangle; round_table is a small oval.)
+  dining_table_oval: (c) => {
+    const g = new THREE.Group();
+    const L = 2.6, W = 1.1, t = 0.05, h = 0.75;
+    const wood = mat(WOOD, { roughness: 0.45 });
+    const dark = mat(0x6f4a28, { roughness: 0.55 });
+    const mid = L - W; // straight run between the two half-round end caps
+    g.add(tint(box(mid, t, W, wood, 0, h, 0), c));
+    for (const sx of [-1, 1]) g.add(tint(cyl(W / 2, W / 2, t, wood, sx * (mid / 2), h, 0, 32), c));
+    // Slim apron just under the top, following the same racetrack outline.
+    g.add(box(mid, 0.04, W - 0.12, dark, 0, h - 0.045, 0));
+    for (const sx of [-1, 1]) g.add(cyl(W / 2 - 0.06, W / 2 - 0.06, 0.04, dark, sx * (mid / 2), h - 0.045, 0, 24));
+    // Two pedestal bases on floor plinths.
+    const ph = h - 0.07;
+    for (const sx of [-1, 1]) {
+      g.add(tint(box(0.12, ph, W - 0.45, wood, sx * (mid / 2 - 0.1), ph / 2, 0), c));
+      g.add(box(0.5, 0.05, W - 0.3, dark, sx * (mid / 2 - 0.1), 0.025, 0));
+    }
+    return g;
+  },
   bookshelf: (c) => {
     const g = new THREE.Group();
     g.add(tint(box(1.0, 1.8, 0.32, mat(WOOD), 0, 0.9, 0), c));
@@ -765,6 +788,27 @@ const builders: Record<string, FurnitureBuilder> = {
     const chrome = mat(METAL, { metalness: 0.8, roughness: 0.2 });
     g.add(cyl(0.018, 0.022, 0.2, chrome, -W / 2 + 0.16, H + 0.1, -D / 2 + 0.15, 12)); // riser
     g.add(box(0.14, 0.025, 0.028, chrome, -W / 2 + 0.24, H + 0.185, -D / 2 + 0.15)); // spout
+    return g;
+  },
+  // Built-in OVAL bath — a white oval basin sunk into a tiled surround, the shape
+  // drawn on this plan. (bathtub is the rectangular freestanding shell.) The basin
+  // is left empty, like bathtub. ~1.9 x 1.0 m.
+  bathtub_oval: (c) => {
+    const g = new THREE.Group();
+    const W = 1.9, D = 1.0, H = 0.55;
+    const surround = mat(0xdfd8cb, { roughness: 0.7 });
+    const shell = mat(WHITE, { roughness: 0.3, metalness: 0.05 });
+    const chrome = mat(METAL, { metalness: 0.8, roughness: 0.2 });
+    g.add(tint(box(W, H, D, surround, 0, H / 2, 0), c)); // tiled platform
+    g.add(box(W - 0.05, 0.03, D - 0.05, surround, 0, H + 0.012, 0)); // coping
+    // The basin is a solid oval drum whose TOP FACE sits below the coping, so from
+    // above the platform reads as having an oval opening recessed into it.
+    const bh = H - 0.07;
+    const basin = cyl(0.74, 0.74, bh, shell, 0, bh / 2, 0, 40);
+    basin.scale.z = 0.5; // ellipse: 1.48 m long x 0.74 m wide
+    g.add(basin);
+    g.add(cyl(0.018, 0.022, 0.18, chrome, -W / 2 + 0.16, H + 0.11, 0, 12)); // riser
+    g.add(box(0.14, 0.025, 0.028, chrome, -W / 2 + 0.24, H + 0.19, 0)); // spout
     return g;
   },
   // A PAIR of tall dark display cabinets flanking a feature wall — `count`
@@ -3778,6 +3822,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', pergola_retractable: '#ede4cc', terrace_parapet: '#9c6b3f',
   terrace_glass_parapet: '#e3d9c4', terrace_stone_parapet: '#e3d9c4', balustrade: '#e3d9c4',
   fountain_pool: '#24262b', stone_planter: '#e3d9c4',
+  dining_table_oval: '#9c6b3f', bathtub_oval: '#dfd8cb',
   wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
 };
