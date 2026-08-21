@@ -3494,7 +3494,14 @@ export class Ha3dFloorplanCard extends LitElement {
     const fanModes = (ent?.attributes?.fan_modes as string[] | undefined) ?? [];
     const fanMode = ent?.attributes?.fan_mode as string | undefined;
     const fanLabel = (f: string) =>
-      this.t(({ low: 'Low', mid: 'Medium', medium: 'Medium', high: 'High', auto: 'Auto' } as Record<string, string>)[f] ?? f);
+      // `middle` is what the Tuya ACs report; without it the raw English word
+      // showed up untranslated between Низкое and Высокое.
+      this.t(
+        ({ low: 'Low', mid: 'Medium', medium: 'Medium', middle: 'Medium', high: 'High', auto: 'Auto' } as Record<
+          string,
+          string
+        >)[f.toLowerCase()] ?? f,
+      );
     return html`<div class="card ${on ? 'on cool' : ''}">
       <div class="crow">
         <button type="button" class="cicon ${on ? 'lit' : ''}" title="Toggle"

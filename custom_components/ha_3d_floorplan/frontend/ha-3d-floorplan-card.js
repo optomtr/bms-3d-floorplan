@@ -24855,7 +24855,7 @@ function dr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const _2 = "0.169.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
+const _2 = "0.169.1", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
 function w2() {
   return window.ha3dFloorplan ?? {};
 }
@@ -28929,7 +28929,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   renderClimateCard(i) {
     const t = this.hass.states[i], e = this.effState(i), n = e !== "off" && e !== "unavailable" && e !== "unknown", s = this.effTarget(i), o = nu(t), r = (y) => {
       typeof s == "number" && this.stepTemp(i, t, s, o, y);
-    }, a = t?.attributes?.current_temperature, l = a != null ? Number(a).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, c = n ? l != null ? `${l}° ${this.t("now")}` : this.climateModeLabel(e) : this.t("Off"), h = t?.attributes?.hvac_modes?.length ? t.attributes.hvac_modes : ["off"], d = h.filter((y) => y !== "off"), u = d[0] ?? "heat", f = [...d, ...h.includes("off") ? ["off"] : []], m = Bd(n ? e : u) ?? "power", x = t?.attributes?.fan_modes ?? [], p = t?.attributes?.fan_mode, g = (y) => this.t({ low: "Low", mid: "Medium", medium: "Medium", high: "High", auto: "Auto" }[y] ?? y);
+    }, a = t?.attributes?.current_temperature, l = a != null ? Number(a).toLocaleString(this.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, c = n ? l != null ? `${l}° ${this.t("now")}` : this.climateModeLabel(e) : this.t("Off"), h = t?.attributes?.hvac_modes?.length ? t.attributes.hvac_modes : ["off"], d = h.filter((y) => y !== "off"), u = d[0] ?? "heat", f = [...d, ...h.includes("off") ? ["off"] : []], m = Bd(n ? e : u) ?? "power", x = t?.attributes?.fan_modes ?? [], p = t?.attributes?.fan_mode, g = (y) => (
+      // `middle` is what the Tuya ACs report; without it the raw English word
+      // showed up untranslated between Низкое and Высокое.
+      this.t(
+        { low: "Low", mid: "Medium", medium: "Medium", middle: "Medium", high: "High", auto: "Auto" }[y.toLowerCase()] ?? y
+      )
+    );
     return V`<div class="card ${n ? "on cool" : ""}">
       <div class="crow">
         <button type="button" class="cicon ${n ? "lit" : ""}" title="Toggle"
