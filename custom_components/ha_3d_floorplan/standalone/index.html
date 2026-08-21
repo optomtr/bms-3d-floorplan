@@ -4,6 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>3D Floor Plan — standalone</title>
+    <!-- Installed to a tablet home screen, the kiosk becomes its own app: its
+         own icon, no browser chrome. These absolute paths are served by the
+         integration; when the folder is served by hand they 404 harmlessly. -->
+    <link rel="manifest" href="/3d-floorplan-kiosk/manifest.json" />
+    <link rel="apple-touch-icon" href="/ha_3d_floorplan_frontend/icon-180.png" />
+    <link rel="icon" type="image/png" href="/ha_3d_floorplan_frontend/favicon-64.png" />
+    <meta name="theme-color" content="#16243d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="3D Floor Plan" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
       html,
       body {
@@ -52,6 +63,36 @@
         padding: 8px 11px;
         cursor: pointer;
         display: none; /* only shown for manual (non-injected) serving */
+      }
+      /* Invisible bottom-right hotspot: the only way out of the kiosk. The dot
+         grows while the finger is down, so the gesture confirms itself. */
+      #ha-corner {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        width: 72px;
+        height: 72px;
+        z-index: 25;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #ha-corner::after {
+        content: "";
+        position: absolute;
+        right: 13px;
+        bottom: 13px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        opacity: 0;
+        transform: scale(0.4);
+        transition: opacity 0.15s linear, transform 0.15s linear;
+      }
+      #ha-corner.holding::after {
+        opacity: 0.5;
+        transform: scale(3.2);
+        transition: transform 1.2s ease-out, opacity 0.15s linear;
       }
       #setup {
         position: fixed;
@@ -141,6 +182,7 @@
       Optional same-origin resource overrides: ?card=<path> ?plan=<path> (relative
       paths on THIS origin only — remote/data: URLs are rejected).
     -->
+    <div id="ha-corner" aria-hidden="true"></div>
     <div id="status">starting…</div>
     <button id="gear" title="Connect to Home Assistant">⚙</button>
     <div id="setup">
@@ -265,6 +307,39 @@
         }
         return t.access_token;
       }
+
+      // --- Hidden exit: long-press the bottom-right corner -----------------
+      // The kiosk has no visible way out on purpose, so leaving it is a
+      // deliberate 1.2 s hold in the corner rather than a stray tap.
+      //
+      // The target is a SAME-ORIGIN path, never an absolute URL — that is what
+      // makes it port-agnostic: HA on :8123, or on :80 behind a reverse proxy,
+      // both resolve correctly because the kiosk is served by that same HA.
+      // ?ha=/lovelace/foo picks a specific dashboard and is remembered on this
+      // device, so an installed home-screen app (which starts with no query
+      // string) still lands on the same page.
+      const HA_HOME_KEY = "ha3d_ha_home";
+      const haHomeParam = sameOrigin(params.get("ha"));
+      if (haHomeParam) {
+        const u = new URL(haHomeParam);
+        localStorage.setItem(HA_HOME_KEY, u.pathname + u.search);
+      }
+      const corner = $("#ha-corner");
+      let holdTimer = null;
+      const endHold = () => {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+        corner.classList.remove("holding");
+      };
+      corner.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        corner.classList.add("holding");
+        holdTimer = setTimeout(() => {
+          location.href = localStorage.getItem(HA_HOME_KEY) || "/";
+        }, 1200);
+      });
+      for (const ev of ["pointerup", "pointercancel", "pointerleave"])
+        corner.addEventListener(ev, endHold);
 
       // --- Setup dialog ---------------------------------------------------
       const setup = $('#setup');

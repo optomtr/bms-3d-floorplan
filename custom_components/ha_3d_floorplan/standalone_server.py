@@ -19,7 +19,7 @@ from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 
-from .const import KIOSK_PATH, MODULE_URL
+from .const import KIOSK_MANIFEST_PATH, KIOSK_PATH, URL_BASE, MODULE_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +50,57 @@ def _inject(html: str, config: dict) -> str:
     tag = f"<script>window.__HA3D__={payload};</script>"
     return html.replace(_INJECT_MARKER, tag)
 
+
+class Kiosk3DManifestView(HomeAssistantView):
+    """Serve the kiosk's web-app manifest.
+
+    Unauthenticated like the kiosk page itself, and for the same reason: it
+    holds no secret, only a name, a colour and icon paths.
+    """
+
+    url = KIOSK_MANIFEST_PATH
+    name = "ha_3d_floorplan:kiosk_manifest"
+    requires_auth = False
+
+    async def get(self, request: web.Request) -> web.Response:
+        manifest = {
+            "id": KIOSK_PATH,
+            "name": "3D Floor Plan",
+            "short_name": "Floor Plan",
+            "start_url": KIOSK_PATH,
+            # Deliberately wider than the manifest's own directory: the corner
+            # gesture navigates to an HA dashboard, and anything outside scope
+            # would be kicked out to a browser tab.
+            "scope": "/",
+            "display": "standalone",
+            "orientation": "any",
+            "background_color": "#16243d",
+            "theme_color": "#16243d",
+            "icons": [
+                {
+                    "src": f"{URL_BASE}/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any",
+                },
+                {
+                    "src": f"{URL_BASE}/icon-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any",
+                },
+                {
+                    "src": f"{URL_BASE}/icon-maskable-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "maskable",
+                },
+            ],
+        }
+        return web.Response(
+            text=json.dumps(manifest),
+            content_type="application/manifest+json",
+        )
 
 class Kiosk3DView(HomeAssistantView):
     """Serve the chrome-free, 3D-only page at KIOSK_PATH on HA's own port.

@@ -33,6 +33,13 @@ PANEL_ICON = "mdi:floor-plan"
 # leave enabled even when HA is reachable externally.
 KIOSK_PATH = "/3d-floorplan-kiosk"
 
+# Web-app manifest for the kiosk. Installed to a tablet home screen the kiosk
+# becomes its own app — own icon, no browser chrome — instead of a browser tab.
+# Served under KIOSK_PATH, but the manifest declares scope "/" so the hidden
+# corner gesture can reach the HA dashboard without leaving the installed app.
+KIOSK_MANIFEST_PATH = KIOSK_PATH + "/manifest.json"
+
+
 # Shared plan API. The plan is otherwise kept in HA's PER-USER frontend data, so
 # a wall tablet signed in with a different account's long-lived token read a
 # different (stale) plan and never saw edits made in the browser. The editor

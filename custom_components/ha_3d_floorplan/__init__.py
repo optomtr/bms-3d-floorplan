@@ -84,6 +84,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not store.get("kiosk_view"):
         try:
             hass.http.register_view(standalone_server.Kiosk3DView(hass))
+            hass.http.register_view(standalone_server.Kiosk3DManifestView())
             store["kiosk_view"] = True
         except Exception as err:  # noqa: BLE001 - best effort
             _LOGGER.debug("kiosk view registration failed: %s", err)
