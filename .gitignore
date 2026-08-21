@@ -9,3 +9,6 @@ __pycache__/
 
 # Never ship real home plans (privacy)
 examples/durmon*.json
+
+# Local scratch harnesses (kept on disk, never shipped)
+_scratch*
