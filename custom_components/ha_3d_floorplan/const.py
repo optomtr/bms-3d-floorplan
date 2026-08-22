@@ -39,6 +39,16 @@ KIOSK_PATH = "/3d-floorplan-kiosk"
 # corner gesture can reach the HA dashboard without leaving the installed app.
 KIOSK_MANIFEST_PATH = KIOSK_PATH + "/manifest.json"
 
+# Home-screen launcher. Home Assistant's own PWA manifest is baked into the
+# frontend package, so a dashboard installed from the browser always gets the HA
+# icon and there is no setting that changes it. This route serves a tiny page
+# that carries ITS OWN manifest (this integration's icon) and then forwards to
+# whatever HA page ?to= names — so "install" from here yields a home-screen app
+# with our icon that opens that page.
+APP_PATH = "/3d-floorplan-app"
+APP_MANIFEST_PATH = APP_PATH + "/manifest.json"
+
+
 
 # Shared plan API. The plan is otherwise kept in HA's PER-USER frontend data, so
 # a wall tablet signed in with a different account's long-lived token read a
