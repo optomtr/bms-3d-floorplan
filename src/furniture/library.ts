@@ -1175,6 +1175,28 @@ const builders: Record<string, FurnitureBuilder> = {
     g.add(pivot);
     return g;
   },
+  // Short curtain for a transom / clerestory band — the same gathering
+  // curtainPivot as the full-height ones, but only ~0.62 m deep, so it dresses a
+  // window strip near the ceiling instead of a floor-length opening.
+  curtain_short: (c) => {
+    const g = new THREE.Group();
+    const W = 2.3, H = 0.62, OFF = 0.03;
+    const fabric = mat(0x9a8b76, { roughness: 1 });
+    const rod = cyl(0.02, 0.02, W + 0.18, mat(METAL), 0, H + 0.02, OFF, 8);
+    rod.rotation.z = Math.PI / 2;
+    g.add(rod);
+    const pivot = new THREE.Group();
+    pivot.name = 'curtainPivot';
+    pivot.position.x = -W / 2; // hinge at the left edge -> gathers to the left
+    const n = 16, seg = W / n;
+    for (let i = 0; i < n; i++) {
+      const px = (i + 0.5) * seg;
+      const wave = i % 2 === 0 ? 0.03 : -0.022;
+      pivot.add(tint(box(seg * 0.96, H, 0.045, fabric, px, H / 2, OFF + wave), c));
+    }
+    g.add(pivot);
+    return g;
+  },
   curtain_sheer: (c) => {
     const g = new THREE.Group();
     const W = 1.8, H = 2.2, OFF = 0.03;
@@ -2763,6 +2785,46 @@ const builders: Record<string, FurnitureBuilder> = {
   },
   // Floor-to-ceiling terrace WINDOW (mullioned, no door) — a black-framed
   // panoramic window. Placed like the other glazing (cuts a real opening).
+  // Small openable transom window (форточка) — the band of top-hinged sashes that
+  // runs along the TOP of a terrace wall, just under the ceiling, above the solid
+  // parapet. Bind ONE `cover` and all three sashes tilt outward together.
+  //
+  // The sash mounts are turned 180° about z, so inside them +y is world-DOWN
+  // while +z is still the outward normal. That is the same local frame the roof
+  // lantern's vents sit in, which lets the shared ventPivot animation swing the
+  // bottom edge out with no special case. Wall-mounted, centred on its origin
+  // like terrace_window. 2.2 x 0.44 m.
+  transom_window: (c) => {
+    const g = new THREE.Group();
+    const W = 2.2, H = 0.44, fw = 0.05, d = 0.09;
+    const fr = mat(0x2c3138, { roughness: 0.5, metalness: 0.3 });
+    const glass = mat(0x9fc4e6, { transparent: true, opacity: 0.32, roughness: 0.12, metalness: 0.25, side: THREE.DoubleSide });
+    g.add(tint(box(W, fw, d, fr, 0, H / 2 - fw / 2, 0), c)); // head
+    g.add(box(W, fw, d, fr, 0, -H / 2 + fw / 2, 0)); // sill
+    g.add(box(fw, H, d, fr, -W / 2 + fw / 2, 0, 0));
+    g.add(box(fw, H, d, fr, W / 2 - fw / 2, 0, 0));
+    const ih = H - 2 * fw; // clear opening height
+    // Fixed pane behind the sashes, so an open window is never a hole.
+    g.add(box(W - 2 * fw, ih, 0.014, glass, 0, 0, 0));
+    const n = 3, span = (W - 2 * fw) / n;
+    for (let i = 1; i < n; i++) g.add(box(0.035, ih, d * 0.7, fr, -W / 2 + fw + i * span, 0, 0));
+    for (let i = 0; i < n; i++) {
+      const mount = new THREE.Group();
+      mount.position.set(-W / 2 + fw + (i + 0.5) * span, ih / 2, d / 2 - 0.01);
+      mount.rotation.z = Math.PI;
+      const pivot = new THREE.Group();
+      pivot.name = 'ventPivot';
+      const sw = span - 0.05, th = 0.024;
+      pivot.add(box(sw, ih, th, glass, 0, ih / 2, 0));
+      pivot.add(box(sw, 0.026, th + 0.008, fr, 0, 0.013, 0)); // hinge rail
+      pivot.add(box(sw, 0.026, th + 0.008, fr, 0, ih - 0.013, 0));
+      pivot.add(box(0.026, ih, th + 0.008, fr, -sw / 2 + 0.013, ih / 2, 0));
+      pivot.add(box(0.026, ih, th + 0.008, fr, sw / 2 - 0.013, ih / 2, 0));
+      mount.add(pivot);
+      g.add(mount);
+    }
+    return g;
+  },
   terrace_window_full: (c) => {
     const g = new THREE.Group();
     const fr = mat(0x2c3138, { roughness: 0.5 });
@@ -3580,6 +3642,7 @@ export const WALL_MOUNT_KEYS = [
   'curtain_single', 'urinal', 'sink_double', 'blind_bottomup', 'garage_door',
   'wood_slat_panel', 'wall_backlight', 'tall_cabinet', 'terrace_window_full', 'climbing_wall',
   'wall_light_double', 'sconce_pair', 'glass_wall_cabinet', 'wall_backlight_double', 'wall_switch',
+  'transom_window', 'curtain_short',
 ];
 export function isWallMount(model: string): boolean {
   return WALL_MOUNT_KEYS.includes(model);
@@ -3686,6 +3749,8 @@ export function entityDomainsFor(model: string): string[] {
     case 'garage_door':
     case 'roof_lantern':
     case 'pergola_retractable':
+    case 'transom_window':
+    case 'curtain_short':
       return ['cover'];
     case 'door':
     case 'double_door':
@@ -3745,6 +3810,8 @@ export function defaultY(model: string, wallHeight = 2.6): number {
   if (model === 'glass_wall_cabinet') return 1.4; // upper cabinet, origin at its base
   if (model === 'wall_switch') return 1.15;       // switch height, centered at origin
   if (model === 'roof_lantern' || model === 'pergola_retractable') return wallHeight; // ceiling-level canopy
+  if (model === 'transom_window') return wallHeight - 0.42; // clerestory band under the ceiling
+  if (model === 'curtain_short') return wallHeight - 0.78; // hangs over that band
   if (model === 'wall_light' || model === 'ac_unit' || model === 'security_camera') return 2.0;
   if (model === 'bathroom_cabinet' || model === 'whiteboard') return 1.5;
   if (model === 'wall_shelf') return 1.4;
@@ -3822,6 +3889,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   track_double: '#fff4d6', wall_backlight: '#fff0d0', wall_backlight_double: '#fff0d0', glass_wall_cabinet: '#1c2622', wall_switch: '#eef0f2', roof_lantern: '#dfe3da', pergola_retractable: '#ede4cc', terrace_parapet: '#9c6b3f',
   terrace_glass_parapet: '#e3d9c4', terrace_stone_parapet: '#e3d9c4', balustrade: '#e3d9c4',
   fountain_pool: '#24262b', stone_planter: '#e3d9c4',
+  transom_window: '#2c3138', curtain_short: '#9a8b76',
   dining_table_oval: '#9c6b3f', bathtub_oval: '#dfd8cb',
   wood_slat_panel: '#9c6b3f', tv_wall: '#9c6b3f', boss_desk: '#cfc9bd',
   sofa_l: '#7d8a99', sofa_u: '#6f7d8c', conference_chair: '#454b54', tub_chair: '#a89a86', conference_table: '#9c6b3f', executive_desk: '#6e4a2f', tree: '#3f7d3f', shrub: '#4a7d3a', sink_double: '#eceff1',
