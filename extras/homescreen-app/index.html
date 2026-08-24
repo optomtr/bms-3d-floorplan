@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Дом</title>
+    <!-- Home Assistant's PWA manifest lives inside the frontend package, so a
+         dashboard installed straight from the browser always takes the HA icon
+         and no setting changes it. This page exists only to own a different
+         icon: install THIS, and it forwards to the dashboard. scope "/" keeps
+         the forward inside the installed app instead of a browser tab.
+
+         Which dashboard: pass ?to=/your/path ONCE. It is remembered on the
+         device, because an installed app starts at start_url with no query
+         string of its own. -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="data:image/png;base64,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" />
+    <meta name="theme-color" content="#16243d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Дом" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <style>
+      html, body { height: 100%; margin: 0; background: #16243d; color: #e8dbc3;
+        font: 16px/1.5 system-ui, -apple-system, sans-serif; display: grid; place-items: center; }
+      a { color: #d8b45a; }
+    </style>
+  </head>
+  <body>
+    <div id="s">Открываю…</div>
+    <script>
+      var FALLBACK = '/lovelace/0';
+      var KEY = 'ha_home_launcher_target';
+      // ?to= may retarget this launcher, but only inside THIS Home Assistant:
+      // resolve it the way the browser would and demand the same origin, which
+      // rejects https://other, //host, data: and javascript:.
+      function sameOriginPath(v) {
+        if (!v) return null;
+        try {
+          var u = new URL(v, location.href);
+          return u.origin === location.origin ? u.pathname + u.search + u.hash : null;
+        } catch (e) { return null; }
+      }
+      var asked = sameOriginPath(new URLSearchParams(location.search).get('to'));
+      if (asked) { try { localStorage.setItem(KEY, asked); } catch (e) {} }
+      var target = asked || (function () { try { return localStorage.getItem(KEY); } catch (e) { return null; } })() || FALLBACK;
+      // Never leave the launcher in the back stack.
+      location.replace(target);
+    </script>
+  </body>
+</html>
