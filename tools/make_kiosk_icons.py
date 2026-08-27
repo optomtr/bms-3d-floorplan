@@ -25,7 +25,10 @@ ROOF_W = 60
 # Chimney: left edge, top edge, right edge. It has NO bottom edge of its own —
 # the bottom runs along the roof's CENTRELINE (see draw_logo), so it always dies
 # inside the roof band. A plain rectangle used to hang out below the roof.
-CHIM_L, CHIM_T, CHIM_R = 158, 185, 248
+# Narrower, taller and further down the slope than before: the roof band used
+# to swallow the chimney's right edge entirely, so it read as a wedge growing
+# out of the roof instead of a chimney standing on it.
+CHIM_L, CHIM_T, CHIM_R = 150, 172, 215
 WIN = 48                            # window side
 WIN_R = 13                          # window corner radius
 WIN_CX = (283, 357)
