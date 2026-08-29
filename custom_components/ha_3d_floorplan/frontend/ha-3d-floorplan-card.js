@@ -264,7 +264,7 @@ os.elementStyles = [], os.shadowRootOptions = { mode: "open" }, os[$s("elementPr
  */
 const Xl = globalThis, zc = (i) => i, Tr = Xl.trustedTypes, Bc = Tr ? Tr.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, ru = "$lit$", ri = `lit$${Math.random().toFixed(9).slice(2)}$`, au = "?" + ri, Bf = `<${au}>`, Ii = document, oo = () => Ii.createComment(""), ro = (i) => i === null || typeof i != "object" && typeof i != "function", Kl = Array.isArray, Hf = (i) => Kl(i) || typeof i?.[Symbol.iterator] == "function", na = `[ 	
 \f\r]`, Ds = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Hc = /-->/g, Vc = />/g, vi = RegExp(`>|${na}(?:([^\\s"'>=/]+)(${na}*=${na}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), Gc = /'/g, Wc = /"/g, lu = /^(?:script|style|textarea|title)$/i, cu = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), V = cu(1), Oi = cu(2), ms = Symbol.for("lit-noChange"), Q = Symbol.for("lit-nothing"), jc = /* @__PURE__ */ new WeakMap(), Ci = Ii.createTreeWalker(Ii, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), Gc = /'/g, Wc = /"/g, lu = /^(?:script|style|textarea|title)$/i, cu = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), H = cu(1), Oi = cu(2), ms = Symbol.for("lit-noChange"), Q = Symbol.for("lit-nothing"), jc = /* @__PURE__ */ new WeakMap(), Ci = Ii.createTreeWalker(Ii, 129);
 function hu(i, t) {
   if (!Kl(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return Bc !== void 0 ? Bc.createHTML(t) : t;
@@ -566,7 +566,7 @@ function yo(i) {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-function yt(i) {
+function bt(i) {
   return yo({ ...i, state: !0, attribute: !1 });
 }
 /**
@@ -11616,7 +11616,7 @@ function G1(i, t, e, n, s, o, r) {
       $ = Je.vertexShader, dt = Je.fragmentShader;
     } else
       $ = _.vertexShader, dt = _.fragmentShader, l.update(_), It = l.getVertexShaderID(_), Mt = l.getFragmentShaderID(_);
-    const jt = i.getRenderTarget(), Wt = B.isInstancedMesh === !0, Jt = B.isBatchedMesh === !0, ne = !!_.map, st = !!_.matcap, D = !!K, xt = !!_.aoMap, gt = !!_.lightMap, ct = !!_.bumpMap, bt = !!_.normalMap, zt = !!_.displacementMap, At = !!_.emissiveMap, L = !!_.metalnessMap, A = !!_.roughnessMap, q = _.anisotropy > 0, tt = _.clearcoat > 0, ot = _.dispersion > 0, et = _.iridescence > 0, kt = _.sheen > 0, _t = _.transmission > 0, Ct = q && !!_.anisotropyMap, oe = tt && !!_.clearcoatMap, ut = tt && !!_.clearcoatNormalMap, Pt = tt && !!_.clearcoatRoughnessMap, Kt = et && !!_.iridescenceMap, Zt = et && !!_.iridescenceThicknessMap, Lt = kt && !!_.sheenColorMap, re = kt && !!_.sheenRoughnessMap, Qt = !!_.specularMap, xe = !!_.specularColorMap, z = !!_.specularIntensityMap, Tt = _t && !!_.transmissionMap, J = _t && !!_.thicknessMap, rt = !!_.gradientMap, St = !!_.alphaMap, Rt = _.alphaTest > 0, le = !!_.alphaHash, Te = !!_.extensions;
+    const jt = i.getRenderTarget(), Wt = B.isInstancedMesh === !0, Jt = B.isBatchedMesh === !0, ne = !!_.map, st = !!_.matcap, D = !!K, xt = !!_.aoMap, gt = !!_.lightMap, ct = !!_.bumpMap, yt = !!_.normalMap, zt = !!_.displacementMap, At = !!_.emissiveMap, L = !!_.metalnessMap, A = !!_.roughnessMap, q = _.anisotropy > 0, tt = _.clearcoat > 0, ot = _.dispersion > 0, et = _.iridescence > 0, kt = _.sheen > 0, _t = _.transmission > 0, Ct = q && !!_.anisotropyMap, oe = tt && !!_.clearcoatMap, ut = tt && !!_.clearcoatNormalMap, Pt = tt && !!_.clearcoatRoughnessMap, Kt = et && !!_.iridescenceMap, Zt = et && !!_.iridescenceThicknessMap, Lt = kt && !!_.sheenColorMap, re = kt && !!_.sheenRoughnessMap, Qt = !!_.specularMap, xe = !!_.specularColorMap, z = !!_.specularIntensityMap, Tt = _t && !!_.transmissionMap, J = _t && !!_.thicknessMap, rt = !!_.gradientMap, St = !!_.alphaMap, Rt = _.alphaTest > 0, le = !!_.alphaHash, Te = !!_.extensions;
     let Ye = ui;
     _.toneMapped && (jt === null || jt.isXRRenderTarget === !0) && (Ye = i.toneMapping);
     const he = {
@@ -11647,11 +11647,11 @@ function G1(i, t, e, n, s, o, r) {
       aoMap: xt,
       lightMap: gt,
       bumpMap: ct,
-      normalMap: bt,
+      normalMap: yt,
       displacementMap: f && zt,
       emissiveMap: At,
-      normalMapObjectSpace: bt && _.normalMapType === Np,
-      normalMapTangentSpace: bt && _.normalMapType === rc,
+      normalMapObjectSpace: yt && _.normalMapType === Np,
+      normalMapTangentSpace: yt && _.normalMapType === rc,
       metalnessMap: L,
       roughnessMap: A,
       anisotropy: q,
@@ -11684,7 +11684,7 @@ function G1(i, t, e, n, s, o, r) {
       aoMapUv: xt && p(_.aoMap.channel),
       lightMapUv: gt && p(_.lightMap.channel),
       bumpMapUv: ct && p(_.bumpMap.channel),
-      normalMapUv: bt && p(_.normalMap.channel),
+      normalMapUv: yt && p(_.normalMap.channel),
       displacementMapUv: zt && p(_.displacementMap.channel),
       emissiveMapUv: At && p(_.emissiveMap.channel),
       metalnessMapUv: L && p(_.metalnessMap.channel),
@@ -11704,7 +11704,7 @@ function G1(i, t, e, n, s, o, r) {
       thicknessMapUv: J && p(_.thicknessMap.channel),
       alphaMapUv: St && p(_.alphaMap.channel),
       //
-      vertexTangents: !!j.attributes.tangent && (bt || q),
+      vertexTangents: !!j.attributes.tangent && (yt || q),
       vertexColors: _.vertexColors,
       vertexAlphas: _.vertexColors === !0 && !!j.attributes.color && j.attributes.color.itemSize === 4,
       pointsUvs: B.isPoints === !0 && !!j.attributes.uv && (ne || St),
@@ -12567,7 +12567,7 @@ function ox(i) {
   function ct(z) {
     z !== ep ? (It(i.CULL_FACE), z !== _ && (z === qc ? i.cullFace(i.BACK) : z === np ? i.cullFace(i.FRONT) : i.cullFace(i.FRONT_AND_BACK))) : Mt(i.CULL_FACE), _ = z;
   }
-  function bt(z) {
+  function yt(z) {
     z !== S && (X && i.lineWidth(z), S = z);
   }
   function zt(z, Tt, J) {
@@ -12692,7 +12692,7 @@ function ox(i) {
     setMaterial: xt,
     setFlipSided: gt,
     setCullFace: ct,
-    setLineWidth: bt,
+    setLineWidth: yt,
     setPolygonOffset: zt,
     setScissorTest: At,
     activeTexture: L,
@@ -12937,7 +12937,7 @@ function ax(i, t, e, n, s, o, r) {
   }
   function B(L, A) {
     const q = n.get(L);
-    if (L.isVideoTexture && bt(L), L.isRenderTargetTexture === !1 && L.version > 0 && q.__version !== L.version) {
+    if (L.isVideoTexture && yt(L), L.isRenderTargetTexture === !1 && L.version > 0 && q.__version !== L.version) {
       const tt = L.image;
       if (tt === null)
         console.warn("THREE.WebGLRenderer: Texture marked for update but no image data found.");
@@ -13358,7 +13358,7 @@ function ax(i, t, e, n, s, o, r) {
     const A = n.get(L);
     return L.samples > 0 && t.has("WEBGL_multisampled_render_to_texture") === !0 && A.__useRenderToTexture !== !1;
   }
-  function bt(L) {
+  function yt(L) {
     const A = r.render.frame;
     h.get(L) !== A && (h.set(L, A), L.update());
   }
@@ -13729,11 +13729,11 @@ class px extends Ni {
     const j = new k(), nt = new k();
     function K($, dt, It) {
       j.setFromMatrixPosition(dt.matrixWorld), nt.setFromMatrixPosition(It.matrixWorld);
-      const Mt = j.distanceTo(nt), jt = dt.projectionMatrix.elements, Wt = It.projectionMatrix.elements, Jt = jt[14] / (jt[10] - 1), ne = jt[14] / (jt[10] + 1), st = (jt[9] + 1) / jt[5], D = (jt[9] - 1) / jt[5], xt = (jt[8] - 1) / jt[0], gt = (Wt[8] + 1) / Wt[0], ct = Jt * xt, bt = Jt * gt, zt = Mt / (-xt + gt), At = zt * -xt;
+      const Mt = j.distanceTo(nt), jt = dt.projectionMatrix.elements, Wt = It.projectionMatrix.elements, Jt = jt[14] / (jt[10] - 1), ne = jt[14] / (jt[10] + 1), st = (jt[9] + 1) / jt[5], D = (jt[9] - 1) / jt[5], xt = (jt[8] - 1) / jt[0], gt = (Wt[8] + 1) / Wt[0], ct = Jt * xt, yt = Jt * gt, zt = Mt / (-xt + gt), At = zt * -xt;
       if (dt.matrixWorld.decompose($.position, $.quaternion, $.scale), $.translateX(At), $.translateZ(zt), $.matrixWorld.compose($.position, $.quaternion, $.scale), $.matrixWorldInverse.copy($.matrixWorld).invert(), jt[10] === -1)
         $.projectionMatrix.copy(dt.projectionMatrix), $.projectionMatrixInverse.copy(dt.projectionMatrixInverse);
       else {
-        const L = Jt + zt, A = ne + zt, q = ct - At, tt = bt + (Mt - At), ot = st * ne / A * L, et = D * ne / A * L;
+        const L = Jt + zt, A = ne + zt, q = ct - At, tt = yt + (Mt - At), ot = st * ne / A * L, et = D * ne / A * L;
         $.projectionMatrix.makePerspective(q, tt, ot, et, L, A), $.projectionMatrixInverse.copy($.projectionMatrix).invert();
       }
     }
@@ -14019,8 +14019,8 @@ class Vu {
       return T === null ? nt : 1;
     }
     let D = n;
-    function xt(P, H) {
-      return e.getContext(P, H);
+    function xt(P, V) {
+      return e.getContext(P, V);
     }
     try {
       const P = {
@@ -14034,16 +14034,16 @@ class Vu {
         failIfMajorPerformanceCaveat: d
       };
       if ("setAttribute" in e && e.setAttribute("data-engine", `three.js r${Yl}`), e.addEventListener("webglcontextlost", rt, !1), e.addEventListener("webglcontextrestored", St, !1), e.addEventListener("webglcontextcreationerror", Rt, !1), D === null) {
-        const H = "webgl2";
-        if (D = xt(H, P), D === null)
-          throw xt(H) ? new Error("Error creating WebGL context with your selected attributes.") : new Error("Error creating WebGL context.");
+        const V = "webgl2";
+        if (D = xt(V, P), D === null)
+          throw xt(V) ? new Error("Error creating WebGL context with your selected attributes.") : new Error("Error creating WebGL context.");
       }
     } catch (P) {
       throw console.error("THREE.WebGLRenderer: " + P.message), P;
     }
-    let gt, ct, bt, zt, At, L, A, q, tt, ot, et, kt, _t, Ct, oe, ut, Pt, Kt, Zt, Lt, re, Qt, xe, z;
+    let gt, ct, yt, zt, At, L, A, q, tt, ot, et, kt, _t, Ct, oe, ut, Pt, Kt, Zt, Lt, re, Qt, xe, z;
     function Tt() {
-      gt = new Mv(D), gt.init(), Qt = new lx(D, gt), ct = new vv(D, gt, t, Qt), bt = new ox(D), ct.reverseDepthBuffer && bt.buffers.depth.setReversed(!0), zt = new Av(D), At = new W1(), L = new ax(D, gt, bt, At, ct, Qt, zt), A = new bv(b), q = new wv(b), tt = new D0(D), xe = new mv(D, tt), ot = new Sv(D, tt, zt, xe), et = new Rv(D, ot, tt, zt), Zt = new Tv(D, ct, L), ut = new xv(At), kt = new G1(b, A, q, gt, ct, xe, ut), _t = new gx(b, At), Ct = new q1(), oe = new Q1(gt), Kt = new pv(b, A, q, bt, et, u, l), Pt = new ix(b, et, ct), z = new vx(D, zt, ct, bt), Lt = new gv(D, gt, zt), re = new Ev(D, gt, zt), zt.programs = kt.programs, b.capabilities = ct, b.extensions = gt, b.properties = At, b.renderLists = Ct, b.shadowMap = Pt, b.state = bt, b.info = zt;
+      gt = new Mv(D), gt.init(), Qt = new lx(D, gt), ct = new vv(D, gt, t, Qt), yt = new ox(D), ct.reverseDepthBuffer && yt.buffers.depth.setReversed(!0), zt = new Av(D), At = new W1(), L = new ax(D, gt, yt, At, ct, Qt, zt), A = new bv(b), q = new wv(b), tt = new D0(D), xe = new mv(D, tt), ot = new Sv(D, tt, zt, xe), et = new Rv(D, ot, tt, zt), Zt = new Tv(D, ct, L), ut = new xv(At), kt = new G1(b, A, q, gt, ct, xe, ut), _t = new gx(b, At), Ct = new q1(), oe = new Q1(gt), Kt = new pv(b, A, q, yt, et, u, l), Pt = new ix(b, et, ct), z = new vx(D, zt, ct, yt), Lt = new gv(D, gt, zt), re = new Ev(D, gt, zt), zt.programs = kt.programs, b.capabilities = ct, b.extensions = gt, b.properties = At, b.renderLists = Ct, b.shadowMap = Pt, b.state = yt, b.info = zt;
     }
     Tt();
     const J = new px(b, D);
@@ -14063,30 +14063,30 @@ class Vu {
       P !== void 0 && (nt = P, this.setSize(X, j, !1));
     }, this.getSize = function(P) {
       return P.set(X, j);
-    }, this.setSize = function(P, H, Z = !0) {
+    }, this.setSize = function(P, V, Z = !0) {
       if (J.isPresenting) {
         console.warn("THREE.WebGLRenderer: Can't change size while VR device is presenting.");
         return;
       }
-      X = P, j = H, e.width = Math.floor(P * nt), e.height = Math.floor(H * nt), Z === !0 && (e.style.width = P + "px", e.style.height = H + "px"), this.setViewport(0, 0, P, H);
+      X = P, j = V, e.width = Math.floor(P * nt), e.height = Math.floor(V * nt), Z === !0 && (e.style.width = P + "px", e.style.height = V + "px"), this.setViewport(0, 0, P, V);
     }, this.getDrawingBufferSize = function(P) {
       return P.set(X * nt, j * nt).floor();
-    }, this.setDrawingBufferSize = function(P, H, Z) {
-      X = P, j = H, nt = Z, e.width = Math.floor(P * Z), e.height = Math.floor(H * Z), this.setViewport(0, 0, P, H);
+    }, this.setDrawingBufferSize = function(P, V, Z) {
+      X = P, j = V, nt = Z, e.width = Math.floor(P * Z), e.height = Math.floor(V * Z), this.setViewport(0, 0, P, V);
     }, this.getCurrentViewport = function(P) {
       return P.copy(_);
     }, this.getViewport = function(P) {
       return P.copy(lt);
-    }, this.setViewport = function(P, H, Z, Y) {
-      P.isVector4 ? lt.set(P.x, P.y, P.z, P.w) : lt.set(P, H, Z, Y), bt.viewport(_.copy(lt).multiplyScalar(nt).round());
+    }, this.setViewport = function(P, V, Z, Y) {
+      P.isVector4 ? lt.set(P.x, P.y, P.z, P.w) : lt.set(P, V, Z, Y), yt.viewport(_.copy(lt).multiplyScalar(nt).round());
     }, this.getScissor = function(P) {
       return P.copy(ht);
-    }, this.setScissor = function(P, H, Z, Y) {
-      P.isVector4 ? ht.set(P.x, P.y, P.z, P.w) : ht.set(P, H, Z, Y), bt.scissor(S.copy(ht).multiplyScalar(nt).round());
+    }, this.setScissor = function(P, V, Z, Y) {
+      P.isVector4 ? ht.set(P.x, P.y, P.z, P.w) : ht.set(P, V, Z, Y), yt.scissor(S.copy(ht).multiplyScalar(nt).round());
     }, this.getScissorTest = function() {
       return Ht;
     }, this.setScissorTest = function(P) {
-      bt.setScissorTest(Ht = P);
+      yt.setScissorTest(Ht = P);
     }, this.setOpaqueSort = function(P) {
       K = P;
     }, this.setTransparentSort = function(P) {
@@ -14099,7 +14099,7 @@ class Vu {
       return Kt.getClearAlpha();
     }, this.setClearAlpha = function() {
       Kt.setClearAlpha.apply(Kt, arguments);
-    }, this.clear = function(P = !0, H = !0, Z = !0) {
+    }, this.clear = function(P = !0, V = !0, Z = !0) {
       let Y = 0;
       if (P) {
         let G = !1;
@@ -14113,7 +14113,7 @@ class Vu {
         } else
           Y |= D.COLOR_BUFFER_BIT;
       }
-      H && (Y |= D.DEPTH_BUFFER_BIT, D.clearDepth(this.capabilities.reverseDepthBuffer ? 0 : 1)), Z && (Y |= D.STENCIL_BUFFER_BIT, this.state.buffers.stencil.setMask(4294967295)), D.clear(Y);
+      V && (Y |= D.DEPTH_BUFFER_BIT, D.clearDepth(this.capabilities.reverseDepthBuffer ? 0 : 1)), Z && (Y |= D.STENCIL_BUFFER_BIT, this.state.buffers.stencil.setMask(4294967295)), D.clear(Y);
     }, this.clearColor = function() {
       this.clear(!0, !1, !1);
     }, this.clearDepth = function() {
@@ -14128,29 +14128,29 @@ class Vu {
     }
     function St() {
       console.log("THREE.WebGLRenderer: Context Restored."), M = !1;
-      const P = zt.autoReset, H = Pt.enabled, Z = Pt.autoUpdate, Y = Pt.needsUpdate, G = Pt.type;
-      Tt(), zt.autoReset = P, Pt.enabled = H, Pt.autoUpdate = Z, Pt.needsUpdate = Y, Pt.type = G;
+      const P = zt.autoReset, V = Pt.enabled, Z = Pt.autoUpdate, Y = Pt.needsUpdate, G = Pt.type;
+      Tt(), zt.autoReset = P, Pt.enabled = V, Pt.autoUpdate = Z, Pt.needsUpdate = Y, Pt.type = G;
     }
     function Rt(P) {
       console.error("THREE.WebGLRenderer: A WebGL context could not be created. Reason: ", P.statusMessage);
     }
     function le(P) {
-      const H = P.target;
-      H.removeEventListener("dispose", le), Te(H);
+      const V = P.target;
+      V.removeEventListener("dispose", le), Te(V);
     }
     function Te(P) {
       Ye(P), At.remove(P);
     }
     function Ye(P) {
-      const H = At.get(P).programs;
-      H !== void 0 && (H.forEach(function(Z) {
+      const V = At.get(P).programs;
+      V !== void 0 && (V.forEach(function(Z) {
         kt.releaseProgram(Z);
       }), P.isShaderMaterial && kt.releaseShaderCache(P));
     }
-    this.renderBufferDirect = function(P, H, Z, Y, G, pt) {
-      H === null && (H = Jt);
-      const Et = G.isMesh && G.matrixWorld.determinant() < 0, Dt = Af(P, H, Z, Y, G);
-      bt.setMaterial(Y, Et);
+    this.renderBufferDirect = function(P, V, Z, Y, G, pt) {
+      V === null && (V = Jt);
+      const Et = G.isMesh && G.matrixWorld.determinant() < 0, Dt = Af(P, V, Z, Y, G);
+      yt.setMaterial(Y, Et);
       let Nt = Z.index, qt = 1;
       if (Y.wireframe === !0) {
         if (Nt = ot.getWireframeAttribute(Z), Nt === void 0) return;
@@ -14164,10 +14164,10 @@ class Vu {
       xe.setup(G, Y, Dt, Z, Nt);
       let en, ue = Lt;
       if (Nt !== null && (en = tt.get(Nt), ue = re, ue.setIndex(en)), G.isMesh)
-        Y.wireframe === !0 ? (bt.setLineWidth(Y.wireframeLinewidth * st()), ue.setMode(D.LINES)) : ue.setMode(D.TRIANGLES);
+        Y.wireframe === !0 ? (yt.setLineWidth(Y.wireframeLinewidth * st()), ue.setMode(D.LINES)) : ue.setMode(D.TRIANGLES);
       else if (G.isLine) {
         let Bt = Y.linewidth;
-        Bt === void 0 && (Bt = 1), bt.setLineWidth(Bt * st()), G.isLineSegments ? ue.setMode(D.LINES) : G.isLineLoop ? ue.setMode(D.LINE_LOOP) : ue.setMode(D.LINE_STRIP);
+        Bt === void 0 && (Bt = 1), yt.setLineWidth(Bt * st()), G.isLineSegments ? ue.setMode(D.LINES) : G.isLineLoop ? ue.setMode(D.LINE_LOOP) : ue.setMode(D.LINE_STRIP);
       } else G.isPoints ? ue.setMode(D.POINTS) : G.isSprite && ue.setMode(D.TRIANGLES);
       if (G.isBatchedMesh)
         if (G._multiDrawInstances !== null)
@@ -14187,14 +14187,14 @@ class Vu {
       } else
         ue.render(pe, Se);
     };
-    function he(P, H, Z) {
-      P.transparent === !0 && P.side === ze && P.forceSinglePass === !1 ? (P.side = tn, P.needsUpdate = !0, To(P, H, Z), P.side = Zn, P.needsUpdate = !0, To(P, H, Z), P.side = ze) : To(P, H, Z);
+    function he(P, V, Z) {
+      P.transparent === !0 && P.side === ze && P.forceSinglePass === !1 ? (P.side = tn, P.needsUpdate = !0, To(P, V, Z), P.side = Zn, P.needsUpdate = !0, To(P, V, Z), P.side = ze) : To(P, V, Z);
     }
-    this.compile = function(P, H, Z = null) {
-      Z === null && (Z = P), p = oe.get(Z), p.init(H), y.push(p), Z.traverseVisible(function(G) {
-        G.isLight && G.layers.test(H.layers) && (p.pushLight(G), G.castShadow && p.pushShadow(G));
+    this.compile = function(P, V, Z = null) {
+      Z === null && (Z = P), p = oe.get(Z), p.init(V), y.push(p), Z.traverseVisible(function(G) {
+        G.isLight && G.layers.test(V.layers) && (p.pushLight(G), G.castShadow && p.pushShadow(G));
       }), P !== Z && P.traverseVisible(function(G) {
-        G.isLight && G.layers.test(H.layers) && (p.pushLight(G), G.castShadow && p.pushShadow(G));
+        G.isLight && G.layers.test(V.layers) && (p.pushLight(G), G.castShadow && p.pushShadow(G));
       }), p.setupLights();
       const Y = /* @__PURE__ */ new Set();
       return P.traverse(function(G) {
@@ -14210,8 +14210,8 @@ class Vu {
           else
             he(pt, Z, G), Y.add(pt);
       }), y.pop(), p = null, Y;
-    }, this.compileAsync = function(P, H, Z = null) {
-      const Y = this.compile(P, H, Z);
+    }, this.compileAsync = function(P, V, Z = null) {
+      const Y = this.compile(P, V, Z);
       return new Promise((G) => {
         function pt() {
           if (Y.forEach(function(Et) {
@@ -14238,22 +14238,22 @@ class Vu {
     const gi = new Uu();
     gi.setAnimationLoop(Nn), typeof self < "u" && gi.setContext(self), this.setAnimationLoop = function(P) {
       Je = P, J.setAnimationLoop(P), P === null ? gi.stop() : gi.start();
-    }, J.addEventListener("sessionstart", Tc), J.addEventListener("sessionend", Rc), this.render = function(P, H) {
-      if (H !== void 0 && H.isCamera !== !0) {
+    }, J.addEventListener("sessionstart", Tc), J.addEventListener("sessionend", Rc), this.render = function(P, V) {
+      if (V !== void 0 && V.isCamera !== !0) {
         console.error("THREE.WebGLRenderer.render: camera is not an instance of THREE.Camera.");
         return;
       }
       if (M === !0) return;
-      if (P.matrixWorldAutoUpdate === !0 && P.updateMatrixWorld(), H.parent === null && H.matrixWorldAutoUpdate === !0 && H.updateMatrixWorld(), J.enabled === !0 && J.isPresenting === !0 && (J.cameraAutoUpdate === !0 && J.updateCamera(H), H = J.getCamera()), P.isScene === !0 && P.onBeforeRender(b, P, H, T), p = oe.get(P, y.length), p.init(H), y.push(p), Mt.multiplyMatrices(H.projectionMatrix, H.matrixWorldInverse), se.setFromProjectionMatrix(Mt), dt = this.localClippingEnabled, $ = ut.init(this.clippingPlanes, dt), x = Ct.get(P, g.length), x.init(), g.push(x), J.enabled === !0 && J.isPresenting === !0) {
+      if (P.matrixWorldAutoUpdate === !0 && P.updateMatrixWorld(), V.parent === null && V.matrixWorldAutoUpdate === !0 && V.updateMatrixWorld(), J.enabled === !0 && J.isPresenting === !0 && (J.cameraAutoUpdate === !0 && J.updateCamera(V), V = J.getCamera()), P.isScene === !0 && P.onBeforeRender(b, P, V, T), p = oe.get(P, y.length), p.init(V), y.push(p), Mt.multiplyMatrices(V.projectionMatrix, V.matrixWorldInverse), se.setFromProjectionMatrix(Mt), dt = this.localClippingEnabled, $ = ut.init(this.clippingPlanes, dt), x = Ct.get(P, g.length), x.init(), g.push(x), J.enabled === !0 && J.isPresenting === !0) {
         const pt = b.xr.getDepthSensingMesh();
-        pt !== null && Qr(pt, H, -1 / 0, b.sortObjects);
+        pt !== null && Qr(pt, V, -1 / 0, b.sortObjects);
       }
-      Qr(P, H, 0, b.sortObjects), x.finish(), b.sortObjects === !0 && x.sort(K, at), ne = J.enabled === !1 || J.isPresenting === !1 || J.hasDepthSensing() === !1, ne && Kt.addToRenderList(x, P), this.info.render.frame++, $ === !0 && ut.beginShadows();
+      Qr(P, V, 0, b.sortObjects), x.finish(), b.sortObjects === !0 && x.sort(K, at), ne = J.enabled === !1 || J.isPresenting === !1 || J.hasDepthSensing() === !1, ne && Kt.addToRenderList(x, P), this.info.render.frame++, $ === !0 && ut.beginShadows();
       const Z = p.state.shadowsArray;
-      Pt.render(Z, P, H), $ === !0 && ut.endShadows(), this.info.autoReset === !0 && this.info.reset();
+      Pt.render(Z, P, V), $ === !0 && ut.endShadows(), this.info.autoReset === !0 && this.info.reset();
       const Y = x.opaque, G = x.transmissive;
-      if (p.setupLights(), H.isArrayCamera) {
-        const pt = H.cameras;
+      if (p.setupLights(), V.isArrayCamera) {
+        const pt = V.cameras;
         if (G.length > 0)
           for (let Et = 0, Dt = pt.length; Et < Dt; Et++) {
             const Nt = pt[Et];
@@ -14265,16 +14265,16 @@ class Vu {
           Cc(x, P, Nt, Nt.viewport);
         }
       } else
-        G.length > 0 && Pc(Y, G, P, H), ne && Kt.render(P), Cc(x, P, H);
-      T !== null && (L.updateMultisampleRenderTarget(T), L.updateRenderTargetMipmap(T)), P.isScene === !0 && P.onAfterRender(b, P, H), xe.resetDefaultState(), I = -1, U = null, y.pop(), y.length > 0 ? (p = y[y.length - 1], $ === !0 && ut.setGlobalState(b.clippingPlanes, p.state.camera)) : p = null, g.pop(), g.length > 0 ? x = g[g.length - 1] : x = null;
+        G.length > 0 && Pc(Y, G, P, V), ne && Kt.render(P), Cc(x, P, V);
+      T !== null && (L.updateMultisampleRenderTarget(T), L.updateRenderTargetMipmap(T)), P.isScene === !0 && P.onAfterRender(b, P, V), xe.resetDefaultState(), I = -1, U = null, y.pop(), y.length > 0 ? (p = y[y.length - 1], $ === !0 && ut.setGlobalState(b.clippingPlanes, p.state.camera)) : p = null, g.pop(), g.length > 0 ? x = g[g.length - 1] : x = null;
     };
-    function Qr(P, H, Z, Y) {
+    function Qr(P, V, Z, Y) {
       if (P.visible === !1) return;
-      if (P.layers.test(H.layers)) {
+      if (P.layers.test(V.layers)) {
         if (P.isGroup)
           Z = P.renderOrder;
         else if (P.isLOD)
-          P.autoUpdate === !0 && P.update(H);
+          P.autoUpdate === !0 && P.update(V);
         else if (P.isLight)
           p.pushLight(P), P.castShadow && p.pushShadow(P);
         else if (P.isSprite) {
@@ -14296,13 +14296,13 @@ class Vu {
       }
       const pt = P.children;
       for (let Et = 0, Dt = pt.length; Et < Dt; Et++)
-        Qr(pt[Et], H, Z, Y);
+        Qr(pt[Et], V, Z, Y);
     }
-    function Cc(P, H, Z, Y) {
+    function Cc(P, V, Z, Y) {
       const G = P.opaque, pt = P.transmissive, Et = P.transparent;
-      p.setupLightsView(Z), $ === !0 && ut.setGlobalState(b.clippingPlanes, Z), Y && bt.viewport(_.copy(Y)), G.length > 0 && Ao(G, H, Z), pt.length > 0 && Ao(pt, H, Z), Et.length > 0 && Ao(Et, H, Z), bt.buffers.depth.setTest(!0), bt.buffers.depth.setMask(!0), bt.buffers.color.setMask(!0), bt.setPolygonOffset(!1);
+      p.setupLightsView(Z), $ === !0 && ut.setGlobalState(b.clippingPlanes, Z), Y && yt.viewport(_.copy(Y)), G.length > 0 && Ao(G, V, Z), pt.length > 0 && Ao(pt, V, Z), Et.length > 0 && Ao(Et, V, Z), yt.buffers.depth.setTest(!0), yt.buffers.depth.setMask(!0), yt.buffers.color.setMask(!0), yt.setPolygonOffset(!1);
     }
-    function Pc(P, H, Z, Y) {
+    function Pc(P, V, Z, Y) {
       if ((Z.isScene === !0 ? Z.overrideMaterial : null) !== null)
         return;
       p.state.transmissionRenderTarget[Y.id] === void 0 && (p.state.transmissionRenderTarget[Y.id] = new Di(1, 1, {
@@ -14324,8 +14324,8 @@ class Vu {
       const qt = Y.viewport;
       if (Y.viewport !== void 0 && (Y.viewport = void 0), p.setupLightsView(Y), $ === !0 && ut.setGlobalState(b.clippingPlanes, Y), Ao(P, Z, Y), L.updateMultisampleRenderTarget(pt), L.updateRenderTargetMipmap(pt), gt.has("WEBGL_multisampled_render_to_texture") === !1) {
         let Xt = !1;
-        for (let Ot = 0, pe = H.length; Ot < pe; Ot++) {
-          const be = H[Ot], Se = be.object, en = be.geometry, ue = be.material, Bt = be.group;
+        for (let Ot = 0, pe = V.length; Ot < pe; Ot++) {
+          const be = V[Ot], Se = be.object, en = be.geometry, ue = be.material, Bt = be.group;
           if (ue.side === ze && Se.layers.test(Y.layers)) {
             const Fe = ue.side;
             ue.side = tn, ue.needsUpdate = !0, Ic(Se, Z, Y, en, ue, Bt), ue.side = Fe, ue.needsUpdate = !0, Xt = !0;
@@ -14335,21 +14335,21 @@ class Vu {
       }
       b.setRenderTarget(Dt), b.setClearColor(O, B), qt !== void 0 && (Y.viewport = qt), b.toneMapping = Nt;
     }
-    function Ao(P, H, Z) {
-      const Y = H.isScene === !0 ? H.overrideMaterial : null;
+    function Ao(P, V, Z) {
+      const Y = V.isScene === !0 ? V.overrideMaterial : null;
       for (let G = 0, pt = P.length; G < pt; G++) {
         const Et = P[G], Dt = Et.object, Nt = Et.geometry, qt = Y === null ? Et.material : Y, Xt = Et.group;
-        Dt.layers.test(Z.layers) && Ic(Dt, H, Z, Nt, qt, Xt);
+        Dt.layers.test(Z.layers) && Ic(Dt, V, Z, Nt, qt, Xt);
       }
     }
-    function Ic(P, H, Z, Y, G, pt) {
-      P.onBeforeRender(b, H, Z, Y, G, pt), P.modelViewMatrix.multiplyMatrices(Z.matrixWorldInverse, P.matrixWorld), P.normalMatrix.getNormalMatrix(P.modelViewMatrix), G.onBeforeRender(b, H, Z, Y, P, pt), G.transparent === !0 && G.side === ze && G.forceSinglePass === !1 ? (G.side = tn, G.needsUpdate = !0, b.renderBufferDirect(Z, H, Y, G, P, pt), G.side = Zn, G.needsUpdate = !0, b.renderBufferDirect(Z, H, Y, G, P, pt), G.side = ze) : b.renderBufferDirect(Z, H, Y, G, P, pt), P.onAfterRender(b, H, Z, Y, G, pt);
+    function Ic(P, V, Z, Y, G, pt) {
+      P.onBeforeRender(b, V, Z, Y, G, pt), P.modelViewMatrix.multiplyMatrices(Z.matrixWorldInverse, P.matrixWorld), P.normalMatrix.getNormalMatrix(P.modelViewMatrix), G.onBeforeRender(b, V, Z, Y, P, pt), G.transparent === !0 && G.side === ze && G.forceSinglePass === !1 ? (G.side = tn, G.needsUpdate = !0, b.renderBufferDirect(Z, V, Y, G, P, pt), G.side = Zn, G.needsUpdate = !0, b.renderBufferDirect(Z, V, Y, G, P, pt), G.side = ze) : b.renderBufferDirect(Z, V, Y, G, P, pt), P.onAfterRender(b, V, Z, Y, G, pt);
     }
-    function To(P, H, Z) {
-      H.isScene !== !0 && (H = Jt);
-      const Y = At.get(P), G = p.state.lights, pt = p.state.shadowsArray, Et = G.state.version, Dt = kt.getParameters(P, G.state, pt, H, Z), Nt = kt.getProgramCacheKey(Dt);
+    function To(P, V, Z) {
+      V.isScene !== !0 && (V = Jt);
+      const Y = At.get(P), G = p.state.lights, pt = p.state.shadowsArray, Et = G.state.version, Dt = kt.getParameters(P, G.state, pt, V, Z), Nt = kt.getProgramCacheKey(Dt);
       let qt = Y.programs;
-      Y.environment = P.isMeshStandardMaterial ? H.environment : null, Y.fog = H.fog, Y.envMap = (P.isMeshStandardMaterial ? q : A).get(P.envMap || Y.environment), Y.envMapRotation = Y.environment !== null && P.envMap === null ? H.environmentRotation : P.envMapRotation, qt === void 0 && (P.addEventListener("dispose", le), qt = /* @__PURE__ */ new Map(), Y.programs = qt);
+      Y.environment = P.isMeshStandardMaterial ? V.environment : null, Y.fog = V.fog, Y.envMap = (P.isMeshStandardMaterial ? q : A).get(P.envMap || Y.environment), Y.envMapRotation = Y.environment !== null && P.envMap === null ? V.environmentRotation : P.envMapRotation, qt === void 0 && (P.addEventListener("dispose", le), qt = /* @__PURE__ */ new Map(), Y.programs = qt);
       let Xt = qt.get(Nt);
       if (Xt !== void 0) {
         if (Y.currentProgram === Xt && Y.lightsStateVersion === Et)
@@ -14361,18 +14361,18 @@ class Vu {
     }
     function Lc(P) {
       if (P.uniformsList === null) {
-        const H = P.currentProgram.getUniforms();
-        P.uniformsList = Sr.seqWithValue(H.seq, P.uniforms);
+        const V = P.currentProgram.getUniforms();
+        P.uniformsList = Sr.seqWithValue(V.seq, P.uniforms);
       }
       return P.uniformsList;
     }
-    function Dc(P, H) {
+    function Dc(P, V) {
       const Z = At.get(P);
-      Z.outputColorSpace = H.outputColorSpace, Z.batching = H.batching, Z.batchingColor = H.batchingColor, Z.instancing = H.instancing, Z.instancingColor = H.instancingColor, Z.instancingMorph = H.instancingMorph, Z.skinning = H.skinning, Z.morphTargets = H.morphTargets, Z.morphNormals = H.morphNormals, Z.morphColors = H.morphColors, Z.morphTargetsCount = H.morphTargetsCount, Z.numClippingPlanes = H.numClippingPlanes, Z.numIntersection = H.numClipIntersection, Z.vertexAlphas = H.vertexAlphas, Z.vertexTangents = H.vertexTangents, Z.toneMapping = H.toneMapping;
+      Z.outputColorSpace = V.outputColorSpace, Z.batching = V.batching, Z.batchingColor = V.batchingColor, Z.instancing = V.instancing, Z.instancingColor = V.instancingColor, Z.instancingMorph = V.instancingMorph, Z.skinning = V.skinning, Z.morphTargets = V.morphTargets, Z.morphNormals = V.morphNormals, Z.morphColors = V.morphColors, Z.morphTargetsCount = V.morphTargetsCount, Z.numClippingPlanes = V.numClippingPlanes, Z.numIntersection = V.numClipIntersection, Z.vertexAlphas = V.vertexAlphas, Z.vertexTangents = V.vertexTangents, Z.toneMapping = V.toneMapping;
     }
-    function Af(P, H, Z, Y, G) {
-      H.isScene !== !0 && (H = Jt), L.resetTextureUnits();
-      const pt = H.fog, Et = Y.isMeshStandardMaterial ? H.environment : null, Dt = T === null ? b.outputColorSpace : T.isXRRenderTarget === !0 ? T.texture.colorSpace : Be, Nt = (Y.isMeshStandardMaterial ? q : A).get(Y.envMap || Et), qt = Y.vertexColors === !0 && !!Z.attributes.color && Z.attributes.color.itemSize === 4, Xt = !!Z.attributes.tangent && (!!Y.normalMap || Y.anisotropy > 0), Ot = !!Z.morphAttributes.position, pe = !!Z.morphAttributes.normal, be = !!Z.morphAttributes.color;
+    function Af(P, V, Z, Y, G) {
+      V.isScene !== !0 && (V = Jt), L.resetTextureUnits();
+      const pt = V.fog, Et = Y.isMeshStandardMaterial ? V.environment : null, Dt = T === null ? b.outputColorSpace : T.isXRRenderTarget === !0 ? T.texture.colorSpace : Be, Nt = (Y.isMeshStandardMaterial ? q : A).get(Y.envMap || Et), qt = Y.vertexColors === !0 && !!Z.attributes.color && Z.attributes.color.itemSize === 4, Xt = !!Z.attributes.tangent && (!!Y.normalMap || Y.anisotropy > 0), Ot = !!Z.morphAttributes.position, pe = !!Z.morphAttributes.normal, be = !!Z.morphAttributes.color;
       let Se = ui;
       Y.toneMapped && (T === null || T.isXRRenderTarget === !0) && (Se = b.toneMapping);
       const en = Z.morphAttributes.position || Z.morphAttributes.normal || Z.morphAttributes.color, ue = en !== void 0 ? en.length : 0, Bt = At.get(Y), Fe = p.state.lights;
@@ -14383,10 +14383,10 @@ class Vu {
       let fe = !1;
       Y.version === Bt.__version ? (Bt.needsLights && Bt.lightsStateVersion !== Fe.state.version || Bt.outputColorSpace !== Dt || G.isBatchedMesh && Bt.batching === !1 || !G.isBatchedMesh && Bt.batching === !0 || G.isBatchedMesh && Bt.batchingColor === !0 && G.colorTexture === null || G.isBatchedMesh && Bt.batchingColor === !1 && G.colorTexture !== null || G.isInstancedMesh && Bt.instancing === !1 || !G.isInstancedMesh && Bt.instancing === !0 || G.isSkinnedMesh && Bt.skinning === !1 || !G.isSkinnedMesh && Bt.skinning === !0 || G.isInstancedMesh && Bt.instancingColor === !0 && G.instanceColor === null || G.isInstancedMesh && Bt.instancingColor === !1 && G.instanceColor !== null || G.isInstancedMesh && Bt.instancingMorph === !0 && G.morphTexture === null || G.isInstancedMesh && Bt.instancingMorph === !1 && G.morphTexture !== null || Bt.envMap !== Nt || Y.fog === !0 && Bt.fog !== pt || Bt.numClippingPlanes !== void 0 && (Bt.numClippingPlanes !== ut.numPlanes || Bt.numIntersection !== ut.numIntersection) || Bt.vertexAlphas !== qt || Bt.vertexTangents !== Xt || Bt.morphTargets !== Ot || Bt.morphNormals !== pe || Bt.morphColors !== be || Bt.toneMapping !== Se || Bt.morphTargetsCount !== ue) && (fe = !0) : (fe = !0, Bt.__version = Y.version);
       let vn = Bt.currentProgram;
-      fe === !0 && (vn = To(Y, H, G));
+      fe === !0 && (vn = To(Y, V, G));
       let Ui = !1, nn = !1, $r = !1;
       const Ee = vn.getUniforms(), Qn = Bt.uniforms;
-      if (bt.useProgram(vn.program) && (Ui = !0, nn = !0, $r = !0), Y.id !== I && (I = Y.id, nn = !0), Ui || U !== P) {
+      if (yt.useProgram(vn.program) && (Ui = !0, nn = !0, $r = !0), Y.id !== I && (I = Y.id, nn = !0), Ui || U !== P) {
         ct.reverseDepthBuffer ? (It.copy(P.projectionMatrix), a0(It), l0(It), Ee.setValue(D, "projectionMatrix", It)) : Ee.setValue(D, "projectionMatrix", P.projectionMatrix), Ee.setValue(D, "viewMatrix", P.matrixWorldInverse);
         const ln = Ee.map.cameraPosition;
         ln !== void 0 && ln.setValue(D, jt.setFromMatrixPosition(P.matrixWorld)), ct.logarithmicDepthBuffer && Ee.setValue(
@@ -14402,7 +14402,7 @@ class Vu {
       }
       G.isBatchedMesh && (Ee.setOptional(D, G, "batchingTexture"), Ee.setValue(D, "batchingTexture", G._matricesTexture, L), Ee.setOptional(D, G, "batchingIdTexture"), Ee.setValue(D, "batchingIdTexture", G._indirectTexture, L), Ee.setOptional(D, G, "batchingColorTexture"), G._colorsTexture !== null && Ee.setValue(D, "batchingColorTexture", G._colorsTexture, L));
       const ta = Z.morphAttributes;
-      if ((ta.position !== void 0 || ta.normal !== void 0 || ta.color !== void 0) && Zt.update(G, Z, vn), (nn || Bt.receiveShadow !== G.receiveShadow) && (Bt.receiveShadow = G.receiveShadow, Ee.setValue(D, "receiveShadow", G.receiveShadow)), Y.isMeshGouraudMaterial && Y.envMap !== null && (Qn.envMap.value = Nt, Qn.flipEnvMap.value = Nt.isCubeTexture && Nt.isRenderTargetTexture === !1 ? -1 : 1), Y.isMeshStandardMaterial && Y.envMap === null && H.environment !== null && (Qn.envMapIntensity.value = H.environmentIntensity), nn && (Ee.setValue(D, "toneMappingExposure", b.toneMappingExposure), Bt.needsLights && Tf(Qn, $r), pt && Y.fog === !0 && _t.refreshFogUniforms(Qn, pt), _t.refreshMaterialUniforms(Qn, Y, nt, j, p.state.transmissionRenderTarget[P.id]), Sr.upload(D, Lc(Bt), Qn, L)), Y.isShaderMaterial && Y.uniformsNeedUpdate === !0 && (Sr.upload(D, Lc(Bt), Qn, L), Y.uniformsNeedUpdate = !1), Y.isSpriteMaterial && Ee.setValue(D, "center", G.center), Ee.setValue(D, "modelViewMatrix", G.modelViewMatrix), Ee.setValue(D, "normalMatrix", G.normalMatrix), Ee.setValue(D, "modelMatrix", G.matrixWorld), Y.isShaderMaterial || Y.isRawShaderMaterial) {
+      if ((ta.position !== void 0 || ta.normal !== void 0 || ta.color !== void 0) && Zt.update(G, Z, vn), (nn || Bt.receiveShadow !== G.receiveShadow) && (Bt.receiveShadow = G.receiveShadow, Ee.setValue(D, "receiveShadow", G.receiveShadow)), Y.isMeshGouraudMaterial && Y.envMap !== null && (Qn.envMap.value = Nt, Qn.flipEnvMap.value = Nt.isCubeTexture && Nt.isRenderTargetTexture === !1 ? -1 : 1), Y.isMeshStandardMaterial && Y.envMap === null && V.environment !== null && (Qn.envMapIntensity.value = V.environmentIntensity), nn && (Ee.setValue(D, "toneMappingExposure", b.toneMappingExposure), Bt.needsLights && Tf(Qn, $r), pt && Y.fog === !0 && _t.refreshFogUniforms(Qn, pt), _t.refreshMaterialUniforms(Qn, Y, nt, j, p.state.transmissionRenderTarget[P.id]), Sr.upload(D, Lc(Bt), Qn, L)), Y.isShaderMaterial && Y.uniformsNeedUpdate === !0 && (Sr.upload(D, Lc(Bt), Qn, L), Y.uniformsNeedUpdate = !1), Y.isSpriteMaterial && Ee.setValue(D, "center", G.center), Ee.setValue(D, "modelViewMatrix", G.modelViewMatrix), Ee.setValue(D, "normalMatrix", G.normalMatrix), Ee.setValue(D, "modelMatrix", G.matrixWorld), Y.isShaderMaterial || Y.isRawShaderMaterial) {
         const ln = Y.uniformsGroups;
         for (let ea = 0, Cf = ln.length; ea < Cf; ea++) {
           const kc = ln[ea];
@@ -14411,8 +14411,8 @@ class Vu {
       }
       return vn;
     }
-    function Tf(P, H) {
-      P.ambientLightColor.needsUpdate = H, P.lightProbe.needsUpdate = H, P.directionalLights.needsUpdate = H, P.directionalLightShadows.needsUpdate = H, P.pointLights.needsUpdate = H, P.pointLightShadows.needsUpdate = H, P.spotLights.needsUpdate = H, P.spotLightShadows.needsUpdate = H, P.rectAreaLights.needsUpdate = H, P.hemisphereLights.needsUpdate = H;
+    function Tf(P, V) {
+      P.ambientLightColor.needsUpdate = V, P.lightProbe.needsUpdate = V, P.directionalLights.needsUpdate = V, P.directionalLightShadows.needsUpdate = V, P.pointLights.needsUpdate = V, P.pointLightShadows.needsUpdate = V, P.spotLights.needsUpdate = V, P.spotLightShadows.needsUpdate = V, P.rectAreaLights.needsUpdate = V, P.hemisphereLights.needsUpdate = V;
     }
     function Rf(P) {
       return P.isMeshLambertMaterial || P.isMeshToonMaterial || P.isMeshPhongMaterial || P.isMeshStandardMaterial || P.isShadowMaterial || P.isShaderMaterial && P.lights === !0;
@@ -14423,20 +14423,20 @@ class Vu {
       return E;
     }, this.getRenderTarget = function() {
       return T;
-    }, this.setRenderTargetTextures = function(P, H, Z) {
-      At.get(P.texture).__webglTexture = H, At.get(P.depthTexture).__webglTexture = Z;
+    }, this.setRenderTargetTextures = function(P, V, Z) {
+      At.get(P.texture).__webglTexture = V, At.get(P.depthTexture).__webglTexture = Z;
       const Y = At.get(P);
       Y.__hasExternalTextures = !0, Y.__autoAllocateDepthBuffer = Z === void 0, Y.__autoAllocateDepthBuffer || gt.has("WEBGL_multisampled_render_to_texture") === !0 && (console.warn("THREE.WebGLRenderer: Render-to-texture extension was disabled because an external texture was provided"), Y.__useRenderToTexture = !1);
-    }, this.setRenderTargetFramebuffer = function(P, H) {
+    }, this.setRenderTargetFramebuffer = function(P, V) {
       const Z = At.get(P);
-      Z.__webglFramebuffer = H, Z.__useDefaultFramebuffer = H === void 0;
-    }, this.setRenderTarget = function(P, H = 0, Z = 0) {
-      T = P, R = H, E = Z;
+      Z.__webglFramebuffer = V, Z.__useDefaultFramebuffer = V === void 0;
+    }, this.setRenderTarget = function(P, V = 0, Z = 0) {
+      T = P, R = V, E = Z;
       let Y = !0, G = null, pt = !1, Et = !1;
       if (P) {
         const Nt = At.get(P);
         if (Nt.__useDefaultFramebuffer !== void 0)
-          bt.bindFramebuffer(D.FRAMEBUFFER, null), Y = !1;
+          yt.bindFramebuffer(D.FRAMEBUFFER, null), Y = !1;
         else if (Nt.__webglFramebuffer === void 0)
           L.setupRenderTarget(P);
         else if (Nt.__hasExternalTextures)
@@ -14452,25 +14452,25 @@ class Vu {
         const qt = P.texture;
         (qt.isData3DTexture || qt.isDataArrayTexture || qt.isCompressedArrayTexture) && (Et = !0);
         const Xt = At.get(P).__webglFramebuffer;
-        P.isWebGLCubeRenderTarget ? (Array.isArray(Xt[H]) ? G = Xt[H][Z] : G = Xt[H], pt = !0) : P.samples > 0 && L.useMultisampledRTT(P) === !1 ? G = At.get(P).__webglMultisampledFramebuffer : Array.isArray(Xt) ? G = Xt[Z] : G = Xt, _.copy(P.viewport), S.copy(P.scissor), F = P.scissorTest;
+        P.isWebGLCubeRenderTarget ? (Array.isArray(Xt[V]) ? G = Xt[V][Z] : G = Xt[V], pt = !0) : P.samples > 0 && L.useMultisampledRTT(P) === !1 ? G = At.get(P).__webglMultisampledFramebuffer : Array.isArray(Xt) ? G = Xt[Z] : G = Xt, _.copy(P.viewport), S.copy(P.scissor), F = P.scissorTest;
       } else
         _.copy(lt).multiplyScalar(nt).floor(), S.copy(ht).multiplyScalar(nt).floor(), F = Ht;
-      if (bt.bindFramebuffer(D.FRAMEBUFFER, G) && Y && bt.drawBuffers(P, G), bt.viewport(_), bt.scissor(S), bt.setScissorTest(F), pt) {
+      if (yt.bindFramebuffer(D.FRAMEBUFFER, G) && Y && yt.drawBuffers(P, G), yt.viewport(_), yt.scissor(S), yt.setScissorTest(F), pt) {
         const Nt = At.get(P.texture);
-        D.framebufferTexture2D(D.FRAMEBUFFER, D.COLOR_ATTACHMENT0, D.TEXTURE_CUBE_MAP_POSITIVE_X + H, Nt.__webglTexture, Z);
+        D.framebufferTexture2D(D.FRAMEBUFFER, D.COLOR_ATTACHMENT0, D.TEXTURE_CUBE_MAP_POSITIVE_X + V, Nt.__webglTexture, Z);
       } else if (Et) {
-        const Nt = At.get(P.texture), qt = H || 0;
+        const Nt = At.get(P.texture), qt = V || 0;
         D.framebufferTextureLayer(D.FRAMEBUFFER, D.COLOR_ATTACHMENT0, Nt.__webglTexture, Z || 0, qt);
       }
       I = -1;
-    }, this.readRenderTargetPixels = function(P, H, Z, Y, G, pt, Et) {
+    }, this.readRenderTargetPixels = function(P, V, Z, Y, G, pt, Et) {
       if (!(P && P.isWebGLRenderTarget)) {
         console.error("THREE.WebGLRenderer.readRenderTargetPixels: renderTarget is not THREE.WebGLRenderTarget.");
         return;
       }
       let Dt = At.get(P).__webglFramebuffer;
       if (P.isWebGLCubeRenderTarget && Et !== void 0 && (Dt = Dt[Et]), Dt) {
-        bt.bindFramebuffer(D.FRAMEBUFFER, Dt);
+        yt.bindFramebuffer(D.FRAMEBUFFER, Dt);
         try {
           const Nt = P.texture, qt = Nt.format, Xt = Nt.type;
           if (!ct.textureFormatReadable(qt)) {
@@ -14481,13 +14481,13 @@ class Vu {
             console.error("THREE.WebGLRenderer.readRenderTargetPixels: renderTarget is not in UnsignedByteType or implementation defined type.");
             return;
           }
-          H >= 0 && H <= P.width - Y && Z >= 0 && Z <= P.height - G && D.readPixels(H, Z, Y, G, Qt.convert(qt), Qt.convert(Xt), pt);
+          V >= 0 && V <= P.width - Y && Z >= 0 && Z <= P.height - G && D.readPixels(V, Z, Y, G, Qt.convert(qt), Qt.convert(Xt), pt);
         } finally {
           const Nt = T !== null ? At.get(T).__webglFramebuffer : null;
-          bt.bindFramebuffer(D.FRAMEBUFFER, Nt);
+          yt.bindFramebuffer(D.FRAMEBUFFER, Nt);
         }
       }
-    }, this.readRenderTargetPixelsAsync = async function(P, H, Z, Y, G, pt, Et) {
+    }, this.readRenderTargetPixelsAsync = async function(P, V, Z, Y, G, pt, Et) {
       if (!(P && P.isWebGLRenderTarget))
         throw new Error("THREE.WebGLRenderer.readRenderTargetPixels: renderTarget is not THREE.WebGLRenderTarget.");
       let Dt = At.get(P).__webglFramebuffer;
@@ -14497,53 +14497,53 @@ class Vu {
           throw new Error("THREE.WebGLRenderer.readRenderTargetPixelsAsync: renderTarget is not in RGBA or implementation defined format.");
         if (!ct.textureTypeReadable(Xt))
           throw new Error("THREE.WebGLRenderer.readRenderTargetPixelsAsync: renderTarget is not in UnsignedByteType or implementation defined type.");
-        if (H >= 0 && H <= P.width - Y && Z >= 0 && Z <= P.height - G) {
-          bt.bindFramebuffer(D.FRAMEBUFFER, Dt);
+        if (V >= 0 && V <= P.width - Y && Z >= 0 && Z <= P.height - G) {
+          yt.bindFramebuffer(D.FRAMEBUFFER, Dt);
           const Ot = D.createBuffer();
-          D.bindBuffer(D.PIXEL_PACK_BUFFER, Ot), D.bufferData(D.PIXEL_PACK_BUFFER, pt.byteLength, D.STREAM_READ), D.readPixels(H, Z, Y, G, Qt.convert(qt), Qt.convert(Xt), 0);
+          D.bindBuffer(D.PIXEL_PACK_BUFFER, Ot), D.bufferData(D.PIXEL_PACK_BUFFER, pt.byteLength, D.STREAM_READ), D.readPixels(V, Z, Y, G, Qt.convert(qt), Qt.convert(Xt), 0);
           const pe = T !== null ? At.get(T).__webglFramebuffer : null;
-          bt.bindFramebuffer(D.FRAMEBUFFER, pe);
+          yt.bindFramebuffer(D.FRAMEBUFFER, pe);
           const be = D.fenceSync(D.SYNC_GPU_COMMANDS_COMPLETE, 0);
           return D.flush(), await r0(D, be, 4), D.bindBuffer(D.PIXEL_PACK_BUFFER, Ot), D.getBufferSubData(D.PIXEL_PACK_BUFFER, 0, pt), D.deleteBuffer(Ot), D.deleteSync(be), pt;
         } else
           throw new Error("THREE.WebGLRenderer.readRenderTargetPixelsAsync: requested read bounds are out of range.");
       }
-    }, this.copyFramebufferToTexture = function(P, H = null, Z = 0) {
-      P.isTexture !== !0 && (Mr("WebGLRenderer: copyFramebufferToTexture function signature has changed."), H = arguments[0] || null, P = arguments[1]);
-      const Y = Math.pow(2, -Z), G = Math.floor(P.image.width * Y), pt = Math.floor(P.image.height * Y), Et = H !== null ? H.x : 0, Dt = H !== null ? H.y : 0;
-      L.setTexture2D(P, 0), D.copyTexSubImage2D(D.TEXTURE_2D, Z, 0, 0, Et, Dt, G, pt), bt.unbindTexture();
-    }, this.copyTextureToTexture = function(P, H, Z = null, Y = null, G = 0) {
-      P.isTexture !== !0 && (Mr("WebGLRenderer: copyTextureToTexture function signature has changed."), Y = arguments[0] || null, P = arguments[1], H = arguments[2], G = arguments[3] || 0, Z = null);
+    }, this.copyFramebufferToTexture = function(P, V = null, Z = 0) {
+      P.isTexture !== !0 && (Mr("WebGLRenderer: copyFramebufferToTexture function signature has changed."), V = arguments[0] || null, P = arguments[1]);
+      const Y = Math.pow(2, -Z), G = Math.floor(P.image.width * Y), pt = Math.floor(P.image.height * Y), Et = V !== null ? V.x : 0, Dt = V !== null ? V.y : 0;
+      L.setTexture2D(P, 0), D.copyTexSubImage2D(D.TEXTURE_2D, Z, 0, 0, Et, Dt, G, pt), yt.unbindTexture();
+    }, this.copyTextureToTexture = function(P, V, Z = null, Y = null, G = 0) {
+      P.isTexture !== !0 && (Mr("WebGLRenderer: copyTextureToTexture function signature has changed."), Y = arguments[0] || null, P = arguments[1], V = arguments[2], G = arguments[3] || 0, Z = null);
       let pt, Et, Dt, Nt, qt, Xt;
       Z !== null ? (pt = Z.max.x - Z.min.x, Et = Z.max.y - Z.min.y, Dt = Z.min.x, Nt = Z.min.y) : (pt = P.image.width, Et = P.image.height, Dt = 0, Nt = 0), Y !== null ? (qt = Y.x, Xt = Y.y) : (qt = 0, Xt = 0);
-      const Ot = Qt.convert(H.format), pe = Qt.convert(H.type);
-      L.setTexture2D(H, 0), D.pixelStorei(D.UNPACK_FLIP_Y_WEBGL, H.flipY), D.pixelStorei(D.UNPACK_PREMULTIPLY_ALPHA_WEBGL, H.premultiplyAlpha), D.pixelStorei(D.UNPACK_ALIGNMENT, H.unpackAlignment);
+      const Ot = Qt.convert(V.format), pe = Qt.convert(V.type);
+      L.setTexture2D(V, 0), D.pixelStorei(D.UNPACK_FLIP_Y_WEBGL, V.flipY), D.pixelStorei(D.UNPACK_PREMULTIPLY_ALPHA_WEBGL, V.premultiplyAlpha), D.pixelStorei(D.UNPACK_ALIGNMENT, V.unpackAlignment);
       const be = D.getParameter(D.UNPACK_ROW_LENGTH), Se = D.getParameter(D.UNPACK_IMAGE_HEIGHT), en = D.getParameter(D.UNPACK_SKIP_PIXELS), ue = D.getParameter(D.UNPACK_SKIP_ROWS), Bt = D.getParameter(D.UNPACK_SKIP_IMAGES), Fe = P.isCompressedTexture ? P.mipmaps[G] : P.image;
-      D.pixelStorei(D.UNPACK_ROW_LENGTH, Fe.width), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, Fe.height), D.pixelStorei(D.UNPACK_SKIP_PIXELS, Dt), D.pixelStorei(D.UNPACK_SKIP_ROWS, Nt), P.isDataTexture ? D.texSubImage2D(D.TEXTURE_2D, G, qt, Xt, pt, Et, Ot, pe, Fe.data) : P.isCompressedTexture ? D.compressedTexSubImage2D(D.TEXTURE_2D, G, qt, Xt, Fe.width, Fe.height, Ot, Fe.data) : D.texSubImage2D(D.TEXTURE_2D, G, qt, Xt, pt, Et, Ot, pe, Fe), D.pixelStorei(D.UNPACK_ROW_LENGTH, be), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, Se), D.pixelStorei(D.UNPACK_SKIP_PIXELS, en), D.pixelStorei(D.UNPACK_SKIP_ROWS, ue), D.pixelStorei(D.UNPACK_SKIP_IMAGES, Bt), G === 0 && H.generateMipmaps && D.generateMipmap(D.TEXTURE_2D), bt.unbindTexture();
-    }, this.copyTextureToTexture3D = function(P, H, Z = null, Y = null, G = 0) {
-      P.isTexture !== !0 && (Mr("WebGLRenderer: copyTextureToTexture3D function signature has changed."), Z = arguments[0] || null, Y = arguments[1] || null, P = arguments[2], H = arguments[3], G = arguments[4] || 0);
+      D.pixelStorei(D.UNPACK_ROW_LENGTH, Fe.width), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, Fe.height), D.pixelStorei(D.UNPACK_SKIP_PIXELS, Dt), D.pixelStorei(D.UNPACK_SKIP_ROWS, Nt), P.isDataTexture ? D.texSubImage2D(D.TEXTURE_2D, G, qt, Xt, pt, Et, Ot, pe, Fe.data) : P.isCompressedTexture ? D.compressedTexSubImage2D(D.TEXTURE_2D, G, qt, Xt, Fe.width, Fe.height, Ot, Fe.data) : D.texSubImage2D(D.TEXTURE_2D, G, qt, Xt, pt, Et, Ot, pe, Fe), D.pixelStorei(D.UNPACK_ROW_LENGTH, be), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, Se), D.pixelStorei(D.UNPACK_SKIP_PIXELS, en), D.pixelStorei(D.UNPACK_SKIP_ROWS, ue), D.pixelStorei(D.UNPACK_SKIP_IMAGES, Bt), G === 0 && V.generateMipmaps && D.generateMipmap(D.TEXTURE_2D), yt.unbindTexture();
+    }, this.copyTextureToTexture3D = function(P, V, Z = null, Y = null, G = 0) {
+      P.isTexture !== !0 && (Mr("WebGLRenderer: copyTextureToTexture3D function signature has changed."), Z = arguments[0] || null, Y = arguments[1] || null, P = arguments[2], V = arguments[3], G = arguments[4] || 0);
       let pt, Et, Dt, Nt, qt, Xt, Ot, pe, be;
       const Se = P.isCompressedTexture ? P.mipmaps[G] : P.image;
       Z !== null ? (pt = Z.max.x - Z.min.x, Et = Z.max.y - Z.min.y, Dt = Z.max.z - Z.min.z, Nt = Z.min.x, qt = Z.min.y, Xt = Z.min.z) : (pt = Se.width, Et = Se.height, Dt = Se.depth, Nt = 0, qt = 0, Xt = 0), Y !== null ? (Ot = Y.x, pe = Y.y, be = Y.z) : (Ot = 0, pe = 0, be = 0);
-      const en = Qt.convert(H.format), ue = Qt.convert(H.type);
+      const en = Qt.convert(V.format), ue = Qt.convert(V.type);
       let Bt;
-      if (H.isData3DTexture)
-        L.setTexture3D(H, 0), Bt = D.TEXTURE_3D;
-      else if (H.isDataArrayTexture || H.isCompressedArrayTexture)
-        L.setTexture2DArray(H, 0), Bt = D.TEXTURE_2D_ARRAY;
+      if (V.isData3DTexture)
+        L.setTexture3D(V, 0), Bt = D.TEXTURE_3D;
+      else if (V.isDataArrayTexture || V.isCompressedArrayTexture)
+        L.setTexture2DArray(V, 0), Bt = D.TEXTURE_2D_ARRAY;
       else {
         console.warn("THREE.WebGLRenderer.copyTextureToTexture3D: only supports THREE.DataTexture3D and THREE.DataTexture2DArray.");
         return;
       }
-      D.pixelStorei(D.UNPACK_FLIP_Y_WEBGL, H.flipY), D.pixelStorei(D.UNPACK_PREMULTIPLY_ALPHA_WEBGL, H.premultiplyAlpha), D.pixelStorei(D.UNPACK_ALIGNMENT, H.unpackAlignment);
+      D.pixelStorei(D.UNPACK_FLIP_Y_WEBGL, V.flipY), D.pixelStorei(D.UNPACK_PREMULTIPLY_ALPHA_WEBGL, V.premultiplyAlpha), D.pixelStorei(D.UNPACK_ALIGNMENT, V.unpackAlignment);
       const Fe = D.getParameter(D.UNPACK_ROW_LENGTH), fe = D.getParameter(D.UNPACK_IMAGE_HEIGHT), vn = D.getParameter(D.UNPACK_SKIP_PIXELS), Ui = D.getParameter(D.UNPACK_SKIP_ROWS), nn = D.getParameter(D.UNPACK_SKIP_IMAGES);
-      D.pixelStorei(D.UNPACK_ROW_LENGTH, Se.width), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, Se.height), D.pixelStorei(D.UNPACK_SKIP_PIXELS, Nt), D.pixelStorei(D.UNPACK_SKIP_ROWS, qt), D.pixelStorei(D.UNPACK_SKIP_IMAGES, Xt), P.isDataTexture || P.isData3DTexture ? D.texSubImage3D(Bt, G, Ot, pe, be, pt, Et, Dt, en, ue, Se.data) : H.isCompressedArrayTexture ? D.compressedTexSubImage3D(Bt, G, Ot, pe, be, pt, Et, Dt, en, Se.data) : D.texSubImage3D(Bt, G, Ot, pe, be, pt, Et, Dt, en, ue, Se), D.pixelStorei(D.UNPACK_ROW_LENGTH, Fe), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, fe), D.pixelStorei(D.UNPACK_SKIP_PIXELS, vn), D.pixelStorei(D.UNPACK_SKIP_ROWS, Ui), D.pixelStorei(D.UNPACK_SKIP_IMAGES, nn), G === 0 && H.generateMipmaps && D.generateMipmap(Bt), bt.unbindTexture();
+      D.pixelStorei(D.UNPACK_ROW_LENGTH, Se.width), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, Se.height), D.pixelStorei(D.UNPACK_SKIP_PIXELS, Nt), D.pixelStorei(D.UNPACK_SKIP_ROWS, qt), D.pixelStorei(D.UNPACK_SKIP_IMAGES, Xt), P.isDataTexture || P.isData3DTexture ? D.texSubImage3D(Bt, G, Ot, pe, be, pt, Et, Dt, en, ue, Se.data) : V.isCompressedArrayTexture ? D.compressedTexSubImage3D(Bt, G, Ot, pe, be, pt, Et, Dt, en, Se.data) : D.texSubImage3D(Bt, G, Ot, pe, be, pt, Et, Dt, en, ue, Se), D.pixelStorei(D.UNPACK_ROW_LENGTH, Fe), D.pixelStorei(D.UNPACK_IMAGE_HEIGHT, fe), D.pixelStorei(D.UNPACK_SKIP_PIXELS, vn), D.pixelStorei(D.UNPACK_SKIP_ROWS, Ui), D.pixelStorei(D.UNPACK_SKIP_IMAGES, nn), G === 0 && V.generateMipmaps && D.generateMipmap(Bt), yt.unbindTexture();
     }, this.initRenderTarget = function(P) {
       At.get(P).__webglFramebuffer === void 0 && L.setupRenderTarget(P);
     }, this.initTexture = function(P) {
-      P.isCubeTexture ? L.setTextureCube(P, 0) : P.isData3DTexture ? L.setTexture3D(P, 0) : P.isDataArrayTexture || P.isCompressedArrayTexture ? L.setTexture2DArray(P, 0) : L.setTexture2D(P, 0), bt.unbindTexture();
+      P.isCubeTexture ? L.setTextureCube(P, 0) : P.isData3DTexture ? L.setTexture3D(P, 0) : P.isDataArrayTexture || P.isCompressedArrayTexture ? L.setTexture2DArray(P, 0) : L.setTexture2D(P, 0), yt.unbindTexture();
     }, this.resetState = function() {
-      R = 0, E = 0, T = null, bt.reset(), xe.reset();
+      R = 0, E = 0, T = null, yt.reset(), xe.reset();
     }, typeof __THREE_DEVTOOLS__ < "u" && __THREE_DEVTOOLS__.dispatchEvent(new CustomEvent("observe", { detail: this }));
   }
   get coordinateSystem() {
@@ -16441,7 +16441,7 @@ class Ur extends Me {
       }
       const j = _.length, nt = O.length;
       function K(st, D, xt) {
-        let gt, ct, bt;
+        let gt, ct, yt;
         const zt = st.x - D.x, At = st.y - D.y, L = xt.x - st.x, A = xt.y - st.y, q = zt * zt + At * At, tt = zt * A - At * L;
         if (Math.abs(tt) > Number.EPSILON) {
           const ot = Math.sqrt(q), et = Math.sqrt(L * L + A * A), kt = D.x - At / ot, _t = D.y + zt / ot, Ct = xt.x - A / et, oe = xt.y + L / et, ut = ((Ct - kt) * A - (oe - _t) * L) / (zt * A - At * L);
@@ -16449,12 +16449,12 @@ class Ur extends Me {
           const Pt = gt * gt + ct * ct;
           if (Pt <= 2)
             return new it(gt, ct);
-          bt = Math.sqrt(Pt / 2);
+          yt = Math.sqrt(Pt / 2);
         } else {
           let ot = !1;
-          zt > Number.EPSILON ? L > Number.EPSILON && (ot = !0) : zt < -Number.EPSILON ? L < -Number.EPSILON && (ot = !0) : Math.sign(At) === Math.sign(A) && (ot = !0), ot ? (gt = -At, ct = zt, bt = Math.sqrt(q)) : (gt = zt, ct = At, bt = Math.sqrt(q / 2));
+          zt > Number.EPSILON ? L > Number.EPSILON && (ot = !0) : zt < -Number.EPSILON ? L < -Number.EPSILON && (ot = !0) : Math.sign(At) === Math.sign(A) && (ot = !0), ot ? (gt = -At, ct = zt, yt = Math.sqrt(q)) : (gt = zt, ct = At, yt = Math.sqrt(q / 2));
         }
-        return new it(gt / bt, ct / bt);
+        return new it(gt / yt, ct / yt);
       }
       const at = [];
       for (let st = 0, D = B.length, xt = D - 1, gt = st + 1; st < D; st++, xt++, gt++)
@@ -16464,17 +16464,17 @@ class Ur extends Me {
       for (let st = 0, D = S.length; st < D; st++) {
         const xt = S[st];
         ht = [];
-        for (let gt = 0, ct = xt.length, bt = ct - 1, zt = gt + 1; gt < ct; gt++, bt++, zt++)
-          bt === ct && (bt = 0), zt === ct && (zt = 0), ht[gt] = K(xt[gt], xt[bt], xt[zt]);
+        for (let gt = 0, ct = xt.length, yt = ct - 1, zt = gt + 1; gt < ct; gt++, yt++, zt++)
+          yt === ct && (yt = 0), zt === ct && (zt = 0), ht[gt] = K(xt[gt], xt[yt], xt[zt]);
         lt.push(ht), Ht = Ht.concat(ht);
       }
       for (let st = 0; st < p; st++) {
         const D = st / p, xt = f * Math.cos(D * Math.PI / 2), gt = m * Math.sin(D * Math.PI / 2) + x;
-        for (let ct = 0, bt = B.length; ct < bt; ct++) {
+        for (let ct = 0, yt = B.length; ct < yt; ct++) {
           const zt = X(B[ct], at[ct], gt);
           Mt(zt.x, zt.y, -xt);
         }
-        for (let ct = 0, bt = S.length; ct < bt; ct++) {
+        for (let ct = 0, yt = S.length; ct < yt; ct++) {
           const zt = S[ct];
           ht = lt[ct];
           for (let At = 0, L = zt.length; At < L; At++) {
@@ -16495,11 +16495,11 @@ class Ur extends Me {
         }
       for (let st = p - 1; st >= 0; st--) {
         const D = st / p, xt = f * Math.cos(D * Math.PI / 2), gt = m * Math.sin(D * Math.PI / 2) + x;
-        for (let ct = 0, bt = B.length; ct < bt; ct++) {
+        for (let ct = 0, yt = B.length; ct < yt; ct++) {
           const zt = X(B[ct], at[ct], gt);
           Mt(zt.x, zt.y, d + xt);
         }
-        for (let ct = 0, bt = S.length; ct < bt; ct++) {
+        for (let ct = 0, yt = S.length; ct < yt; ct++) {
           const zt = S[ct];
           ht = lt[ct];
           for (let At = 0, L = zt.length; At < L; At++) {
@@ -16550,8 +16550,8 @@ class Ur extends Me {
           const gt = xt;
           let ct = xt - 1;
           ct < 0 && (ct = st.length - 1);
-          for (let bt = 0, zt = h + p * 2; bt < zt; bt++) {
-            const At = j * bt, L = j * (bt + 1), A = D + gt + At, q = D + ct + At, tt = D + ct + L, ot = D + gt + L;
+          for (let yt = 0, zt = h + p * 2; yt < zt; yt++) {
+            const At = j * yt, L = j * (yt + 1), A = D + gt + At, q = D + ct + At, tt = D + ct + L, ot = D + gt + L;
             Wt(A, q, tt, ot);
           }
         }
@@ -16566,8 +16566,8 @@ class Ur extends Me {
       }
       function Wt(st, D, xt, gt) {
         Jt(st), Jt(D), Jt(gt), Jt(D), Jt(xt), Jt(gt);
-        const ct = s.length / 3, bt = y.generateSideWallUV(n, s, ct - 6, ct - 3, ct - 2, ct - 1);
-        ne(bt[0]), ne(bt[1]), ne(bt[3]), ne(bt[1]), ne(bt[2]), ne(bt[3]);
+        const ct = s.length / 3, yt = y.generateSideWallUV(n, s, ct - 6, ct - 3, ct - 2, ct - 1);
+        ne(yt[0]), ne(yt[1]), ne(yt[3]), ne(yt[1]), ne(yt[2]), ne(yt[3]);
       }
       function Jt(st) {
         s.push(l[st * 3 + 0]), s.push(l[st * 3 + 1]), s.push(l[st * 3 + 2]);
@@ -24902,7 +24902,7 @@ function dr(i) {
     t += (i[n][0] + i[e][0]) * (i[n][1] - i[e][1]);
   return Math.abs(t) / 2;
 }
-const _2 = "0.171.2", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
+const _2 = "0.172.0", Vr = "ha-3d-floorplan-sidebar-item", Gd = "ha-3d-floorplan-overlay";
 function w2() {
   return window.ha3dFloorplan ?? {};
 }
@@ -25754,13 +25754,6 @@ class N2 {
   }
   get zonePlacing() {
     return this.zonePlaceMode;
-  }
-  /** All entities bound on this floor, for the zone membership checklist. */
-  get floorEntities() {
-    const t = /* @__PURE__ */ new Set(), e = [];
-    for (const n of this.floor().bindings ?? [])
-      n.entity_id && !t.has(n.entity_id) && (t.add(n.entity_id), e.push({ entity_id: n.entity_id, name: n.entity_id }));
-    return e;
   }
   /** Refresh the edit-mode zone dots (so the user sees where icons sit). */
   refreshZones() {
@@ -26882,7 +26875,7 @@ const iu = [
 };
 let mt = class extends cs {
   constructor() {
-    super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.showReport = !1, this.reportMetric = "temp", this.sparkMetric = "auto", this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.histCache = /* @__PURE__ */ new Map(), this.histInFlight = /* @__PURE__ */ new Set(), this.closeControl = () => {
+    super(...arguments), this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.showReport = !1, this.reportMetric = "temp", this.sparkMetric = "auto", this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editZoneSearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.histCache = /* @__PURE__ */ new Map(), this.histInFlight = /* @__PURE__ */ new Set(), this.closeControl = () => {
       performance.now() - this.controlOpenedAt < 400 || (this.controlOpen = !1, this.controlRoom = null, this.controlCategory = null);
     }, this.openKiosk = () => {
       window.location.href = "/3d-floorplan-kiosk";
@@ -27698,7 +27691,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     this.idle && (this.idle = !1), this.armIdle();
   }
   renderPaletteCell(i, t) {
-    return V`
+    return H`
       <button
         class="palette-cell ${i === this.editSelectedModel ? "active" : ""}"
         title=${t}
@@ -27711,7 +27704,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderEditor() {
     const i = this.editTool, t = (r) => r.replace(/_/g, " ").replace(/\b\w/g, (a) => a.toUpperCase()), e = Uy.filter((r) => !zr.includes(r)), n = this.editSelectedKind, s = i === "select" && !!n, o = n === "furniture";
-    return V`
+    return H`
       <div class="overlay top-left toolbar">
         <div class="ed-head"><span>✎ Editor</span></div>
 
@@ -27745,7 +27738,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           <button class="btn span2 ${i === "select" ? "active" : ""}" title="Select / move / bind (camera always works: drag empty = orbit)"
             @click=${() => this.onEditTool("select")}>☝ Select</button>
         </div>
-        ${i === "arc" ? V`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>` : Q}
+        ${i === "arc" ? H`<span class="hint">Curve: tap start · tap end · move to bend the arc · tap to place (Finish/Esc cancels)</span>` : Q}
         <span class="hint">Camera always on: drag empty space = orbit · two fingers = pan/zoom · tap = act</span>
 
         <div class="panel-group">Building parts — drop a room</div>
@@ -27757,7 +27750,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <span class="hint">then drag / rotate / resize it</span>
 
         <div class="panel-group">Reference image — trace a 2D plan</div>
-        ${this.editUnderlay ? V`<div class="toolrow">
+        ${this.editUnderlay ? H`<div class="toolrow">
                 <label class="hint">Width (m):</label>
                 <input class="num-input" type="number" min="0.5" step="0.1"
                   .value=${String(this.editUnderlay.widthM)}
@@ -27780,7 +27773,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                 <button class="btn" title="Set scale by tapping two points of known length"
                   @click=${this.onCalibrateUnderlay}>📏 Calibrate (2 pts)</button>
                 <button class="btn" title="Remove reference image" @click=${this.onRemoveUnderlay}>🗑 Remove</button>
-              </div>` : V`<div class="toolrow">
+              </div>` : H`<div class="toolrow">
               <label class="btn" title="Import a top-down 2D plan image to trace over">
                 📷 Import image
                 <input type="file" accept="image/*" style="display:none"
@@ -27802,7 +27795,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       this.editAllWallMat = r.target.value, this.editor?.setAllWallsMaterial(this.editAllWallMat);
     }}>
             ${Dd.map(
-      (r) => V`<option value=${r} ?selected=${r === this.editAllWallMat}>${r}</option>`
+      (r) => H`<option value=${r} ?selected=${r === this.editAllWallMat}>${r}</option>`
     )}
           </select>
         </div>
@@ -27818,7 +27811,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       this.editAllFloorMat = r.target.value, this.editor?.setAllFloorsMaterial(this.editAllFloorMat);
     }}>
             ${kd.map(
-      (r) => V`<option value=${r} ?selected=${r === this.editAllFloorMat}>${r}</option>`
+      (r) => H`<option value=${r} ?selected=${r === this.editAllFloorMat}>${r}</option>`
     )}
           </select>
         </div>
@@ -27826,17 +27819,17 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         ${(() => {
       const r = this.editor?.plan.floors ?? [], a = r[this.editFloorIndex]?.name ?? "";
-      return V`<div class="panel-group">Floors</div>
+      return H`<div class="panel-group">Floors</div>
           <div class="toolrow">
-            ${r.length > 1 ? V`<select class="select" @change=${this.onSelectEditFloor}>
+            ${r.length > 1 ? H`<select class="select" @change=${this.onSelectEditFloor}>
                   ${r.map(
-        (l, c) => V`<option value=${c} ?selected=${c === this.editFloorIndex}>
+        (l, c) => H`<option value=${c} ?selected=${c === this.editFloorIndex}>
                       ${l.name || `Floor ${c + 1}`}
                     </option>`
       )}
                 </select>` : Q}
             <button class="btn" title="Add a floor above" @click=${this.onAddFloor}>➕ Floor</button>
-            ${r.length > 1 ? V`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>` : Q}
+            ${r.length > 1 ? H`<button class="btn" title="Delete this floor" @click=${this.onDeleteFloor}>🗑</button>` : Q}
           </div>
           <div class="toolrow">
             <input class="name-input" type="text" placeholder="Floor name"
@@ -27857,16 +27850,16 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="toolrow">
           <button class="btn" title="Add a room control icon you place by hand"
             @click=${this.onAddZone}>➕ Add room</button>
-          ${this.editZones.length ? V`<select class="select" @change=${(r) => this.onSelectZone(r.target.value || null)}>
+          ${this.editZones.length ? H`<select class="select" @change=${(r) => this.onSelectZone(r.target.value || null)}>
                 <option value="">— select —</option>
                 ${this.editZones.map(
-      (r) => V`<option value=${r.id} ?selected=${r.id === this.editSelectedZoneId}>${r.name || "Room"}</option>`
+      (r) => H`<option value=${r.id} ?selected=${r.id === this.editSelectedZoneId}>${r.name || "Room"}</option>`
     )}
               </select>` : Q}
         </div>
         ${this.editSelectedZoneId && this.editZones.length > 1 ? (() => {
       const r = this.editZones.findIndex((a) => a.id === this.editSelectedZoneId);
-      return V`<div class="toolrow">
+      return H`<div class="toolrow">
                 <span class="hint">Room order:</span>
                 <button class="btn" title="Move room up" ?disabled=${r <= 0}
                   @click=${() => this.onMoveZone(this.editSelectedZoneId, -1)}>▲ Up</button>
@@ -27875,40 +27868,40 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>`;
     })() : Q}
         ${(() => {
-      const r = this.editZones.find((d) => d.id === this.editSelectedZoneId);
-      if (!r) return this.editZones.length ? V`<span class="hint">select a room to place its icon &amp; pick devices</span>` : V`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
-      const a = this.editor?.floorEntities ?? [], l = this.sensorCandidates("temp", r.tempSensor), c = this.sensorCandidates("temp", r.floorSensor), h = this.sensorCandidates("humidity", r.humiditySensor);
-      return V`<div class="toolrow">
+      const r = this.editZones.find((h) => h.id === this.editSelectedZoneId);
+      if (!r) return this.editZones.length ? H`<span class="hint">select a room to place its icon &amp; pick devices</span>` : H`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
+      const a = this.sensorCandidates("temp", r.tempSensor), l = this.sensorCandidates("temp", r.floorSensor), c = this.sensorCandidates("humidity", r.humiditySensor);
+      return H`<div class="toolrow">
               <input class="name-input" type="text" placeholder="Room name"
-                .value=${r.name ?? ""} @input=${(d) => this.onSetZoneName(r.id, d)} />
+                .value=${r.name ?? ""} @input=${(h) => this.onSetZoneName(r.id, h)} />
             </div>
             <div class="toolrow">
               <label class="hint">Внутри комнаты (подкомната):</label>
-              <select class="select" @change=${(d) => this.onSetZoneParent(r.id, d)}>
+              <select class="select" @change=${(h) => this.onSetZoneParent(r.id, h)}>
                 <option value="" ?selected=${!r.parentId}>— (отдельная комната)</option>
-                ${this.editZones.filter((d) => d.id !== r.id && !d.parentId).map((d) => V`<option value=${d.id} ?selected=${r.parentId === d.id}>${d.name || "Room"}</option>`)}
+                ${this.editZones.filter((h) => h.id !== r.id && !h.parentId).map((h) => H`<option value=${h.id} ?selected=${r.parentId === h.id}>${h.name || "Room"}</option>`)}
               </select>
             </div>
             <div class="panel-group">Датчики комнаты (нет = пусто, без догадок)</div>
             <div class="toolrow">
               <label class="hint">Температура:</label>
-              <select class="select" @change=${(d) => this.onSetZoneSensor(r.id, "temp", d)}>
+              <select class="select" @change=${(h) => this.onSetZoneSensor(r.id, "temp", h)}>
                 <option value="" ?selected=${!r.tempSensor}>— (нет)</option>
-                ${l.map((d) => V`<option value=${d.id} ?selected=${r.tempSensor === d.id}>${d.label}</option>`)}
+                ${a.map((h) => H`<option value=${h.id} ?selected=${r.tempSensor === h.id}>${h.label}</option>`)}
               </select>
             </div>
             <div class="toolrow">
               <label class="hint">Температура пола:</label>
-              <select class="select" @change=${(d) => this.onSetZoneSensor(r.id, "floor", d)}>
+              <select class="select" @change=${(h) => this.onSetZoneSensor(r.id, "floor", h)}>
                 <option value="" ?selected=${!r.floorSensor}>— (нет)</option>
-                ${c.map((d) => V`<option value=${d.id} ?selected=${r.floorSensor === d.id}>${d.label}</option>`)}
+                ${l.map((h) => H`<option value=${h.id} ?selected=${r.floorSensor === h.id}>${h.label}</option>`)}
               </select>
             </div>
             <div class="toolrow">
               <label class="hint">Влажность:</label>
-              <select class="select" @change=${(d) => this.onSetZoneSensor(r.id, "humidity", d)}>
+              <select class="select" @change=${(h) => this.onSetZoneSensor(r.id, "humidity", h)}>
                 <option value="" ?selected=${!r.humiditySensor}>— (нет)</option>
-                ${h.map((d) => V`<option value=${d.id} ?selected=${r.humiditySensor === d.id}>${d.label}</option>`)}
+                ${c.map((h) => H`<option value=${h.id} ?selected=${r.humiditySensor === h.id}>${h.label}</option>`)}
               </select>
             </div>
             <div class="toolrow">
@@ -27920,45 +27913,53 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             <div class="toolrow">
               <input class="name-input" type="text" placeholder="URL или /local/room.jpg"
                 .value=${r.bgImage && !r.bgImage.startsWith("data:") ? r.bgImage : ""}
-                @change=${(d) => this.onSetZoneBg(r.id, d)} />
+                @change=${(h) => this.onSetZoneBg(r.id, h)} />
             </div>
             <div class="toolrow">
               <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
                 type="file" accept="image/*" style="display:none"
-                @change=${(d) => this.onUploadZoneBg(r.id, d)} /></label>
-              ${r.bgImage ? V`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(r.id)}>🗑</button>
-                    <span class="hint">${r.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : V`<span class="hint">не задан</span>`}
+                @change=${(h) => this.onUploadZoneBg(r.id, h)} /></label>
+              ${r.bgImage ? H`<button class="btn" title="Убрать фон" @click=${() => this.onClearZoneBg(r.id)}>🗑</button>
+                    <span class="hint">${r.bgImage.startsWith("data:") ? "фото загружено" : "задан URL"}</span>` : H`<span class="hint">не задан</span>`}
             </div>
-            ${r.entities.length ? V`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
+            ${r.entities.length ? H`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
                   <div class="zone-order">
                     ${r.entities.map(
-        (d, u) => V`<div class="zrow">
-                        <span class="zname" title=${d}>${this.entityShort(d)}</span>
-                        <button class="zbtn" title="Move up" ?disabled=${u === 0}
-                          @click=${() => this.onMoveZoneEntity(r.id, d, -1)}>▲</button>
-                        <button class="zbtn" title="Move down" ?disabled=${u === r.entities.length - 1}
-                          @click=${() => this.onMoveZoneEntity(r.id, d, 1)}>▼</button>
+        (h, d) => H`<div class="zrow">
+                        <span class="zname" title=${h}>${this.entityShort(h)}</span>
+                        <button class="zbtn" title="Move up" ?disabled=${d === 0}
+                          @click=${() => this.onMoveZoneEntity(r.id, h, -1)}>▲</button>
+                        <button class="zbtn" title="Move down" ?disabled=${d === r.entities.length - 1}
+                          @click=${() => this.onMoveZoneEntity(r.id, h, 1)}>▼</button>
                         <button class="zbtn del" title="Remove from room"
-                          @click=${() => this.onToggleZoneDevice(r.id, d)}>✕</button>
+                          @click=${() => this.onToggleZoneDevice(r.id, h)}>✕</button>
                       </div>`
       )}
                   </div>` : Q}
             ${(() => {
-        const d = a.filter((u) => !r.entities.includes(u.entity_id));
-        return d.length ? V`<span class="hint">Add device (· room = already assigned):</span>
-                <div class="zone-devs">
-                  ${d.map((u) => {
-          const f = this.boundElsewhere(u.entity_id, r.id);
-          return V`<label class="zone-dev ${f ? "taken" : ""}">
-                      <input type="checkbox" @change=${() => this.onToggleZoneDevice(r.id, u.entity_id)} />
-                      <span>${this.entityShort(u.entity_id)}${f ? V`<em class="taken-tag"> · ${f}</em>` : Q}</span>
-                    </label>`;
+        const h = this.editZoneSearch.trim().toLowerCase(), d = this.candidateEntities([]).ids.filter((x) => !r.entities.includes(x)), u = h ? d.filter((x) => this.entityOptionText(x).toLowerCase().includes(h)) : d, f = 60, m = u.slice(0, f);
+        return H`<div class="panel-group">Добавить устройство в комнату</div>
+                <div class="toolrow">
+                  <input class="select wide" type="search"
+                    placeholder="🔍 имя, комната или entity_id…"
+                    .value=${this.editZoneSearch}
+                    @input=${(x) => this.editZoneSearch = x.target.value} />
+                </div>
+                ${m.length ? H`<div class="zone-devs">
+                        ${m.map((x) => {
+          const p = this.boundElsewhere(x, r.id);
+          return H`<label class="zone-dev ${p ? "taken" : ""}"
+                            title=${this.entityOptionText(x)}>
+                            <input type="checkbox" @change=${() => this.onToggleZoneDevice(r.id, x)} />
+                            <span>${this.entityShort(x)}${p ? H`<em class="taken-tag"> · ${p}</em>` : Q}</span>
+                          </label>`;
         })}
-                </div>` : a.length ? Q : V`<span class="hint">bind entities to furniture first, then add them here</span>`;
+                      </div>
+                      ${u.length > f ? H`<span class="hint">показано ${f} из ${u.length} — уточните поиск</span>` : Q}` : H`<span class="hint">ничего не найдено</span>`}`;
       })()}`;
     })()}
 
-        ${i === "wall" || i === "floor" ? V`<div class="toolrow">
+        ${i === "wall" || i === "floor" ? H`<div class="toolrow">
               <button class="btn" title="Remove the last point" @click=${this.onUndoPoint}>⤺ Undo point</button>
               <button class="btn" title="Finish this run (Enter)" @click=${this.onFinishWall}>✓ Finish</button>
               <button class="btn ${this.editSnap ? "active" : ""}"
@@ -27967,7 +27968,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               <span class="hint">${i === "floor" ? "trace a floor: tap corners · tap start (or Finish) to close" : "tap to add points · tap start to close (adds floor) · Finish/Enter to end"}</span>
             </div>` : Q}
 
-        ${i === "furniture" ? V`<div class="toolrow">
+        ${i === "furniture" ? H`<div class="toolrow">
               <button class="btn palette-btn" title="Choose a model" @click=${this.togglePalette}>
                 <img class="palette-thumb" src=${eu(this.editSelectedModel)} alt="" />
                 ${t(this.editSelectedModel)} ▾
@@ -27976,64 +27977,64 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             </div>
             ${this.paletteOpen ? (() => {
       const r = this.editFurnSearch.trim().toLowerCase(), a = (h) => !r || t(h).toLowerCase().includes(r) || h.includes(r), l = zr.filter(a), c = e.filter(a);
-      return V`<div class="palette">
+      return H`<div class="palette">
                     <input class="select wide" type="search" placeholder="🔍 search models…"
                       .value=${this.editFurnSearch}
                       @input=${(h) => this.editFurnSearch = h.target.value} />
-                    ${l.length ? V`<div class="palette-group">Lighting</div>
+                    ${l.length ? H`<div class="palette-group">Lighting</div>
                           <div class="palette-grid">
                             ${l.map((h) => this.renderPaletteCell(h, t(h)))}
                           </div>` : Q}
-                    ${c.length ? V`<div class="palette-group">Furniture</div>
+                    ${c.length ? H`<div class="palette-group">Furniture</div>
                           <div class="palette-grid">
                             ${c.map((h) => this.renderPaletteCell(h, t(h)))}
                           </div>` : Q}
-                    ${!l.length && !c.length ? V`<span class="hint">no models match "${this.editFurnSearch}"</span>` : Q}
+                    ${!l.length && !c.length ? H`<span class="hint">no models match "${this.editFurnSearch}"</span>` : Q}
                   </div>`;
     })() : Q}` : Q}
 
-        ${s ? V`<div class="toolrow">
+        ${s ? H`<div class="toolrow">
               <span class="hint">${n === "room" && !this.editRoom?.shape ? "floor" : n} selected</span>
-              ${o ? V`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
+              ${o ? H`<button class="btn" title="Rotate 45°" @click=${this.onRotateSelected}>⟳ Rotate</button>
                     <button class="btn" title="Lower" @click=${() => this.onNudgeHeight(-0.1)}>▼ Down</button>
                     <button class="btn" title="Raise" @click=${() => this.onNudgeHeight(0.1)}>▲ Up</button>` : Q}
-              ${n === "opening" ? V`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
+              ${n === "opening" ? H`<button class="btn" title="Slide left along the wall" @click=${() => this.onSlideOpening(-0.1)}>◀ Left</button>
                     <button class="btn" title="Slide right along the wall" @click=${() => this.onSlideOpening(0.1)}>Right ▶</button>` : Q}
               <button class="btn" title="Delete the selected item" @click=${this.onDeleteSelected}>🗑 Delete</button>
             </div>
-            ${o && this.editIsLight ? V`<div class="toolrow">
+            ${o && this.editIsLight ? H`<div class="toolrow">
                   <span class="hint">Brightness:</span>
                   <input type="range" min="0" max="1" step="0.05"
                     .value=${String(this.editBrightness)}
                     title="Manual glow level (bound light overrides)"
                     @input=${this.onSetBrightness} />
                 </div>` : Q}
-            ${o && this.editIsLightSet ? V`<div class="toolrow">
+            ${o && this.editIsLightSet ? H`<div class="toolrow">
                     <span class="hint">Spread:</span>
                     <input type="range" min="0.6" max="10" step="0.1"
                       .value=${String(this.editSpread)}
                       title="Spacing between elements (each keeps its size)"
                       @input=${this.onSetSpread} />
                   </div>
-                  ${this.editSelectedObjModel === "spotlight_bar" ? V`<div class="toolrow">
+                  ${this.editSelectedObjModel === "spotlight_bar" ? H`<div class="toolrow">
                         <span class="hint">Spots:</span>
                         <input class="num-input" type="number" min="1" max="12" step="1"
                           .value=${String(this.editCount)}
                           @change=${this.onSetCount} />
                       </div>` : Q}` : Q}
-            ${n === "opening" ? V`<div class="toolrow">
+            ${n === "opening" ? H`<div class="toolrow">
                     <span class="hint">Type:</span>
                     <select class="select" @change=${this.onSetOpeningKind}>
                       ${["door", "window", "opening"].map(
-      (r) => V`<option value=${r} ?selected=${r === this.editOpeningKind}>${r}</option>`
+      (r) => H`<option value=${r} ?selected=${r === this.editOpeningKind}>${r}</option>`
     )}
                     </select>
                   </div>
-                  ${this.editOpeningKind !== "opening" ? V`<div class="toolrow">
+                  ${this.editOpeningKind !== "opening" ? H`<div class="toolrow">
                         <span class="hint">Style:</span>
                         <select class="select" @change=${this.onSetOpeningVariant}>
                           ${(this.editOpeningKind === "door" ? n2 : i2).map(
-      (r) => V`<option value=${r} ?selected=${r === this.editOpeningVariant}>${r}</option>`
+      (r) => H`<option value=${r} ?selected=${r === this.editOpeningVariant}>${r}</option>`
     )}
                         </select>
                       </div>` : Q}
@@ -28043,7 +28044,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       .value=${this.editOpeningWidth != null ? this.editOpeningWidth.toFixed(2) : ""}
                       @change=${this.onSetOpeningWidth} />
                   </div>` : Q}
-            ${n !== "opening" ? V`<div class="toolrow">
+            ${n !== "opening" ? H`<div class="toolrow">
                   <span class="hint">Color:</span>
                   <input
                     class="color"
@@ -28051,14 +28052,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editSelectedColor ?? (n === "room" ? "#c6a87e" : n === "wall" ? "#dcc3a0" : "#ffffff")}
                     @input=${this.onSetColor}
                   />
-                  ${n === "wall" || n === "room" ? V`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
+                  ${n === "wall" || n === "room" ? H`<span class="hint">${n === "room" ? "Floor" : "Wall"}:</span>
                         <select class="select" @change=${this.onSetMaterial}>
                           ${(n === "room" ? kd : Dd).map(
-      (r) => V`<option value=${r} ?selected=${r === this.editMaterial}>${r}</option>`
+      (r) => H`<option value=${r} ?selected=${r === this.editMaterial}>${r}</option>`
     )}
                         </select>` : Q}
                 </div>` : Q}
-            ${o && this.editFurnScale && !this.editIsLightSet ? V`<div class="toolrow">
+            ${o && this.editFurnScale && !this.editIsLightSet ? H`<div class="toolrow">
                   <span class="hint">Size</span>
                   <input class="num-input" type="number" min="0.1" step="0.1" title="Width"
                     .value=${this.editFurnScale[0].toFixed(1)}
@@ -28070,7 +28071,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editFurnScale[2].toFixed(1)}
                     @change=${(r) => this.onSetFurnScale(2, r)} />
                 </div>` : Q}
-            ${n === "wall" ? V`<div class="toolrow">
+            ${n === "wall" ? H`<div class="toolrow">
                   <span class="hint">Length (m):</span>
                   <input
                     class="num-input"
@@ -28092,15 +28093,15 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     .value=${this.editSelectedWallAngle != null ? this.editSelectedWallAngle.toFixed(0) : ""}
                     @change=${this.onSetWallAngle} />
                 </div>
-                ${this.editor && this.editor.selectedWallOpenings.length ? V`<div class="panel-group">Openings (tap 🗑 to remove)</div>
+                ${this.editor && this.editor.selectedWallOpenings.length ? H`<div class="panel-group">Openings (tap 🗑 to remove)</div>
                       ${this.editor.selectedWallOpenings.map(
-      (r, a) => V`<div class="toolrow">
+      (r, a) => H`<div class="toolrow">
                           <span class="hint">${r.kind} @ ${r.position.toFixed(1)}m · ${r.width.toFixed(1)}m</span>
                           <button class="btn" title="Delete this opening"
                             @click=${() => this.onDeleteWallOpening(a)}>🗑</button>
                         </div>`
     )}` : Q}` : Q}
-            ${n === "room" && this.editRoom?.shape ? V`<div class="toolrow">
+            ${n === "room" && this.editRoom?.shape ? H`<div class="toolrow">
                     <input class="name-input" type="text" placeholder="Room name"
                       .value=${this.editRoom.name ?? ""}
                       @change=${(r) => this.onSetRoomField("name", r)} />
@@ -28126,9 +28127,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       @change=${(r) => this.onSetRoomField("rotation", r)} />
                   </div>
                   <span class="hint">drag body=move · ring=rotate · corners=resize · Shift=no snap</span>
-                  ${this.editor && this.editor.selectedRoomOpenings.length ? V`<div class="panel-group">Openings (tap 🗑 to remove)</div>
+                  ${this.editor && this.editor.selectedRoomOpenings.length ? H`<div class="panel-group">Openings (tap 🗑 to remove)</div>
                         ${this.editor.selectedRoomOpenings.map(
-      (r, a) => V`<div class="toolrow">
+      (r, a) => H`<div class="toolrow">
                             <span class="hint">${r.kind} · ${r.width.toFixed(1)}m</span>
                             <button class="btn" title="Delete this opening"
                               @click=${() => this.onDeleteRoomOpening(a)}>🗑</button>
@@ -28137,25 +28138,25 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
             ${o && this.hass ? (() => {
       const r = this.editSelectedObjModel ?? "", a = this.editShowAllEntities || !r ? [] : Hy(r), { ids: l, fellBack: c } = this.candidateEntities(a), h = this.editEntitySearch.trim().toLowerCase(), d = h ? l.filter((x) => this.entityOptionText(x).toLowerCase().includes(h)) : l, u = By(r), f = (x) => x ? `bound: ${x}` : c ? `${l.length} entities (no ${a.join(" / ")} found)` : a.length ? `${l.length} ${a.join(" / ")} entities (tap All for every entity)` : `${l.length} entities`, m = (x, p) => {
         const g = this.editor?.selectedEntityPart(x) ?? null;
-        return V`
-                      ${p ? V`<div class="panel-group">${p}</div>` : Q}
+        return H`
+                      ${p ? H`<div class="panel-group">${p}</div>` : Q}
                       <div class="toolrow">
                         <select class="select wide" size=${u >= 2 ? 4 : 6}
                           @change=${(y) => this.onPickEntityPart(y, x)}>
                           <option value="" ?selected=${!g}>— bind entity —</option>
                           ${d.map(
-          (y) => V`<option value=${y} ?selected=${y === g} title=${y}>
+          (y) => H`<option value=${y} ?selected=${y === g} title=${y}>
                               ${this.entityOptionText(y)}
                             </option>`
         )}
                         </select>
-                        ${x === 0 ? V`<button class="btn ${this.editShowAllEntities ? "active" : ""}"
+                        ${x === 0 ? H`<button class="btn ${this.editShowAllEntities ? "active" : ""}"
                               title="Show all entities (ignore type filter)"
                               @click=${() => this.editShowAllEntities = !this.editShowAllEntities}>All</button>` : Q}
                       </div>
                       <span class="hint">${f(g)}</span>`;
       };
-      return V`<div class="toolrow">
+      return H`<div class="toolrow">
                       <input class="select wide" type="search" placeholder="🔍 search entity / room…"
                         .value=${this.editEntitySearch}
                         @input=${(x) => this.editEntitySearch = x.target.value} />
@@ -28163,9 +28164,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                     ${u >= 2 ? Array.from({ length: u }, (x, p) => m(p, `${this.t("Window")} ${p + 1}`)) : m(0, null)}`;
     })() : Q}` : Q}
 
-        ${i === "select" && !n ? V`<span class="hint">tap to select · DRAG furniture to move it · drag a wall end to reshape</span>` : Q}
-        ${i === "door" || i === "window" ? V`<span class="hint">tap a wall to add a ${i}</span>` : Q}
-        ${i === "wall" ? V`<span class="hint">tap 2 points = 1 wall · 🧲 snaps parallel/right-angle + equal length · drag empty space = orbit</span>` : Q}
+        ${i === "select" && !n ? H`<span class="hint">tap to select · DRAG furniture to move it · drag a wall end to reshape</span>` : Q}
+        ${i === "door" || i === "window" ? H`<span class="hint">tap a wall to add a ${i}</span>` : Q}
+        ${i === "wall" ? H`<span class="hint">tap 2 points = 1 wall · 🧲 snaps parallel/right-angle + equal length · drag empty space = orbit</span>` : Q}
 
         <div class="panel-section">
           <div class="toolrow">
@@ -28178,11 +28179,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               @input=${this.onRenamePlan}
             />
           </div>
-          ${this.projectList.length > 0 ? V`<div class="toolrow">
+          ${this.projectList.length > 0 ? H`<div class="toolrow">
                 <select class="select wide" @change=${this.onSelectStorageProject}>
-                  ${this.editingProjectId ? Q : V`<option value="" selected>(unsaved new)</option>`}
+                  ${this.editingProjectId ? Q : H`<option value="" selected>(unsaved new)</option>`}
                   ${this.projectList.map(
-      (r) => V`<option value=${r.id} ?selected=${r.id === this.editingProjectId}>${r.name}</option>`
+      (r) => H`<option value=${r.id} ?selected=${r.id === this.editingProjectId}>${r.name}</option>`
     )}
                 </select>
                 <button class="btn" title="Delete this project" @click=${this.onDeleteProject}>🗑</button>
@@ -28208,10 +28209,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               ${this.hasEditPin() ? "Update" : "Set"}
             </button>
           </div>
-          ${this.hasEditPin() ? V`<div class="toolrow">
+          ${this.hasEditPin() ? H`<div class="toolrow">
                 <span class="hint">🔒 PIN required to enter Edit</span>
                 <button class="btn" title="Remove the edit PIN" @click=${this.onRemoveEditPin}>Remove</button>
-              </div>` : V`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
+              </div>` : H`<span class="hint">No PIN set — anyone can edit. Set one to prevent accidental changes.</span>`}
         </div>
       </div>
     `;
@@ -28223,7 +28224,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const i = this.hass, t = this.controlEntities.filter((n) => i?.states[n]);
     if (!i || !t.length) return Q;
     const [e] = this.controlPos;
-    return V`
+    return H`
       <div class="control-backdrop" @click=${this.closeControl}></div>
       <div class="control-popup" style="left:${e}px"
         @click=${(n) => n.stopPropagation()}>
@@ -28246,18 +28247,18 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     })).filter((l) => l.ents.length), s = new Set(iu.flatMap((l) => l.behaviors)), o = e.filter((l) => !s.has(l.behavior));
     o.length && n.push({ key: "other", label: "Other", icon: "dot", behaviors: [], ents: o });
     const [r] = this.controlPos, a = this.controlCategory ? n.find((l) => l.key === this.controlCategory) : null;
-    return V`
+    return H`
       <div class="control-backdrop" @click=${this.closeControl}></div>
       <div class="control-popup" style="left:${r}px"
         @click=${(l) => l.stopPropagation()}>
         <div class="control-head">
-          <span>${a ? V`<button type="button" class="ctl back" title="Back"
+          <span>${a ? H`<button type="button" class="ctl back" title="Back"
                 @click=${() => this.controlCategory = null}>${this.ic("chevUp")}</button> ${this.t(a.label)}` : i.name || this.t("Room")}</span>
           <button type="button" class="ctl close" @click=${this.closeControl}>✕</button>
         </div>
-        ${a ? V`${a.key === "lights" ? (() => {
+        ${a ? H`${a.key === "lights" ? (() => {
       const l = a.ents.some((c) => this.effState(c.entity_id) === "on");
-      return V`<div class="control-row">
+      return H`<div class="control-row">
                       <span class="control-name">${this.t(l ? "All off" : "All on")}</span>
                       <div class="control-ctls">
                         <button type="button" class="ctl big ${l ? "on" : ""}" title="Toggle all"
@@ -28265,13 +28266,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
                       </div>
                     </div>`;
     })() : Q}
-              ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? V`<div class="cat-grid">
+              ${a.ents.map((l) => this.renderEntityControl(l.entity_id))}` : n.length ? H`<div class="cat-grid">
                 ${n.map(
-      (l) => V`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
+      (l) => H`<button type="button" class="cat-btn" @click=${() => this.controlCategory = l.key}>
                     ${this.ic(l.icon)}<span>${this.t(l.label)}</span><small>${l.ents.length}</small>
                   </button>`
     )}
-              </div>` : V`<span class="hint">${this.t("No controllable devices")}</span>`}
+              </div>` : H`<span class="hint">${this.t("No controllable devices")}</span>`}
       </div>
     `;
   }
@@ -28279,7 +28280,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  on every tablet/browser instead of a tofu box. */
   ic(i) {
     const t = Hr[i] ?? Hr.dot;
-    return V`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    return H`<svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
     >${t.map((e) => Oi`<path d=${e}></path>`)}</svg>`;
   }
@@ -28287,45 +28288,45 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const e = this.hass.states[i], n = i.split(".")[0], s = this.effState(i), o = e?.attributes?.friendly_name ?? i, r = s === "on" || s === "open" || s === "playing" || s === "home" || s === "unlocked";
     let a;
     if (n === "light" || n === "switch" || n === "fan" || n === "input_boolean")
-      a = V`<button type="button" class="ctl big ${r ? "on" : ""}" title="Toggle"
+      a = H`<button type="button" class="ctl big ${r ? "on" : ""}" title="Toggle"
         @click=${() => this.svc(n, "toggle", {}, i, r ? "off" : "on")}>${this.ic("power")}</button>`;
     else if (n === "cover")
-      a = V`
+      a = H`
         <button type="button" class="ctl" title="Open" @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.ic("chevUp")}</button>
         <button type="button" class="ctl" title="Stop" @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.ic("stop")}</button>
         <button type="button" class="ctl" title="Close" @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.ic("chevDown")}</button>`;
     else if (n === "lock")
-      a = V`<button type="button" class="ctl ${r ? "" : "on"}" title=${r ? "Lock" : "Unlock"}
+      a = H`<button type="button" class="ctl ${r ? "" : "on"}" title=${r ? "Lock" : "Unlock"}
         @click=${() => this.svc("lock", r ? "lock" : "unlock", {}, i, r ? "locked" : "unlocked")}>${this.ic(r ? "lockOpen" : "lockClosed")}</button>`;
     else if (n === "climate") {
       const l = this.effTarget(i), c = e?.attributes?.current_temperature, h = nu(e), d = e?.attributes?.hvac_modes ?? ["off", "cool", "heat", "auto"], u = (f) => {
         typeof l == "number" && this.stepTemp(i, e, l, h, f);
       };
-      a = V`<div class="ctl-col">
+      a = H`<div class="ctl-col">
         <div class="ctl-row">
           <button type="button" class="ctl" title="Cooler" @click=${() => u(-h)}>${this.ic("minus")}</button>
-          <span class="ctl-temp">${l != null ? `${l}°` : "—"}${c != null ? V`<small> · ${c}°</small>` : Q}</span>
+          <span class="ctl-temp">${l != null ? `${l}°` : "—"}${c != null ? H`<small> · ${c}°</small>` : Q}</span>
           <button type="button" class="ctl" title="Warmer" @click=${() => u(h)}>${this.ic("plus")}</button>
         </div>
         <div class="ctl-row wrap">
           ${d.map((f) => {
         const m = Bd(f);
-        return V`<button type="button" class="ctl ${s === f ? "on" : ""}" title=${f}
+        return H`<button type="button" class="ctl ${s === f ? "on" : ""}" title=${f}
               @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: f }, i, f)}>${m ? this.ic(m) : f}</button>`;
       })}
         </div>
       </div>`;
     } else if (n === "media_player") {
       const l = !!e?.attributes?.is_volume_muted, c = !["off", "standby", "unavailable", "unknown"].includes(s);
-      a = V`<div class="ctl-row">
+      a = H`<div class="ctl-row">
         <button type="button" class="ctl ${c ? "on" : ""}" title="Power" @click=${() => this.svc("media_player", "toggle", {}, i, c ? "off" : "playing")}>${this.ic("power")}</button>
         <button type="button" class="ctl" title="Volume down" @click=${() => this.svc("media_player", "volume_down", {}, i)}>${this.ic("volDown")}</button>
         <button type="button" class="ctl ${l ? "on" : ""}" title="Mute" @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !l }, i)}>${this.ic("mute")}</button>
         <button type="button" class="ctl" title="Volume up" @click=${() => this.svc("media_player", "volume_up", {}, i)}>${this.ic("volUp")}</button>
       </div>`;
     } else
-      a = V`<span class="ctl-state">${s}${e?.attributes?.unit_of_measurement ?? ""}</span>`;
-    return V`<div class="control-row">
+      a = H`<span class="ctl-state">${s}${e?.attributes?.unit_of_measurement ?? ""}</span>`;
+    return H`<div class="control-row">
       <span class="control-name" title=${i}>${o}</span>
       <div class="control-ctls">${a}</div>
     </div>`;
@@ -28463,8 +28464,8 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const S = _.pts.map((F, O) => `${O ? "L" : "M"}${b(F[0]).toFixed(1)} ${M(F[1]).toFixed(1)}`).join(" ");
       return Oi`<path class="spark ${_.cls}" d=${S}></path>`;
     });
-    return V`<div class="rp-spark-wrap" title="24h">
-      <div class="spark-legend">${s.map((_) => V`<span class="spark-leg ${_.cls}"><i></i>${_.label}</span>`)}</div>
+    return H`<div class="rp-spark-wrap" title="24h">
+      <div class="spark-legend">${s.map((_) => H`<span class="spark-leg ${_.cls}"><i></i>${_.label}</span>`)}</div>
       <svg class="rp-spark" viewBox="0 0 ${f} ${m}" preserveAspectRatio="xMidYMid meet">${E}${U}</svg>
     </div>`;
   }
@@ -28551,9 +28552,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     );
   }
   renderPills() {
-    return this.rooms.length ? V`<div class="pills">
+    return this.rooms.length ? H`<div class="pills">
       ${this.rooms.map(
-      (i) => V`<button
+      (i) => H`<button
           type="button"
           class="pill ${i.key === this.activeRoomKey ? "on" : ""}"
           @click=${() => this.selectRoom(i.key)}
@@ -28562,9 +28563,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     </div>` : Q;
   }
   renderFloorTabs() {
-    return this.floorNames.length <= 1 ? Q : V`<div class="ftabs">
+    return this.floorNames.length <= 1 ? Q : H`<div class="ftabs">
       ${this.floorNames.map(
-      (i, t) => V`<button type="button" class="ftab ${t === this.activeFloorIndex ? "on" : ""}"
+      (i, t) => H`<button type="button" class="ftab ${t === this.activeFloorIndex ? "on" : ""}"
           @click=${() => this.onSelectFloor(t)}>${i}</button>`
     )}
     </div>`;
@@ -28573,14 +28574,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     i && "stopPropagation" in i && i.stopPropagation(), this.idleTimer && window.clearTimeout(this.idleTimer), this.now = /* @__PURE__ */ new Date(), this.idle = !0;
   }
   renderStageChrome() {
-    return V`
+    return H`
       <div class="clock">
         <div class="ctime">${this.fmtClockTime()}</div>
         <div class="cdate">${this.fmtClockDate()}</div>
       </div>
       <div class="topstat">
         <button class="sdot" title="Reset view" @click=${this.onResetView}>${this.ic("room")}</button>
-        ${this.panel ? V`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : Q}
+        ${this.panel ? H`<button class="sdot" title="Full-screen 3D" @click=${this.openKiosk}>${this.ic("shield")}</button>` : Q}
         <button class="sdot" title="Screensaver" @click=${(i) => this.onSleep(i)}>${this.ic("moon")}</button>
         <button class="sdot" title=${this.t("All off short")} @click=${() => this.allOffHouse()}>${this.ic("power")}</button>
         <button class="sdot" title="Отчёт — графики температуры" @click=${() => {
@@ -28619,7 +28620,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderScreensaver() {
     const i = this.homeSummary();
-    return V`<div class="saver" @pointerdown=${() => this.wake()}>
+    return H`<div class="saver" @pointerdown=${() => this.wake()}>
       <div class="saver-aurora"></div>
       <div class="saver-in">
         <div class="saver-home">${this.t("My home")}</div>
@@ -28639,9 +28640,9 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  just that metric (the active one is highlighted). */
   renderTempChips(i, t, e) {
     if (!i && !t && !e) return Q;
-    const n = (s, o, r, a, l = "") => s ? V`<button type="button" class="rp-chip ${r} ${this.sparkMetric === o ? "sel" : ""}" title=${l}
+    const n = (s, o, r, a, l = "") => s ? H`<button type="button" class="rp-chip ${r} ${this.sparkMetric === o ? "sel" : ""}" title=${l}
             @click=${() => this.toggleSparkMetric(o)}>${this.ic(a)}${s}</button>` : Q;
-    return V`<div class="rp-chips">
+    return H`<div class="rp-chips">
       ${n(i, "temp", "", "thermo")}
       ${n(t, "floor", "warm", "heat", this.t("Floor"))}
       ${n(e, "humidity", "cool", "drop")}
@@ -28656,7 +28657,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       { key: "floor", label: "Тёплый пол", has: (s) => !!s.floorSensor },
       { key: "humidity", label: "Влажность", has: (s) => !!s.humiditySensor }
     ], e = this.reportMetric, n = i.filter((s) => t.find((o) => o.key === e).has(s));
-    return V`
+    return H`
       <div class="report-back" @click=${() => {
       this.showReport = !1;
     }}></div>
@@ -28670,17 +28671,17 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <div class="report-tabs">
           ${t.map((s) => {
       const o = i.filter(s.has).length;
-      return V`<button type="button" class="report-tab ${e === s.key ? "sel" : ""}"
+      return H`<button type="button" class="report-tab ${e === s.key ? "sel" : ""}"
               @click=${() => {
         this.reportMetric = s.key;
-      }}>${s.label}${o ? V` <em>${o}</em>` : Q}</button>`;
+      }}>${s.label}${o ? H` <em>${o}</em>` : Q}</button>`;
     })}
         </div>
         <div class="report-grid">
-          ${n.length ? n.map((s) => V`<div class="report-item">
+          ${n.length ? n.map((s) => H`<div class="report-item">
                 <div class="report-room">${s.name || this.t("Room")}</div>
                 ${this.renderRoomSpark(s, e)}
-              </div>`) : V`<div class="rp-empty">Нет комнат с этим датчиком</div>`}
+              </div>`) : H`<div class="rp-empty">Нет комнат с этим датчиком</div>`}
         </div>
       </div>`;
   }
@@ -28693,7 +28694,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const h = Number(l);
       return Number.isFinite(h) ? h.toLocaleString(this.uiLocale, { minimumFractionDigits: c, maximumFractionDigits: c }) : "—";
     }, { air: s, floor: o } = this.roomTempStrs(i, n), r = t && Number.isFinite(Number(t.state)) ? `${n(t.state, 0)}%` : null, a = this.roomCards(i, e);
-    return V`
+    return H`
       <div class="room-panel">
         <div class="rp-head">
           <div class="rp-top">
@@ -28704,7 +28705,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
           ${this.renderRoomSpark(i, this.sparkMetric)}
         </div>
         <div class="rp-body">
-          ${a.length ? a : V`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
+          ${a.length ? a : H`<div class="rp-empty">${this.t("No devices in this room")}</div>`}
         </div>
         <div class="rp-foot">
           <button type="button" class="rp-master" @click=${() => this.onRoomAllOff(i)}>
@@ -28739,7 +28740,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const h = Number(l);
       return Number.isFinite(h) ? h.toLocaleString(this.uiLocale, { minimumFractionDigits: c, maximumFractionDigits: c }) : "—";
     }, { air: s, floor: o } = this.roomTempStrs(i, n), r = t && Number.isFinite(Number(t.state)) ? `${n(t.state, 0)}%` : null, a = this.deviceCount(i);
-    return V`
+    return H`
       <div class="detail-back" @click=${() => this.closeDetail()}></div>
       <div class="detail" @click=${(l) => l.stopPropagation()}>
         <div class="dhead">
@@ -28808,7 +28809,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     const i = this.leak;
     if (!i || this.leakAck) return Q;
     const t = i.wet ? this.roomOfEntity(i.sensors[0]) : void 0, e = i.sensors.map((o) => this.cardName(o)).join(", "), n = i.valve, s = n ? !this.valveShut(n) : !0;
-    return V`<div class="leak-alert">
+    return H`<div class="leak-alert">
       <button type="button" class="leak-x" title=${this.t("Close")}
         @click=${() => this.leakAck = !0}>✕</button>
       <div class="leak-ic">${this.ic("drop")}</div>
@@ -28816,11 +28817,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       <div class="leak-sub">
         ${i.wet ? t?.name ? `${t.name} · ${e}` : e : this.t("Fix the leak, then open the valve")}
       </div>
-      ${i.wet && !t ? V`<div class="leak-hint">${this.t("Place this sensor on the plan to see the room")}</div>` : Q}
+      ${i.wet && !t ? H`<div class="leak-hint">${this.t("Place this sensor on the plan to see the room")}</div>` : Q}
       <div class="leak-btns">
-        ${t ? V`<button type="button" class="leak-b" @click=${() => this.selectRoom(t.key)}>
+        ${t ? H`<button type="button" class="leak-b" @click=${() => this.selectRoom(t.key)}>
               ${this.t("Show")}</button>` : Q}
-        ${n ? V`<button type="button" class="leak-b primary" ?disabled=${s}
+        ${n ? H`<button type="button" class="leak-b primary" ?disabled=${s}
               @click=${() => n.startsWith("valve.") ? this.svc("valve", "open_valve", {}, n, "open") : this.svc("switch", "turn_on", {}, n, "on")}>
               ${s ? this.t("Valve is open") : this.t("Open the valve")}</button>` : Q}
       </div>
@@ -28865,7 +28866,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  here it's just "peek at the door + open it", per the agreed design. */
   renderIntercomCard(i) {
     const t = this.hass.states, e = this.effState(i.prosmotr) === "on", n = t[i.vyzov]?.attributes?.call_state, s = n === "ringing" || n == null && this.effState(i.vyzov) === "on", o = s ? this.t("Ringing") : e ? this.t("Viewing") : this.t("Idle");
-    return V`<div class="card intercom ${s ? "ring" : ""}">
+    return H`<div class="card intercom ${s ? "ring" : ""}">
       <div class="crow">
         <div class="cicon ${s || e ? "lit" : ""}">${this.ic("camera")}</div>
         <div class="cgrow">
@@ -28877,7 +28878,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="qb ${e ? "on" : ""}"
           @click=${() => this.svc("switch", e ? "turn_off" : "turn_on", {}, i.prosmotr, e ? "off" : "on")}>
           <span class="qb-ic">${this.ic("eye")}</span><span>${this.t("View")}</span></button>
-        ${i.open ? V`<button type="button" class="qb primary"
+        ${i.open ? H`<button type="button" class="qb primary"
               @click=${() => this.svc("button", "press", {}, i.open)}>
               <span class="qb-ic">${this.ic("doorOpen")}</span><span>${this.t("Open door")}</span></button>` : Q}
       </div>
@@ -28904,7 +28905,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     }, d = i.filter((R) => this.lightSupportsCT(R)), u = d.find((R) => this.effState(R) === "on") ?? d[0], f = u ? this.hass?.states[u]?.attributes ?? {} : {}, m = Number(f.min_color_temp_kelvin) || 2200, x = Number(f.max_color_temp_kelvin) || 6500, p = Number(f.color_temp_kelvin), g = Number.isFinite(p) ? Math.round((p - m) / (x - m) * 100) : 50, y = `${i[0]}#ct`, b = this.sliderValue(y, Math.max(0, Math.min(100, g))), M = (R) => {
       for (const E of d) this.setLightCT(E, R);
     };
-    return V`<div class="card lights ${e ? "on" : ""}">
+    return H`<div class="card lights ${e ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${e ? "lit" : ""}">${this.ic("bulb")}</div>
         <div class="cgrow">
@@ -28914,21 +28915,21 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="sw ${e ? "on" : ""}" title="Toggle all"
           @click=${() => this.onToggleAll(i.map((R) => ({ entity_id: R, behavior: "light" })))}><span class="sw-k"></span></button>
       </div>
-      ${i.length > 1 ? V`<div class="lgrid">
+      ${i.length > 1 ? H`<div class="lgrid">
             ${i.map((R) => {
       const E = this.effState(R) === "on";
-      return V`<button type="button" class="ltile ${E ? "on" : ""}" title=${this.cardName(R)}
+      return H`<button type="button" class="ltile ${E ? "on" : ""}" title=${this.cardName(R)}
                 @click=${() => this.svc(R.split(".")[0], "toggle", {}, R, E ? "off" : "on")}>
                 <span class="lti ${E ? "lit" : ""}">${this.ic("bulb")}</span>
                 <span class="ltn">${this.cardName(R)}</span>
               </button>`;
     })}
           </div>` : Q}
-      ${e && s ? V`<div class="slider" @pointerdown=${(R) => this.onSliderDown(R, l, h)}>
+      ${e && s ? H`<div class="slider" @pointerdown=${(R) => this.onSliderDown(R, l, h)}>
               <div class="slider-fill" style="width:${c}%"></div>
               <div class="slider-lab"><span>${this.t("Brightness")}</span><span>${c}%</span></div>
             </div>
-            ${d.length ? V`<div class="ctwrap">
+            ${d.length ? H`<div class="ctwrap">
                   <div class="ctlab"><span>${this.t("Warm")}</span><span>${this.t("Cool")}</span></div>
                   <div class="cttrack" @pointerdown=${(R) => this.onSliderDown(R, y, M)}>
                     <div class="ctthumb" style="left:${b}%"></div>
@@ -28938,7 +28939,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderToggleCard(i, t) {
     const e = this.effState(i) === "on", n = i.split(".")[0];
-    return V`<div class="card ${e ? "on" : ""}">
+    return H`<div class="card ${e ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${e ? "lit" : ""}">${this.ic(t)}</div>
         <div class="cgrow">
@@ -28954,7 +28955,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  show their presets as buttons; percentage fans show N even steps. */
   renderFanCard(i) {
     const t = this.effState(i) === "on", e = this.hass?.states[i]?.attributes ?? {}, n = e.preset_modes ?? [], s = e.preset_mode, o = e.percentage, r = e.percentage_step, a = r && r > 0 ? Math.round(100 / r) : 0, l = a > 1 && a <= 8 ? Array.from({ length: a }, (h, d) => Math.round((d + 1) / a * 100)) : [], c = t ? s ?? (o != null ? `${o}%` : this.t("On")) : this.t("Off");
-    return V`<div class="card ${t ? "on" : ""}">
+    return H`<div class="card ${t ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${t ? "lit" : ""}">${this.ic("fan")}</div>
         <div class="cgrow">
@@ -28964,11 +28965,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         <button type="button" class="sw ${t ? "on" : ""}" title="Toggle"
           @click=${() => this.svc("fan", "toggle", {}, i, t ? "off" : "on")}><span class="sw-k"></span></button>
       </div>
-      ${n.length ? V`<div class="seg fan">
-            ${n.map((h) => V`<button type="button" class="segb ${s === h ? "on" : ""}"
+      ${n.length ? H`<div class="seg fan">
+            ${n.map((h) => H`<button type="button" class="segb ${s === h ? "on" : ""}"
               @click=${() => this.svc("fan", "set_preset_mode", { preset_mode: h }, i)}>${h}</button>`)}
-          </div>` : l.length ? V`<div class="seg fan">
-              ${l.map((h) => V`<button type="button" class="segb ${o === h ? "on" : ""}"
+          </div>` : l.length ? H`<div class="seg fan">
+              ${l.map((h) => H`<button type="button" class="segb ${o === h ? "on" : ""}"
                 @click=${() => this.svc("fan", "set_percentage", { percentage: h }, i)}>${h}%</button>`)}
             </div>` : Q}
     </div>`;
@@ -28983,7 +28984,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
         { low: "Low", mid: "Medium", medium: "Medium", middle: "Medium", high: "High", auto: "Auto" }[y.toLowerCase()] ?? y
       )
     );
-    return V`<div class="card ${n ? "on cool" : ""}">
+    return H`<div class="card ${n ? "on cool" : ""}">
       <div class="crow">
         <button type="button" class="cicon ${n ? "lit" : ""}" title="Toggle"
           @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: n ? "off" : u }, i, n ? "off" : u)}>${this.ic(m)}</button>
@@ -28999,13 +29000,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>
       <div class="seg">
         ${f.map(
-      (y) => V`<button type="button" class="segb ${e === y ? "on" : ""}"
+      (y) => H`<button type="button" class="segb ${e === y ? "on" : ""}"
             @click=${() => this.svc("climate", "set_hvac_mode", { hvac_mode: y }, i, y)}>${y === "off" ? this.t("Off mode") : this.climateModeLabel(y)}</button>`
     )}
       </div>
-      ${x.length && n ? V`<div class="seg fan">
+      ${x.length && n ? H`<div class="seg fan">
             ${x.map(
-      (y) => V`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
+      (y) => H`<button type="button" class="segb ${p === y ? "on" : ""}" title=${"Fan: " + y}
                 @click=${() => this.svc("climate", "set_fan_mode", { fan_mode: y }, i)}>${g(y)}</button>`
     )}
           </div>` : Q}
@@ -29015,7 +29016,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
    *  the label showing the next action); every other cover keeps the explicit
    *  Open / Stop / Close buttons. No position slider or state line. */
   renderCoverCard(i) {
-    const t = this.hass.states[i], e = V`<div class="crow">
+    const t = this.hass.states[i], e = H`<div class="crow">
         <div class="cicon">${this.ic("curtain")}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(i)}</div>
@@ -29023,7 +29024,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>`, n = String(t?.attributes?.device_class ?? "").toLowerCase(), s = (String(t?.attributes?.friendly_name ?? "") + " " + i).toLowerCase();
     if (n === "gate" || n === "garage" || n === "door" || /ворот|gate|darvoza|калитк/.test(s)) {
       const a = this.effState(i), c = a === "opening" || a === "closing" ? "stop" : a === "closed" ? "open" : "close", h = c === "stop" ? "stop_cover" : c === "open" ? "open_cover" : "close_cover", d = c === "stop" ? this.t("Stop blind") : c === "open" ? this.t("Open blind") : this.t("Close blind"), u = c === "open" ? "opening" : c === "close" ? "closing" : "open";
-      return V`<div class="card">
+      return H`<div class="card">
         ${e}
         <div class="qbtns">
           <button type="button" class="qb gate icon-only" title=${d}
@@ -29032,36 +29033,36 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       </div>`;
     }
     const r = Number(t?.attributes?.supported_features ?? 0);
-    return V`<div class="card">
+    return H`<div class="card">
       ${e}
       <div class="qbtns">
-        ${r & 1 ? V`<button type="button" class="qb"
+        ${r & 1 ? H`<button type="button" class="qb"
               @click=${() => this.svc("cover", "open_cover", {}, i, "open")}>${this.t("Open blind")}</button>` : Q}
-        ${r & 8 ? V`<button type="button" class="qb"
+        ${r & 8 ? H`<button type="button" class="qb"
               @click=${() => this.svc("cover", "stop_cover", {}, i)}>${this.t("Stop blind")}</button>` : Q}
-        ${r & 2 ? V`<button type="button" class="qb"
+        ${r & 2 ? H`<button type="button" class="qb"
               @click=${() => this.svc("cover", "close_cover", {}, i, "closed")}>${this.t("Close blind")}</button>` : Q}
       </div>
     </div>`;
   }
   renderMediaCard(i, t) {
     const e = this.hass.states[i], n = this.effState(i), s = n !== "off" && n !== "unavailable" && n !== "unknown" && n !== "standby", o = n === "playing", r = Number(e?.attributes?.supported_features) || 0, a = (g) => (r & g) === g, l = a(128) || a(256), c = a(4), h = a(1024), d = a(8), u = !!e?.attributes?.is_volume_muted, f = Math.round(this.effVol(i) * 100), m = e?.attributes?.media_title ?? this.cardName(i, t), x = e?.attributes?.media_artist ?? "", p = o;
-    return V`<div class="card ${s ? "on" : ""}">
+    return H`<div class="card ${s ? "on" : ""}">
       <div class="crow">
         <div class="cicon ${s ? "lit" : ""}">${this.ic("tv")}</div>
         <div class="cgrow">
           <div class="clabel">${this.cardName(i, t)}</div>
           <div class="csub">${o ? this.t("Playing now") : s ? this.t("On") : this.t("Off")}</div>
         </div>
-        ${l ? V`<button type="button" class="sw ${s ? "on" : ""}" title="Toggle"
+        ${l ? H`<button type="button" class="sw ${s ? "on" : ""}" title="Toggle"
               @click=${() => this.svc("media_player", s ? "turn_off" : "turn_on", {}, i, s ? "off" : "on")}><span class="sw-k"></span></button>` : Q}
       </div>
-      ${p ? V`<div class="mp">
+      ${p ? H`<div class="mp">
             <div class="mpart">${this.ic("album")}</div>
             <div class="mptxt"><div class="mptrack">${m}</div><div class="mpartist">${x}</div></div>
           </div>` : Q}
-      ${c || h || d ? V`<div class="seg vol">
-            ${d ? V`<button type="button" class="segb ${u ? "on" : ""}" title="Mute"
+      ${c || h || d ? H`<div class="seg vol">
+            ${d ? H`<button type="button" class="segb ${u ? "on" : ""}" title="Mute"
               @click=${() => this.svc("media_player", "volume_mute", { is_volume_muted: !u }, i)}>${this.ic("mute")}</button>` : Q}
             <button type="button" class="segb" title="Volume down"
               @click=${() => this.mediaVolStep(i, e, h, -1)}>${this.ic("volDown")}</button>
@@ -29113,7 +29114,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderLockCard(i) {
     const t = this.effState(i) === "locked";
-    return V`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
+    return H`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
       @click=${() => this.svc("lock", t ? "unlock" : "lock", {}, i, t ? "unlocked" : "locked")}>
       ${this.ic(t ? "lockClosed" : "lockOpen")}
       <div class="cgrow"><div class="lktxt">${t ? this.t("Locked") : this.t("Unlocked")}</div>
@@ -29123,7 +29124,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderInfoCard(i) {
     const e = this.hass.states[i]?.attributes?.unit_of_measurement ?? "";
-    return V`<div class="card">
+    return H`<div class="card">
       <div class="crow">
         <div class="cicon">${this.ic("gauge")}</div>
         <div class="cgrow"><div class="clabel">${this.cardName(i)}</div></div>
@@ -29158,7 +29159,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   }
   renderViewToggle() {
     const i = (t) => this.viewMode === t ? "on" : "";
-    return V`<div class="view-toggle">
+    return H`<div class="view-toggle">
       <button type="button" class="vt-btn ${i("room")}" @click=${() => this.setViewMode("room")}>
         ${this.ic("room")}<span>${this.t("Room")}</span>
       </button>
@@ -29262,7 +29263,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const o = Number(n);
       return Number.isFinite(o) ? o.toLocaleString(this.uiLocale, { minimumFractionDigits: s, maximumFractionDigits: s }) : "—";
     };
-    return V`
+    return H`
       <div class="ov-top">
         <div class="ov-clock">
           <div class="ctime">${this.fmtClockTime()}</div>
@@ -29300,14 +29301,14 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
       const r = /* @__PURE__ */ new Map();
       for (const h of s) h.id && r.set(h.id, h);
       const a = (h) => !!(h.parentId && h.parentId !== h.id && r.has(h.parentId)), l = (h) => h ? s.filter((d) => a(d) && d.parentId === h) : [], c = s.filter((h) => !a(h));
-      return V`${e ? V`<div class="ov-floor-h">${this.floorNames[o] ?? ""}</div>` : Q}
+      return H`${e ? H`<div class="ov-floor-h">${this.floorNames[o] ?? ""}</div>` : Q}
         ${c.map((h) => this.renderOverviewCard(h, i, l(h.id)))}`;
-    }) : V`<div class="rp-empty">${this.t("No devices in this room")}</div>`;
+    }) : H`<div class="rp-empty">${this.t("No devices in this room")}</div>`;
   }
   /** One light "segment" button (used by the room card and its sub-rooms). */
   renderLightChip(i, t) {
     const e = this.effState(i) === "on", n = this.hass?.states[i]?.attributes?.friendly_name ?? i;
-    return V`<button type="button" class="lightseg ${e ? "on" : ""}" title=${n}
+    return H`<button type="button" class="lightseg ${e ? "on" : ""}" title=${n}
       @click=${(s) => {
       s.stopPropagation(), this.svc(i.split(".")[0], "toggle", {}, i, e ? "off" : "on");
     }}><span>${this.shortLightName(i, t)}</span></button>`;
@@ -29317,43 +29318,43 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
     let y = Q;
     if (f) {
       const b = this.effState(f.entity_id) === "locked";
-      y = V`<button type="button" class="qstat lockq ${b ? "locked" : "unlocked"}"
+      y = H`<button type="button" class="qstat lockq ${b ? "locked" : "unlocked"}"
         @click=${(M) => {
         M.stopPropagation(), this.svc("lock", b ? "unlock" : "lock", {}, f.entity_id, b ? "unlocked" : "locked");
       }}>
         ${this.ic(b ? "lockClosed" : "lockOpen")}${b ? this.t("Locked") : this.t("Unlocked")}</button>`;
     } else if (u) {
       const b = this.hass?.states[u.entity_id]?.attributes?.temperature;
-      y = V`<div class="qstat">${this.ic("heat")}${b != null ? `${b}°` : "—"}</div>`;
+      y = H`<div class="qstat">${this.ic("heat")}${b != null ? `${b}°` : "—"}</div>`;
     } else if (m) {
       const b = this.hass?.states[m.entity_id]?.attributes?.current_position;
-      y = V`<div class="qstat">${this.ic("curtain")}${b != null ? `${b}%` : "—"}</div>`;
+      y = H`<div class="qstat">${this.ic("curtain")}${b != null ? `${b}%` : "—"}</div>`;
     }
-    return V`<div class="rcard link ${a ? "on" : ""}" @click=${() => this.openDetail(i.key)}>
+    return H`<div class="rcard link ${a ? "on" : ""}" @click=${() => this.openDetail(i.key)}>
       <div class="rchead">
         <div class="rcicon">${this.ic(this.roomIcon(i.name))}</div>
         <div class="cgrow">
           <div class="rcname">${i.name || this.t("Room")}<span class="rcchev">${this.ic("chevRight")}</span></div>
-          <div class="rctemp">${[x, g].filter(Boolean).join(" · ")}${p ? V`<span class="rcfloor"> · ${this.t("Floor")} ${p}</span>` : Q}</div>
+          <div class="rctemp">${[x, g].filter(Boolean).join(" · ")}${p ? H`<span class="rcfloor"> · ${this.t("Floor")} ${p}</span>` : Q}</div>
         </div>
-        ${r.length ? V`<button type="button" class="sw ${a ? "on" : ""}" title="Toggle"
+        ${r.length ? H`<button type="button" class="sw ${a ? "on" : ""}" title="Toggle"
               @click=${(b) => {
       b.stopPropagation(), this.onToggleAll(h);
     }}><span class="sw-k"></span></button>` : Q}
       </div>
-      ${r.length ? V`
+      ${r.length ? H`
           <div class="rcmid">
             <span class="icn-mid">${this.ic("bulb")}</span><span class="lbltxt">${this.t("Light")}</span>
             <div class="grow"></div><span class="brival">${l}/${r.length} · ${c}%</span>
           </div>
-          ${s.length ? V`<div class="lightsegs">${s.map((b) => this.renderLightChip(b, i.name))}</div>` : Q}
-          ${o.map((b) => b.ids.length ? V`<div class="subroom">
+          ${s.length ? H`<div class="lightsegs">${s.map((b) => this.renderLightChip(b, i.name))}</div>` : Q}
+          ${o.map((b) => b.ids.length ? H`<div class="subroom">
                 <div class="subroom-h">${this.ic(this.roomIcon(b.room.name))}<span>${b.room.name || this.t("Room")}</span>
                   <div class="grow"></div><span class="subroom-n">${b.ids.filter((M) => this.effState(M) === "on").length}/${b.ids.length}</span></div>
                 <div class="lightsegs">${b.ids.map((M) => this.renderLightChip(M, b.room.name))}</div>
               </div>` : Q)}` : Q}
-      ${g || y !== Q ? V`<div class="rcfoot">
-            ${g ? V`<div class="qstat">${this.ic("drop")}${g}</div>` : Q}
+      ${g || y !== Q ? H`<div class="rcfoot">
+            ${g ? H`<div class="qstat">${this.ic("drop")}${g}</div>` : Q}
             ${y}
           </div>` : Q}
     </div>`;
@@ -29362,37 +29363,37 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
   render() {
     if (!this.config) return Q;
     const i = this.config.height ?? "500px", t = this.config.projects ?? [];
-    return V`
+    return H`
       <ha-card
         class=${this.editing ? "editing" : `view ${this.viewMode}${this.viewMode === "room" && this.activeRoom ? " has-room" : ""}${this.viewMode === "room" && this.roomPhoto ? " has-photo" : ""}${this.idle ? " idle" : ""}`}
         style=${this.editing ? "" : `height:${i}`}
       >
-        ${this.viewMode === "room" && this.roomPhoto ? V`<div
+        ${this.viewMode === "room" && this.roomPhoto ? H`<div
               class="roombg${this.roomPhotoBaked ? "" : " raw"}"
               style=${`background-image:url("${(this.roomPhotoBaked ?? this.roomPhoto).replace(/"/g, "%22")}")`}
             ></div>` : Q}
         <div class="viewport" style=${this.editing ? `height:${i}` : ""}></div>
 
-        ${this.loadError ? V`<div class="error">⚠ ${this.loadError}</div>` : Q}
+        ${this.loadError ? H`<div class="error">⚠ ${this.loadError}</div>` : Q}
 
         ${this.editing ? Q : this.renderLeakAlert()}
 
-        ${this.editing ? Q : this.viewMode === "overview" ? V`${this.renderOverview()}${this.renderDetail()}` : V`${this.renderStageChrome()}${this.renderRoomPanel()}`}
+        ${this.editing ? Q : this.viewMode === "overview" ? H`${this.renderOverview()}${this.renderDetail()}` : H`${this.renderStageChrome()}${this.renderRoomPanel()}`}
 
         ${this.showReport && !this.editing ? this.renderReport() : Q}
 
         ${!this.editing && this.idle ? this.renderScreensaver() : Q}
 
-        ${this.editing ? V`<div class="overlay top-right">
+        ${this.editing ? H`<div class="overlay top-right">
               <button class="btn" title="Reset view" @click=${this.onResetView}>⌂ ${this.t("Reset")}</button>
               <div class="quality-wrap">
                 <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
                   @click=${() => this.qualityMenuOpen = !this.qualityMenuOpen}>
                   ⚙ ${this.qualityLabel(this.qualityChoice)}
                 </button>
-                ${this.qualityMenuOpen ? V`<div class="quality-menu">
+                ${this.qualityMenuOpen ? H`<div class="quality-menu">
                       ${g2.map(
-      (e) => V`<button
+      (e) => H`<button
                           class="qopt ${e === this.qualityChoice ? "on" : ""}"
                           @click=${() => this.onPickQuality(e)}>${this.qualityLabel(e)}</button>`
     )}
@@ -29407,7 +29408,7 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
              opens the editor (then the PIN prompt if one is set). A long-press,
              NOT a tap count, so it never clashes with a kiosk browser's own
              multi-tap menu gesture. -->
-        ${this.editing ? Q : V`<div
+        ${this.editing ? Q : H`<div
               class="edit-hotspot"
               @pointerdown=${this.onHotspotDown}
               @pointermove=${this.onHotspotMove}
@@ -29416,11 +29417,11 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               @pointerleave=${this.onHotspotUp}
             ></div>`}
 
-        ${this.qualityMenuOpen ? V`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : Q}
+        ${this.qualityMenuOpen ? H`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : Q}
 
         ${this.editing ? this.renderEditor() : Q}
 
-        ${this.importOpen ? V`<div class="import-modal">
+        ${this.importOpen ? H`<div class="import-modal">
               <div class="import-box">
                 <div class="import-title">Import / Export plan JSON</div>
                 <textarea
@@ -29437,12 +29438,12 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>
             </div>` : Q}
 
-        ${this.pinPromptOpen ? V`<div class="import-modal" @click=${this.cancelPin}>
+        ${this.pinPromptOpen ? H`<div class="import-modal" @click=${this.cancelPin}>
               <form class="pin-box" @click=${(e) => e.stopPropagation()} @submit=${this.submitPin}>
                 <div class="import-title">🔒 Enter edit PIN</div>
                 <input class="pin-input name-input" type="password" inputmode="numeric"
                   autocomplete="off" placeholder="PIN" />
-                ${this.pinError ? V`<div class="pin-error">${this.pinError}</div>` : Q}
+                ${this.pinError ? H`<div class="pin-error">${this.pinError}</div>` : Q}
                 <div class="toolrow">
                   <button type="submit" class="btn primary">Unlock</button>
                   <button type="button" class="btn" @click=${this.cancelPin}>Cancel</button>
@@ -29452,13 +29453,13 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
 
         ${this.controlOpen && !this.editing ? this.renderControlPopup() : Q}
 
-        ${this.toast ? V`<div class="toast">${this.toast}</div>` : Q}
+        ${this.toast ? H`<div class="toast">${this.toast}</div>` : Q}
 
-        ${t.length > 1 ? V`
+        ${t.length > 1 ? H`
               <div class="overlay top-left">
                 <select class="select" @change=${this.onSelectProject}>
                   ${t.map(
-      (e) => V`<option value=${e.id} ?selected=${e.id === this.activeProjectId}>
+      (e) => H`<option value=${e.id} ?selected=${e.id === this.activeProjectId}>
                       ${e.name || e.id}
                     </option>`
     )}
@@ -29466,10 +29467,10 @@ Your other saved projects stay. Unsaved changes in the current one will be lost.
               </div>
             ` : Q}
 
-        ${this.floorNames.length > 1 && this.editing ? V`
+        ${this.floorNames.length > 1 && this.editing ? H`
               <div class="overlay bottom">
                 ${this.floorNames.map(
-      (e, n) => V`
+      (e, n) => H`
                     <button
                       class="tab ${n === this.activeFloorIndex ? "active" : ""}"
                       @click=${() => this.onSelectFloor(n)}
@@ -31985,226 +31986,229 @@ vt([
   yo({ attribute: !1 })
 ], mt.prototype, "narrow", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "config", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "activeProjectId", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "loadError", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "floorNames", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "activeFloorIndex", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editing", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editTool", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedModel", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedObjModel", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editShowAllEntities", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSnap", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editFloorIndex", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedKind", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editOpeningKind", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editOpeningVariant", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editOpeningWidth", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedColor", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedWallLength", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedWallThickness", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedWallAngle", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editRoom", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editFurnScale", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editMaterial", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editCanUndo", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editCanRedo", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editUnderlay", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editCameraDistance", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editIsLight", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editBrightness", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editIsLightSet", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSpread", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editCount", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editZones", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editSelectedZoneId", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editZonePlacing", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "controlOpen", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "controlEntities", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "controlRoom", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "controlCategory", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "controlPos", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "viewMode", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "rooms", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "roomPhoto", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "roomPhotoBaked", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "activeRoomKey", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "detailRoomKey", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "now", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "idle", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "showReport", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "reportMetric", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "sparkMetric", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "dragEntity", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editEntitySearch", 2);
 vt([
-  yt()
+  bt()
+], mt.prototype, "editZoneSearch", 2);
+vt([
+  bt()
 ], mt.prototype, "editFurnSearch", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editAllWallColor", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editAllWallMat", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editAllFloorColor", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editAllFloorMat", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "importOpen", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "importText", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "qualityMenuOpen", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "qualityChoice", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editUnlocked", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "pinPromptOpen", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "pinError", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editPinInput", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "projectList", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "currentProjectId", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editingProjectId", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "editPlanName", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "paletteOpen", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "toast", 2);
 vt([
   tp(".viewport")
 ], mt.prototype, "viewport", 2);
 vt([
-  yt()
+  bt()
 ], mt.prototype, "leakAck", 2);
 mt = vt([
   du("ha-3d-floorplan-card")
@@ -32270,7 +32274,7 @@ let mi = class extends cs {
     }
   }
   render() {
-    return this._config ? V`
+    return this._config ? H`
       <div class="form">
         <label>
           Card height
@@ -32321,7 +32325,7 @@ let mi = class extends cs {
             @input=${this._onPlanInput}
           ></textarea>
         </label>
-        ${this._jsonError ? V`<div class="err">⚠ ${this._jsonError}</div>` : Q}
+        ${this._jsonError ? H`<div class="err">⚠ ${this._jsonError}</div>` : Q}
 
         <p class="hint">
           A full visual wall-drawing editor with a furniture palette and
@@ -32378,13 +32382,13 @@ Eo([
   yo({ attribute: !1 })
 ], mi.prototype, "hass", 2);
 Eo([
-  yt()
+  bt()
 ], mi.prototype, "_config", 2);
 Eo([
-  yt()
+  bt()
 ], mi.prototype, "_planText", 2);
 Eo([
-  yt()
+  bt()
 ], mi.prototype, "_jsonError", 2);
 mi = Eo([
   du("ha-3d-floorplan-card-editor")

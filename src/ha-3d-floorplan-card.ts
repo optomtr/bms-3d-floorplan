@@ -262,6 +262,8 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private dragEntity: string | null = null;
   private dragValue = 0;
   @state() private editEntitySearch = '';
+  /** Search box for the room's device picker (it lists every HA entity). */
+  @state() private editZoneSearch = '';
   @state() private editFurnSearch = '';
   // Whole-floor surface appearance pickers (apply to all walls / all floors).
   @state() private editAllWallColor = '#e8e6e1';
@@ -1977,7 +1979,6 @@ export class Ha3dFloorplanCard extends LitElement {
           if (!z) return this.editZones.length
             ? html`<span class="hint">select a room to place its icon &amp; pick devices</span>`
             : html`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
-          const ents = this.editor?.floorEntities ?? [];
           const tOpts = this.sensorCandidates('temp', z.tempSensor);
           const fOpts = this.sensorCandidates('temp', z.floorSensor);
           const hOpts = this.sensorCandidates('humidity', z.humiditySensor);
@@ -2053,20 +2054,38 @@ export class Ha3dFloorplanCard extends LitElement {
                   </div>`
               : nothing}
             ${(() => {
-              const add = ents.filter((en) => !z.entities.includes(en.entity_id));
-              if (!add.length) {
-                return ents.length ? nothing : html`<span class="hint">bind entities to furniture first, then add them here</span>`;
-              }
-              return html`<span class="hint">Add device (· room = already assigned):</span>
-                <div class="zone-devs">
-                  ${add.map((en) => {
-                    const taken = this.boundElsewhere(en.entity_id, z.id);
-                    return html`<label class="zone-dev ${taken ? 'taken' : ''}">
-                      <input type="checkbox" @change=${() => this.onToggleZoneDevice(z.id, en.entity_id)} />
-                      <span>${this.entityShort(en.entity_id)}${taken ? html`<em class="taken-tag"> · ${taken}</em>` : nothing}</span>
-                    </label>`;
-                  })}
-                </div>`;
+              // A room is an EXPLICIT device list, so offer every entity Home
+              // Assistant knows — not only the ones bound to a 3D model. The
+              // scene already gives an unbound entity its domain as behaviour,
+              // so it lands in the right panel category with full controls and
+              // nothing has to be drawn for it.
+              const q = this.editZoneSearch.trim().toLowerCase();
+              const pool = this.candidateEntities([]).ids.filter((id) => !z.entities.includes(id));
+              const hits = q ? pool.filter((id) => this.entityOptionText(id).toLowerCase().includes(q)) : pool;
+              const LIMIT = 60; // a whole house is thousands of entities — keep the DOM sane
+              const shown = hits.slice(0, LIMIT);
+              return html`<div class="panel-group">Добавить устройство в комнату</div>
+                <div class="toolrow">
+                  <input class="select wide" type="search"
+                    placeholder="🔍 имя, комната или entity_id…"
+                    .value=${this.editZoneSearch}
+                    @input=${(e: Event) => (this.editZoneSearch = (e.target as HTMLInputElement).value)} />
+                </div>
+                ${shown.length
+                  ? html`<div class="zone-devs">
+                        ${shown.map((id) => {
+                          const taken = this.boundElsewhere(id, z.id);
+                          return html`<label class="zone-dev ${taken ? 'taken' : ''}"
+                            title=${this.entityOptionText(id)}>
+                            <input type="checkbox" @change=${() => this.onToggleZoneDevice(z.id, id)} />
+                            <span>${this.entityShort(id)}${taken ? html`<em class="taken-tag"> · ${taken}</em>` : nothing}</span>
+                          </label>`;
+                        })}
+                      </div>
+                      ${hits.length > LIMIT
+                        ? html`<span class="hint">показано ${LIMIT} из ${hits.length} — уточните поиск</span>`
+                        : nothing}`
+                  : html`<span class="hint">ничего не найдено</span>`}`;
             })()}`;
         })()}
 

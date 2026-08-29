@@ -1294,19 +1294,6 @@ export class EditorController {
   get zonePlacing(): boolean {
     return this.zonePlaceMode;
   }
-  /** All entities bound on this floor, for the zone membership checklist. */
-  get floorEntities(): { entity_id: string; name: string }[] {
-    const seen = new Set<string>();
-    const out: { entity_id: string; name: string }[] = [];
-    for (const b of this.floor().bindings ?? []) {
-      if (b.entity_id && !seen.has(b.entity_id)) {
-        seen.add(b.entity_id);
-        out.push({ entity_id: b.entity_id, name: b.entity_id });
-      }
-    }
-    return out;
-  }
-
   /** Refresh the edit-mode zone dots (so the user sees where icons sit). */
   private refreshZones(): void {
     this.sm.drawZoneDots(this.zones, this.elevation(), this.selectedZoneId);
