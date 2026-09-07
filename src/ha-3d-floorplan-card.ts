@@ -40,6 +40,14 @@ import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
 import { ICON_PATHS, climateModeIconName } from './scene/icons';
 import { FONT_FACE_CSS } from './scene/fonts';
 
+/** Read a number a HUMAN typed. On RU/UZ keyboards the decimal separator is a
+ *  comma, and `<input type="number">` does not accept one: the browser drops it
+ *  and «3,5» arrives as «35» — a 35-metre-thick wall. So the size fields are
+ *  plain text with a decimal keypad, and every one of them comes through here. */
+function humanNum(raw: string): number {
+  return parseFloat(String(raw ?? '').trim().replace(',', '.'));
+}
+
 /** Step for a climate ±: whole degrees, never finer. A Generic Thermostat
  *  reports target_temp_step 0.1 (Celsius default precision, not settable from
  *  its helper flow), which makes ± crawl 21.0 → 21.1 and land on values like
@@ -1388,17 +1396,17 @@ export class BmsFloorplanCard extends LitElement {
   }
 
   private onSetCameraDistance(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v)) this.editor?.setCameraDistance(v);
   }
 
   private onSetBrightness(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v)) this.editor?.setBrightness(v);
   }
 
   private onSetSpread(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v)) this.editor?.setSpread(v);
   }
 
@@ -1487,7 +1495,7 @@ export class BmsFloorplanCard extends LitElement {
   }
 
   private onSetOpeningWidth(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v) && v > 0) this.editor?.setOpeningWidth(v);
   }
 
@@ -1622,7 +1630,7 @@ export class BmsFloorplanCard extends LitElement {
   }
 
   private onSetFurnScale(axis: 0 | 1 | 2, e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v)) this.editor?.setFurnitureScale(axis, v);
   }
 
@@ -1677,17 +1685,17 @@ export class BmsFloorplanCard extends LitElement {
   }
 
   private onSetWallLength(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v) && v > 0) this.editor?.setWallLength(v);
   }
 
   private onSetWallThickness(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v) && v > 0) this.editor?.setWallThickness(v);
   }
 
   private onSetWallAngle(e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     if (!Number.isNaN(v)) this.editor?.setWallAngle(v);
   }
 
@@ -1728,7 +1736,7 @@ export class BmsFloorplanCard extends LitElement {
   }
 
   private onSetUnderlayField(field: 'widthM' | 'opacity' | 'rotation', e: Event): void {
-    const v = parseFloat((e.target as HTMLInputElement).value);
+    const v = humanNum((e.target as HTMLInputElement).value);
     this.editor?.setUnderlayField(field, v);
   }
 
@@ -2299,7 +2307,7 @@ export class BmsFloorplanCard extends LitElement {
         ${this.editUnderlay
           ? html`<div class="toolrow">
                 <label class="hint">Width (m):</label>
-                <input class="num-input" type="number" min="0.5" step="0.1"
+                <input class="num-input" type="text" inputmode="decimal" min="0.5" step="0.1"
                   .value=${String(this.editUnderlay.widthM)}
                   @change=${(e: Event) => this.onSetUnderlayField('widthM', e)} />
                 <label class="hint">Opacity:</label>
@@ -2307,7 +2315,7 @@ export class BmsFloorplanCard extends LitElement {
                   .value=${String(this.editUnderlay.opacity ?? 0.6)}
                   @input=${(e: Event) => this.onSetUnderlayField('opacity', e)} />
                 <label class="hint">Rotate°:</label>
-                <input class="num-input" type="number" step="1"
+                <input class="num-input" type="text" inputmode="decimal" step="1"
                   .value=${String(this.editUnderlay.rotation ?? 0)}
                   @change=${(e: Event) => this.onSetUnderlayField('rotation', e)} />
               </div>
@@ -2631,7 +2639,7 @@ export class BmsFloorplanCard extends LitElement {
                   ${this.editSelectedObjModel === 'spotlight_bar'
                     ? html`<div class="toolrow">
                         <span class="hint">Spots:</span>
-                        <input class="num-input" type="number" min="1" max="12" step="1"
+                        <input class="num-input" type="text" inputmode="decimal" min="1" max="12" step="1"
                           .value=${String(this.editCount)}
                           @change=${this.onSetCount} />
                       </div>`
@@ -2658,7 +2666,7 @@ export class BmsFloorplanCard extends LitElement {
                     : nothing}
                   <div class="toolrow">
                     <span class="hint">Width (m):</span>
-                    <input class="num-input" type="number" min="0.3" step="0.1"
+                    <input class="num-input" type="text" inputmode="decimal" min="0.3" step="0.1"
                       .value=${this.editOpeningWidth != null ? this.editOpeningWidth.toFixed(2) : ''}
                       @change=${this.onSetOpeningWidth} />
                   </div>`
@@ -2685,13 +2693,13 @@ export class BmsFloorplanCard extends LitElement {
             ${isFurniture && this.editFurnScale && !this.editIsLightSet
               ? html`<div class="toolrow">
                   <span class="hint">Size</span>
-                  <input class="num-input" type="number" min="0.1" step="0.1" title="Width"
+                  <input class="num-input" type="text" inputmode="decimal" min="0.1" step="0.1" title="Width"
                     .value=${this.editFurnScale[0].toFixed(1)}
                     @change=${(e: Event) => this.onSetFurnScale(0, e)} />
-                  <input class="num-input" type="number" min="0.1" step="0.1" title="Height"
+                  <input class="num-input" type="text" inputmode="decimal" min="0.1" step="0.1" title="Height"
                     .value=${this.editFurnScale[1].toFixed(1)}
                     @change=${(e: Event) => this.onSetFurnScale(1, e)} />
-                  <input class="num-input" type="number" min="0.1" step="0.1" title="Depth"
+                  <input class="num-input" type="text" inputmode="decimal" min="0.1" step="0.1" title="Depth"
                     .value=${this.editFurnScale[2].toFixed(1)}
                     @change=${(e: Event) => this.onSetFurnScale(2, e)} />
                 </div>`
@@ -2701,7 +2709,8 @@ export class BmsFloorplanCard extends LitElement {
                   <span class="hint">Length (m):</span>
                   <input
                     class="num-input"
-                    type="number"
+                    type="text"
+                    inputmode="decimal"
                     min="0.1"
                     step="0.1"
                     .value=${this.editSelectedWallLength != null ? this.editSelectedWallLength.toFixed(2) : ''}
@@ -2711,11 +2720,11 @@ export class BmsFloorplanCard extends LitElement {
                 </div>
                 <div class="toolrow">
                   <span class="hint">Thickness (m):</span>
-                  <input class="num-input" type="number" min="0.05" step="0.01" title="Wall thickness in meters (e.g. 0.25, 0.38, 0.78)"
+                  <input class="num-input" type="text" inputmode="decimal" min="0.05" step="0.01" title="Wall thickness in meters (e.g. 0.25, 0.38, 0.78)"
                     .value=${this.editSelectedWallThickness != null ? this.editSelectedWallThickness.toFixed(2) : ''}
                     @change=${this.onSetWallThickness} />
                   <span class="hint">Angle (°):</span>
-                  <input class="num-input" type="number" step="1" title="Absolute heading in degrees (45 = diagonal), pivots on the start point"
+                  <input class="num-input" type="text" inputmode="decimal" step="1" title="Absolute heading in degrees (45 = diagonal), pivots on the start point"
                     .value=${this.editSelectedWallAngle != null ? this.editSelectedWallAngle.toFixed(0) : ''}
                     @change=${this.onSetWallAngle} />
                 </div>
@@ -2738,21 +2747,21 @@ export class BmsFloorplanCard extends LitElement {
                   </div>
                   <div class="toolrow">
                     <span class="hint">W</span>
-                    <input class="num-input" type="number" min="0.5" step="0.1"
+                    <input class="num-input" type="text" inputmode="decimal" min="0.5" step="0.1"
                       .value=${(this.editRoom.width ?? 0).toFixed(1)}
                       @change=${(e: Event) => this.onSetRoomField('width', e)} />
                     <span class="hint">D</span>
-                    <input class="num-input" type="number" min="0.5" step="0.1"
+                    <input class="num-input" type="text" inputmode="decimal" min="0.5" step="0.1"
                       .value=${(this.editRoom.depth ?? 0).toFixed(1)}
                       @change=${(e: Event) => this.onSetRoomField('depth', e)} />
                   </div>
                   <div class="toolrow">
                     <span class="hint">Height</span>
-                    <input class="num-input" type="number" min="1" step="0.1"
+                    <input class="num-input" type="text" inputmode="decimal" min="1" step="0.1"
                       .value=${(this.editRoom.height ?? 2.6).toFixed(1)}
                       @change=${(e: Event) => this.onSetRoomField('height', e)} />
                     <span class="hint">Rot°</span>
-                    <input class="num-input" type="number" step="15"
+                    <input class="num-input" type="text" inputmode="decimal" step="15"
                       .value=${Math.round(this.editRoom.rotation ?? 0).toString()}
                       @change=${(e: Event) => this.onSetRoomField('rotation', e)} />
                   </div>

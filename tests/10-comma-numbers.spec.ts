@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openHarness, mountCard, enterEditFast, patchedRun } from './helpers/harness';
+import { openHarness, mountCard, enterEditFast } from './helpers/harness';
 import { simplePlan, baseStates } from './helpers/plans';
 
 /**
@@ -60,11 +60,6 @@ test.describe('Числа с запятой', () => {
   });
 
   test('разбор размера сам понимает запятую, без помощи браузера', async ({ page }) => {
-    test.fail(
-      !patchedRun(),
-      'ДЕФЕКТ: обработчики размеров зовут parseFloat без нормализации — «3,5» читается как 3. Сейчас спасает только приведение внутри <input type="number">',
-    );
-
     await openHarness(page);
     await mountCard(page, { config: { plan: simplePlan() }, states: baseStates() });
     await enterEditFast(page);

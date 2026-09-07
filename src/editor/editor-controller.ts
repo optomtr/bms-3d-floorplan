@@ -1007,7 +1007,8 @@ export class EditorController {
     this.pushUndo();
     if (field === 'name') room.name = String(value);
     else {
-      const v = Number(value);
+      // «3,5» с русской раскладки: Number('3,5') это NaN, правка молча терялась.
+      const v = parseFloat(String(value).trim().replace(',', '.'));
       if (Number.isNaN(v)) return;
       if (field === 'width') room.width = Math.max(0.5, v);
       else if (field === 'depth') room.depth = Math.max(0.5, v);
