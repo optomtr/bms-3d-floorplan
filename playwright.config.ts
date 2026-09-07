@@ -1,7 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/** Выделенный порт стенда. 10080 в компании запрещён, 8732 занят превью. */
-export const PORT = 8733;
+/** Выделенный порт стенда. 10080 в компании запрещён, 8732 занят превью.
+ *  BMS_PORT разводит параллельные копии репозитория по своим портам: два
+ *  прогона на одном порту переиспользуют ЧУЖОЙ стенд и начинают проверять
+ *  чужой бандл — зелень при этом ничего не значит. */
+export const PORT = Number(process.env.BMS_PORT) || 8733;
 export const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
