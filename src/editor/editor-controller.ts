@@ -28,6 +28,8 @@ import { centroid, closedFaces, mergeCollinearWalls, signedArea } from './topolo
 import { PlanHistory } from './history';
 import { applyGizmo, buildGizmo, gizmoStart, type GizmoStart } from './gizmo';
 import { renderPreview } from './preview';
+import { makeZone, setZonePhoto, setZoneParent, setZoneSensor, swapInList, toggleZoneDevice } from './zones';
+import { makeUnderlay, nudgeUnderlay, rescaleUnderlay, setUnderlayField } from './underlay';
 import {
   GLAZING_MODELS,
   WALL_CUT_MODELS,
@@ -967,12 +969,13 @@ export class EditorController {
     if (!fl.zones) fl.zones = [];
     const zones = fl.zones;
     this.edit(() => {
-      // Default the icon to the camera focus (already clamped to the active floor)
-      // rather than the whole-scene centre, which the origin grid would dominate.
+      // Значок по умолчанию — в фокусе камеры (он уже прижат к активному
+      // этажу), а не в центре всей сцены, где его перебила бы сетка начала
+      // координат.
       const t = this.sm.controls.target;
-      const id = `z${zones.length}_${Math.floor(performance.now() % 100000)}`;
-      zones.push({ id, name: `Room ${zones.length + 1}`, x: Math.round(t.x), z: Math.round(t.z), entities: [] });
-      this.selectedZoneId = id;
+      const zone = makeZone(zones, t.x, t.z);
+      zones.push(zone);
+      this.selectedZoneId = zone.id;
     }, 'zones');
   }
 
@@ -990,14 +993,7 @@ export class EditorController {
   setZoneBgImage(id: string, value: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
-    this.edit(() => {
-      // Stored exactly as given. Rewriting a File-editor link to /local here threw
-      // the original away, so when that guess was wrong the photo was gone for
-      // good; the loader tries both instead (see assetCandidates).
-      const v = String(value).trim();
-      if (v) z.bgImage = v;
-      else delete z.bgImage;
-    }, 'none');
+    this.edit(() => setZonePhoto(z, value), 'none');
   }
 
   setZoneName(id: string, name: string): void {
@@ -1012,15 +1008,7 @@ export class EditorController {
   setZoneParent(id: string, parentId: string | null): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z || parentId === id) return;
-    this.edit(() => {
-      if (parentId) {
-        z.parentId = parentId;
-        // A zone that becomes a parent can't itself stay a sub-room.
-        for (const c of this.zones) if (c.parentId === id) delete c.parentId;
-      } else {
-        delete z.parentId;
-      }
-    }, 'none');
+    this.edit(() => setZoneParent(this.zones, z, parentId), 'none');
   }
 
   /** Bind (or clear, with an empty value) the sensor a room reads for one of its
@@ -1029,12 +1017,7 @@ export class EditorController {
   setZoneSensor(id: string, kind: 'temp' | 'floor' | 'humidity', entityId: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
-    this.edit(() => {
-      const key = kind === 'temp' ? 'tempSensor' : kind === 'floor' ? 'floorSensor' : 'humiditySensor';
-      const v = String(entityId).trim();
-      if (v) z[key] = v;
-      else delete z[key];
-    }, 'none');
+    this.edit(() => setZoneSensor(z, kind, entityId), 'none');
   }
 
   deleteZone(id: string): void {
@@ -1050,11 +1033,7 @@ export class EditorController {
   toggleZoneDevice(id: string, entityId: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
-    this.edit(() => {
-      z.entities = z.entities.includes(entityId)
-        ? z.entities.filter((e) => e !== entityId)
-        : [...z.entities, entityId];
-    }, 'none');
+    this.edit(() => toggleZoneDevice(z, entityId), 'none');
   }
 
   /** Reorder rooms: move a zone up/down in the floor's zone list. That order
@@ -1066,9 +1045,7 @@ export class EditorController {
     const i = zs.findIndex((z) => z.id === id);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= zs.length) return;
-    this.edit(() => {
-      [zs[i], zs[j]] = [zs[j], zs[i]];
-    }, 'zones');
+    this.edit(() => swapInList(zs, i, j), 'zones');
   }
 
   /** Reorder a device within a room — the room panel lists lights (and other
@@ -1080,9 +1057,7 @@ export class EditorController {
     const i = es.indexOf(entityId);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= es.length) return;
-    this.edit(() => {
-      [es[i], es[j]] = [es[j], es[i]];
-    }, 'none');
+    this.edit(() => swapInList(es, i, j), 'none');
   }
 
   /** Arm "place" mode — the next floor tap sets the selected zone's icon spot. */
@@ -1236,74 +1211,100 @@ export class EditorController {
     this.refreshZones(); // show hand-placed room icons for this floor
   }
 
+  /**
+   * Что делает ТАП каждым инструментом. Таблица вместо лестницы из семи `if`:
+   * добавить инструмент — значит добавить сюда строчку, а не найти нужное место
+   * в цепочке условий и не забыть про `return`.
+   *
+   * Режимы, которые перехватывают тап у ЛЮБОГО инструмента (калибровка
+   * подложки, постановка значка комнаты), проверяются до таблицы — они на то и
+   * режимы.
+   */
+  private readonly toolTap: Record<EditTool, (p: THREE.Vector3, e?: PointerEvent) => void> = {
+    wall: (p) => this.chainTap(p, false),
+    floor: (p) => this.chainTap(p, true),
+    arc: (p) => this.arcClick(this.snapPoint(p.x, p.z).pt),
+    furniture: (p) => this.placeFurniture(p),
+    door: (p) => this.addOpening(p, 'door'),
+    window: (p) => this.addOpening(p, 'window'),
+    opening: (p) => this.addOpening(p, 'opening'),
+    select: (_p, e) => this.selectTap(e),
+  };
+
+  /** Инструменты, которым важно ДВИЖЕНИЕ указателя (ведут призрак отрезка). */
+  private readonly toolMove: Partial<Record<EditTool, (p: THREE.Vector3) => void>> = {
+    wall: (p) => this.trackCursor(p),
+    floor: (p) => this.trackCursor(p),
+    arc: (p) => this.trackCursor(p),
+  };
+
   private onClick(p: THREE.Vector3, e?: PointerEvent): void {
     // Underlay scale calibration: collect two ground points a known distance
     // apart, then ask the host for the real length.
     if (this.calibrating) {
-      this.calibPts.push([p.x, p.z]);
-      if (this.calibPts.length >= 2) {
-        const a = this.calibPts[0];
-        const b = this.calibPts[1];
-        const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        this.calibrating = false;
-        this.calibPts = [];
-        this.onCalibrate?.(d);
-      } else {
-        this.onMessage?.('Now tap the second point');
-      }
+      this.calibrateTap(p);
       return;
     }
     // Placing a manual room icon: the next tap sets its position.
     if (this.zonePlaceMode) {
-      const z = this.selectedZone;
-      if (z) {
-        this.pushUndo();
-        z.x = Math.round(p.x * 10) / 10;
-        z.z = Math.round(p.z * 10) / 10;
-        this.zonePlaceMode = false;
-        this.refreshZones();
-        this.onChange?.();
-      }
+      this.zonePlaceTap(p);
       return;
     }
-    if (this.tool === 'furniture') {
-      this.placeFurniture(p);
+    this.toolTap[this.tool]?.(p, e);
+  }
+
+  /** Калибровка масштаба подложки: два тапа по полу на известном расстоянии. */
+  private calibrateTap(p: THREE.Vector3): void {
+    this.calibPts.push([p.x, p.z]);
+    if (this.calibPts.length >= 2) {
+      const a = this.calibPts[0];
+      const b = this.calibPts[1];
+      const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      this.calibrating = false;
+      this.calibPts = [];
+      this.onCalibrate?.(d);
+    } else {
+      this.onMessage?.('Now tap the second point');
+    }
+  }
+
+  /** Тап ставит значок выбранной ручной комнаты. */
+  private zonePlaceTap(p: THREE.Vector3): void {
+    const z = this.selectedZone;
+    if (!z) return;
+    this.edit(() => {
+      z.x = Math.round(p.x * 10) / 10;
+      z.z = Math.round(p.z * 10) / 10;
+      this.zonePlaceMode = false;
+    }, 'zones');
+  }
+
+  /** Инструмент «выбор»: тап выбирает (тяга обрабатывается отдельно — это либо
+   *  камера, либо перенос уже схваченного объекта). */
+  private selectTap(e?: PointerEvent): void {
+    const hitF = e ? this.sm.pickFurniture(e) : null;
+    if (hitF) {
+      this.selectFurniture(hitF.id);
       return;
     }
-    if (this.tool === 'arc') {
-      const { pt } = this.snapPoint(p.x, p.z);
-      this.arcClick(pt);
+    // Створка двери/окна важнее своей стены — иначе её не выбрать.
+    const hitOp = e ? this.sm.pickOpening(e) : null;
+    if (hitOp) {
+      this.selectOpening(hitOp.wallIndex, hitOp.openingIndex);
       return;
     }
-    if (this.tool === 'door' || this.tool === 'window' || this.tool === 'opening') {
-      this.addOpening(p, this.tool);
+    const hitW = e ? this.sm.pickWall(e) : null;
+    if (hitW) {
+      this.selectWall(hitW.index);
       return;
     }
-    if (this.tool === 'select') {
-      // Tap selects (drag is handled separately: camera, or move a grabbed item).
-      const hitF = e ? this.sm.pickFurniture(e) : null;
-      if (hitF) {
-        this.selectFurniture(hitF.id);
-        return;
-      }
-      // A door/window leaf takes priority over its wall, so it's selectable.
-      const hitOp = e ? this.sm.pickOpening(e) : null;
-      if (hitOp) {
-        this.selectOpening(hitOp.wallIndex, hitOp.openingIndex);
-        return;
-      }
-      const hitW = e ? this.sm.pickWall(e) : null;
-      if (hitW) {
-        this.selectWall(hitW.index);
-        return;
-      }
-      const hitR = e ? this.sm.pickRoom(e) : null;
-      if (hitR) this.selectRoom(hitR.index);
-      else this.clearSelection();
-      return;
-    }
-    if (this.tool !== 'wall' && this.tool !== 'floor') return;
-    const floorTool = this.tool === 'floor';
+    const hitR = e ? this.sm.pickRoom(e) : null;
+    if (hitR) this.selectRoom(hitR.index);
+    else this.clearSelection();
+  }
+
+  /** Тап инструментами «стена» и «пол»: ведём цепочку точек. */
+  private chainTap(p: THREE.Vector3, floorTool: boolean): void {
     const { pt } = this.snapPoint(p.x, p.z);
 
     // First tap: drop the start point.
@@ -1417,15 +1418,12 @@ export class EditorController {
   }
 
   private onMove(p: THREE.Vector3): void {
-    if (this.tool === 'arc') {
-      if (this.chain.length === 0) return;
-      const r = this.snapPoint(p.x, p.z);
-      this.cursor = r.pt;
-      this.snapInfo = r;
-      this.renderPreview();
-      return;
-    }
-    if ((this.tool !== 'wall' && this.tool !== 'floor') || this.chain.length === 0) return;
+    this.toolMove[this.tool]?.(p);
+  }
+
+  /** Вести курсор за указателем: пока цепочка не начата, вести нечего. */
+  private trackCursor(p: THREE.Vector3): void {
+    if (this.chain.length === 0) return;
     const r = this.snapPoint(p.x, p.z);
     this.cursor = r.pt;
     this.snapInfo = r;
@@ -1524,16 +1522,7 @@ export class EditorController {
     this.pushUndo();
     const fl = this.floor();
     const c = this.sm.controls.target;
-    const prev = fl.underlay;
-    fl.underlay = {
-      image,
-      widthM: prev?.widthM ?? 10,
-      aspect: naturalW > 0 ? naturalH / naturalW : 1,
-      x: prev?.x ?? Math.round(c.x * 100) / 100,
-      z: prev?.z ?? Math.round(c.z * 100) / 100,
-      rotation: prev?.rotation ?? 0,
-      opacity: prev?.opacity ?? 0.6,
-    };
+    fl.underlay = makeUnderlay(fl.underlay, image, naturalW, naturalH, { x: c.x, z: c.z });
     this.applyUnderlay();
     this.onChange?.();
     this.onMessage?.('Reference image added — set its width (m), then trace walls');
@@ -1542,20 +1531,13 @@ export class EditorController {
   setUnderlayField(field: 'widthM' | 'opacity' | 'rotation' | 'x' | 'z', value: number): void {
     const u = this.floor().underlay;
     if (!u || Number.isNaN(value)) return;
-    this.edit(() => {
-      if (field === 'widthM') u.widthM = Math.max(0.2, value);
-      else if (field === 'opacity') u.opacity = Math.max(0.05, Math.min(1, value));
-      else u[field] = value;
-    }, 'underlay');
+    this.edit(() => setUnderlayField(u, field, value), 'underlay');
   }
 
   nudgeUnderlay(dx: number, dz: number): void {
     const u = this.floor().underlay;
     if (!u) return;
-    this.edit(() => {
-      u.x = Math.round(((u.x ?? 0) + dx) * 100) / 100;
-      u.z = Math.round(((u.z ?? 0) + dz) * 100) / 100;
-    }, 'underlay');
+    this.edit(() => nudgeUnderlay(u, dx, dz), 'underlay');
   }
 
   /** Begin two-point scale calibration (the next two ground taps). */
@@ -1576,7 +1558,7 @@ export class EditorController {
     const fl = this.floor();
     if (!fl.underlay || !(measured > 0) || !(real > 0)) return;
     this.pushUndo();
-    fl.underlay.widthM = Math.max(0.2, fl.underlay.widthM * (real / measured));
+    rescaleUnderlay(fl.underlay, measured, real);
     this.applyUnderlay();
     this.onChange?.();
     this.onMessage?.(`Scale set — ${real} m across those points`);
