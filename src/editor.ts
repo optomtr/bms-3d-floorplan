@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// <ha-3d-floorplan-card-editor> — visual config editor for the card picker.
+// <bms-floorplan-card-editor> — visual config editor for the card picker.
 //
 // Phase 1 scope: edit card-level settings (height/background/url/backend) and
 // the floor-plan JSON directly, with live validation. Changes are written back
@@ -12,11 +12,17 @@
 // ---------------------------------------------------------------------------
 
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type { CardConfig, HomeAssistant, FloorPlan } from './types';
 
-@customElement('ha-3d-floorplan-card-editor')
-export class Ha3dFloorplanCardEditor extends LitElement {
+/** The integration loads this bundle on every Home Assistant page, so the same
+ *  tag can be handed to customElements twice (two dashboards, a kiosk frame, an
+ *  older copy of the resource still listed in Lovelace). A second define() for a
+ *  name that already exists THROWS, and the throw kills the whole module — the
+ *  card disappears entirely. Register only if the name is still free. */
+export const EDITOR_TAG = 'bms-floorplan-card-editor';
+
+export class BmsFloorplanCardEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @state() private _config?: CardConfig;
   @state() private _planText = '';
@@ -185,8 +191,10 @@ export class Ha3dFloorplanCardEditor extends LitElement {
   `;
 }
 
+if (!customElements.get(EDITOR_TAG)) customElements.define(EDITOR_TAG, BmsFloorplanCardEditor);
+
 declare global {
   interface HTMLElementTagNameMap {
-    'ha-3d-floorplan-card-editor': Ha3dFloorplanCardEditor;
+    'bms-floorplan-card-editor': BmsFloorplanCardEditor;
   }
 }

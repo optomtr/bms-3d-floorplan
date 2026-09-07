@@ -40,7 +40,7 @@
         background: #2a2d34;
       }
       /* Provide the HA card CSS vars the card references. */
-      ha-3d-floorplan-card {
+      bms-floorplan-card {
         --primary-color: #03a9f4;
         --primary-text-color: #eee;
         --card-background-color: #1b1d22;
@@ -92,7 +92,7 @@
     </script>
 
     <script type="module">
-      import '../dist/ha-3d-floorplan-card.js';
+      import '../dist/bms-floorplan-card.js';
 
       // --- Mock hass object -------------------------------------------------
       const states = {
@@ -146,11 +146,11 @@
         };
       }
 
-      const card = document.createElement('ha-3d-floorplan-card');
+      const card = document.createElement('bms-floorplan-card');
       // Cache-busted: a browser-cached plan silently keeps testing the OLD
       // layout after you edit the example, which reads as "my change did nothing".
       const plan = await (await fetch('../examples/home.json', { cache: 'no-store' })).json();
-      card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '520px', plan });
+      card.setConfig({ type: 'custom:bms-floorplan-card', height: '520px', plan });
       document.getElementById('card-host').appendChild(card);
 
       function push() {

@@ -1,12 +1,17 @@
-# 3D Floor Plan Card
+# BMS Планировка
 
-Interactive true-3D floor plan for Home Assistant with live entity bindings.
+Интерактивная 3D-планировка объекта для Home Assistant с живой привязкой
+сущностей.
 
-- Auto-adds a "3D Floor Plan" item to the HA sidebar (no YAML needed).
-- No entity-count caps.
-- Tablet-proof touch controls with a one-tap Reset view.
-- Multi-floor and multi-building support.
-- Built-in recolorable furniture + custom `.glb` support.
-- Pure frontend card — no add-on, no Supervisor required.
+- Добавляет пункт «BMS Планировка» в боковое меню — без YAML.
+- Ограничений на количество сущностей нет.
+- Редактор встроен в сцену: стены, проёмы, мебель, привязка сущностей.
+- Несколько этажей и несколько объектов в одной карточке.
+- Встроенная перекрашиваемая мебель плюс свои модели `.glb`.
+- Киоск для настенного планшета: только 3D, вход по сессии браузера, без токенов.
+- Интеграция, а не дополнение — Supervisor не нужен.
 
-See the README for full configuration and the floor-plan schema.
+Ставится **рядом со старой версией**: она продолжает работать, а её планы
+переносятся кнопкой и остаются нетронутыми.
+
+Подробности, схема плана и настройки киоска — в README.

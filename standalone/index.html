@@ -22,7 +22,7 @@
         display: block;
         height: 100%;
       }
-      ha-3d-floorplan-card {
+      bms-floorplan-card {
         --primary-color: #03a9f4;
         --primary-text-color: #eee;
         --card-background-color: #1b1d22;
@@ -149,7 +149,7 @@
          copying files, no token entry on the device.
 
       B) MANUAL — serve this folder yourself:
-         1. Copy the built card next to this file:  ha-3d-floorplan-card.js
+         1. Copy the built card next to this file:  bms-floorplan-card.js
          2. (Optional, view-only) put an exported plan next to it: plan.json
          3. Serve, e.g.:  python -m http.server 8099
          4. For LIVE control, tap ⚙ and enter your HA URL + a long-lived token.
@@ -220,7 +220,7 @@
       };
       // Card path: trusted server-provided path first (HA serves the bundle off
       // its own root, not next to this page), then a same-origin ?card= override.
-      const cardUrl = (inj && inj.cardUrl) || sameOrigin(params.get('card')) || './ha-3d-floorplan-card.js';
+      const cardUrl = (inj && inj.cardUrl) || sameOrigin(params.get('card')) || './bms-floorplan-card.js';
       const planUrl = sameOrigin(params.get('plan')) || './plan.json';
 
       // --- Credentials ----------------------------------------------------
@@ -356,8 +356,8 @@
         currentPlan = plan;
         lastPlanJson = JSON.stringify(plan);
         if (card) return card;
-        card = document.createElement('ha-3d-floorplan-card');
-        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', idleMinutes: 2, plan });
+        card = document.createElement('bms-floorplan-card');
+        card.setConfig({ type: 'custom:bms-floorplan-card', height: '100vh', idleMinutes: 2, plan });
         document.body.appendChild(card);
         return card;
       }
@@ -372,7 +372,7 @@
         if (!card) { ensureCard(plan); return true; }
         currentPlan = plan;
         lastPlanJson = json;
-        card.setConfig({ type: 'custom:ha-3d-floorplan-card', height: '100vh', idleMinutes: 2, plan });
+        card.setConfig({ type: 'custom:bms-floorplan-card', height: '100vh', idleMinutes: 2, plan });
         return true;
       }
 
@@ -562,8 +562,15 @@
         // command) or when nothing is saved yet.
         async function fetchSharedPlan() {
           try {
+            const p = pickProject(await request({ type: 'bms_floorplan/plan/get' }));
+            if (p) { planSource = 'общий'; return p; }
+          } catch {
+            // Our integration isn't installed here yet — fall through to the
+            // old one's shared plan below (READ ONLY, never written).
+          }
+          try {
             const p = pickProject(await request({ type: 'ha_3d_floorplan/plan/get' }));
-            if (p) planSource = 'общий';
+            if (p) planSource = 'общий (старая версия)';
             return p;
           } catch {
             // Older integration (unknown command) or HA not restarted after the
@@ -576,10 +583,13 @@
         // writes). Used when the shared endpoint isn't there yet.
         async function fetchUserPlan() {
           try {
-            const res = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
+            const res = await request({ type: 'frontend/get_user_data', key: 'bms_floorplan_projects' });
             const p = pickProject(res && res.value);
-            if (p) planSource = 'свой';
-            return p;
+            if (p) { planSource = 'свой'; return p; }
+            const old = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
+            const q = pickProject(old && old.value);
+            if (q) planSource = 'свой (старая версия)';
+            return q;
           } catch {
             return null;
           }

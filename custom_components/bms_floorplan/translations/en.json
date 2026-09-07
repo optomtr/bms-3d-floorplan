@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BMS Floor Plan",
+        "description": "Add the BMS Floor Plan panel to the Home Assistant sidebar. It installs next to the previous integration, which keeps working; plans are imported from it with a button."
+      }
+    },
+    "abort": {
+      "already_configured": "BMS Floor Plan is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Kiosk settings",
+        "description": "The kiosk is served at /bms-floorplan-kiosk and shows the 3D floor plan only.",
+        "data": {
+          "allow_kiosk_exit": "Allow leaving the kiosk"
+        },
+        "data_description": {
+          "allow_kiosk_exit": "A long press in the bottom-right corner opens the full Home Assistant UI under the tablet's account. Leave this off if the tablet is reachable by strangers."
+        }
+      }
+    }
+  }
+}

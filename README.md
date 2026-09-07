@@ -1,269 +1,238 @@
-# 3D Floor Plan Card for Home Assistant
+# BMS Планировка — 3D-планировка объекта для Home Assistant
 
-An interactive **true-3D** floor plan custom Lovelace card. Renders your real
-house layout — walls, doors, windows, furnished rooms — and binds every relevant
-entity (lights, switches, climate, sensors, locks, media players, covers, fans)
-live to the 3D scene. Tap a lamp to toggle it; watch temperatures and sensor
-values float in the room; switch between floors of a multi-storey building.
+Интерактивная **настоящая 3D**-планировка: стены, двери, окна, мебель — и живая
+привязка сущностей Home Assistant (свет, розетки, климат, датчики, замки,
+медиаплееры, шторы, вентиляция) прямо к предметам сцены. Нажатие на светильник
+включает его, температура и показания датчиков висят в комнате, этажи
+переключаются кнопкой.
 
-Built specifically to fix two pain points of existing tools:
+- Интеграция для Home Assistant, а не дополнение: работает на любой установке
+  (Core, Container, Supervised, OS), Supervisor не нужен.
+- Ограничений на количество сущностей нет.
+- Управление рассчитано на планшет: щипок никогда не «теряет» модель, дистанция
+  камеры и панорамирование ограничены габаритами здания.
+- Редактор встроен в сцену: стены, проёмы, мебель, привязка сущностей — без YAML.
+- Киоск-режим: голая 3D-сцена на настенном планшете, без бокового меню и шапки HA.
 
-- **No entity-count caps.** Bind as many entities as you like.
-- **Tablet-proof touch.** Pinch-zoom can never "lose" the model on a kiosk
-  tablet — camera distance is clamped, panning is bounded to the building, and a
-  one-tap **Reset view** button always recenters.
+> Интеграция ставится **рядом со старой версией** («3D Floor Plan» / домен
+> `ha_3d_floorplan`). У неё свой домен, своя панель, своё хранилище — старая
+> версия продолжает работать как работала, и мы в её данные никогда не пишем.
+> Планы из неё переносятся кнопкой, см. «Перенос из старой версии».
 
-> Pure client-side custom card — **no Python, no add-on, no Supervisor**. Works
-> on every HA install type (Core, Container, Supervised, OS).
+## Установка
 
-## Features
+### HACS как интеграция
 
-- True 3D perspective scene (Three.js), not isometric.
-- Accurate layouts from line-segment walls with door/window cutouts.
-- Multi-floor support with a floor switcher.
-- Built-in **procedural** furniture library (sofa, bed, table, chair, wardrobe,
-  kitchen counter, TV, fridge, sink, toilet, door, window frame, ceiling light,
-  AC unit, intercom) — recolorable, zero external assets to license.
-- Custom `.glb` models per placement for advanced users.
-- Live entity binding with targeted re-render (high frame rate with hundreds of
-  entities).
-- Multiple buildings ("obyekt") in one card via a project dropdown.
-- Visual config editor (Phase 1) with a planned full 2D wall-drawing editor
-  (Phase 2).
+1. HACS → ⋮ → **Пользовательские репозитории** → добавить адрес этого
+   репозитория, категория **Integration**.
+2. Установить **BMS Планировка**, затем **перезапустить Home Assistant**.
+3. Настройки → Устройства и службы → **Добавить интеграцию** → «BMS Планировка»
+   → Отправить.
+4. В боковом меню появится пункт **BMS Планировка**. Откройте его и нажмите
+   **✎ Правка**.
 
-## Install
-
-### HACS as an Integration (recommended)
-
-Installing as an **integration** registers a native **3D Floor Plan** sidebar
-panel and loads the frontend on every page — so it appears on every tab, every
-device, and survives page refreshes (no YAML, no manual resource). It's a custom
-integration, not an add-on, so it works on every HA install type — no Supervisor.
-
-1. HACS → ⋮ → **Custom repositories** → add this repo URL, category
-   **Integration**.
-2. Install **3D Floor Plan**, then **restart Home Assistant**.
-3. Settings → Devices & Services → **Add Integration** → "3D Floor Plan" →
-   Submit.
-4. The **3D Floor Plan** item appears in the sidebar. Open it and tap **✎ Edit**.
-
-> Upgrading from the old Lovelace-plugin install? Remove that HACS entry first,
-> then add the repo again as **Integration** — everything keeps working, just
-> reliably.
-
-You can still drop `type: custom:ha-3d-floorplan-card` as a card on any
-dashboard (the integration loads the module everywhere).
-
-### Manual (Lovelace resource, optional)
-
-1. Copy `dist/ha-3d-floorplan-card.js` to `/config/www/`.
-2. Add the resource (Settings → Dashboards → ⋮ → Resources):
+Карточку можно положить и на любую панель дашборда — модуль загружается на всех
+страницах:
 
 ```yaml
-resources:
-  - url: /local/ha-3d-floorplan-card.js
-    type: module
+type: custom:bms-floorplan-card
+height: 520px
 ```
 
-## Usage
+### Что интеграция регистрирует
 
-Minimal card with an inline plan:
+| Что | Адрес |
+| --- | --- |
+| Пункт бокового меню | `bms-floorplan` |
+| Бандл карточки | `/bms_floorplan_frontend/bms-floorplan-card.js` |
+| Киоск | `/bms-floorplan-kiosk` |
+| Лаунчер для домашнего экрана | `/bms-floorplan-app?to=/lovelace/0&name=Дом` |
+| Общий план (REST) | `/api/bms_floorplan/plan` |
+| Общий план (WebSocket) | `bms_floorplan/plan/get`, `bms_floorplan/plan/set` |
+| Импорт из старой версии | `bms_floorplan/legacy/get` |
+
+## Перенос из старой версии
+
+Старая интеграция остаётся установленной и рабочей. Перенос — это **копирование
+в одну сторону**: мы читаем её данные и складываем к себе.
+
+Что читается (только чтение, запись исключена):
+
+- общий план старой версии — хранилище `ha_3d_floorplan.plan`;
+- личный план пользователя — ключ `ha3d_floorplans` в `frontend/get_user_data`;
+- копия в браузере — `localStorage`, ключ `ha3d-floorplans-set`.
+
+Первое из перечисленного читает сервер по команде `bms_floorplan/legacy/get`
+(**только администратор**). Она работает, даже если старая интеграция удалена
+или не запущена: файл в `.storage` просто читается с диска. Остальные две копии
+доступны фронтенду напрямую, в браузере пользователя.
+
+Ни одна из этих записей никогда не изменяется и не удаляется. Если перенос
+пошёл не так, старую версию достаточно открыть — её планы на месте.
+
+## Схема плана
+
+```
+FloorPlan: { name?, wallHeight?, floors: FloorDef[] }
+FloorDef:  { name, elevation?, wallHeight?, walls[], rooms?[], furniture?[], bindings?[] }
+WallDef:   { start: [x,y], end: [x,y], height?, thickness?, color?, material?, openings?[] }
+OpeningDef:{ kind: "door"|"window"|"opening", position, width, sill?, top?, variant? }
+RoomDef:   { name?, polygon: [[x,y],...], color?, material?, shape?, x?, z?, width?, depth?, rotation? }
+Furniture: { model, glb?, position: [x,y,z], rotation?, scale?, color?, id? }
+Binding:   { entity_id, anchor_object?, anchor?: [x,y,z], behavior?, label? }
+```
+
+Координаты — в **метрах**; `(x, y)` плана ложится на плоскость `(X, Z)` сцены,
+высота растёт по `+Y`.
+
+**Поведения привязок:** `auto` (по домену сущности), `light`, `switch`,
+`climate`, `sensor`, `binary_sensor`, `lock`, `media_player`, `cover`, `fan`,
+`label`.
+
+**Мебель (40+ моделей):** посадочные места и столы — `sofa`, `armchair`, `chair`,
+`office_chair`, `table`, `coffee_table`, `dining_table`, `desk`, `bed`,
+`nightstand`; хранение — `wardrobe`, `dresser`, `bookshelf`; кухня —
+`kitchen_counter`, `fridge`, `stove`, `oven`, `microwave`, `dishwasher`, `sink`;
+санузел — `toilet`, `bathtub`, `shower`, `mirror`; техника — `washing_machine`,
+`radiator`; декор — `tv`, `speaker`, `plant`, `rug`, `painting`, `curtain`,
+`stairs`, `security_camera`, `intercom`, `ac_unit`, `door`, `window_frame`.
+**Свет:** `ceiling_light`, `floor_lamp`, `table_lamp`, `wall_light`,
+`chandelier`, `spotlight`, `pendant_light`, `led_strip` — к любой из этих
+моделей привязывается сущность `light.*`. Свою модель можно подставить через
+`glb`.
+
+## Настройка карточки
+
+| Ключ | Тип | Описание |
+| --- | --- | --- |
+| `plan` | объект | План прямо в конфиге (схема выше). |
+| `url` | строка | Загрузить JSON плана по адресу/пути. |
+| `projects` | список | Несколько объектов; у каждого `id`, необязательное `name` и `plan` либо `url`. |
+| `height` | строка | Высота карточки (CSS). По умолчанию `500px`. |
+| `background` | строка | Цвет фона сцены. По умолчанию `#1b1d22`. |
+
+Пример с планом внутри конфига:
 
 ```yaml
-type: custom:ha-3d-floorplan-card
+type: custom:bms-floorplan-card
 height: 520px
 plan:
-  name: My Home
+  name: Квартира
   wallHeight: 2.6
   floors:
-    - name: Ground
+    - name: Первый этаж
       walls:
         - { start: [0, 0], end: [6, 0] }
         - { start: [6, 0], end: [6, 5] }
         - { start: [6, 5], end: [0, 5] }
         - { start: [0, 5], end: [0, 0], openings: [{ kind: door, position: 2, width: 1 }] }
       rooms:
-        - { name: Living, polygon: [[0,0],[6,0],[6,5],[0,5]], color: "#cfc7ba" }
+        - { name: Гостиная, polygon: [[0,0],[6,0],[6,5],[0,5]], color: "#cfc7ba" }
       furniture:
         - { model: ceiling_light, position: [3, 2.5, 2.5], id: lamp1 }
       bindings:
         - { entity_id: light.living_room, anchor_object: lamp1, behavior: light }
 ```
 
-Load the plan from a file instead (put JSON under `/config/www/floorplans/`):
+Готовый пример на два этажа лежит в [`examples/home.json`](examples/home.json).
 
-```yaml
-type: custom:ha-3d-floorplan-card
-url: /local/floorplans/home.json
-```
+## Где хранится план и кто может его менять
 
-Multiple buildings:
+План хранится **один на всю установку** — в хранилище Home Assistant под ключом
+`bms_floorplan.plan`. Именно поэтому планшет, вошедший под другой учётной
+записью, видит тот же план, что и компьютер, на котором его рисовали.
 
-```yaml
-type: custom:ha-3d-floorplan-card
-projects:
-  - { id: house, name: Main House, url: /local/floorplans/house.json }
-  - { id: garage, name: Garage, plan: { floors: [ ... ] } }
-```
+Права разделены намеренно:
 
-A complete two-floor example lives in [`examples/home.json`](examples/home.json).
+- **Чтение** — любому пользователю Home Assistant, прошедшему вход. Планшет
+  работает под обычной учётной записью и обязан уметь показать планировку.
+- **Запись** — **только администратору**. Карточка вызывает службы Home
+  Assistant по тому, что записано в плане, поэтому право переписать план — это
+  право заставить каждый планшет в здании дёргать выбранные вами службы.
 
-## Sidebar (side panel) entry
+Документ проверяется по форме (`projects` — объект, у каждого проекта список
+`floors`, `active`/`editPin` — строки) и по размеру: потолок **8 МБ**. При
+превышении приходит внятная ошибка, а не падение — планы с фотографиями
+действительно бывают крупными, но не безразмерными.
 
-Once the resource is installed, a **3D Floor Plan** item is added to the HA
-left sidebar **automatically** — no dashboard or YAML needed. Tapping it opens
-the floor plan fullscreen. By default it loads `/local/floorplans/home.json`.
+## Киоск на настенном планшете
 
-Customize or disable it by defining `window.ha3dFloorplan` before the resource
-loads (e.g. a tiny `/config/www/ha-3d-floorplan-config.js` added as a second
-`type: module` resource):
+Откройте на планшете `http://<адрес-HA>:8123/bms-floorplan-kiosk` — устройство
+должно быть **уже вошедшим в Home Assistant** в этом браузере. Страница
+показывает только 3D и подключается к HA по **сессии браузера**: в неё не
+встроены ни адрес, ни токен, поэтому её безопасно оставлять доступной даже
+снаружи. Не вошедшее устройство получит страницу только для просмотра.
 
-```js
-window.ha3dFloorplan = {
-  sidebar: true,                 // false to disable the auto sidebar item
-  title: '3D Floor Plan',
-  icon: 'mdi:floor-plan',
-  url: '/local/floorplans/home.json',
-  // or full config: config: { type: 'custom:ha-3d-floorplan-card', url: '...' }
-};
-```
+Долгоживущие токены на планшете не нужны и намеренно не поддерживаются:
+хранить такой токен в `localStorage` устройства, тем более по незащищённому
+HTTP, — это отдать полный доступ к дому любому, кто возьмёт планшет в руки.
 
-> The auto-injection hooks the sidebar DOM (HA has no supported frontend-only
-> sidebar API). It re-injects itself if HA re-renders the sidebar, and degrades
-> gracefully if a future HA version changes the structure. For a guaranteed,
-> officially-supported sidebar entry, use **`panel_custom`** instead:
+### Выход из киоска (по умолчанию выключен)
 
-```yaml
-# configuration.yaml
-panel_custom:
-  - name: ha-3d-floorplan-card
-    sidebar_title: 3D Floor Plan
-    sidebar_icon: mdi:floor-plan
-    module_url: /local/ha-3d-floorplan-card.js
-    config:
-      url: /local/floorplans/home.json
-```
+Удержание правого нижнего угла 1,2 с уводит в **полный интерфейс Home
+Assistant** под учётной записью планшета. Для планшета в прихожей это дверь без
+замка, поэтому жест выключен, пока его не включит администратор:
 
-## Config reference
+Настройки → Устройства и службы → **BMS Планировка** → **Настроить** →
+«Разрешить выход из киоска».
 
-| Key | Type | Description |
-| --- | --- | --- |
-| `plan` | object | Inline floor plan (see schema below). |
-| `url` | string | Load plan JSON from a URL/path. |
-| `projects` | list | Multiple buildings; each has `id`, optional `name`, and `plan` or `url`. |
-| `height` | string | Card height CSS value. Default `500px`. |
-| `background` | string | Viewport background color. Default `#1b1d22`. |
-| `backend` | string | Optional backend base URL for project CRUD (stretch goal). |
+Куда именно ведёт выход, задаётся один раз: откройте киоск как
+`/bms-floorplan-kiosk?ha=/lovelace/0` — путь запомнится на устройстве.
 
-### Floor plan schema
+### Иконка на домашнем экране
 
-```
-FloorPlan: { name?, wallHeight?, floors: FloorDef[] }
-FloorDef:  { name, elevation?, wallHeight?, walls[], rooms?[], furniture?[], bindings?[] }
-WallDef:   { start: [x,y], end: [x,y], height?, thickness?, color?, openings?[] }
-OpeningDef:{ kind: "door"|"window", position, width, sill?, top? }
-RoomDef:   { name?, polygon: [[x,y],...], color? }
-Furniture: { model, glb?, position: [x,y,z], rotation?, scale?, color?, id? }
-Binding:   { entity_id, anchor_object?, anchor?: [x,y,z], behavior?, label? }
-```
+Собственный PWA-манифест Home Assistant вшит в его фронтенд, поэтому
+установленный из браузера дашборд всегда получает иконку HA. Лаунчер
+`/bms-floorplan-app?to=/lovelace/0&name=Дом` — это страница со **своим**
+манифестом: установите её, и на домашнем экране окажется приложение с нашей
+иконкой, открывающее нужную панель. `?to=` принимает только путь **этого же**
+Home Assistant.
 
-Coordinates are in **meters**; floor-plan `(x, y)` maps to the 3D `(X, Z)` ground
-plane, height extrudes up `+Y`.
+Те же два файла для установки без интеграции лежат в
+[`extras/homescreen-app/`](extras/homescreen-app/).
 
-**Binding behaviors:** `auto` (derive from domain), `light`, `switch`, `climate`,
-`sensor`, `binary_sensor`, `lock`, `media_player`, `cover`, `fan`, `label`.
+### Ручная раздача папки (только просмотр)
 
-**Furniture models (40+):** seating & tables — `sofa`, `armchair`, `chair`,
-`office_chair`, `table`, `coffee_table`, `dining_table`, `desk`, `bed`,
-`nightstand`; storage — `wardrobe`, `dresser`, `bookshelf`; kitchen —
-`kitchen_counter`, `fridge`, `stove`, `oven`, `microwave`, `dishwasher`,
-`sink`; bathroom — `toilet`, `bathtub`, `shower`, `mirror`; laundry/utility —
-`washing_machine`, `radiator`; decor — `tv`, `speaker`, `plant`, `rug`,
-`painting`, `curtain`, `stairs`, `security_camera`, `intercom`, `ac_unit`,
-`door`, `window_frame`. **Lighting:** `ceiling_light`, `floor_lamp`,
-`table_lamp`, `wall_light`, `chandelier`, `spotlight`, `pendant_light`,
-`led_strip` (bind a `light.*` entity to any of these). Set `glb` to a `.glb`
-path to use a custom model instead.
+`custom_components/bms_floorplan/standalone/` можно раздать отдельно: положите
+рядом собранный `bms-floorplan-card.js`, при желании выгруженный `plan.json`, и
+раздайте папку (`python -m http.server 8099`). Живого управления в этом режиме
+нет — по причине, описанной выше.
 
-## Tablet / kiosk notes
+## Редактор
 
-- The canvas sets `touch-action: none` so the browser never converts a pinch
-  into a page zoom.
-- Camera min/max distance and pan bounds are clamped to the building.
-- The top-right **Reset** button recenters the camera instantly — the kiosk
-  safety net.
-- For a standalone kiosk page, also set the viewport meta:
-  `maximum-scale=1, user-scalable=no`.
+**✎ Правка** (справа сверху) — рисование планировки прямо в 3D:
 
-## Standalone kiosk page (no HA chrome)
+- **▟ Стена** — два касания, и стена появляется сразу; следующие касания
+  продолжают цепочку. Точки притягиваются к существующим концам (**зелёный
+  узел** = стены соединены). Касание рядом с началом замыкает комнату.
+- **Камера в режиме правки** — правая кнопка (на компьютере) или **два пальца**
+  (на планшете) вращают и приближают в любой момент, переключать инструмент для
+  этого не нужно.
+- **🚪 Дверь / 🪟 Окно** — касание по стене вырезает проём в этом месте.
+- **🛋 Мебель** — модель выбирается из палитры с миниатюрами, затем касание по
+  полу ставит предмет.
+- **☝ Выбор** — касание выделяет предмет: переместить, **⟳ Повернуть** на 45°,
+  **🗑 Удалить** или привязать сущность Home Assistant из поиска по списку.
+- **Сохранить** пишет план в общее хранилище установки (нужны права
+  администратора), **✓ Готово** возвращает в просмотр.
 
-A wall tablet can show a **live, controllable 3D floor plan with no Home
-Assistant sidebar/header** — just the 3D. Two ways:
-
-**Recommended — a path on Home Assistant's own port (no extra port, no token).**
-Open `http://<home-assistant-host>:8123/3d-floorplan-kiosk` on a device that is
-already logged into Home Assistant. It shows only the 3D and reuses that
-browser's existing HA login for live control — **nothing is embedded in the
-page**, so it's safe even if HA is reachable externally. A device that isn't
-logged in just gets a view-only page. The plan and control come from the same
-per-user store the in-app editor uses.
-
-**Manual — serve the `standalone/` folder yourself** (for a device you don't want
-to log into HA on). Copy the built `ha-3d-floorplan-card.js` next to
-`standalone/index.html`, (optionally) drop an exported `plan.json` beside it,
-serve the folder (`python -m http.server 8099`), and tap ⚙ to enter your HA URL +
-a long-lived token for live control. See the comment at the top of
-[`standalone/index.html`](standalone/index.html) for details.
-
-## Development
+## Разработка
 
 ```bash
 npm install
-npm run build      # → dist/ha-3d-floorplan-card.js (single bundled file)
-npm run watch      # rebuild on change
+npm run build      # → dist/bms-floorplan-card.js, копия кладётся в интеграцию
+npm run watch      # пересборка при изменениях
 npm run typecheck
 ```
 
-Local preview without HA: serve the repo over HTTP and open `test/index.html`
-(e.g. `npx serve` then visit `/test/`). It mounts the card with a mock `hass`
-and buttons to simulate live state changes.
+Сборка кладёт бандл и в `custom_components/bms_floorplan/frontend/`, поэтому
+интеграция отдаёт ровно тот файл, что лежит в `dist/`.
 
-## In-app editor (draw in 3D)
+Локальный просмотр без Home Assistant: раздайте репозиторий по HTTP и откройте
+`test/index.html` — там карточка поднимается с поддельным `hass` и кнопками,
+которые имитируют изменения состояний.
 
-Tap **✎ Edit** (top-right) to draw your floor plan directly in the 3D view —
-no JSON, no YAML, no external modeling tool:
+## Лицензия
 
-- **▟ Wall** — tap two points and a wall appears **immediately** (no Finish);
-  keep tapping to chain connected walls. Points snap onto existing endpoints
-  (**green node** = walls join). Tap near the start to close a room. **End run**
-  stops the current chain; **Undo** removes the last wall.
-- **Camera while editing** — right-drag (desktop) or **two fingers** (tablet)
-  orbit + zoom at any time, so you never switch tools just to move the camera.
-  Left-click / one finger performs the active tool.
-- **🚪 Door / 🪟 Window** — tap a wall to cut an opening at that spot.
-- **🛋 Furniture** — pick a model (40+ pieces incl. lighting) from a visual
-  palette with **thumbnails**, then tap the floor to place it.
-- **☝ Select** — tap a piece to select it (green box). Tap the floor to move it,
-  **⟳ Rotate** 45°, **🗑 Delete**, or bind a Home Assistant entity to it via the
-  **entity dropdown** (searchable, all your HA entities — no YAML).
-- **✋ View** temporarily frees the camera (orbit/pan) without editing.
-- **New** starts a blank plan; **Save** stores it; **✓ Done** returns to View.
-
-Saved plans go to **Home Assistant's per-user storage** (shared across all your
-devices — design PC and kiosk tablet), with a localStorage fallback. No backend
-or files required. With no `plan`/`url`/`projects` configured, the card loads
-your saved plan automatically, falling back to a built-in demo.
-
-## Roadmap
-
-- **Phase 1 (done):** render + bind + touch hardening + config editor.
-- **Phase 2 (done):** in-app 3D editor — wall drawing, 40+ furniture & lighting
-  palette, place/move/rotate/delete, tap-to-bind entity picker, HA-shared save.
-- **Next:** multi-floor editing in the editor, opening (door/window) tool,
-  per-piece color picker, undo/redo.
-- **Stretch:** optional Node backend for versioned project files + GLB export.
-
-## License
-
-MIT. See [LICENSE](LICENSE). Built-in furniture is procedurally generated (no
-third-party assets bundled).
+MIT, см. [LICENSE](LICENSE). Встроенная мебель генерируется процедурно —
+сторонних моделей в комплекте нет.

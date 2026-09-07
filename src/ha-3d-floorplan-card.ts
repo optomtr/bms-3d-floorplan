@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// <ha-3d-floorplan-card> — the custom Lovelace card entry point.
+// <bms-floorplan-card> — the custom Lovelace card entry point.
 // ---------------------------------------------------------------------------
 
 import { LitElement, html, css, PropertyValues, nothing, svg } from 'lit';
-import { customElement, property, state, query } from 'lit/decorators.js';
+import { property, state, query } from 'lit/decorators.js';
 import type {
   CardConfig,
   FloorPlan,
@@ -15,18 +15,22 @@ import type {
 } from './types';
 import { SceneManager, ClickResult, QualityChoice, QUALITY_CHOICES, RoomInfo } from './scene/scene-manager';
 import { CARD_VERSION } from './version';
-import { installSidebar } from './sidebar';
 import { DEMO_PLAN } from './scene/demo-plan';
 import { EditorController, EditTool } from './editor/editor-controller';
 import {
   loadProjects,
+  loadProjectsResult,
   saveProjects,
   listProjects,
   newProjectId,
   blankPlan,
   hashPin,
+  findLegacyProjects,
+  mergeProjects,
   ProjectInfo,
   StoredProjects,
+  LegacyFind,
+  LegacySource,
 } from './storage';
 import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor, ventCount } from './furniture/library';
 import { getThumbnail } from './furniture/thumbnails';
@@ -44,6 +48,19 @@ import { FONT_FACE_CSS } from './scene/fonts';
 function climateStep(ent?: HassEntity): number {
   const s = Number(ent?.attributes?.target_temp_step);
   return Number.isFinite(s) && s >= 1 ? Math.round(s) : 1;
+}
+
+/** Input for the card's own modal (the company forbids window.alert/confirm/
+ *  prompt — a system pop-up on a wall tablet is unreadable and unstyled). */
+interface AskOptions {
+  title: string;
+  message?: string;
+  okLabel?: string;
+  cancelLabel?: string;
+  /** Paint the confirm button as destructive. */
+  danger?: boolean;
+  /** Ask for a value instead of a yes/no. */
+  input?: { placeholder?: string; value?: string; inputmode?: string };
 }
 
 /** A BMS Intercom's related entities, discovered by their shared base name. */
@@ -173,8 +190,35 @@ const RU_STRINGS: Record<string, string> = {
   'front door': 'входная дверь',
 };
 
-@customElement('ha-3d-floorplan-card')
-export class Ha3dFloorplanCard extends LitElement {
+/** Tag names and routes are the contract with the integration
+ *  (custom_components/bms_floorplan/const.py). Keep them in step with it. */
+export const CARD_TAG = 'bms-floorplan-card';
+export const CARD_EDITOR_TAG = 'bms-floorplan-card-editor';
+const KIOSK_PATH = '/bms-floorplan-kiosk';
+
+/** Service domains this card is allowed to CALL.
+ *
+ *  Every control here is driven by an entity_id that came out of the stored
+ *  plan, and the domain is taken from that id. Without a list, a plan carrying
+ *  `script.open_the_gate` or `automation.disarm` turns a tap on a sofa into a
+ *  call to it. These are the domains the card actually renders controls for;
+ *  `script` and `automation` are deliberately NOT among them — those are
+ *  "run anything" domains, and a floor plan has no business firing them.
+ *  Entities outside the list still show their state, read-only. */
+const CONTROL_DOMAINS: ReadonlySet<string> = new Set([
+  'light',
+  'switch',
+  'input_boolean',
+  'fan',
+  'cover',
+  'climate',
+  'media_player',
+  'lock',
+  'valve',
+  'button',
+]);
+
+export class BmsFloorplanCard extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   // Set by HA when this element is used as a `panel_custom` sidebar panel.
   @property({ attribute: false }) public panel?: { config?: Record<string, any> };
@@ -287,6 +331,15 @@ export class Ha3dFloorplanCard extends LitElement {
   @state() private editPlanName = '';
   @state() private paletteOpen = false;
   @state() private toast?: string;
+  // Our own confirm/prompt layer — system alert/confirm/prompt are forbidden.
+  @state() private askOpen = false;
+  private askData: AskOptions = { title: '' };
+  private askResolve?: (value: string | null) => void;
+  // "Import from the previous version" (read-only scan of the old integration).
+  @state() private legacyOpen = false;
+  @state() private legacyBusy = false;
+  @state() private legacyFinds: LegacyFind[] = [];
+  @state() private legacyErrors: { source: LegacySource; error: string }[] = [];
   private storedProjects: StoredProjects = { projects: {} };
 
   @query('.viewport') private viewport?: HTMLDivElement;
@@ -346,7 +399,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   static getStubConfig(): CardConfig {
     return {
-      type: 'custom:ha-3d-floorplan-card',
+      type: `custom:${CARD_TAG}`,
       height: '500px',
       plan: {
         name: 'Demo',
@@ -376,7 +429,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   static async getConfigElement() {
     await import('./editor');
-    return document.createElement('ha-3d-floorplan-card-editor');
+    return document.createElement(CARD_EDITOR_TAG);
   }
 
   // -- hass updates -----------------------------------------------------------
@@ -385,9 +438,8 @@ export class Ha3dFloorplanCard extends LitElement {
     // Used as a sidebar panel (panel_custom): take config from panel.config and
     // fill the viewport. This path is reliable across refresh/tabs/devices.
     if (changed.has('panel') && this.panel && !this.config) {
-      (window as any).__ha3dPanelMode = true; // tells the injector to stand down
       const cfg = (this.panel.config ?? {}) as CardConfig;
-      this.setConfig({ height: '100vh', ...cfg, type: 'custom:ha-3d-floorplan-card' });
+      this.setConfig({ height: '100vh', ...cfg, type: `custom:${CARD_TAG}` });
     }
     if (changed.has('hass') && this.hass) {
       this.pendingHass = this.hass;
@@ -425,6 +477,11 @@ export class Ha3dFloorplanCard extends LitElement {
     if (this.pinPromptOpen && _changed.has('pinPromptOpen')) {
       const input = this.renderRoot?.querySelector('.pin-input') as HTMLInputElement | null;
       input?.focus();
+    }
+    if (this.askOpen && _changed.has('askOpen')) {
+      const input = this.renderRoot?.querySelector('.ask-input') as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
     }
   }
 
@@ -869,6 +926,16 @@ export class Ha3dFloorplanCard extends LitElement {
     optimisticState?: string,
   ): void {
     if (!this.hass) return;
+    // The plan is DATA: it names the entities, and the domain above comes
+    // straight out of it. Anything outside CONTROL_DOMAINS is shown read-only
+    // rather than called, so a tampered (or careless) plan cannot turn a tap on
+    // a sofa into `script.…` / `automation.…`.
+    if (!CONTROL_DOMAINS.has(domain) || (entityId && !this.canControl(entityId))) {
+      this.showToast(
+        this.tx(`Только просмотр: ${entityId ?? domain}`, `Read-only: ${entityId ?? domain}`),
+      );
+      return;
+    }
     const gen = entityId && optimisticState !== undefined ? this.setOptimistic(entityId, optimisticState) : -1;
     // Revert only if OUR override is still the current one (a newer re-tap wins).
     const revertIfCurrent = () => {
@@ -885,6 +952,52 @@ export class Ha3dFloorplanCard extends LitElement {
     }
   }
 
+  /** True when this entity belongs to a domain the card may actually control.
+   *  Everything else is rendered as information only. */
+  private canControl(id: string): boolean {
+    return CONTROL_DOMAINS.has(id.split('.')[0]);
+  }
+
+  /** Lock/unlock, asking first before UNLOCKING. In view mode a lock card is one
+   *  tap away on a wall tablet in the hallway, so "open the front door" must not
+   *  be something a guest does by brushing the screen. Locking is safe and needs
+   *  no confirmation. */
+  private async lockAction(id: string, service: 'lock' | 'unlock'): Promise<void> {
+    if (!this.canControl(id)) {
+      this.showToast(this.tx(`Только просмотр: ${id}`, `Read-only: ${id}`));
+      return;
+    }
+    if (service === 'unlock') {
+      const ok = await this.askConfirm(
+        this.tx('Открыть замок?', 'Unlock?'),
+        this.tx(
+          `«${this.cardName(id)}» будет открыт для всех, кто рядом.`,
+          `"${this.cardName(id)}" will be unlocked for anyone nearby.`,
+        ),
+        this.tx('Открыть', 'Unlock'),
+      );
+      if (!ok) return;
+    }
+    this.svc('lock', service, {}, id, service === 'lock' ? 'locked' : 'unlocked');
+  }
+
+  /** The intercom's "Открыть дверь" button — same reasoning as an unlock. */
+  private async intercomOpenDoor(id: string): Promise<void> {
+    if (!this.canControl(id)) {
+      this.showToast(this.tx(`Только просмотр: ${id}`, `Read-only: ${id}`));
+      return;
+    }
+    const ok = await this.askConfirm(
+      this.tx('Открыть дверь?', 'Open the door?'),
+      this.tx(
+        'Дверь откроется сразу. У планшета может стоять кто угодно.',
+        'The door opens immediately — anyone could be standing at the tablet.',
+      ),
+      this.tx('Открыть', 'Open'),
+    );
+    if (ok) this.svc('button', 'press', {}, id);
+  }
+
   /** Effective (optimistic-aware) state of an entity, for rendering controls. */
   private effState(id: string): string {
     return this.optimistic.get(id)?.state ?? this.hass?.states[id]?.state ?? 'unknown';
@@ -892,7 +1005,11 @@ export class Ha3dFloorplanCard extends LitElement {
 
   /** Toggle every device in a category at once: if any is on → all off, else all
    *  on (optimistic + revert-on-fail, like the individual controls). */
-  private onToggleAll(ents: { entity_id: string; behavior: string }[]): void {
+  private onToggleAll(ents0: { entity_id: string; behavior: string }[]): void {
+    // `homeassistant.turn_on` takes an arbitrary entity list and would happily
+    // start a script or an automation, so the list is filtered down to the
+    // domains this card controls before it is sent (see CONTROL_DOMAINS).
+    const ents = ents0.filter((e) => this.canControl(e.entity_id));
     if (!this.hass || !ents.length) return;
     const anyOn = ents.some((e) => this.effState(e.entity_id) === 'on');
     const service = anyOn ? 'turn_off' : 'turn_on';
@@ -929,7 +1046,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   /** Open the chrome-free full-screen kiosk page (HA panel only). */
   private openKiosk = (): void => {
-    window.location.href = '/3d-floorplan-kiosk';
+    window.location.href = KIOSK_PATH;
   };
 
   // --- Hidden Edit entry (long-press top-left corner) ----------------------
@@ -968,14 +1085,25 @@ export class Ha3dFloorplanCard extends LitElement {
     this.hotspotStart = undefined;
   }
 
-  /** True when the UI should be Russian (HA user language, else the browser). */
+  /** True when the UI should be Russian.
+   *
+   *  This is a BMS product: Russian is the DEFAULT, not something that switches
+   *  itself off because Home Assistant happens to be set to English. Set
+   *  `language: en` in the card config for English, or `language: auto` for the
+   *  old behaviour (follow the HA user, then the browser). */
   private get isRu(): boolean {
-    const l = (
-      this.hass?.language ||
-      (typeof navigator !== 'undefined' ? navigator.language : '') ||
-      ''
-    ).toLowerCase();
-    return l.startsWith('ru');
+    const pref = this.config?.language;
+    if (pref === 'ru') return true;
+    if (pref === 'en') return false;
+    if (pref === 'auto') {
+      const l = (
+        this.hass?.language ||
+        (typeof navigator !== 'undefined' ? navigator.language : '') ||
+        ''
+      ).toLowerCase();
+      return l.startsWith('ru');
+    }
+    return true;
   }
 
   /** Translate a user-visible string. English is the key + fallback. */
@@ -1048,7 +1176,14 @@ export class Ha3dFloorplanCard extends LitElement {
     }
     // Re-read the shared set first so we don't clobber projects (or a PIN) saved
     // meanwhile on another device/tab — same guard as onSavePlan/onDeleteProject.
-    this.storedProjects = await loadProjects(this.hass);
+    const loaded = await loadProjectsResult(this.hass);
+    if (!loaded.ok) {
+      this.showToast(
+        this.tx('Не удалось прочитать хранилище — PIN не сохранён', 'Could not read the store — PIN not saved'),
+      );
+      return;
+    }
+    this.storedProjects = loaded.data;
     this.storedProjects.editPin = hashPin(v);
     this.editPinInput = '';
     this.editUnlocked = true; // we're already editing
@@ -1058,7 +1193,14 @@ export class Ha3dFloorplanCard extends LitElement {
   }
 
   private async onRemoveEditPin(): Promise<void> {
-    this.storedProjects = await loadProjects(this.hass);
+    const loaded = await loadProjectsResult(this.hass);
+    if (!loaded.ok) {
+      this.showToast(
+        this.tx('Не удалось прочитать хранилище — PIN не изменён', 'Could not read the store — PIN unchanged'),
+      );
+      return;
+    }
+    this.storedProjects = loaded.data;
     delete this.storedProjects.editPin;
     await saveProjects(this.storedProjects, this.hass);
     this.showToast('Edit PIN removed');
@@ -1109,15 +1251,7 @@ export class Ha3dFloorplanCard extends LitElement {
     };
     this.editor.onMessage = (m) => this.showToast(m);
     this.editor.onCalibrate = (measured) => {
-      const s = window.prompt(
-        `Measured ${measured.toFixed(2)} m on screen between those points.\nEnter their REAL length in meters:`,
-      );
-      // Accept a comma decimal: on a RU/UZ keyboard "8,1" is the natural way to
-      // type 8.1, and parseFloat reads it as 8 — silently mis-scaling the plan by
-      // whatever the fraction was, with nothing on screen to show it happened.
-      const real = parseFloat(String(s ?? '').trim().replace(',', '.'));
-      if (real > 0) this.editor?.applyUnderlayScale(measured, real);
-      else this.showToast('Calibration cancelled');
+      void this.calibrateUnderlay(measured);
     };
     this.sceneManager.loadPlan(editable, true);
     // Edit the floor the user is currently viewing — not always floor 0.
@@ -1131,6 +1265,27 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editing = true;
     this.editTool = this.editor.tool;
     this.showToast('Edit mode — pick "Draw wall", tap the floor to place points');
+  }
+
+  /** Ask for the real-world length between the two calibration points. Uses the
+   *  card's own dialog — a kiosk browser can suppress window.prompt entirely,
+   *  and an unstyled system box on a wall tablet is unusable anyway. */
+  private async calibrateUnderlay(measured: number): Promise<void> {
+    const answer = await this.ask({
+      title: this.tx('Калибровка подложки', 'Calibrate the reference image'),
+      message: this.tx(
+        `На экране между точками ${measured.toFixed(2)} м. Введите РЕАЛЬНОЕ расстояние в метрах:`,
+        `Measured ${measured.toFixed(2)} m on screen between those points. Enter their REAL length in meters:`,
+      ),
+      okLabel: this.tx('Применить', 'Apply'),
+      input: { placeholder: this.tx('например 8,1', 'e.g. 8.1'), inputmode: 'decimal' },
+    });
+    // Accept a comma decimal: on a RU/UZ keyboard "8,1" is the natural way to
+    // type 8.1, and parseFloat reads it as 8 — silently mis-scaling the plan by
+    // whatever the fraction was, with nothing on screen to show it happened.
+    const real = parseFloat(String(answer ?? '').trim().replace(',', '.'));
+    if (real > 0) this.editor?.applyUnderlayScale(measured, real);
+    else this.showToast(this.tx('Калибровка отменена', 'Calibration cancelled'));
   }
 
   private async exitEdit(): Promise<void> {
@@ -1293,13 +1448,20 @@ export class Ha3dFloorplanCard extends LitElement {
     this.editor.setSnap(this.editSnap);
   }
 
-  private onNewPlan(): void {
+  private async onNewPlan(): Promise<void> {
     if (!this.editor) return;
     // "New" creates a separate project — your other SAVED projects are untouched.
-    const ok = window.confirm(
-      'Create a NEW project?\n\nYour other saved projects stay. Unsaved changes in the current one will be lost. Draw, then Save to keep the new project.',
+    const ok = await this.askConfirm(
+      this.tx('Создать НОВЫЙ проект?', 'Create a NEW project?'),
+      this.tx(
+        'Другие сохранённые проекты останутся. Несохранённые правки текущего будут потеряны. Нарисуйте и нажмите «Сохранить».',
+        'Your other saved projects stay. Unsaved changes in the current one will be lost. Draw, then Save to keep the new project.',
+      ),
+      this.tx('Создать', 'Create'),
+      false,
     );
     if (!ok) return;
+    if (!this.editor) return;
     const name = `Plan ${this.projectList.length + 1}`;
     // New is an unsaved project — don't touch currentProjectId (the view plan).
     // It gets a fresh id only on Save, so it never overwrites another project.
@@ -1315,17 +1477,28 @@ export class Ha3dFloorplanCard extends LitElement {
     if (this.editor) this.editor.plan.name = name;
   }
 
-  private onSelectStorageProject(e: Event): void {
-    const id = (e.target as HTMLSelectElement).value;
+  private async onSelectStorageProject(e: Event): Promise<void> {
+    const select = e.target as HTMLSelectElement;
+    const id = select.value;
     if (!id || id === this.currentProjectId) return;
     const plan = this.storedProjects.projects[id];
     if (!plan) return;
-    if (
-      this.editing &&
-      !window.confirm('Switch project? Unsaved changes in the current one will be lost.')
-    ) {
-      this.requestUpdate();
-      return;
+    if (this.editing) {
+      const ok = await this.askConfirm(
+        this.tx('Переключить проект?', 'Switch project?'),
+        this.tx(
+          'Несохранённые правки текущего проекта будут потеряны.',
+          'Unsaved changes in the current one will be lost.',
+        ),
+        this.tx('Переключить', 'Switch'),
+      );
+      if (!ok) {
+        // Put the dropdown back where it was: the answer arrives a tick later,
+        // so Lit has already settled on the value the user picked.
+        select.value = this.editingProjectId ?? '';
+        this.requestUpdate();
+        return;
+      }
     }
     this.currentProjectId = id;
     this.editingProjectId = id;
@@ -1351,13 +1524,29 @@ export class Ha3dFloorplanCard extends LitElement {
   private async onDeleteProject(): Promise<void> {
     const id = this.editingProjectId ?? this.currentProjectId;
     // Re-read so a concurrent change elsewhere isn't lost by this delete-save.
-    this.storedProjects = await loadProjects(this.hass);
+    // A failed read must not be mistaken for "there is nothing there".
+    const loaded = await loadProjectsResult(this.hass);
+    if (!loaded.ok) {
+      this.showToast(
+        this.tx(
+          `Не удалось прочитать хранилище (${loaded.error ?? ''}) — удаление отменено`,
+          `Could not read the store (${loaded.error ?? ''}) — delete cancelled`,
+        ),
+      );
+      return;
+    }
+    this.storedProjects = loaded.data;
     if (!id || !this.storedProjects.projects[id]) {
       this.showToast('This project is not saved yet');
       return;
     }
-    if (!window.confirm(`Delete project "${this.storedProjects.projects[id].name || id}"? This cannot be undone.`))
-      return;
+    const name = this.storedProjects.projects[id].name || id;
+    const ok = await this.askConfirm(
+      this.tx('Удалить проект?', 'Delete project?'),
+      this.tx(`«${name}» будет удалён безвозвратно.`, `"${name}" will be deleted. This cannot be undone.`),
+      this.tx('Удалить', 'Delete'),
+    );
+    if (!ok) return;
     delete this.storedProjects.projects[id];
     const remaining = listProjects(this.storedProjects);
     this.storedProjects.active = remaining[0]?.id;
@@ -1595,9 +1784,13 @@ export class Ha3dFloorplanCard extends LitElement {
     }
   };
 
-  private onDeleteFloor(): void {
-    if (!window.confirm('Delete this floor and everything on it?')) return;
-    this.editor?.deleteFloor();
+  private async onDeleteFloor(): Promise<void> {
+    const ok = await this.askConfirm(
+      this.tx('Удалить этаж?', 'Delete this floor?'),
+      this.tx('Этаж и всё, что на нём, будут удалены.', 'The floor and everything on it will be removed.'),
+      this.tx('Удалить', 'Delete'),
+    );
+    if (ok) this.editor?.deleteFloor();
   }
 
   private pickModel(model: string): void {
@@ -1680,8 +1873,20 @@ export class Ha3dFloorplanCard extends LitElement {
     const plan = this.editor.plan;
     if (!plan.name) plan.name = this.editPlanName || 'Plan';
     // Re-read the shared set first, then apply only THIS project, so we never
-    // clobber projects saved meanwhile on another device/tab.
-    this.storedProjects = await loadProjects(this.hass);
+    // clobber projects saved meanwhile on another device/tab. A FAILED read
+    // looks exactly like an empty store, so saving on top of one would delete
+    // every other project on every device — refuse instead.
+    const loaded = await loadProjectsResult(this.hass);
+    if (!loaded.ok) {
+      this.showToast(
+        this.tx(
+          `Не сохранено: не удалось прочитать хранилище (${loaded.error ?? ''}). Повторите позже.`,
+          `Not saved: the store could not be read (${loaded.error ?? ''}). Try again.`,
+        ),
+      );
+      return;
+    }
+    this.storedProjects = loaded.data;
     let id = this.editingProjectId;
     if (!id) {
       id = newProjectId();
@@ -1696,11 +1901,29 @@ export class Ha3dFloorplanCard extends LitElement {
     this.currentPlan = JSON.parse(JSON.stringify(plan));
     this.projectList = listProjects(this.storedProjects);
     this.floorNames = plan.floors.map((f, i) => f.name || `Floor ${i + 1}`);
-    this.showToast(
-      res.ha
-        ? `Saved "${plan.name}" to Home Assistant (all devices)`
-        : `Saved "${plan.name}" locally (HA unavailable)`,
-    );
+    // Say what actually happened. The shared (install-wide) write is the only
+    // one that reaches other devices, and it is admin-only in the integration —
+    // so "saved to all devices" must not be printed after it was refused.
+    let msg: string;
+    if (res.shared) {
+      msg = this.tx(`«${plan.name}» сохранён на все устройства`, `Saved "${plan.name}" to all devices`);
+    } else if (res.user) {
+      msg = this.tx(
+        `«${plan.name}» сохранён только в этой учётной записи — общий план не записан (${res.sharedError ?? 'нет прав или интеграция недоступна'})`,
+        `Saved "${plan.name}" to this account only — the shared plan was not written (${res.sharedError ?? 'no permission, or the integration is unavailable'})`,
+      );
+    } else if (res.local) {
+      msg = this.tx(
+        `«${plan.name}» сохранён только в этом браузере (Home Assistant недоступен)`,
+        `Saved "${plan.name}" in this browser only (Home Assistant unavailable)`,
+      );
+    } else {
+      msg = this.tx(
+        `НЕ сохранено: ${res.sharedError ?? res.userError ?? 'хранилище недоступно'}`,
+        `NOT saved: ${res.sharedError ?? res.userError ?? 'the store is unavailable'}`,
+      );
+    }
+    this.showToast(msg);
   }
 
   private showToast(msg: string): void {
@@ -1710,6 +1933,135 @@ export class Ha3dFloorplanCard extends LitElement {
       this.toast = undefined;
       this.requestUpdate();
     }, 3200);
+  }
+
+  // -- Own modal layer (window.alert/confirm/prompt are forbidden) -----------
+
+  /** Open the card's own dialog. Resolves with the entered text (or `'ok'` for a
+   *  plain confirm), or `null` when the user cancels. */
+  private ask(opts: AskOptions): Promise<string | null> {
+    this.askResolve?.(null); // a newer question supersedes an open one
+    this.askData = opts;
+    this.askOpen = true;
+    return new Promise<string | null>((resolve) => {
+      this.askResolve = resolve;
+    });
+  }
+
+  /** Yes/no. Replaces window.confirm — same call shape, own styling, and it
+   *  works inside a kiosk browser that suppresses system dialogs. */
+  private async askConfirm(
+    title: string,
+    message?: string,
+    okLabel?: string,
+    danger = true,
+  ): Promise<boolean> {
+    return (await this.ask({ title, message, okLabel, danger })) !== null;
+  }
+
+  private closeAsk(value: string | null): void {
+    this.askOpen = false;
+    const resolve = this.askResolve;
+    this.askResolve = undefined;
+    resolve?.(value);
+  }
+
+  private cancelAsk = (): void => this.closeAsk(null);
+
+  private submitAsk = (e?: Event): void => {
+    e?.preventDefault();
+    if (!this.askData.input) {
+      this.closeAsk('ok');
+      return;
+    }
+    const input = this.renderRoot?.querySelector('.ask-input') as HTMLInputElement | null;
+    this.closeAsk(input?.value ?? '');
+  };
+
+  /** Bilingual one-liner for text added after RU_STRINGS was written. */
+  private tx(ru: string, en: string): string {
+    return this.isRu ? ru : en;
+  }
+
+  // -- Import from the PREVIOUS version (read-only) --------------------------
+
+  private legacySourceLabel(src: LegacySource): string {
+    if (src === 'shared') return this.tx('Старая интеграция (общий план)', 'Old integration (shared plan)');
+    if (src === 'user') return this.tx('Старая версия, эта учётная запись', 'Old version, this account');
+    return this.tx('Старая версия, этот браузер', 'Old version, this browser');
+  }
+
+  /** Look for plans made with the previous integration. Reads only — the old
+   *  store is never written to, so the old card keeps working afterwards. */
+  private async onScanLegacy(): Promise<void> {
+    this.legacyBusy = true;
+    this.legacyFinds = [];
+    this.legacyErrors = [];
+    this.legacyOpen = true;
+    try {
+      const scan = await findLegacyProjects(this.hass);
+      this.legacyFinds = scan.finds;
+      this.legacyErrors = scan.errors;
+    } catch (err: any) {
+      this.legacyFinds = [];
+      this.legacyErrors = [{ source: 'shared', error: String(err?.message ?? err) }];
+    } finally {
+      this.legacyBusy = false;
+    }
+  }
+
+  /** Copy everything found into OUR store. Existing projects are never
+   *  overwritten: a clashing name gets a mark appended instead. */
+  private async onImportLegacy(): Promise<void> {
+    if (!this.legacyFinds.length) return;
+    this.legacyBusy = true;
+    try {
+      const current = await loadProjectsResult(this.hass);
+      if (!current.ok) {
+        this.showToast(
+          this.tx(
+            `Не удалось прочитать наше хранилище — перенос отменён (${current.error ?? ''})`,
+            `Could not read our own store — import cancelled (${current.error ?? ''})`,
+          ),
+        );
+        return;
+      }
+      const mark = this.tx('(из старой версии)', '(from the old version)');
+      let data = current.data;
+      let added = 0;
+      let renamed = 0;
+      for (const find of this.legacyFinds) {
+        const res = mergeProjects(data, find.data, mark);
+        data = res.data;
+        added += res.added;
+        renamed += res.renamed;
+      }
+      if (!added) {
+        this.showToast(this.tx('Переносить нечего', 'Nothing to import'));
+        return;
+      }
+      const save = await saveProjects(data, this.hass);
+      if (!save.ha && !save.local) {
+        this.showToast(
+          this.tx(
+            `Перенос не сохранён: ${save.sharedError ?? save.userError ?? ''}`,
+            `Import not saved: ${save.sharedError ?? save.userError ?? ''}`,
+          ),
+        );
+        return;
+      }
+      this.storedProjects = data;
+      this.projectList = listProjects(data);
+      this.legacyOpen = false;
+      this.showToast(
+        this.tx(
+          `Перенесено проектов: ${added}${renamed ? `, переименовано: ${renamed}` : ''}. Старая версия не тронута.`,
+          `Imported ${added} project(s)${renamed ? `, ${renamed} renamed` : ''}. The old version is untouched.`,
+        ),
+      );
+    } finally {
+      this.legacyBusy = false;
+    }
   }
 
   // -- Lit lifecycle ----------------------------------------------------------
@@ -1728,7 +2080,7 @@ export class Ha3dFloorplanCard extends LitElement {
 
   public override connectedCallback(): void {
     super.connectedCallback();
-    Ha3dFloorplanCard.injectFonts();
+    BmsFloorplanCard.injectFonts();
     this.sceneManager?.start();
     window.addEventListener('keydown', this.trackShift);
     window.addEventListener('keyup', this.trackShift);
@@ -2407,6 +2759,16 @@ export class Ha3dFloorplanCard extends LitElement {
             <button class="btn" title="Paste a plan JSON to build it" @click=${this.onOpenImport}>📥 Import</button>
             <button class="btn" title="Copy this plan as JSON" @click=${this.onExportPlan}>📤 Export</button>
           </div>
+          <div class="toolrow">
+            <button class="btn" ?disabled=${this.legacyBusy}
+              title=${this.tx(
+                'Найти планы старой версии и скопировать их сюда. Старое хранилище не изменяется.',
+                'Find plans from the previous version and copy them here. The old store is left untouched.',
+              )}
+              @click=${this.onScanLegacy}>
+              ⬇ ${this.tx('Перенести из старой версии', 'Import from the old version')}
+            </button>
+          </div>
         </div>
 
         <div class="panel-section">
@@ -2429,6 +2791,83 @@ export class Ha3dFloorplanCard extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  /** The card's own confirm/prompt box. Same modal layer as Import and the PIN
+   *  gate — the company forbids window.alert/confirm/prompt. */
+  private renderAsk() {
+    const a = this.askData;
+    return html`<div class="import-modal" @click=${this.cancelAsk}>
+      <form class="pin-box ask-form" @click=${(e: Event) => e.stopPropagation()} @submit=${this.submitAsk}>
+        <div class="import-title">${a.title}</div>
+        ${a.message ? html`<div class="ask-msg">${a.message}</div>` : nothing}
+        ${a.input
+          ? html`<input class="ask-input name-input" type="text" autocomplete="off"
+              inputmode=${a.input.inputmode ?? 'text'}
+              placeholder=${a.input.placeholder ?? ''}
+              .value=${a.input.value ?? ''} />`
+          : nothing}
+        <div class="toolrow">
+          <button type="submit" class="btn primary ${a.danger ? 'danger' : ''}">
+            ${a.okLabel ?? this.tx('Да', 'OK')}
+          </button>
+          <button type="button" class="btn" @click=${this.cancelAsk}>
+            ${a.cancelLabel ?? this.tx('Отмена', 'Cancel')}
+          </button>
+        </div>
+      </form>
+    </div>`;
+  }
+
+  /** What the previous version holds, before anything is copied. The operator
+   *  sees the source, the count and the names — then decides. */
+  private renderLegacyDialog() {
+    const total = this.legacyFinds.reduce((n, f) => n + f.count, 0);
+    return html`<div class="import-modal" @click=${() => (this.legacyOpen = false)}>
+      <div class="import-box" @click=${(e: Event) => e.stopPropagation()}>
+        <div class="import-title">${this.tx('Перенос из старой версии', 'Import from the old version')}</div>
+        ${this.legacyBusy && !this.legacyFinds.length
+          ? html`<div class="ask-msg">${this.tx('Ищем планы старой версии…', 'Looking for old plans…')}</div>`
+          : nothing}
+        ${!this.legacyBusy && !this.legacyFinds.length
+          ? html`<div class="ask-msg">
+              ${this.tx('Планы старой версии не найдены.', 'No plans from the previous version were found.')}
+            </div>`
+          : nothing}
+        <div class="legacy-list">
+        ${this.legacyFinds.map(
+          (f) => html`<div class="legacy-src">
+            <div class="legacy-head">
+              ${this.legacySourceLabel(f.source)} — ${f.count}
+              ${this.isRu ? this.ruPlural(f.count, 'проект', 'проекта', 'проектов') : 'project(s)'}
+            </div>
+            <div class="legacy-names">${f.names.join(' · ')}</div>
+          </div>`,
+        )}
+        ${this.legacyErrors.map(
+          (e) => html`<div class="pin-error">
+            ${this.legacySourceLabel(e.source)}: ${this.tx('не удалось прочитать', 'could not be read')} — ${e.error}
+          </div>`,
+        )}
+        </div>
+        ${this.legacyFinds.length
+          ? html`<div class="ask-msg">
+              ${this.tx(
+                'Проекты будут СКОПИРОВАНЫ сюда. Ваши существующие проекты не затираются: при совпадении имени копия получит пометку. Старое хранилище остаётся нетронутым.',
+                'The projects will be COPIED here. Your existing projects are not overwritten — a copy with a clashing name gets a mark appended. The old store is left untouched.',
+              )}
+            </div>`
+          : nothing}
+        <div class="toolrow">
+          ${this.legacyFinds.length
+            ? html`<button class="btn primary" ?disabled=${this.legacyBusy} @click=${this.onImportLegacy}>
+                ⬇ ${this.tx(`Перенести (${total})`, `Import (${total})`)}
+              </button>`
+            : nothing}
+          <button class="btn" @click=${() => (this.legacyOpen = false)}>${this.tx('Закрыть', 'Close')}</button>
+        </div>
+      </div>
+    </div>`;
   }
 
   /** View-mode control popup: a list of the tapped (+ nearby) entities, each
@@ -2534,7 +2973,7 @@ export class Ha3dFloorplanCard extends LitElement {
         <button type="button" class="ctl" title="Close" @click=${() => this.svc('cover', 'close_cover', {}, id, 'closed')}>${this.ic('chevDown')}</button>`;
     } else if (domain === 'lock') {
       controls = html`<button type="button" class="ctl ${on ? '' : 'on'}" title=${on ? 'Lock' : 'Unlock'}
-        @click=${() => this.svc('lock', on ? 'lock' : 'unlock', {}, id, on ? 'locked' : 'unlocked')}>${this.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
+        @click=${() => this.lockAction(id, on ? 'lock' : 'unlock')}>${this.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
     } else if (domain === 'climate') {
       // Compact AC remote: temperature ± and the HVAC mode chips, inline.
       const target = this.effTarget(id);
@@ -3152,7 +3591,10 @@ export class Ha3dFloorplanCard extends LitElement {
     // the normal per-domain cards.
     const intercom = this.detectIntercom(ents0);
     const ents = intercom ? ents0.filter((e) => !intercom.ids.has(e.entity_id)) : ents0;
-    const of = (...b: string[]) => ents.filter((e) => b.includes(e.behavior));
+    // A binding can name any entity; one we may not control is shown as a
+    // read-only readout instead of a switch (see CONTROL_DOMAINS).
+    const of = (...b: string[]) =>
+      ents.filter((e) => this.canControl(e.entity_id) && b.includes(e.behavior));
     const lights = of('light');
     const switches = of('switch', 'input_boolean');
     const climates = of('climate');
@@ -3161,7 +3603,7 @@ export class Ha3dFloorplanCard extends LitElement {
     const medias = of('media_player');
     const locks = of('lock');
     const known = new Set(['light', 'switch', 'input_boolean', 'climate', 'fan', 'cover', 'media_player', 'lock']);
-    const infos = ents.filter((e) => !known.has(e.behavior));
+    const infos = ents.filter((e) => !known.has(e.behavior) || !this.canControl(e.entity_id));
 
     const out: unknown[] = [];
     if (intercom) out.push(this.renderIntercomCard(intercom));
@@ -3345,7 +3787,7 @@ export class Ha3dFloorplanCard extends LitElement {
           <span class="qb-ic">${this.ic('eye')}</span><span>${this.t('View')}</span></button>
         ${g.open
           ? html`<button type="button" class="qb primary"
-              @click=${() => this.svc('button', 'press', {}, g.open!)}>
+              @click=${() => this.intercomOpenDoor(g.open!)}>
               <span class="qb-ic">${this.ic('doorOpen')}</span><span>${this.t('Open door')}</span></button>`
           : nothing}
       </div>
@@ -3717,7 +4159,7 @@ export class Ha3dFloorplanCard extends LitElement {
   private renderLockCard(id: string) {
     const locked = this.effState(id) === 'locked';
     return html`<button type="button" class="lockbtn ${locked ? 'locked' : 'unlocked'}"
-      @click=${() => this.svc('lock', locked ? 'unlock' : 'lock', {}, id, locked ? 'unlocked' : 'locked')}>
+      @click=${() => this.lockAction(id, locked ? 'unlock' : 'lock')}>
       ${this.ic(locked ? 'lockClosed' : 'lockOpen')}
       <div class="cgrow"><div class="lktxt">${locked ? this.t('Locked') : this.t('Unlocked')}</div>
         <div class="lksub">${this.cardName(id)}</div></div>
@@ -3743,7 +4185,9 @@ export class Ha3dFloorplanCard extends LitElement {
     const offIds = room.entities
       .filter((e) => ['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior))
       .map((e) => e.entity_id)
-      .filter((id) => this.effState(id) === 'on');
+      // `homeassistant.turn_off` would also stop a script / disable an
+      // automation — keep the bulk list inside CONTROL_DOMAINS.
+      .filter((id) => this.canControl(id) && this.effState(id) === 'on');
     if (offIds.length) {
       const gens = offIds.map((id) => this.setOptimistic(id, 'off'));
       const revert = () => offIds.forEach((id, i) => { if (this.optimistic.get(id)?.gen === gens[i]) this.clearOptimistic(id); });
@@ -3838,6 +4282,9 @@ export class Ha3dFloorplanCard extends LitElement {
       for (const e of room.entities) {
         if (seen.has(e.entity_id)) continue;
         seen.add(e.entity_id);
+        // Same reasoning as onRoomAllOff: never sweep an entity this card is
+        // not allowed to control into `homeassistant.turn_off`.
+        if (!this.canControl(e.entity_id)) continue;
         const attrs = this.hass.states[e.entity_id]?.attributes ?? {};
         if (['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior)) {
           if (this.effState(e.entity_id) === 'on') offIds.push(e.entity_id);
@@ -3993,7 +4440,7 @@ export class Ha3dFloorplanCard extends LitElement {
     if (lock) {
       const locked = this.effState(lock.entity_id) === 'locked';
       extraChip = html`<button type="button" class="qstat lockq ${locked ? 'locked' : 'unlocked'}"
-        @click=${(e: Event) => { e.stopPropagation(); this.svc('lock', locked ? 'unlock' : 'lock', {}, lock.entity_id, locked ? 'unlocked' : 'locked'); }}>
+        @click=${(e: Event) => { e.stopPropagation(); this.lockAction(lock.entity_id, locked ? 'unlock' : 'lock'); }}>
         ${this.ic(locked ? 'lockClosed' : 'lockOpen')}${locked ? this.t('Locked') : this.t('Unlocked')}</button>`;
     } else if (climate) {
       const target = this.hass?.states[climate.entity_id]?.attributes?.temperature;
@@ -4157,6 +4604,10 @@ export class Ha3dFloorplanCard extends LitElement {
               </form>
             </div>`
           : nothing}
+
+        ${this.legacyOpen ? this.renderLegacyDialog() : nothing}
+
+        ${this.askOpen ? this.renderAsk() : nothing}
 
         ${this.controlOpen && !this.editing ? this.renderControlPopup() : nothing}
 
@@ -4434,6 +4885,47 @@ export class Ha3dFloorplanCard extends LitElement {
     .pin-error {
       font-size: 12px;
       color: #ff9a9a;
+    }
+    /* Own confirm/prompt + the "import from the old version" list. Kept here,
+       next to .pin-box, so the three @media blocks stay LAST in this sheet —
+       in this file the order of rules IS the cascade. */
+    .ask-msg {
+      font-size: 13px;
+      line-height: 1.4;
+      color: #d8dde6;
+    }
+    /* Wider than the PIN box: these carry a sentence, not four digits. */
+    .ask-form {
+      width: min(420px, 92%);
+    }
+    .legacy-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    .btn.danger {
+      background: rgba(190, 60, 60, 0.9);
+      border-color: rgba(255, 140, 140, 0.5);
+    }
+    .legacy-src {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .legacy-head {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .legacy-names {
+      font-size: 12px;
+      color: #cfe0ff;
+      word-break: break-word;
     }
     .panel-section {
       display: flex;
@@ -6689,29 +7181,34 @@ export class Ha3dFloorplanCard extends LitElement {
   `;
 }
 
+// The integration serves this bundle on EVERY Home Assistant page, and an
+// install may still list an older copy of the resource in Lovelace. Handing the
+// same tag to customElements twice throws, and that throw aborts the whole
+// module — the card would vanish from every dashboard at once. Register only
+// while the name is free.
+if (!customElements.get(CARD_TAG)) customElements.define(CARD_TAG, BmsFloorplanCard);
+
 // Register in the Lovelace card picker.
 (window as any).customCards = (window as any).customCards || [];
-(window as any).customCards.push({
-  type: 'ha-3d-floorplan-card',
-  name: '3D Floor Plan Card',
-  description: 'Interactive true-3D floor plan with live entity bindings.',
-  preview: false,
-  documentationURL: 'https://github.com/your-org/ha-3d-floorplan-card',
-});
+if (!((window as any).customCards as any[]).some((c) => c?.type === CARD_TAG)) {
+  (window as any).customCards.push({
+    type: CARD_TAG,
+    name: 'BMS Планировка',
+    description: 'Интерактивная 3D-планировка объекта с живым управлением устройствами Home Assistant.',
+    preview: false,
+    documentationURL: 'https://github.com/optomtr/bms-3d-floorplan',
+  });
+}
 
 // eslint-disable-next-line no-console
 console.info(
-  `%c 3D-FLOORPLAN-CARD %c v${CARD_VERSION} `,
-  'color:#fff;background:#03a9f4;border-radius:4px 0 0 4px;padding:2px 6px',
-  'color:#03a9f4;background:#222;border-radius:0 4px 4px 0;padding:2px 6px',
+  `%c BMS ПЛАНИРОВКА %c v${CARD_VERSION} `,
+  'color:#fff;background:#0a84ff;border-radius:4px 0 0 4px;padding:2px 6px',
+  'color:#0a84ff;background:#222;border-radius:0 4px 4px 0;padding:2px 6px',
 );
-
-// Auto-add a sidebar entry (frontend-only, no YAML). Disable with
-// `window.ha3dFloorplan = { sidebar: false }`. See src/sidebar.ts.
-installSidebar();
 
 declare global {
   interface HTMLElementTagNameMap {
-    'ha-3d-floorplan-card': Ha3dFloorplanCard;
+    'bms-floorplan-card': BmsFloorplanCard;
   }
 }

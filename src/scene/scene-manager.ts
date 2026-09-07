@@ -130,14 +130,19 @@ const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
   low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1.5, aa: false, maxLights: 3 },
 };
 
-const QUALITY_KEY = 'ha3dFloorplanQuality';
+const QUALITY_KEY = 'bms-floorplan-quality';
+/** The previous version's key. READ ONLY: that card is still installed on
+ *  customer systems, and writing its keys would change its behaviour. */
+const OLD_QUALITY_KEY = 'ha3dFloorplanQuality';
 
 function readStoredQuality(): QualityChoice {
-  try {
-    const v = localStorage.getItem(QUALITY_KEY);
-    if (v === 'high' || v === 'medium' || v === 'low' || v === 'auto') return v;
-  } catch {
-    /* ignore */
+  for (const key of [QUALITY_KEY, OLD_QUALITY_KEY]) {
+    try {
+      const v = localStorage.getItem(key);
+      if (v === 'high' || v === 'medium' || v === 'low' || v === 'auto') return v;
+    } catch {
+      /* ignore */
+    }
   }
   return 'auto';
 }

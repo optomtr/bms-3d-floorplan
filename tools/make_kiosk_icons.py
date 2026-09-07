@@ -4,13 +4,13 @@ The icons are derived artifacts: edit the geometry here and re-run
 
     python tools/make_kiosk_icons.py
 
-to regenerate everything in custom_components/ha_3d_floorplan/frontend/. Drawn at
+to regenerate everything in custom_components/bms_floorplan/frontend/. Drawn at
 4x and downsampled, because PIL has no anti-aliasing of its own.
 """
 import os
 from PIL import Image, ImageDraw
 
-OUT = os.path.join("custom_components", "ha_3d_floorplan", "frontend")
+OUT = os.path.join("custom_components", "bms_floorplan", "frontend")
 NAVY = (22, 36, 61, 255)
 WHITE = (255, 255, 255, 255)
 S = 640            # design space

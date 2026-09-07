@@ -279,6 +279,11 @@ export interface CardConfig {
   idleMinutes?: number;
   /** Optional backend base URL for project CRUD (stretch goal). */
   backend?: string;
+  /** UI language. Default (unset) is Russian — this is a BMS product and the
+   *  Russian layer must not switch itself off just because Home Assistant is
+   *  set to English. `'auto'` restores the old behaviour: follow the HA user's
+   *  language, then the browser's. */
+  language?: 'ru' | 'en' | 'auto';
 }
 
 // Minimal shape of the HA `hass` object we actually use.
