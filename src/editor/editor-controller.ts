@@ -11,69 +11,33 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorPlan, FloorDef, WallDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
+import type { FloorPlan, FloorDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
-import { defaultY, defaultColor, isWallMount, isSurfaceMount, isLightSet, LIGHT_KEYS, modelBackZ } from '../furniture/library';
+import { defaultY, defaultColor, isWallMount, isLightSet, LIGHT_KEYS } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
+import { arcNodes, resolveWallMount, sameVertex, snap } from './geometry';
+import {
+  nearestEndpoint,
+  nearestMountPoint,
+  snapPoint,
+  type SnapResult,
+  type WallMountPoint,
+} from './snapping';
+import { centroid, closedFaces, mergeCollinearWalls, signedArea } from './topology';
+import { PlanHistory } from './history';
+import { applyGizmo, buildGizmo, gizmoStart, type GizmoStart } from './gizmo';
+import { renderPreview } from './preview';
+import {
+  GLAZING_MODELS,
+  WALL_CUT_MODELS,
+  addOpening,
+  applyGlazing,
+  cutForWallModel,
+  findGlazingSpot,
+} from './openings';
 
 export type EditTool = 'wall' | 'furniture' | 'select' | 'door' | 'window' | 'opening' | 'floor' | 'arc';
-
-/** Furniture-palette glazing models that become real wall openings on placement. */
-const GLAZING_MODELS: Record<string, { kind: OpeningKind; width: number; variant: string; sill?: number; top?: number }> = {
-  window_frame: { kind: 'window', width: 1.2, variant: 'single' },
-  terrace_window: { kind: 'window', width: 2.4, variant: 'picture' },
-  // Floor-to-ceiling terrace WINDOW (mullioned, no door) — cuts a full-height
-  // glazed opening in the wall.
-  terrace_window_full: { kind: 'window', width: 2.6, variant: 'storefront', sill: 0, top: 2.55 },
-  patio_door: { kind: 'door', width: 2.4, variant: 'glass', sill: 0, top: 2.2 },
-  // Full-wall floor-to-ceiling terrace glazing (auto-fits the wall) with a door.
-  terrace_wall: { kind: 'window', width: 12, variant: 'terrace', sill: 0, top: 2.55 },
-  // Doors placed from the palette cut a real opening into the nearest wall (so
-  // they're flush in the wall, never floating/flickering) and are then
-  // selectable + draggable along the wall.
-  door: { kind: 'door', width: 0.9, variant: 'single' },
-  double_door: { kind: 'door', width: 1.6, variant: 'double' },
-  sliding_door: { kind: 'door', width: 1.7, variant: 'sliding' },
-};
-
-/** Wall-mount models that mount IN the wall like a door: placement pierces a
- *  BARE opening (a real hole) and drops the (still animatable) model flush in it,
- *  linked via `attach` so deleting the piece removes the hole. */
-const WALL_CUT_MODELS: Record<string, { width: number; top: number }> = {
-  garage_door: { width: 2.6, top: 2.2 },
-};
-
-const SNAP = 0.1; // grid snap, meters
-const CLOSE_DIST = 0.4; // distance to first point that closes a room
-const VERT_SNAP = 0.3; // snap a new point onto an existing wall endpoint
-
-// Drawing aids ("magnet"):
-const ANGLE_STEP = Math.PI / 12; // 15° — strong pull to parallel/perpendicular
-const LEN_TOL = 0.12; // snap a segment's length to a nearby existing wall length
-const ALIGN_TOL = 0.25; // align the first point's x/z with an existing endpoint
-
-const snap = (v: number) => Math.round(v / SNAP) * SNAP;
-const sameVertex = (a: Vec2, b: Vec2) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-4;
-
-const rotateVec = (x: number, z: number, deg: number): Vec2 => {
-  const r = (deg * Math.PI) / 180;
-  const c = Math.cos(r);
-  const s = Math.sin(r);
-  return [x * c - z * s, x * s + z * c];
-};
-
-interface SnapResult {
-  pt: Vec2;
-  /** Snapped onto an existing endpoint (walls join). */
-  joined: boolean;
-  /** Segment length equals an existing wall's length. */
-  matchedLen: boolean;
-  /** Segment is parallel to an existing wall. */
-  parallel: boolean;
-  lengthM: number;
-  angleDeg: number;
-}
 
 export class EditorController {
   plan: FloorPlan;
@@ -113,13 +77,11 @@ export class EditorController {
   private dragVertex: Vec2 | null = null;
   private wallDrag0: { s: Vec2; e: Vec2 } | null = null;
   private furnDrag0: Vec2 = [0, 0];
-  private undoStack: string[] = [];
-  private redoStack: string[] = [];
+  private history = new PlanHistory();
   private dragSnapshot: string | null = null;
-  private readonly HISTORY_MAX = 80;
   private gizmoHandle: string | null = null;
   private gizmoGrab: Vec2 = [0, 0];
-  private gizmoRoom0 = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 };
+  private gizmoRoom0: GizmoStart = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 };
   /** Hold Shift to disable auto-snap while moving a room. */
   shiftHeld = false;
 
@@ -229,7 +191,7 @@ export class EditorController {
   private dragStart(e: PointerEvent): boolean {
     if (this.tool !== 'select') return false;
     // Snapshot before any drag; committed to history in dragEnd if it changed.
-    this.dragSnapshot = JSON.stringify(this.plan);
+    this.dragSnapshot = this.history.snapshot(this.plan);
     // 1) Position Helper handle (when a shape room is selected).
     if (this.selectedKind === 'room') {
       const handle = this.sm.pickGizmo(e);
@@ -257,7 +219,7 @@ export class EditorController {
     // 4) Wall endpoint reshape (near a vertex), else 5) move the whole wall.
     const gp = this.sm.groundIntersect(e);
     if (gp) {
-      const v = this.nearestEndpoint(gp.x, gp.z, 0.45);
+      const v = nearestEndpoint(this.floor().walls ?? [], gp.x, gp.z, 0.45);
       if (v) {
         this.dragMode = 'endpoint';
         this.dragVertex = v;
@@ -386,28 +348,9 @@ export class EditorController {
     this.gizmoHandle = null;
     this.wallDrag0 = null;
     // Commit to undo history only if the drag actually changed the plan.
-    if (this.dragSnapshot && this.dragSnapshot !== JSON.stringify(this.plan)) {
-      this.undoStack.push(this.dragSnapshot);
-      if (this.undoStack.length > this.HISTORY_MAX) this.undoStack.shift();
-      this.redoStack = [];
-    }
+    if (this.dragSnapshot) this.history.commitIfChanged(this.dragSnapshot, this.plan);
     this.dragSnapshot = null;
     this.onChange?.();
-  }
-
-  private nearestEndpoint(x: number, z: number, tol: number): Vec2 | null {
-    let best: Vec2 | null = null;
-    let bd = tol;
-    for (const w of this.floor().walls ?? []) {
-      for (const pt of [w.start, w.end]) {
-        const d = Math.hypot(x - pt[0], z - pt[1]);
-        if (d < bd) {
-          bd = d;
-          best = [pt[0], pt[1]];
-        }
-      }
-    }
-    return best;
   }
 
   /** Move a shared vertex: all walls + room polygon points at `from` go to `to`. */
@@ -463,12 +406,11 @@ export class EditorController {
   deleteWallOpening(index: number): void {
     if (this.selectedKind !== 'wall') return;
     const w = this.floor().walls?.[this.selectedWall];
-    if (!w?.openings) return;
-    this.pushUndo();
-    w.openings.splice(index, 1);
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    const openings = w?.openings;
+    if (!openings) return;
+    this.edit(() => {
+      openings.splice(index, 1);
+    });
   }
 
   /** Openings on the selected shape room (for the property list). */
@@ -482,13 +424,11 @@ export class EditorController {
   }
 
   deleteRoomOpening(index: number): void {
-    const room = this.currentRoom();
-    if (!room?.openings) return;
-    this.pushUndo();
-    room.openings.splice(index, 1);
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    const openings = this.currentRoom()?.openings;
+    if (!openings) return;
+    this.edit(() => {
+      openings.splice(index, 1);
+    });
   }
 
   /** Set the selected wall's length, moving its END along the wall direction. */
@@ -496,14 +436,12 @@ export class EditorController {
     if (this.selectedKind !== 'wall' || !(len > 0)) return;
     const w = this.floor().walls?.[this.selectedWall];
     if (!w) return;
-    this.pushUndo();
-    const dx = w.end[0] - w.start[0];
-    const dz = w.end[1] - w.start[1];
-    const cur = Math.hypot(dx, dz) || 1;
-    w.end = [w.start[0] + (dx / cur) * len, w.start[1] + (dz / cur) * len];
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      const dx = w.end[0] - w.start[0];
+      const dz = w.end[1] - w.start[1];
+      const cur = Math.hypot(dx, dz) || 1;
+      w.end = [w.start[0] + (dx / cur) * len, w.start[1] + (dz / cur) * len];
+    });
   }
 
   /** Set the selected wall's thickness in meters (e.g. 0.25, 0.38, 0.78). */
@@ -511,11 +449,9 @@ export class EditorController {
     if (this.selectedKind !== 'wall' || !(t > 0)) return;
     const w = this.floor().walls?.[this.selectedWall];
     if (!w) return;
-    this.pushUndo();
-    w.thickness = t;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      w.thickness = t;
+    });
   }
 
   /** Rotate the selected wall to an absolute heading (deg), pivoting on its start
@@ -526,11 +462,9 @@ export class EditorController {
     if (!w) return;
     const len = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1]) || 1;
     const r = (deg * Math.PI) / 180;
-    this.pushUndo();
-    w.end = [w.start[0] + Math.cos(r) * len, w.start[1] + Math.sin(r) * len];
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      w.end = [w.start[0] + Math.cos(r) * len, w.start[1] + Math.sin(r) * len];
+    });
   }
 
   setTool(t: EditTool): void {
@@ -601,9 +535,9 @@ export class EditorController {
     const cutCfg = WALL_CUT_MODELS[this.selectedModel];
     if (cutCfg) {
       this.pushUndo();
-      const cut = this.cutForWallModel(p, cutCfg);
+      const cut = cutForWallModel(this.floor().walls ?? [], p, cutCfg);
       if (!cut) {
-        this.undoStack.pop(); // nothing changed — drop the redundant snapshot
+        this.history.dropLast(); // nothing changed — drop the redundant snapshot
         this.onMessage?.('Tap on (or near) a wall to install the garage door');
         return;
       }
@@ -651,155 +585,30 @@ export class EditorController {
     this.selectFurniture(id);
   }
 
-  /** Cut a window/door opening into the nearest wall for a glazing furniture
-   *  model. Returns false if no wall is close enough (then place as furniture). */
+  /** Врезать окно/дверь из палитры в ближайшую стену. false — стены рядом нет
+   *  (тогда карточка говорит человеку, куда тапать). */
   private placeGlazing(p: THREE.Vector3, model: string): boolean {
     const cfg = GLAZING_MODELS[model];
     if (!cfg) return false;
     const walls = this.floor().walls ?? [];
-    let best: { i: number; along: number; len: number } | null = null;
-    let bd = 0.9;
-    for (let i = 0; i < walls.length; i++) {
-      const w = walls[i];
-      const ax = w.start[0], az = w.start[1], bx = w.end[0], bz = w.end[1];
-      const dx = bx - ax, dz = bz - az;
-      const l2 = dx * dx + dz * dz;
-      if (l2 < 1e-6) continue;
-      let t = ((p.x - ax) * dx + (p.z - az) * dz) / l2;
-      t = Math.max(0, Math.min(1, t));
-      const cx = ax + dx * t, cz = az + dz * t;
-      const d = Math.hypot(p.x - cx, p.z - cz);
-      if (d < bd) {
-        bd = d;
-        best = { i, along: t * Math.sqrt(l2), len: Math.sqrt(l2) };
-      }
-    }
-    if (!best) return false;
-    const width = Math.min(cfg.width, Math.max(0.4, best.len - 0.1));
-    const position = Math.max(0, Math.min(best.len - width, best.along - width / 2));
+    const spot = findGlazingSpot(walls, p, cfg);
+    if (!spot) return false;
     this.pushUndo();
-    const w = walls[best.i];
-    (w.openings ??= []).push({
-      kind: cfg.kind,
-      position,
-      width,
-      variant: cfg.variant,
-      ...(cfg.sill !== undefined ? { sill: cfg.sill } : {}),
-      ...(cfg.top !== undefined ? { top: cfg.top } : {}),
-    });
+    const openingIndex = applyGlazing(walls, spot, cfg);
     this.rebuild();
-    this.selectOpening(best.i, w.openings!.length - 1);
+    this.selectOpening(spot.wallIndex, openingIndex);
     this.onMessage?.(`${cfg.kind === 'door' ? 'Glass door' : 'Window'} cut into wall`);
     return true;
   }
 
-  /** Cut a BARE (leaf-less) door opening on the nearest wall for a wall-cut model
-   *  and return the opening's wall/index plus the in-wall placement (centreline
-   *  point + wall angle) so the model can be dropped flush into the hole. */
-  private cutForWallModel(
-    p: THREE.Vector3,
-    cfg: { width: number; top: number },
-  ): { wallIndex: number; openingIndex: number; x: number; z: number; rotation: number } | null {
-    const walls = this.floor().walls ?? [];
-    let best: { i: number; along: number; len: number } | null = null;
-    let bd = 1.0;
-    for (let i = 0; i < walls.length; i++) {
-      const w = walls[i];
-      const ax = w.start[0], az = w.start[1], bx = w.end[0], bz = w.end[1];
-      const dx = bx - ax, dz = bz - az;
-      const l2 = dx * dx + dz * dz;
-      if (l2 < 1e-6) continue;
-      let t = ((p.x - ax) * dx + (p.z - az) * dz) / l2;
-      t = Math.max(0, Math.min(1, t));
-      const cx = ax + dx * t, cz = az + dz * t;
-      const d = Math.hypot(p.x - cx, p.z - cz);
-      if (d < bd) {
-        bd = d;
-        best = { i, along: t * Math.sqrt(l2), len: Math.sqrt(l2) };
-      }
-    }
-    if (!best) return null;
-    const w = walls[best.i];
-    const len = best.len;
-    const width = Math.min(cfg.width, Math.max(0.4, len - 0.1));
-    const position = Math.max(0, Math.min(len - width, best.along - width / 2));
-    (w.openings ??= []).push({ kind: 'door', position, width, sill: 0, top: cfg.top, bare: true });
-    const dxu = (w.end[0] - w.start[0]) / len, dzu = (w.end[1] - w.start[1]) / len;
-    const centre = position + width / 2;
-    return {
-      wallIndex: best.i,
-      openingIndex: w.openings!.length - 1,
-      x: w.start[0] + dxu * centre,
-      z: w.start[1] + dzu * centre,
-      rotation: (-Math.atan2(w.end[1] - w.start[1], w.end[0] - w.start[0]) * 180) / Math.PI,
-    };
+  /** Ближайшая точка стены (или грани комнаты-фигуры) для посадки навесного
+   *  предмета — вся математика в snapping.ts. */
+  private nearestWallPoint(px: number, pz: number): WallMountPoint | null {
+    return nearestMountPoint(this.floor(), px, pz);
   }
 
-  /** Nearest point on any wall / shape-room edge, with orientation + normal/side
-   *  (which face of the wall the tapped point is on), for snapping wall-mounted
-   *  furniture. */
-  private nearestWallPoint(
-    px: number,
-    pz: number,
-  ): { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number } | null {
-    let bd = 1.2;
-    let best:
-      | { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number }
-      | null = null;
-    const fl = this.floor();
-    const tryEdge = (ax: number, az: number, bx: number, bz: number, thickness: number) => {
-      const dx = bx - ax, dz = bz - az;
-      const len2 = dx * dx + dz * dz;
-      if (len2 < 1e-6) return;
-      let t = ((px - ax) * dx + (pz - az) * dz) / len2;
-      t = Math.max(0, Math.min(1, t));
-      const cx = ax + dx * t, cz = az + dz * t;
-      const d = Math.hypot(px - cx, pz - cz);
-      if (d < bd) {
-        bd = d;
-        const len = Math.sqrt(len2);
-        // unit normal pointing toward the tapped side
-        let nx = -dz / len, nz = dx / len;
-        if ((px - cx) * nx + (pz - cz) * nz < 0) {
-          nx = -nx;
-          nz = -nz;
-        }
-        best = { x: cx, z: cz, rotation: (-Math.atan2(dz, dx) * 180) / Math.PI, nx, nz, thickness };
-      }
-    };
-    for (const w of fl.walls ?? []) {
-      tryEdge(w.start[0], w.start[1], w.end[0], w.end[1], w.thickness ?? 0.12);
-    }
-    for (const room of fl.rooms ?? []) {
-      if (!isShapeRoom(room)) continue;
-      const poly = roomPolygon(room);
-      const th = room.thickness ?? 0.12;
-      for (let i = 0; i < poly.length; i++) {
-        const a = poly[i];
-        const b = poly[(i + 1) % poly.length];
-        tryEdge(a[0], a[1], b[0], b[1], th);
-      }
-    }
-    return best;
-  }
-
-  /** Resolve final position + rotation for a wall-mounted piece. Surface-mount
-   *  items (TV, painting…) are pushed onto the room-side face and turned to face
-   *  the room; doors/windows/curtains stay in the wall plane. */
-  private resolveWallMount(
-    model: string,
-    p: { x: number; z: number; rotation: number; nx: number; nz: number; thickness: number },
-  ): { x: number; z: number; rotation: number } {
-    if (!isSurfaceMount(model)) return { x: p.x, z: p.z, rotation: p.rotation };
-    // Offset by the wall half-thickness PLUS how far the model reaches behind its
-    // origin, so its back sits flush on the wall surface (a deep cabinet no longer
-    // punches through the wall). +5 mm keeps it just off the surface.
-    const off = p.thickness / 2 - modelBackZ(model) + 0.005;
-    const x = p.x + p.nx * off;
-    const z = p.z + p.nz * off;
-    // Rotation so the model's front (+Z local) faces the room (the normal).
-    const rotation = (Math.atan2(p.nx, p.nz) * 180) / Math.PI;
-    return { x, z, rotation };
+  private resolveWallMount(model: string, p: WallMountPoint): { x: number; z: number; rotation: number } {
+    return resolveWallMount(model, p);
   }
 
   selectFurniture(id: string | null): void {
@@ -864,11 +673,9 @@ export class EditorController {
   setOpeningVariant(variant: string): void {
     const op = this.selectedOpeningData;
     if (!op) return;
-    this.pushUndo();
-    op.variant = variant;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      op.variant = variant;
+    });
   }
 
   /** Slide the selected opening (door / window / terrace) LEFT/RIGHT along its
@@ -880,25 +687,21 @@ export class EditorController {
     if (!wall || !op) return;
     const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]);
     const w = op.width ?? 0.9;
-    this.pushUndo();
-    op.position = Math.max(0, Math.min(len - w, (op.position ?? 0) + delta));
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      op.position = Math.max(0, Math.min(len - w, (op.position ?? 0) + delta));
+    });
   }
 
   /** Swap a selected opening between door / window / opening. */
   setOpeningKind(kind: OpeningKind): void {
     const op = this.selectedOpeningData;
     if (!op) return;
-    this.pushUndo();
-    op.kind = kind;
-    op.bare = kind === 'opening' ? true : undefined;
-    delete op.sill;
-    delete op.top; // let the builder pick kind-appropriate defaults
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      op.kind = kind;
+      op.bare = kind === 'opening' ? true : undefined;
+      delete op.sill;
+      delete op.top; // let the builder pick kind-appropriate defaults
+    });
   }
 
   setOpeningWidth(width: number): void {
@@ -907,22 +710,20 @@ export class EditorController {
     const wall = this.floor().walls?.[this.selectedOpeningWall];
     if (!wall) return;
     const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]);
-    this.pushUndo();
-    op.width = Math.min(width, Math.max(0.3, len - op.position));
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      op.width = Math.min(width, Math.max(0.3, len - op.position));
+    });
   }
 
   deleteSelectedOpening(): void {
     if (this.selectedKind !== 'opening') return;
-    const wall = this.floor().walls?.[this.selectedOpeningWall];
-    if (!wall?.openings) return;
-    this.pushUndo();
-    wall.openings.splice(this.selectedOpeningIndex, 1);
-    this.clearSelection();
-    this.rebuild();
-    this.onChange?.();
+    const openings = this.floor().walls?.[this.selectedOpeningWall]?.openings;
+    if (!openings) return;
+    this.edit(() => {
+      openings.splice(this.selectedOpeningIndex, 1);
+      this.clearSelection();
+      this.rebuild();
+    }, 'none');
   }
 
   clearSelection(): void {
@@ -980,89 +781,49 @@ export class EditorController {
   /** Drop a parametric room shape at the camera target and select it. */
   addRoomShape(shape: RoomShape): void {
     const fl = this.floor();
-    this.pushUndo();
-    if (!fl.rooms) fl.rooms = [];
-    const c = this.sm.controls.target;
-    const room: RoomDef = {
-      id: `r${fl.rooms.length}_${Math.floor(performance.now() % 100000)}`,
-      name: `Room ${fl.rooms.length + 1}`,
-      shape,
-      x: snap(c.x),
-      z: snap(c.z),
-      width: 4,
-      depth: 3,
-      rotation: 0,
-      polygon: [],
-    };
-    fl.rooms.push(room);
-    this.rebuild();
-    this.selectRoom(fl.rooms.length - 1);
-    this.setTool('select');
-    this.onChange?.();
+    this.edit(() => {
+      if (!fl.rooms) fl.rooms = [];
+      const c = this.sm.controls.target;
+      const room: RoomDef = {
+        id: `r${fl.rooms.length}_${Math.floor(performance.now() % 100000)}`,
+        name: `Room ${fl.rooms.length + 1}`,
+        shape,
+        x: snap(c.x),
+        z: snap(c.z),
+        width: 4,
+        depth: 3,
+        rotation: 0,
+        polygon: [],
+      };
+      fl.rooms.push(room);
+      this.rebuild();
+      this.selectRoom(fl.rooms.length - 1);
+      this.setTool('select');
+    }, 'none');
   }
 
   setRoomField(field: 'name' | 'width' | 'depth' | 'height' | 'rotation', value: number | string): void {
     const room = this.currentRoom();
     if (!room) return;
-    this.pushUndo();
-    if (field === 'name') room.name = String(value);
-    else {
-      // «3,5» с русской раскладки: Number('3,5') это NaN, правка молча терялась.
-      const v = parseFloat(String(value).trim().replace(',', '.'));
-      if (Number.isNaN(v)) return;
-      if (field === 'width') room.width = Math.max(0.5, v);
-      else if (field === 'depth') room.depth = Math.max(0.5, v);
-      else if (field === 'height') room.height = Math.max(1, v);
-      else if (field === 'rotation') room.rotation = v;
-    }
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      if (field === 'name') room.name = String(value);
+      else {
+        // «3,5» с русской раскладки: Number('3,5') это NaN, правка молча терялась.
+        const v = parseFloat(String(value).trim().replace(',', '.'));
+        if (Number.isNaN(v)) return;
+        if (field === 'width') room.width = Math.max(0.5, v);
+        else if (field === 'depth') room.depth = Math.max(0.5, v);
+        else if (field === 'height') room.height = Math.max(1, v);
+        else if (field === 'rotation') room.rotation = v;
+      }
+    });
   }
 
   private buildGizmo(): void {
     this.sm.clearGizmo();
     const room = this.currentRoom();
     if (!room || !isShapeRoom(room)) return;
-    const g = this.sm.gizmoGroup;
-    const y = this.elevation() + 0.08;
-    const cx = room.x ?? 0;
-    const cz = room.z ?? 0;
-    const rot = room.rotation ?? 0;
-
-    const handle = (
-      geo: THREE.BufferGeometry,
-      color: number,
-      pos: Vec2,
-      id: string,
-      flat = true,
-    ) => {
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, depthTest: false }));
-      if (flat) m.rotation.x = -Math.PI / 2;
-      m.position.set(pos[0], y, pos[1]);
-      m.renderOrder = 1000;
-      m.userData.gizmoHandle = id;
-      g.add(m);
-    };
-
-    // Move (center disc).
-    handle(new THREE.CircleGeometry(0.28, 24), 0x4aa3ff, [cx, cz], 'move');
-    // Rotate (ring) offset beyond one edge.
-    const off = rotateVec(0, -((room.depth ?? 3) / 2 + 0.7), rot);
-    handle(new THREE.TorusGeometry(0.2, 0.05, 8, 20), 0x4fd06a, [cx + off[0], cz + off[1]], 'rotate');
-    // Corner resize handles (rect only).
-    if (room.shape === 'rect') {
-      roomPolygon(room).forEach((c, i) => {
-        const s = new THREE.Mesh(
-          new THREE.SphereGeometry(0.16, 12, 12),
-          new THREE.MeshBasicMaterial({ color: 0xffcc44, depthTest: false }),
-        );
-        s.position.set(c[0], y, c[1]);
-        s.renderOrder = 1000;
-        s.userData.gizmoHandle = `corner${i}`;
-        g.add(s);
-      });
-    }
+    buildGizmo(this.sm.gizmoGroup, room, this.elevation() + 0.08);
   }
 
   private beginGizmo(handle: string, e: PointerEvent): boolean {
@@ -1072,117 +833,28 @@ export class EditorController {
     this.dragMode = 'gizmo';
     this.gizmoHandle = handle;
     this.gizmoGrab = [gp.x, gp.z];
-    this.gizmoRoom0 = {
-      x: room.x ?? 0,
-      z: room.z ?? 0,
-      width: room.width ?? 3,
-      depth: room.depth ?? 3,
-      rotation: room.rotation ?? 0,
-    };
+    this.gizmoRoom0 = gizmoStart(room);
     return true;
   }
 
   private gizmoMoveTo(p: THREE.Vector3): void {
     const room = this.currentRoom();
     if (!room || !this.gizmoHandle) return;
-    const g0 = this.gizmoRoom0;
-    const h = this.gizmoHandle;
-    if (h === 'move') {
-      room.x = snap(g0.x + (p.x - this.gizmoGrab[0]));
-      room.z = snap(g0.z + (p.z - this.gizmoGrab[1]));
-      if (!this.shiftHeld) this.snapRoom(room);
-    } else if (h === 'rotate') {
-      let deg = (Math.atan2(p.z - (room.z ?? 0), p.x - (room.x ?? 0)) * 180) / Math.PI + 90;
-      if (!this.shiftHeld) deg = Math.round(deg / 15) * 15;
-      room.rotation = deg;
-    } else if (h.startsWith('corner') && room.shape === 'rect') {
-      const i = parseInt(h.slice(6), 10);
-      const signs: Vec2[] = [
-        [-1, -1],
-        [1, -1],
-        [1, 1],
-        [-1, 1],
-      ];
-      const [sx, sz] = signs[i] ?? [1, 1];
-      // Fixed opposite corner (world), in the room's start rotation.
-      const oppLocal: Vec2 = [(-sx * g0.width) / 2, (-sz * g0.depth) / 2];
-      const oppWorld = rotateVec(oppLocal[0], oppLocal[1], g0.rotation);
-      const oppX = g0.x + oppWorld[0];
-      const oppZ = g0.z + oppWorld[1];
-      // Pointer in the room-local frame (unrotate around the FIXED opposite corner... use center0).
-      const rel = rotateVec(p.x - g0.x, p.z - g0.z, -g0.rotation);
-      const newW = Math.max(0.5, snap(Math.abs(rel[0] - (-sx * g0.width) / 2)));
-      const newD = Math.max(0.5, snap(Math.abs(rel[1] - (-sz * g0.depth) / 2)));
-      // New center = midpoint of fixed opposite corner and the dragged corner, world.
-      const cornerLocalNew: Vec2 = [(sx * newW) / 2, (sz * newD) / 2];
-      const cornerWorldFromOpp = rotateVec(sx * newW, sz * newD, g0.rotation);
-      room.width = newW;
-      room.depth = newD;
-      room.x = snap(oppX + cornerWorldFromOpp[0] / 2);
-      room.z = snap(oppZ + cornerWorldFromOpp[1] / 2);
-      void cornerLocalNew;
-    }
+    // Приклеивание к соседям касается только комнат-фигур этого этажа.
+    const neighbours = (this.floor().rooms ?? []).filter((r) => isShapeRoom(r));
+    applyGizmo(room, this.gizmoHandle, p, this.gizmoGrab, this.gizmoRoom0, this.shiftHeld, neighbours);
     this.rebuild();
     this.reselect();
     this.onChange?.();
-  }
-
-  /** Snap an axis-aligned room's edges to nearby axis-aligned rooms. */
-  private snapRoom(room: RoomDef): void {
-    if (Math.abs(((room.rotation ?? 0) % 360)) > 1) return;
-    const tol = 0.35;
-    const w = room.width ?? 3;
-    const d = room.depth ?? 3;
-    let L = (room.x ?? 0) - w / 2;
-    let T = (room.z ?? 0) - d / 2;
-    const others = (this.floor().rooms ?? []).filter(
-      (r) => r !== room && isShapeRoom(r) && Math.abs((r.rotation ?? 0) % 360) <= 1,
-    );
-    let bestDX = 0;
-    let bestDXd = tol;
-    let bestDZ = 0;
-    let bestDZd = tol;
-    for (const o of others) {
-      const ow = o.width ?? 3;
-      const od = o.depth ?? 3;
-      const oL = (o.x ?? 0) - ow / 2;
-      const oR = (o.x ?? 0) + ow / 2;
-      const oT = (o.z ?? 0) - od / 2;
-      const oB = (o.z ?? 0) + od / 2;
-      for (const myX of [L, L + w]) {
-        for (const oX of [oL, oR]) {
-          const diff = oX - myX;
-          if (Math.abs(diff) < bestDXd) {
-            bestDXd = Math.abs(diff);
-            bestDX = diff;
-          }
-        }
-      }
-      for (const myZ of [T, T + d]) {
-        for (const oZ of [oT, oB]) {
-          const diff = oZ - myZ;
-          if (Math.abs(diff) < bestDZd) {
-            bestDZd = Math.abs(diff);
-            bestDZ = diff;
-          }
-        }
-      }
-    }
-    room.x = (room.x ?? 0) + bestDX;
-    room.z = (room.z ?? 0) + bestDZ;
-    void L;
-    void T;
   }
 
   rotateSelected(): void {
     if (this.selectedKind !== 'furniture') return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
-    this.pushUndo();
-    f.rotation = ((f.rotation ?? 0) + 45) % 360;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      f.rotation = ((f.rotation ?? 0) + 45) % 360;
+    });
   }
 
   /** Move the selected furniture up/down along the vertical axis. */
@@ -1190,11 +862,9 @@ export class EditorController {
     if (this.selectedKind !== 'furniture') return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
-    this.pushUndo();
-    f.position[1] = Math.max(0, Math.round((f.position[1] + delta) * 100) / 100);
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      f.position[1] = Math.max(0, Math.round((f.position[1] + delta) * 100) / 100);
+    });
   }
 
   /** Current per-axis scale of the selected furniture (defaults to 1,1,1). */
@@ -1211,14 +881,12 @@ export class EditorController {
     if (this.selectedKind !== 'furniture' || !(v > 0)) return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
-    this.pushUndo();
-    const s = f.scale ?? 1;
-    const cur: Vec3 = Array.isArray(s) ? [s[0], s[1], s[2]] : [s, s, s];
-    cur[axis] = Math.max(0.1, Math.round(v * 100) / 100);
-    f.scale = cur;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      const s = f.scale ?? 1;
+      const cur: Vec3 = Array.isArray(s) ? [s[0], s[1], s[2]] : [s, s, s];
+      cur[axis] = Math.max(0.1, Math.round(v * 100) / 100);
+      f.scale = cur;
+    });
   }
 
   /** Whether the selected furniture is a light fixture (brightness applies). */
@@ -1238,11 +906,9 @@ export class EditorController {
     if (this.selectedKind !== 'furniture' || !this.selectedId) return;
     const f = this.floor().furniture?.find((x) => x.id === this.selectedId);
     if (!f) return;
-    this.pushUndo();
-    f.brightness = Math.max(0, Math.min(1, v));
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      f.brightness = Math.max(0, Math.min(1, v));
+    });
   }
 
   private selectedFurniture() {
@@ -1266,22 +932,18 @@ export class EditorController {
   setSpread(v: number): void {
     const f = this.selectedFurniture();
     if (!f) return;
-    this.pushUndo();
-    f.spread = Math.max(0.4, Math.min(12, Math.round(v * 100) / 100));
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      f.spread = Math.max(0.4, Math.min(12, Math.round(v * 100) / 100));
+    });
   }
 
   /** How many elements a light set has (e.g. spotlight count). */
   setCount(v: number): void {
     const f = this.selectedFurniture();
     if (!f) return;
-    this.pushUndo();
-    f.count = Math.max(1, Math.min(12, Math.round(v)));
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      f.count = Math.max(1, Math.min(12, Math.round(v)));
+    });
   }
 
   // -- Manual room "zones" ----------------------------------------------------
@@ -1303,15 +965,15 @@ export class EditorController {
   addZone(): void {
     const fl = this.floor();
     if (!fl.zones) fl.zones = [];
-    this.pushUndo();
-    // Default the icon to the camera focus (already clamped to the active floor)
-    // rather than the whole-scene centre, which the origin grid would dominate.
-    const t = this.sm.controls.target;
-    const id = `z${fl.zones.length}_${Math.floor(performance.now() % 100000)}`;
-    fl.zones.push({ id, name: `Room ${fl.zones.length + 1}`, x: Math.round(t.x), z: Math.round(t.z), entities: [] });
-    this.selectedZoneId = id;
-    this.refreshZones();
-    this.onChange?.();
+    const zones = fl.zones;
+    this.edit(() => {
+      // Default the icon to the camera focus (already clamped to the active floor)
+      // rather than the whole-scene centre, which the origin grid would dominate.
+      const t = this.sm.controls.target;
+      const id = `z${zones.length}_${Math.floor(performance.now() % 100000)}`;
+      zones.push({ id, name: `Room ${zones.length + 1}`, x: Math.round(t.x), z: Math.round(t.z), entities: [] });
+      this.selectedZoneId = id;
+    }, 'zones');
   }
 
   selectZone(id: string | null): void {
@@ -1328,14 +990,14 @@ export class EditorController {
   setZoneBgImage(id: string, value: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
-    this.pushUndo();
-    // Stored exactly as given. Rewriting a File-editor link to /local here threw
-    // the original away, so when that guess was wrong the photo was gone for
-    // good; the loader tries both instead (see assetCandidates).
-    const v = String(value).trim();
-    if (v) z.bgImage = v;
-    else delete z.bgImage;
-    this.onChange?.();
+    this.edit(() => {
+      // Stored exactly as given. Rewriting a File-editor link to /local here threw
+      // the original away, so when that guess was wrong the photo was gone for
+      // good; the loader tries both instead (see assetCandidates).
+      const v = String(value).trim();
+      if (v) z.bgImage = v;
+      else delete z.bgImage;
+    }, 'none');
   }
 
   setZoneName(id: string, name: string): void {
@@ -1350,15 +1012,15 @@ export class EditorController {
   setZoneParent(id: string, parentId: string | null): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z || parentId === id) return;
-    this.pushUndo();
-    if (parentId) {
-      z.parentId = parentId;
-      // A zone that becomes a parent can't itself stay a sub-room.
-      for (const c of this.zones) if (c.parentId === id) delete c.parentId;
-    } else {
-      delete z.parentId;
-    }
-    this.onChange?.();
+    this.edit(() => {
+      if (parentId) {
+        z.parentId = parentId;
+        // A zone that becomes a parent can't itself stay a sub-room.
+        for (const c of this.zones) if (c.parentId === id) delete c.parentId;
+      } else {
+        delete z.parentId;
+      }
+    }, 'none');
   }
 
   /** Bind (or clear, with an empty value) the sensor a room reads for one of its
@@ -1367,32 +1029,32 @@ export class EditorController {
   setZoneSensor(id: string, kind: 'temp' | 'floor' | 'humidity', entityId: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
-    this.pushUndo();
-    const key = kind === 'temp' ? 'tempSensor' : kind === 'floor' ? 'floorSensor' : 'humiditySensor';
-    const v = String(entityId).trim();
-    if (v) z[key] = v;
-    else delete z[key];
-    this.onChange?.();
+    this.edit(() => {
+      const key = kind === 'temp' ? 'tempSensor' : kind === 'floor' ? 'floorSensor' : 'humiditySensor';
+      const v = String(entityId).trim();
+      if (v) z[key] = v;
+      else delete z[key];
+    }, 'none');
   }
 
   deleteZone(id: string): void {
     const fl = this.floor();
-    if (!fl.zones) return;
-    this.pushUndo();
-    fl.zones = fl.zones.filter((z) => z.id !== id);
-    if (this.selectedZoneId === id) this.selectedZoneId = null;
-    this.refreshZones();
-    this.onChange?.();
+    const zones = fl.zones;
+    if (!zones) return;
+    this.edit(() => {
+      fl.zones = zones.filter((z) => z.id !== id);
+      if (this.selectedZoneId === id) this.selectedZoneId = null;
+    }, 'zones');
   }
 
   toggleZoneDevice(id: string, entityId: string): void {
     const z = this.zones.find((x) => x.id === id);
     if (!z) return;
-    this.pushUndo();
-    z.entities = z.entities.includes(entityId)
-      ? z.entities.filter((e) => e !== entityId)
-      : [...z.entities, entityId];
-    this.onChange?.();
+    this.edit(() => {
+      z.entities = z.entities.includes(entityId)
+        ? z.entities.filter((e) => e !== entityId)
+        : [...z.entities, entityId];
+    }, 'none');
   }
 
   /** Reorder rooms: move a zone up/down in the floor's zone list. That order
@@ -1404,10 +1066,9 @@ export class EditorController {
     const i = zs.findIndex((z) => z.id === id);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= zs.length) return;
-    this.pushUndo();
-    [zs[i], zs[j]] = [zs[j], zs[i]];
-    this.refreshZones();
-    this.onChange?.();
+    this.edit(() => {
+      [zs[i], zs[j]] = [zs[j], zs[i]];
+    }, 'zones');
   }
 
   /** Reorder a device within a room — the room panel lists lights (and other
@@ -1419,9 +1080,9 @@ export class EditorController {
     const i = es.indexOf(entityId);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= es.length) return;
-    this.pushUndo();
-    [es[i], es[j]] = [es[j], es[i]];
-    this.onChange?.();
+    this.edit(() => {
+      [es[i], es[j]] = [es[j], es[i]];
+    }, 'none');
   }
 
   /** Arm "place" mode — the next floor tap sets the selected zone's icon spot. */
@@ -1435,17 +1096,15 @@ export class EditorController {
   /** Surface material preset for the selected wall (or floor of a room). */
   setSurfaceMaterial(name: string): void {
     const fl = this.floor();
-    this.pushUndo();
-    if (this.selectedKind === 'wall' && fl.walls?.[this.selectedWall]) {
-      fl.walls[this.selectedWall].material = name;
-    } else if (this.selectedKind === 'room' && fl.rooms?.[this.selectedRoom]) {
-      fl.rooms[this.selectedRoom].material = name;
-    } else {
-      return;
-    }
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      if (this.selectedKind === 'wall' && fl.walls?.[this.selectedWall]) {
+        fl.walls[this.selectedWall].material = name;
+      } else if (this.selectedKind === 'room' && fl.rooms?.[this.selectedRoom]) {
+        fl.rooms[this.selectedRoom].material = name;
+      } else {
+        return false;
+      }
+    });
   }
 
   get selectedMaterial(): string {
@@ -1462,62 +1121,52 @@ export class EditorController {
     const fl = this.floor();
     const shapeRooms = (fl.rooms ?? []).filter((r) => isShapeRoom(r));
     if (!fl.walls?.length && !shapeRooms.length) return;
-    this.pushUndo();
-    for (const w of fl.walls ?? []) w.color = color;
-    // Shape-room perimeter walls are generated from the room, so colour them via
-    // the room's wallColor.
-    for (const r of shapeRooms) r.wallColor = color;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      for (const w of fl.walls ?? []) w.color = color;
+      // Shape-room perimeter walls are generated from the room, so colour them via
+      // the room's wallColor.
+      for (const r of shapeRooms) r.wallColor = color;
+    });
   }
   setAllWallsMaterial(name: string): void {
     const fl = this.floor();
     const shapeRooms = (fl.rooms ?? []).filter((r) => isShapeRoom(r));
     if (!fl.walls?.length && !shapeRooms.length) return;
-    this.pushUndo();
-    for (const w of fl.walls ?? []) w.material = name;
-    for (const r of shapeRooms) r.wallMaterial = name;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      for (const w of fl.walls ?? []) w.material = name;
+      for (const r of shapeRooms) r.wallMaterial = name;
+    });
   }
   setAllFloorsColor(color: string): void {
-    const fl = this.floor();
-    if (!fl.rooms?.length) return;
-    this.pushUndo();
-    for (const r of fl.rooms) r.color = color;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    const rooms = this.floor().rooms;
+    if (!rooms?.length) return;
+    this.edit(() => {
+      for (const r of rooms) r.color = color;
+    });
   }
   setAllFloorsMaterial(name: string): void {
-    const fl = this.floor();
-    if (!fl.rooms?.length) return;
-    this.pushUndo();
-    for (const r of fl.rooms) r.material = name;
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    const rooms = this.floor().rooms;
+    if (!rooms?.length) return;
+    this.edit(() => {
+      for (const r of rooms) r.material = name;
+    });
   }
 
   /** Set the color of the selected furniture / wall / room. */
   setColor(color: string): void {
     const fl = this.floor();
-    this.pushUndo();
-    if (this.selectedKind === 'furniture') {
-      const f = fl.furniture?.find((x) => x.id === this.selectedId);
-      if (f) f.color = color;
-    } else if (this.selectedKind === 'wall' && fl.walls?.[this.selectedWall]) {
-      fl.walls[this.selectedWall].color = color;
-    } else if (this.selectedKind === 'room' && fl.rooms?.[this.selectedRoom]) {
-      fl.rooms[this.selectedRoom].color = color;
-    } else {
-      return;
-    }
-    this.rebuild();
-    this.reselect();
-    this.onChange?.();
+    this.edit(() => {
+      if (this.selectedKind === 'furniture') {
+        const f = fl.furniture?.find((x) => x.id === this.selectedId);
+        if (f) f.color = color;
+      } else if (this.selectedKind === 'wall' && fl.walls?.[this.selectedWall]) {
+        fl.walls[this.selectedWall].color = color;
+      } else if (this.selectedKind === 'room' && fl.rooms?.[this.selectedRoom]) {
+        fl.rooms[this.selectedRoom].color = color;
+      } else {
+        return false;
+      }
+    });
   }
 
   deleteSelected(): void {
@@ -1749,34 +1398,8 @@ export class EditorController {
     this.commitArc(this.chain[0], this.chain[1], pt);
   }
 
-  /** Circle through 3 points, faceted into node points along the arc that goes
-   *  from A to B through C. Collinear → just [A, B]. */
-  private arcNodes(A: Vec2, B: Vec2, C: Vec2): Vec2[] {
-    const [ax, az] = A, [bx, bz] = B, [cx, cz] = C;
-    const d = 2 * (ax * (bz - cz) + bx * (cz - az) + cx * (az - bz));
-    if (Math.abs(d) < 1e-6) return [A, B];
-    const a2 = ax * ax + az * az, b2 = bx * bx + bz * bz, c2 = cx * cx + cz * cz;
-    const ux = (a2 * (bz - cz) + b2 * (cz - az) + c2 * (az - bz)) / d;
-    const uz = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
-    const r = Math.hypot(ax - ux, az - uz);
-    const angA = Math.atan2(az - uz, ax - ux);
-    const angB = Math.atan2(bz - uz, bx - ux);
-    const angC = Math.atan2(cz - uz, cx - ux);
-    const TAU = Math.PI * 2;
-    const norm = (x: number) => ((x % TAU) + TAU) % TAU;
-    let sweep = norm(angB - angA);
-    if (norm(angC - angA) > sweep) sweep -= TAU; // take the side C is on
-    const N = Math.min(40, Math.max(2, Math.round((r * Math.abs(sweep)) / 0.4)));
-    const nodes: Vec2[] = [];
-    for (let k = 0; k <= N; k++) {
-      const t = angA + sweep * (k / N);
-      nodes.push([+(ux + r * Math.cos(t)).toFixed(3), +(uz + r * Math.sin(t)).toFixed(3)]);
-    }
-    return nodes;
-  }
-
   private commitArc(A: Vec2, B: Vec2, C: Vec2): void {
-    const nodes = this.arcNodes(A, B, C);
+    const nodes = arcNodes(A, B, C);
     if (nodes.length < 2) {
       this.cancelChain();
       return;
@@ -1809,212 +1432,21 @@ export class EditorController {
     this.renderPreview();
   }
 
-  /**
-   * Snap a candidate point with drawing aids, in priority:
-   *  1) join — onto a nearby existing endpoint / chain vertex,
-   *  2) angle — snap the segment direction to 15° steps (parallel / perpendicular),
-   *  3) length — match a nearby existing wall's length (equal-length walls),
-   * plus first-point axis alignment. Disabled when snapEnabled is false (free grid).
-   */
+  /** Куда на самом деле встанет тапнутая точка (магнит — см. snapping.ts). */
   private snapPoint(x: number, z: number): SnapResult {
-    const last = this.chain[this.chain.length - 1] as Vec2 | undefined;
-    const angTo = (a: Vec2, b: Vec2) =>
-      (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
-    const make = (pt: Vec2, extra: Partial<SnapResult> = {}): SnapResult => ({
-      pt,
-      joined: false,
-      matchedLen: false,
-      parallel: false,
-      lengthM: last ? Math.hypot(pt[0] - last[0], pt[1] - last[1]) : 0,
-      angleDeg: last ? angTo(last, pt) : 0,
-      ...extra,
+    return snapPoint(x, z, {
+      walls: this.floor().walls ?? [],
+      chain: this.chain,
+      enabled: this.snapEnabled,
     });
-
-    // 1) Join to an existing endpoint or chain vertex.
-    let best: Vec2 | null = null;
-    let bd = VERT_SNAP;
-    for (const c of [...this.existingEndpoints(), ...this.chain]) {
-      const d = Math.hypot(x - c[0], z - c[1]);
-      if (d < bd) {
-        bd = d;
-        best = c;
-      }
-    }
-    if (best) return make([best[0], best[1]], { joined: true });
-
-    if (!this.snapEnabled) return make([snap(x), snap(z)]);
-
-    // First point of a run: align x/z with an existing endpoint if close.
-    if (!last) {
-      let px = snap(x);
-      let pz = snap(z);
-      for (const e of this.existingEndpoints()) {
-        if (Math.abs(x - e[0]) < ALIGN_TOL) px = e[0];
-        if (Math.abs(z - e[1]) < ALIGN_TOL) pz = e[1];
-      }
-      return make([px, pz]);
-    }
-
-    // 2) Angle snap relative to the previous point.
-    const dx = x - last[0];
-    const dz = z - last[1];
-    const rawLen = Math.hypot(dx, dz);
-    if (rawLen < 1e-4) return make([last[0], last[1]]);
-    const ang = Math.round(Math.atan2(dz, dx) / ANGLE_STEP) * ANGLE_STEP;
-
-    // 3) Length: match a nearby existing wall length, else grid.
-    let finalLen = Math.round(rawLen / SNAP) * SNAP;
-    let matchedLen = false;
-    let bestDiff = LEN_TOL;
-    for (const w of this.floor().walls ?? []) {
-      const wl = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1]);
-      if (Math.abs(wl - rawLen) < bestDiff) {
-        bestDiff = Math.abs(wl - rawLen);
-        finalLen = wl;
-        matchedLen = true;
-      }
-    }
-
-    // Keep the exact angle-snapped direction and matched/grid length — do NOT
-    // re-grid-snap the coordinates (that would distort both angle and length).
-    const pt: Vec2 = [last[0] + Math.cos(ang) * finalLen, last[1] + Math.sin(ang) * finalLen];
-
-    // Parallel test uses the actual committed direction.
-    const fang = Math.atan2(pt[1] - last[1], pt[0] - last[0]);
-    const parallel = (this.floor().walls ?? []).some((w) => {
-      const wa = Math.atan2(w.end[1] - w.start[1], w.end[0] - w.start[0]);
-      let diff = Math.abs(wa - fang) % Math.PI;
-      if (diff > Math.PI / 2) diff = Math.PI - diff;
-      return diff < 0.03;
-    });
-
-    return make(pt, { matchedLen, parallel });
   }
 
-  private existingEndpoints(): Vec2[] {
-    const out: Vec2[] = [];
-    for (const w of this.floor().walls ?? []) {
-      out.push([w.start[0], w.start[1]], [w.end[0], w.end[1]]);
-    }
-    return out;
-  }
-
-  private isConnection(pt: Vec2): boolean {
-    return this.existingEndpoints().some(
-      (e) => Math.hypot(e[0] - pt[0], e[1] - pt[1]) < 1e-3,
-    );
-  }
-
-  /** Add a door/window opening to the wall nearest the tapped point. */
+  /** Поставить проём инструментом «дверь / окно / проём» (см. openings.ts). */
   private addOpening(p: THREE.Vector3, kind: OpeningKind): void {
-    const fl = this.floor();
     this.pushUndo();
-    const width = kind === 'door' ? 0.9 : kind === 'opening' ? 1.4 : 1.0;
-    // A plain "opening" (passage) is a bare hole with a header — no leaf/glass.
-    const bare = kind === 'opening';
-    // Nearest segment among BOTH explicit walls and shape-room perimeter edges.
-    let bd = 0.6;
-    type Hit =
-      | { type: 'wall'; wall: WallDef; along: number; len: number }
-      | { type: 'room'; room: RoomDef; edge: number; along: number; len: number };
-    let best: Hit | null = null;
-
-    const consider = (
-      ax: number, az: number, bx: number, bz: number,
-      make: (along: number, len: number) => Hit,
-    ) => {
-      const dx = bx - ax, dz = bz - az;
-      const len2 = dx * dx + dz * dz;
-      if (len2 < 1e-6) return;
-      let t = ((p.x - ax) * dx + (p.z - az) * dz) / len2;
-      t = Math.max(0, Math.min(1, t));
-      const cx = ax + dx * t, cz = az + dz * t;
-      const d = Math.hypot(p.x - cx, p.z - cz);
-      if (d < bd) {
-        bd = d;
-        const len = Math.sqrt(len2);
-        best = make(t * len, len);
-      }
-    };
-
-    for (const w of fl.walls ?? []) {
-      consider(w.start[0], w.start[1], w.end[0], w.end[1], (along, len) => ({
-        type: 'wall', wall: w, along, len,
-      }));
-    }
-    for (const room of fl.rooms ?? []) {
-      if (!isShapeRoom(room)) continue;
-      const poly = roomPolygon(room);
-      for (let i = 0; i < poly.length; i++) {
-        const a = poly[i];
-        const b = poly[(i + 1) % poly.length];
-        const edge = i;
-        consider(a[0], a[1], b[0], b[1], (along, len) => ({
-          type: 'room', room, edge, along, len,
-        }));
-      }
-    }
-
-    if (!best) {
+    if (!addOpening(this.floor(), p, kind)) {
       this.onMessage?.('Tap closer to a wall (or room edge)');
       return;
-    }
-    const hit = best as Hit;
-    const position = Math.max(0, Math.min(hit.len - width, hit.along - width / 2));
-    const center = position + width / 2;
-    let seg: [number, number, number, number];
-    if (hit.type === 'wall') {
-      if (!hit.wall.openings) hit.wall.openings = [];
-      hit.wall.openings.push({ kind, position, width, ...(bare ? { bare } : {}) });
-      seg = [hit.wall.start[0], hit.wall.start[1], hit.wall.end[0], hit.wall.end[1]];
-    } else {
-      if (!hit.room.openings) hit.room.openings = [];
-      hit.room.openings.push({ kind, edge: hit.edge, position, width, ...(bare ? { bare } : {}) });
-      const poly = roomPolygon(hit.room);
-      const a = poly[hit.edge];
-      const b = poly[(hit.edge + 1) % poly.length];
-      seg = [a[0], a[1], b[0], b[1]];
-    }
-    // The opening is drawn directly by the builder (a simple frameless leaf /
-    // framed window) — no separate model, so nothing overlaps to flicker.
-    const [ax, az, bx, bz] = seg;
-    const len = Math.hypot(bx - ax, bz - az) || 1;
-    const wx = ax + ((bx - ax) / len) * center;
-    const wz = az + ((bz - az) / len) * center;
-    // Cut through any OTHER coincident (collinear, overlapping) wall / room edge
-    // at the same spot, so a door/window placed where two rooms share a wall
-    // doesn't stay blocked by the second wall.
-    const ang0 = Math.atan2(bz - az, bx - ax);
-    const cutSeg = (ax2: number, az2: number, bx2: number, bz2: number): number | null => {
-      const dx = bx2 - ax2, dz = bz2 - az2;
-      const l2 = dx * dx + dz * dz;
-      if (l2 < 1e-6) return null;
-      let a2 = Math.atan2(dz, dx);
-      // collinear if parallel or anti-parallel
-      const da = Math.abs(((a2 - ang0 + Math.PI) % Math.PI));
-      if (da > 0.03 && Math.abs(da - Math.PI) > 0.03) return null;
-      const l = Math.sqrt(l2);
-      const t = ((wx - ax2) * dx + (wz - az2) * dz) / l2;
-      const cx = ax2 + dx * t, cz = az2 + dz * t;
-      if (Math.hypot(wx - cx, wz - cz) > 0.12) return null; // not on this line
-      const along = t * l;
-      if (along < 0 || along > l) return null;
-      return Math.max(0, Math.min(l - width, along - width / 2));
-    };
-    for (const w of fl.walls ?? []) {
-      if (hit.type === 'wall' && w === hit.wall) continue;
-      const pos = cutSeg(w.start[0], w.start[1], w.end[0], w.end[1]);
-      if (pos != null) (w.openings ??= []).push({ kind, position: pos, width, ...(bare ? { bare } : {}) });
-    }
-    for (const room of fl.rooms ?? []) {
-      if (!isShapeRoom(room)) continue;
-      const poly = roomPolygon(room);
-      for (let e = 0; e < poly.length; e++) {
-        if (hit.type === 'room' && room === hit.room && e === hit.edge) continue;
-        const a = poly[e], b = poly[(e + 1) % poly.length];
-        const pos = cutSeg(a[0], a[1], b[0], b[1]);
-        if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width, ...(bare ? { bare } : {}) });
-      }
     }
     this.rebuild();
     this.onChange?.();
@@ -2108,24 +1540,22 @@ export class EditorController {
   }
 
   setUnderlayField(field: 'widthM' | 'opacity' | 'rotation' | 'x' | 'z', value: number): void {
-    const fl = this.floor();
-    if (!fl.underlay || Number.isNaN(value)) return;
-    this.pushUndo();
-    if (field === 'widthM') fl.underlay.widthM = Math.max(0.2, value);
-    else if (field === 'opacity') fl.underlay.opacity = Math.max(0.05, Math.min(1, value));
-    else fl.underlay[field] = value;
-    this.applyUnderlay();
-    this.onChange?.();
+    const u = this.floor().underlay;
+    if (!u || Number.isNaN(value)) return;
+    this.edit(() => {
+      if (field === 'widthM') u.widthM = Math.max(0.2, value);
+      else if (field === 'opacity') u.opacity = Math.max(0.05, Math.min(1, value));
+      else u[field] = value;
+    }, 'underlay');
   }
 
   nudgeUnderlay(dx: number, dz: number): void {
-    const fl = this.floor();
-    if (!fl.underlay) return;
-    this.pushUndo();
-    fl.underlay.x = Math.round(((fl.underlay.x ?? 0) + dx) * 100) / 100;
-    fl.underlay.z = Math.round(((fl.underlay.z ?? 0) + dz) * 100) / 100;
-    this.applyUnderlay();
-    this.onChange?.();
+    const u = this.floor().underlay;
+    if (!u) return;
+    this.edit(() => {
+      u.x = Math.round(((u.x ?? 0) + dx) * 100) / 100;
+      u.z = Math.round(((u.z ?? 0) + dz) * 100) / 100;
+    }, 'underlay');
   }
 
   /** Begin two-point scale calibration (the next two ground taps). */
@@ -2180,29 +1610,56 @@ export class EditorController {
 
   /** Snapshot the plan before a mutating action. Call at the start of each edit. */
   private pushUndo(): void {
-    this.undoStack.push(JSON.stringify(this.plan));
-    if (this.undoStack.length > this.HISTORY_MAX) this.undoStack.shift();
-    this.redoStack = [];
+    this.history.push(this.plan);
+  }
+
+  /**
+   * Негласный договор каждой правки, записанный явно: снимок для отмены ДО
+   * изменения, пересборка сцены и возврат подсветки ПОСЛЕ, и только потом
+   * «хозяин, перерисуйся». Он повторялся руками в трёх с лишним десятках мест,
+   * и любая новая правка молча работала, забыв половину.
+   *
+   * `mutate` возвращает `false` — правка передумала: сцену не трогаем и хозяину
+   * не сообщаем (снимок при этом остаётся, ровно как было в старом коде).
+   *
+   * `after` — что делать после изменения:
+   *   'rebuild'  пересобрать сцену и вернуть выделение (обычная правка плана);
+   *   'zones'    перерисовать точки зон (правка ручных комнат);
+   *   'underlay' обновить подложку-кальку;
+   *   'none'     ничего, изменение видно только карточке.
+   */
+  private edit(mutate: () => boolean | void, after: 'rebuild' | 'zones' | 'underlay' | 'none' = 'rebuild'): void {
+    this.pushUndo();
+    if (mutate() === false) return;
+    if (after === 'rebuild') {
+      this.rebuild();
+      this.reselect();
+    } else if (after === 'zones') {
+      this.refreshZones();
+    } else if (after === 'underlay') {
+      this.applyUnderlay();
+    }
+    this.onChange?.();
   }
 
   get canUndo(): boolean {
-    return this.undoStack.length > 0;
+    return this.history.canUndo;
   }
   get canRedo(): boolean {
-    return this.redoStack.length > 0;
+    return this.history.canRedo;
   }
 
   undo(): void {
-    if (!this.undoStack.length) return;
-    this.redoStack.push(JSON.stringify(this.plan));
-    this.plan = JSON.parse(this.undoStack.pop() as string);
+    const prev = this.history.undo(this.plan);
+    if (!prev) return;
+    this.plan = prev;
     this.restoreHistory();
   }
 
   redo(): void {
-    if (!this.redoStack.length) return;
-    this.undoStack.push(JSON.stringify(this.plan));
-    this.plan = JSON.parse(this.redoStack.pop() as string);
+    const next = this.history.redo(this.plan);
+    if (!next) return;
+    this.plan = next;
     this.restoreHistory();
   }
 
@@ -2231,82 +1688,10 @@ export class EditorController {
       this.onMessage?.('Draw or import some walls first');
       return;
     }
-    // Weld near-coincident endpoints into one node, so hand-traced corners that
-    // don't meet exactly (small gaps) still close into rooms.
-    const WELD = 0.2;
-    const pts: Vec2[] = [];
-    const adj = new Map<number, Set<number>>();
-    const nodeId = (p: Vec2): number => {
-      for (let i = 0; i < pts.length; i++) {
-        if (Math.hypot(pts[i][0] - p[0], pts[i][1] - p[1]) <= WELD) return i;
-      }
-      pts.push([p[0], p[1]]);
-      adj.set(pts.length - 1, new Set());
-      return pts.length - 1;
-    };
-    const edges: Array<[number, number]> = [];
-    for (const w of walls) {
-      const a = nodeId(w.start as Vec2);
-      const b = nodeId(w.end as Vec2);
-      if (a !== b) {
-        adj.get(a)!.add(b);
-        adj.get(b)!.add(a);
-        edges.push([a, b]);
-      }
-    }
-    const ang = (from: number, to: number): number =>
-      Math.atan2(pts[to][1] - pts[from][1], pts[to][0] - pts[from][0]);
-    const TAU = Math.PI * 2;
-    const used = new Set<string>();
-    const he = (u: number, v: number) => `${u}|${v}`;
-    const faces: Vec2[][] = [];
-    for (const [a, b] of edges) {
-      for (const [u0, v0] of [[a, b], [b, a]] as const) {
-        if (used.has(he(u0, v0))) continue;
-        const facePts: number[] = [];
-        let u = u0;
-        let v = v0;
-        let guard = 0;
-        do {
-          used.add(he(u, v));
-          facePts.push(u);
-          const back = ang(v, u);
-          let bestW: number | null = null;
-          let bestTurn = Infinity;
-          for (const w2 of adj.get(v)!) {
-            let turn = back - ang(v, w2);
-            turn = ((turn % TAU) + TAU) % TAU; // (0, 2π]
-            if (turn < 1e-9) turn = TAU; // going straight back is the last resort
-            if (turn < bestTurn) {
-              bestTurn = turn;
-              bestW = w2;
-            }
-          }
-          if (bestW === null) break;
-          u = v;
-          v = bestW;
-          guard++;
-        } while (!(u === u0 && v === v0) && guard < 100000);
-        if (facePts.length >= 3) faces.push(facePts.map((i) => pts[i]));
-      }
-    }
-    const area = (poly: Vec2[]): number => {
-      let s = 0;
-      for (let i = 0; i < poly.length; i++) {
-        const a = poly[i];
-        const b = poly[(i + 1) % poly.length];
-        s += a[0] * b[1] - b[0] * a[1];
-      }
-      return s / 2;
-    };
-    const centroid = (poly: Vec2[]): Vec2 => {
-      let cx = 0, cz = 0;
-      for (const p of poly) {
-        cx += p[0];
-        cz += p[1];
-      }
-      return [cx / poly.length, cz / poly.length];
-    };
+    // Близкие концы свариваются в один узел, поэтому нарисованные от руки углы
+    // с маленькими щелями всё равно закрываются в комнату (см. topology.ts).
+    const faces = closedFaces(walls);
+    const area = signedArea;
     // Interior faces have positive signed area in this traversal; the outer
     // boundary is negative. Keep reasonably-sized interior faces.
     const interior = faces.filter((f) => area(f) > 0.5);
@@ -2350,78 +1735,7 @@ export class EditorController {
       return;
     }
     this.pushUndo();
-    const EPS = 0.08;
-    // Describe each wall on its infinite line.
-    type Item = { w: WallDef; ang: number; perp: number; t0: number; t1: number };
-    const items: Item[] = walls.map((w) => {
-      const dx = w.end[0] - w.start[0];
-      const dz = w.end[1] - w.start[1];
-      let ang = Math.atan2(dz, dx);
-      if (ang < 0) ang += Math.PI; // normalize to [0, π)
-      const ux = Math.cos(ang), uz = Math.sin(ang);
-      const t0 = w.start[0] * ux + w.start[1] * uz;
-      const t1 = w.end[0] * ux + w.end[1] * uz;
-      const perp = w.start[0] * -uz + w.start[1] * ux; // signed distance from origin
-      return { w, ang, perp, t0: Math.min(t0, t1), t1: Math.max(t0, t1) };
-    });
-    const used = new Array(items.length).fill(false);
-    const out: WallDef[] = [];
-    for (let i = 0; i < items.length; i++) {
-      if (used[i]) continue;
-      const group = [items[i]];
-      used[i] = true;
-      for (let j = i + 1; j < items.length; j++) {
-        if (used[j]) continue;
-        const a = items[i], b = items[j];
-        const sameLine =
-          Math.abs(a.ang - b.ang) < 0.03 && Math.abs(a.perp - b.perp) < EPS;
-        if (!sameLine) continue;
-        // overlap (or touch) with any member already in the group
-        const overlaps = group.some((g) => b.t1 >= g.t0 - EPS && b.t0 <= g.t1 + EPS);
-        if (overlaps) {
-          group.push(b);
-          used[j] = true;
-        }
-      }
-      if (group.length === 1) {
-        out.push(group[0].w);
-        continue;
-      }
-      // Merge the group into one segment spanning [min t0, max t1] on its line.
-      const ang = group[0].ang;
-      const ux = Math.cos(ang), uz = Math.sin(ang);
-      const tmin = Math.min(...group.map((g) => g.t0));
-      const tmax = Math.max(...group.map((g) => g.t1));
-      const perp = group[0].perp;
-      // A point on the line: origin + perp * normal, then move along u by t.
-      const nx = -uz, nz = ux;
-      const px = perp * nx, pz = perp * nz;
-      const ms: Vec2 = [px + ux * tmin, pz + uz * tmin];
-      const me: Vec2 = [px + ux * tmax, pz + uz * tmax];
-      const merged: WallDef = {
-        start: ms,
-        end: me,
-        height: group[0].w.height,
-        thickness: group[0].w.thickness,
-        color: group[0].w.color,
-        material: group[0].w.material,
-        openings: [],
-      };
-      for (const g of group) {
-        for (const op of g.w.openings ?? []) {
-          // opening world-start along its own wall, then param on merged line
-          const wdx = g.w.end[0] - g.w.start[0];
-          const wdz = g.w.end[1] - g.w.start[1];
-          const wlen = Math.hypot(wdx, wdz) || 1;
-          const owx = g.w.start[0] + (wdx / wlen) * op.position;
-          const owz = g.w.start[1] + (wdz / wlen) * op.position;
-          const pos = (owx - ms[0]) * ux + (owz - ms[1]) * uz;
-          merged.openings!.push({ ...op, position: Math.max(0, pos) });
-        }
-      }
-      if (!merged.openings!.length) delete merged.openings;
-      out.push(merged);
-    }
+    const out = mergeCollinearWalls(walls);
     fl.walls = out;
     this.clearSelection();
     this.rebuild();
@@ -2431,119 +1745,15 @@ export class EditorController {
 
   private renderPreview(): void {
     this.sm.clearPreview();
-    const group = this.sm.previewGroup;
-    const elev = this.elevation();
-    const h = this.wallHeight();
-
-    // Arc tool: tap 1 = start, tap 2 = end, then move the cursor to bulge the
-    // arc; it previews as a faceted chain of green ghost segments.
-    if (this.tool === 'arc' && this.chain.length >= 1) {
-      const nodes =
-        this.chain.length === 2 && this.cursor
-          ? this.arcNodes(this.chain[0], this.chain[1], this.cursor)
-          : [...this.chain, ...(this.cursor ? [this.cursor] : [])];
-      for (const p of nodes) {
-        const dot = new THREE.Mesh(
-          new THREE.SphereGeometry(0.07, 12, 12),
-          new THREE.MeshBasicMaterial({ color: 0x4fd06a }),
-        );
-        dot.position.set(p[0], elev + 0.06, p[1]);
-        group.add(dot);
-      }
-      for (let i = 0; i < nodes.length - 1; i++) {
-        const a = nodes[i];
-        const b = nodes[i + 1];
-        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        if (len < 1e-3) continue;
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(len, h, 0.1),
-          new THREE.MeshBasicMaterial({ color: 0x4fd06a, transparent: true, opacity: 0.4 }),
-        );
-        mesh.position.set((a[0] + b[0]) / 2, elev + h / 2, (a[1] + b[1]) / 2);
-        mesh.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
-        group.add(mesh);
-      }
-      if (this.measureLabel) {
-        if (this.chain.length === 2 && this.cursor) {
-          const seg = nodes.length - 1;
-          const mid = nodes[Math.floor(nodes.length / 2)];
-          this.measureLabel.setText(`arc · ${seg} seg`, '#7CFC8A');
-          this.measureLabel.setPosition(mid[0], elev + h + 0.4, mid[1]);
-          this.measureLabel.sprite.visible = true;
-        } else {
-          this.measureLabel.sprite.visible = false;
-        }
-      }
-      return;
-    }
-
-    const chain = this.cursor ? [...this.chain, this.cursor] : [...this.chain];
-
-    // Vertices. Points that land on an existing wall endpoint get a larger
-    // green "connection" node so you can see two walls joining.
-    for (const p of chain) {
-      const connected = this.isConnection(p);
-      const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(connected ? 0.12 : 0.07, 12, 12),
-        new THREE.MeshBasicMaterial({ color: connected ? 0x4fd06a : 0x44aaff }),
-      );
-      dot.position.set(p[0], elev + 0.06, p[1]);
-      group.add(dot);
-    }
-
-    // Segment ghosts. The active (last) segment is tinted green when a drawing
-    // aid is engaged (length matched or parallel to an existing wall).
-    for (let i = 0; i < chain.length - 1; i++) {
-      const a = chain[i];
-      const b = chain[i + 1];
-      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (len < 1e-3) continue;
-      const isActive = i === chain.length - 2 && !!this.cursor;
-      const aided = isActive && this.snapInfo && (this.snapInfo.matchedLen || this.snapInfo.parallel);
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(len, h, 0.1),
-        new THREE.MeshBasicMaterial({
-          color: aided ? 0x4fd06a : 0x44aaff,
-          transparent: true,
-          opacity: aided ? 0.5 : 0.35,
-        }),
-      );
-      const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
-      mesh.position.set((a[0] + b[0]) / 2, elev + h / 2, (a[1] + b[1]) / 2);
-      mesh.rotation.y = -angle;
-      group.add(mesh);
-    }
-
-    // Live measurement label on the active segment.
-    if (this.measureLabel) {
-      if (this.cursor && this.chain.length >= 1 && this.snapInfo) {
-        const a = this.chain[this.chain.length - 1];
-        const b = this.cursor;
-        const si = this.snapInfo;
-        const tags = `${si.parallel ? ' ∥' : ''}${si.matchedLen ? ' =' : ''}`;
-        this.measureLabel.setText(
-          `${si.lengthM.toFixed(2)}m  ${Math.round(((si.angleDeg % 360) + 360) % 360)}°${tags}`,
-          si.matchedLen || si.parallel ? '#7CFC8A' : '#ffffff',
-        );
-        this.measureLabel.setPosition((a[0] + b[0]) / 2, elev + h + 0.4, (a[1] + b[1]) / 2);
-        this.measureLabel.sprite.visible = true;
-      } else {
-        this.measureLabel.sprite.visible = false;
-      }
-    }
-
-    // Highlight the closing target when near the start.
-    if (this.chain.length >= 2 && this.cursor) {
-      const s = this.chain[0];
-      if (Math.hypot(this.cursor[0] - s[0], this.cursor[1] - s[1]) < CLOSE_DIST) {
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(0.22, 0.04, 8, 24),
-          new THREE.MeshBasicMaterial({ color: 0x4fd06a }),
-        );
-        ring.rotation.x = Math.PI / 2;
-        ring.position.set(s[0], elev + 0.06, s[1]);
-        group.add(ring);
-      }
-    }
+    renderPreview(this.sm.previewGroup, {
+      arc: this.tool === 'arc',
+      chain: this.chain,
+      cursor: this.cursor,
+      snapInfo: this.snapInfo,
+      walls: this.floor().walls ?? [],
+      elevation: this.elevation(),
+      wallHeight: this.wallHeight(),
+      label: this.measureLabel,
+    });
   }
 }
