@@ -7,16 +7,15 @@
 import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor, ventCount } from '../../furniture/library';
+import { modelLabel } from '../../furniture/names';
 import { getThumbnail } from '../../furniture/thumbnails';
-import { DOOR_VARIANTS, WINDOW_VARIANTS } from '../../scene/builder';
-import { FLOOR_MATERIALS, WALL_MATERIALS } from '../../scene/materials';
+import { DOOR_VARIANTS, WINDOW_VARIANTS, openingVariantLabel } from '../../scene/builder';
+import { FLOOR_MATERIALS, WALL_MATERIALS, materialLabel } from '../../scene/materials';
 import { onDeleteRoomOpening, onDeleteSelected, onDeleteWallOpening, onFinishWall, onNudgeHeight, onPickEntityPart, onRotateSelected, onSetBrightness, onSetColor, onSetCount, onSetFurnScale, onSetMaterial, onSetOpeningKind, onSetOpeningVariant, onSetOpeningWidth, onSetRoomField, onSetSpread, onSetWallAngle, onSetWallLength, onSlideOpening, onToggleSnap, onUndoPoint, pickModel, togglePalette } from '../editor-commands';
 import { candidateEntities, entityOptionText } from '../entities';
 
-/** Подпись модели в палитре: sofa_corner → Sofa Corner. */
-function modelLabel(k: string): string {
-  return k.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
-}
+/** Подпись модели в палитре берётся из справочника русских названий; для
+ *  незнакомого ключа modelLabel сам вернёт прежний машинный вариант. */
 
 /** Мебель — это всё, что не светильник (у света своя группа в палитре). */
 const FURNITURE_ONLY = FURNITURE_KEYS.filter((k) => !LIGHT_KEYS.includes(k));
@@ -147,7 +146,10 @@ export function renderEditorSelection(host: BmsFloorplanCard) {
                       <span class="hint">Style:</span>
                       <select class="select" @change=${(e: Event) => onSetOpeningVariant(host, e)}>
                         ${(host.editOpeningKind === 'door' ? DOOR_VARIANTS : WINDOW_VARIANTS).map(
-                          (v) => html`<option value=${v} ?selected=${v === host.editOpeningVariant}>${v}</option>`,
+                          (v) =>
+                            html`<option value=${v} ?selected=${v === host.editOpeningVariant}>
+                              ${openingVariantLabel(host.editOpeningKind ?? undefined, v)}
+                            </option>`,
                         )}
                       </select>
                     </div>`
@@ -172,7 +174,8 @@ export function renderEditorSelection(host: BmsFloorplanCard) {
                   ? html`<span class="hint">${kind === 'room' ? 'Floor' : 'Wall'}:</span>
                       <select class="select" @change=${(e: Event) => onSetMaterial(host, e)}>
                         ${(kind === 'room' ? FLOOR_MATERIALS : WALL_MATERIALS).map(
-                          (m) => html`<option value=${m} ?selected=${m === host.editMaterial}>${m}</option>`,
+                          (m) =>
+                            html`<option value=${m} ?selected=${m === host.editMaterial}>${materialLabel(m)}</option>`,
                         )}
                       </select>`
                   : nothing}

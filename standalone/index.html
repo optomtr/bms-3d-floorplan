@@ -518,7 +518,7 @@
         try {
           await import(cardUrl);
         } catch (err) {
-          setStatus('card load failed: ' + errMsg(err), true);
+          setStatus('не удалось загрузить карточку: ' + errMsg(err), true);
           return;
         }
 
@@ -600,12 +600,12 @@
           return (await fetchSharedPlan()) || (await fetchUserPlan()) || (await fetchFilePlan());
         }
         function open() {
-          setStatus('connecting…');
+          setStatus('подключение…');
           let sock;
           try {
             sock = ws = new WebSocket(wsUrl);
           } catch (e) {
-            setStatus('bad HA URL — fix it (⚙)', true);
+            setStatus('неверный адрес Home Assistant — исправьте (⚙)', true);
             return;
           }
           // Ignore callbacks/continuations from a socket that has been superseded
@@ -629,7 +629,7 @@
                 // Session token temporarily unavailable (HA restarting / refresh
                 // hiccup) — reconnect and try again rather than latch a failure.
                 if (!current()) return;
-                setStatus('waiting for Home Assistant…', true);
+                setStatus('жду Home Assistant…', true);
                 try { sock.close(); } catch {}
                 return;
               }
@@ -646,7 +646,7 @@
               setStatus(useSession ? 'Home Assistant login expired — reload the page' : 'auth failed — check the token (⚙)', true);
               try { sock.close(); } catch {}
             } else if (m.type === 'auth_ok') {
-              setStatus('connected');
+              setStatus('подключено');
               try {
                 const res = await request({ type: 'get_states' });
                 if (!current()) return;
@@ -674,7 +674,7 @@
                     // a stale plan (not a broken backdrop) is the problem.
                     showPlanInfo(plan);
                   } else if (!planLoaded) {
-                    setStatus('connected · no plan saved for this account', true);
+                    setStatus('подключено · для этой учётной записи план не сохранён', true);
                   }
                 }
                 pushHass();
@@ -682,7 +682,7 @@
               } catch (e) {
                 if (!current()) return;
                 syncFails++;
-                setStatus('live sync failed — retrying…', true);
+                setStatus('синхронизация прервана, повторяю…', true);
                 try { sock.close(); } catch {}
               }
             } else if (m.type === 'result') {
@@ -714,7 +714,7 @@
             // Back off on repeated sync failures so a deterministic error
             // (e.g. a restricted token) doesn't hot-loop; a plain drop retries fast.
             const delay = Math.min(2500 * Math.pow(2, Math.min(syncFails, 5)), 60000);
-            setStatus('disconnected — retrying…', true);
+            setStatus('нет связи, переподключаюсь…', true);
             setTimeout(open, delay);
           };
           sock.onerror = () => {

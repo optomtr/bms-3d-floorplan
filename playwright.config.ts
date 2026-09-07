@@ -48,7 +48,11 @@ export default defineConfig({
     // Статика: стенду нужен только собранный бандл и фикстуры.
     command: `python3 -m http.server ${PORT} --bind 127.0.0.1`,
     url: `${BASE_URL}/tests/fixtures/harness.html`,
-    reuseExistingServer: !process.env.CI,
+    // НИКОГДА не переиспользуем чужой стенд. Однажды на этом порту оказался
+    // http.server из соседней копии репозитория, Playwright молча подхватил
+    // его — и целый прогон проверял ЧУЖОЙ бандл, оставаясь зелёным. Пусть
+    // лучше упадёт с «порт занят», чем соврёт.
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

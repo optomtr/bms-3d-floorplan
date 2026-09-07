@@ -10,7 +10,7 @@
 
 import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
-import { FLOOR_MATERIALS, WALL_MATERIALS } from '../../scene/materials';
+import { FLOOR_MATERIALS, WALL_MATERIALS, materialLabel } from '../../scene/materials';
 import { onAddFloor, onAddRoomShape, onAutoFloors, onCalibrateUnderlay, onDeleteFloor, onEditTool, onMergeWalls, onNudgeUnderlay, onPickUnderlay, onRedo, onRemoveUnderlay, onRenameFloor, onSelectEditFloor, onSetCameraDistance, onSetUnderlayField, onUndo } from '../editor-commands';
 import { renderEditorProject } from './editor-project';
 import { renderEditorRooms } from './editor-rooms';
@@ -128,7 +128,7 @@ function renderEditorTools(host: BmsFloorplanCard) {
             host.editor?.setAllWallsMaterial(host.editAllWallMat);
           }}>
           ${WALL_MATERIALS.map(
-            (m) => html`<option value=${m} ?selected=${m === host.editAllWallMat}>${m}</option>`,
+            (m) => html`<option value=${m} ?selected=${m === host.editAllWallMat}>${materialLabel(m)}</option>`,
           )}
         </select>
       </div>
@@ -146,7 +146,7 @@ function renderEditorTools(host: BmsFloorplanCard) {
             host.editor?.setAllFloorsMaterial(host.editAllFloorMat);
           }}>
           ${FLOOR_MATERIALS.map(
-            (m) => html`<option value=${m} ?selected=${m === host.editAllFloorMat}>${m}</option>`,
+            (m) => html`<option value=${m} ?selected=${m === host.editAllFloorMat}>${materialLabel(m)}</option>`,
           )}
         </select>
       </div>
