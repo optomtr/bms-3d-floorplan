@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import type {
   BindingDef,
   BindingBehavior,
+  ClickResult,
   HomeAssistant,
   HassEntity,
 } from '../types';
@@ -46,8 +47,6 @@ interface ActiveBinding {
   /** Target open fraction for curtains (0 closed .. 1 open). */
   coverOpen?: number;
 }
-
-const TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'media_player']);
 
 function domainOf(entityId: string): string {
   return entityId.split('.')[0];
@@ -486,7 +485,7 @@ export class BindingManager {
    * Given a clicked Object3D, walk up to find a bound anchor and return the
    * action to perform. Returns null if the object isn't bound.
    */
-  resolveClick(obj: THREE.Object3D): { entity_id: string; behavior: BindingBehavior } | null {
+  resolveClick(obj: THREE.Object3D): ClickResult | null {
     let cur: THREE.Object3D | null = obj;
     while (cur) {
       const eid = cur.userData?.bindingEntity as string | undefined;
@@ -568,36 +567,6 @@ export class BindingManager {
     this.bindings = [];
     this.byEntity.clear();
     this.pointLightsUsed = 0;
-  }
-}
-
-/** Map a click to a service call. Returns null if it should open more-info. */
-export function clickToService(
-  entityId: string,
-  behavior: BindingBehavior,
-): { domain: string; service: string; data: Record<string, any> } | null {
-  const domain = domainOf(entityId);
-  const data = { entity_id: entityId };
-  switch (behavior) {
-    case 'light':
-      return { domain: 'light', service: 'toggle', data };
-    case 'switch':
-      return { domain: 'switch', service: 'toggle', data };
-    case 'fan':
-      return { domain: 'fan', service: 'toggle', data };
-    case 'cover':
-      return { domain: 'cover', service: 'toggle', data };
-    case 'media_player':
-      return { domain: 'media_player', service: 'media_play_pause', data };
-    case 'lock':
-      // Toggle handled by caller (needs current state); fall through to more-info.
-      return null;
-    default:
-      // sensors/climate/etc. → open more-info
-      if (TOGGLE_DOMAINS.has(domain)) {
-        return { domain, service: 'toggle', data };
-      }
-      return null;
   }
 }
 

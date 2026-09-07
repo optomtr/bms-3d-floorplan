@@ -25,6 +25,38 @@ export type SurfaceMaterial =
 export const WALL_MATERIALS: SurfaceMaterial[] = ['plain', 'molding', 'panel', 'stripes', 'plaster', 'brick', 'concrete', 'marble'];
 export const FLOOR_MATERIALS: SurfaceMaterial[] = ['plain', 'herringbone', 'parquet', 'wood', 'walnut', 'tile', 'marble', 'carpet', 'concrete'];
 
+// ---------------------------------------------------------------------------
+// Русские подписи. Значение из списка человек видит как есть, поэтому рядом с
+// каждым КЛЮЧОМ живёт его название. Ключи менять нельзя ни при каких
+// обстоятельствах: они лежат в сохранённых планах клиентов, и переименование
+// сделает уже нарисованные стены и полы «однотонными».
+// ---------------------------------------------------------------------------
+
+export const MATERIAL_LABELS: Record<SurfaceMaterial, string> = {
+  plain: 'Однотонный',
+  stripes: 'Полоска',
+  tile: 'Плитка',
+  wood: 'Дерево',
+  plaster: 'Штукатурка',
+  brick: 'Кирпич',
+  panel: 'Панели',
+  molding: 'Молдинг',
+  concrete: 'Бетон',
+  marble: 'Мрамор',
+  carpet: 'Ковролин',
+  parquet: 'Паркет',
+  herringbone: 'Ёлочка',
+  walnut: 'Орех',
+};
+
+/** Название материала для показа человеку. Незнакомый ключ (план из будущей
+ *  версии, ручная правка JSON) возвращается как есть — лучше непонятное слово,
+ *  чем пустая строка в списке. */
+export function materialLabel(name?: string): string {
+  if (!name) return MATERIAL_LABELS.plain;
+  return MATERIAL_LABELS[name as SurfaceMaterial] ?? name;
+}
+
 /** Materials that bake their own colour (wood etc.) — the builder shows them on
  *  a WHITE base so the rich tone reads through instead of being tinted flat. */
 export const BAKED_MATERIALS = new Set<SurfaceMaterial>(['wood', 'parquet', 'herringbone', 'walnut', 'marble']);
