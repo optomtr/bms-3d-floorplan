@@ -2,9 +2,12 @@
 
 The plan is written by the card's editor (``src/storage.ts``) as::
 
-    { active?: str, editPin?: str, projects: { <id>: FloorPlan } }
+    { active?: str, projects: { <id>: FloorPlan },
+      version: int, updated_at: str }   # both stamped by the server
 
 and every ``FloorPlan`` carries ``floors: [...]`` plus an optional human ``name``.
+``editPin`` used to live in here too and is still tolerated for older card
+bundles, but the PIN's home is now a document of its own.
 Anything else is refused rather than stored: this document is read back by every
 tablet in the building, and the card drives Home Assistant services from what it
 finds in there — so an unchecked write is an unchecked instruction.
@@ -19,7 +22,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .const import MAX_FLOORS_PER_PROJECT, MAX_PLAN_BYTES, MAX_PROJECTS
+from .const import (
+    DOC_UPDATED_KEY,
+    DOC_VERSION_KEY,
+    MAX_FLOORS_PER_PROJECT,
+    MAX_PIN_LENGTH,
+    MAX_PLAN_BYTES,
+    MAX_PROJECTS,
+)
 
 
 class PlanValidationError(Exception):
@@ -107,9 +117,52 @@ def validate_plan_document(data: Any) -> dict:
     if active is not None and not isinstance(active, str):
         raise PlanValidationError("Поле active должно быть строкой.")
 
+    # editPin is no longer OUR field — it lives in its own document now (see
+    # const.LEGACY_PLAN_PIN_KEY). Older card bundles still send it inside the
+    # plan, so it is still accepted and still checked; nothing reads it back
+    # except the one-time carry-over in plan_api.PinStore.async_adopt.
     edit_pin = data.get("editPin")
-    if edit_pin is not None and (not isinstance(edit_pin, str) or len(edit_pin) > 128):
+    if edit_pin is not None and (
+        not isinstance(edit_pin, str) or len(edit_pin) > MAX_PIN_LENGTH
+    ):
         raise PlanValidationError("Поле editPin должно быть короткой строкой.")
 
+    _check_meta(data)
     check_size(data)
     return data
+
+
+def _check_meta(data: dict) -> None:
+    """The two reserved keys the server stamps onto every stored document."""
+    version = data.get(DOC_VERSION_KEY)
+    if version is not None and (
+        isinstance(version, bool) or not isinstance(version, int) or version < 0
+    ):
+        raise PlanValidationError(
+            "Поле version должно быть целым неотрицательным числом."
+        )
+
+    updated = data.get(DOC_UPDATED_KEY)
+    if updated is not None and not isinstance(updated, str):
+        raise PlanValidationError("Поле updated_at должно быть строкой.")
+
+
+def validate_pin(value: Any) -> str | None:
+    """The stored edit-PIN hash, or None when the PIN is being cleared.
+
+    The card hashes the digits before they leave the browser, so what arrives
+    here is a short opaque string. Empty is normalised to None so "" and "no
+    PIN" cannot mean two different things to the card.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise PlanValidationError("PIN должен быть строкой.", "invalid_pin")
+    pin = value.strip()
+    if not pin:
+        return None
+    if len(pin) > MAX_PIN_LENGTH:
+        raise PlanValidationError(
+            f"PIN слишком длинный (лимит {MAX_PIN_LENGTH} символов).", "invalid_pin"
+        )
+    return pin

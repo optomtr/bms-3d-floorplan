@@ -1,0 +1,57 @@
+name: Сборка и проверки
+
+# Раньше единственным «контролем качества» был человек, который помнил, что
+# перед тегом надо собрать проект. Тег на несобирающемся коде уезжал клиентам
+# через HACS. Теперь каждая ветка и каждый pull request собираются и
+# проверяются здесь, а тег дополнительно ждёт того же в release.yml.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Новый пуш в ту же ветку отменяет предыдущий прогон — очередь не копится.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Сборка, типы, автопроверки
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Сборка бандла
+        run: npm run build
+
+      - name: Проверка типов
+        run: npm run typecheck
+
+      - name: Проверка типов в автопроверках
+        run: npm run typecheck:tests
+
+      # Проверки гоняются против ТОЛЬКО ЧТО собранного dist/ — того самого
+      # файла, который поедет клиентам.
+      - name: Браузер для проверок
+        run: npx playwright install --with-deps chromium
+
+      - name: Автопроверки
+        run: npm test
+
+      - name: Отчёт Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

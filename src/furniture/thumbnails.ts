@@ -5,10 +5,18 @@
 
 import * as THREE from 'three';
 import { buildFurniture } from './library';
+import { disposeObject3D } from '../scene/dispose';
 
 const SIZE = 76;
 const cache = new Map<string, string>();
 let renderer: THREE.WebGLRenderer | undefined;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** How long the palette's offscreen renderer is kept after the last thumbnail.
+ *  Opening the palette renders a burst of models; holding the context for a few
+ *  seconds covers that burst, and every result is cached as a data URL, so the
+ *  context is almost never needed again. */
+const IDLE_RELEASE_MS = 5000;
 
 function getRenderer(): THREE.WebGLRenderer {
   if (!renderer) {
@@ -21,6 +29,31 @@ function getRenderer(): THREE.WebGLRenderer {
     renderer.setPixelRatio(1);
   }
   return renderer;
+}
+
+/**
+ * Hand the offscreen context back. This renderer used to be created on the
+ * first palette open and kept FOREVER — a whole WebGL context permanently spent
+ * on 76px pictures. A browser keeps only ~8-16 contexts (8 in some Android
+ * WebViews) and silently kills the oldest to make room, so on a panel that is
+ * opened and closed all day this one stolen slot is part of why the live scene
+ * eventually goes black. The data-URL cache survives, so nothing is re-rendered.
+ */
+export function releaseThumbnailRenderer(): void {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = undefined;
+  }
+  if (!renderer) return;
+  renderer.dispose();
+  renderer.forceContextLoss();
+  renderer.domElement.width = renderer.domElement.height = 0;
+  renderer = undefined;
+}
+
+function scheduleRelease(): void {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(releaseThumbnailRenderer, IDLE_RELEASE_MS);
 }
 
 export function getThumbnail(model: string): string {
@@ -57,12 +90,13 @@ export function getThumbnail(model: string): string {
     url = '';
   }
 
-  // Free this model's geometry; renderer + cache persist.
-  group.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (m.geometry) m.geometry.dispose();
-  });
+  // Free this model's geometry AND its materials (each buildFurniture call
+  // makes fresh MeshStandardMaterials; leaving them behind kept a compiled
+  // shader program per material for the life of the page).
+  disposeObject3D(group);
+  scene.remove(group);
 
   cache.set(model, url);
+  scheduleRelease();
   return url;
 }

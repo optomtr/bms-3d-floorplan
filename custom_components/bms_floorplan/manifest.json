@@ -1,11 +1,18 @@
 {
   "domain": "bms_floorplan",
   "name": "BMS Планировка",
-  "version": "0.173.0",
+  "version": "0.174.0",
   "documentation": "https://github.com/optomtr/bms-3d-floorplan",
   "issue_tracker": "https://github.com/optomtr/bms-3d-floorplan/issues",
-  "codeowners": ["@optomtr"],
-  "dependencies": ["http", "frontend", "panel_custom", "websocket_api"],
+  "codeowners": [
+    "@optomtr"
+  ],
+  "dependencies": [
+    "http",
+    "frontend",
+    "panel_custom",
+    "websocket_api"
+  ],
   "requirements": [],
   "config_flow": true,
   "integration_type": "service",

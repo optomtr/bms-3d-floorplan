@@ -8,14 +8,18 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorDef, WallDef, RoomDef, Vec2 } from '../types';
+import type { FloorDef, WallDef, RoomDef, OpeningDef, Vec2 } from '../types';
 import { resolveFurniture } from '../furniture/loader';
 import { TextLabel } from './labels';
 import { isShapeRoom, roomPolygon, roomWalls } from './room-shapes';
 import { surfaceTexture, tiled, isBakedMaterial, grainTexture } from './materials';
+import { num, vec2, finitePolygon, isFiniteBox } from './sanitize';
 
 const DEFAULT_WALL_HEIGHT = 2.6;
 const DEFAULT_THICKNESS = 0.12;
+
+// Plan numbers are guarded on the way into geometry — see scene/sanitize.ts for
+// why a single NaN used to mean a black screen with an empty console.
 
 /** Selectable style variants for door / window openings. */
 export const DOOR_VARIANTS = ['single', 'double', 'glass', 'sliding'];
@@ -32,6 +36,10 @@ export interface BuiltFloor {
   /** Bounding box of this floor in world space. */
   bbox: THREE.Box3;
   labels: TextLabel[];
+  /** Elements dropped because their numbers were unusable ("стена 3", "мебель
+   *  sofa1"). The house still draws; the card tells the human what is missing,
+   *  because a wall that vanishes silently is worse than one that complains. */
+  skipped: string[];
 }
 
 function wallMaterial(color?: string, material?: string): THREE.MeshStandardMaterial {
@@ -67,9 +75,13 @@ function addWallSpan(
   material: THREE.Material,
 ): void {
   const len = to - from;
-  if (len <= 1e-4) return;
+  // Written as `!(x > n)` on purpose: `NaN <= 1e-4` is false, so the obvious
+  // form lets NaN straight into BoxGeometry (see the note at the top).
+  if (!(len > 1e-4)) return;
   const height = yTop - yBottom;
-  if (height <= 1e-4) return;
+  if (!(height > 1e-4)) return;
+  if (!(thickness > 0) || !Number.isFinite(start.x) || !Number.isFinite(start.y)) return;
+  if (!Number.isFinite(dir.x) || !Number.isFinite(dir.y) || !Number.isFinite(normalAngle)) return;
   const geo = new THREE.BoxGeometry(len, height, thickness);
   const mesh = new THREE.Mesh(geo, material);
   mesh.castShadow = true;
@@ -88,11 +100,13 @@ function buildWall(
   defaultHeight: number,
   index: number,
 ): THREE.Group | null {
-  const start = new THREE.Vector2(wall.start[0], wall.start[1]);
-  const end = new THREE.Vector2(wall.end[0], wall.end[1]);
+  const s2 = vec2(wall?.start);
+  const e2 = vec2(wall?.end);
+  const start = new THREE.Vector2(s2[0], s2[1]);
+  const end = new THREE.Vector2(e2[0], e2[1]);
   const full = end.clone().sub(start);
   const length = full.length();
-  if (length <= 1e-4) return null;
+  if (!(length > 1e-4)) return null;
   const dir = full.clone().normalize();
   // Each wall's spans live in their own group so the editor can pick/select/
   // color/delete the whole wall as a unit.
@@ -102,8 +116,8 @@ function buildWall(
   const angle = Math.atan2(dir.y, dir.x);
   const normalAngle = -angle;
 
-  const height = wall.height ?? defaultHeight;
-  const thickness = wall.thickness ?? DEFAULT_THICKNESS;
+  const height = Math.max(0.05, num(wall.height, num(defaultHeight, DEFAULT_WALL_HEIGHT)));
+  const thickness = Math.max(0.01, num(wall.thickness, DEFAULT_THICKNESS));
   const material = wallMaterial(wall.color, wall.material);
   // Door/window frames are rendered INTO the wall group so they're owned by the
   // wall (deleted with it), coupled to the opening, and sized to the hole.
@@ -123,8 +137,21 @@ function buildWall(
 
   // Keep each opening's ORIGINAL index (for selection/editing) while drawing
   // them left-to-right.
-  const openings = (wall.openings ?? [])
-    .map((op, oi) => ({ op, oi }))
+  // Sanitised copies: an opening with a NaN/absent position or width must not
+  // reach clamp() (which would return NaN) or BoxGeometry. A zero-width opening
+  // is dropped outright — it can only ever draw nothing.
+  const openings = (Array.isArray(wall.openings) ? wall.openings : [])
+    .map((raw, oi) => ({
+      oi,
+      op: {
+        ...raw,
+        position: num(raw?.position, 0),
+        width: Math.max(0, num(raw?.width, 0)),
+        sill: raw?.sill == null ? undefined : num(raw.sill, 0),
+        top: raw?.top == null ? undefined : num(raw.top, 0),
+      } as OpeningDef,
+    }))
+    .filter(({ op }) => op.width > 1e-3)
     .sort((a, b) => a.op.position - b.op.position);
 
   let cursor = 0;
@@ -257,9 +284,10 @@ function buildFloor(
   index: number,
   polygon: Vec2[],
 ): { centroid: THREE.Vector2; mesh: THREE.Mesh } | null {
-  if (!polygon || polygon.length < 3) return null;
+  const poly = finitePolygon(polygon);
+  if (poly.length < 3) return null;
   const shape = new THREE.Shape();
-  polygon.forEach((p, i) => {
+  poly.forEach((p, i) => {
     if (i === 0) shape.moveTo(p[0], p[1]);
     else shape.lineTo(p[0], p[1]);
   });
@@ -286,79 +314,129 @@ function buildFloor(
 
   // centroid for label
   let cx = 0, cz = 0;
-  for (const p of polygon) {
+  for (const p of poly) {
     cx += p[0];
     cz += p[1];
   }
   return {
-    centroid: new THREE.Vector2(cx / polygon.length, cz / polygon.length),
+    centroid: new THREE.Vector2(cx / poly.length, cz / poly.length),
     mesh,
   };
 }
 
 export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): BuiltFloor {
   const group = new THREE.Group();
-  group.position.y = floor.elevation ?? 0;
-  const defaultHeight = floor.wallHeight ?? planWallHeight ?? DEFAULT_WALL_HEIGHT;
+  group.position.y = num(floor?.elevation, 0);
+  const defaultHeight = Math.max(
+    0.05,
+    num(floor?.wallHeight, num(planWallHeight, DEFAULT_WALL_HEIGHT)),
+  );
   const labels: TextLabel[] = [];
   const wallById = new Map<number, THREE.Object3D>();
   const roomById = new Map<number, THREE.Object3D>();
-
-  (floor.rooms ?? []).forEach((room, i) => {
-    const poly = isShapeRoom(room) ? roomPolygon(room) : room.polygon;
-    const built = buildFloor(group, room, i, poly);
-    if (built) {
-      roomById.set(i, built.mesh);
-      // (room name labels intentionally NOT rendered — no floating text in rooms)
+  // Every element is built in isolation: one broken wall or one broken piece of
+  // furniture is skipped with a named warning, and the rest of the house is
+  // still drawn. Before this, a single throw took the whole plan down.
+  const skipped: string[] = [];
+  const isFiniteVec2 = (v: unknown): v is [number, number] =>
+    Array.isArray(v) && v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1]);
+  const isolate = (what: string, fn: () => void): void => {
+    try {
+      fn();
+    } catch (err) {
+      skipped.push(what);
+      console.warn(`[3d-floorplan] skipped a broken plan element (${what}):`, err);
     }
-    // Shape rooms also generate their perimeter walls. They're owned by the
-    // room (tagged roomIndex, not wallIndex) so clicking a wall selects the
-    // ROOM, not an individual wall segment.
-    if (isShapeRoom(room)) {
-      const th = room.thickness ?? DEFAULT_THICKNESS;
-      for (const w of roomWalls(room, room.height ?? defaultHeight, th)) {
-        const wg = buildWall(group, w, room.height ?? defaultHeight, -1);
-        if (wg) {
-          delete wg.userData.wallIndex;
-          wg.userData.roomIndex = i;
+  };
+
+  (Array.isArray(floor?.rooms) ? floor.rooms : []).forEach((room, i) => {
+    isolate(`комната №${i + 1}${room?.name ? ` «${room.name}»` : ''}`, () => {
+      const poly = isShapeRoom(room) ? roomPolygon(room) : room.polygon;
+      const built = buildFloor(group, room, i, poly);
+      if (built) {
+        roomById.set(i, built.mesh);
+        // (room name labels intentionally NOT rendered — no floating text in rooms)
+      }
+      // Shape rooms also generate their perimeter walls. They're owned by the
+      // room (tagged roomIndex, not wallIndex) so clicking a wall selects the
+      // ROOM, not an individual wall segment.
+      if (isShapeRoom(room)) {
+        const rh = Math.max(0.05, num(room.height, defaultHeight));
+        const th = Math.max(0.01, num(room.thickness, DEFAULT_THICKNESS));
+        for (const w of roomWalls(room, rh, th)) {
+          const wg = buildWall(group, w, rh, -1);
+          if (wg) {
+            delete wg.userData.wallIndex;
+            wg.userData.roomIndex = i;
+          }
         }
       }
-    }
+    });
   });
 
-  (floor.walls ?? []).forEach((wall, i) => {
-    const wg = buildWall(group, wall, defaultHeight, i);
-    if (wg) wallById.set(i, wg);
+  (Array.isArray(floor?.walls) ? floor.walls : []).forEach((wall, i) => {
+    isolate(`стена №${i + 1}`, () => {
+      // Sanitising an unusable endpoint to 0 would draw a wall the customer
+      // never drew — worse than a gap, because nothing on screen says so.
+      // A missing coordinate is a MISSING element: skip it and be counted.
+      if (!isFiniteVec2(wall?.start) || !isFiniteVec2(wall?.end)) {
+        throw new Error('координаты стены не заданы или не число');
+      }
+      const wg = buildWall(group, wall, defaultHeight, i);
+      if (wg) wallById.set(i, wg);
+    });
   });
 
   const furnitureById = new Map<string, THREE.Object3D>();
-  for (const f of floor.furniture ?? []) {
-    const obj = resolveFurniture(f);
-    obj.userData.model = f.model; // so a binding can tell WHAT it's anchored to
-    // Manual brightness: glow the emissive parts even without a bound entity
-    // (a bound light still overrides this on state updates).
-    if (f.brightness != null && f.brightness > 0) {
-      obj.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (m.isMesh && m.name === 'emissive') {
-          const mat = m.material as THREE.MeshStandardMaterial;
-          if (mat && 'emissive' in mat) {
-            mat.emissive.setHex(0xfff1d0);
-            mat.emissiveIntensity = f.brightness as number;
+  (Array.isArray(floor?.furniture) ? floor.furniture : []).forEach((f, i) => {
+    isolate(`мебель №${i + 1}${f?.model ? ` (${f.model})` : ''}`, () => {
+      if (!Array.isArray(f?.position) || !f.position.slice(0, 3).every(Number.isFinite)) {
+        throw new Error('координаты предмета не заданы или не число');
+      }
+      const obj = resolveFurniture(f);
+      obj.userData.model = f.model; // so a binding can tell WHAT it's anchored to
+      // Manual brightness: glow the emissive parts even without a bound entity
+      // (a bound light still overrides this on state updates).
+      const brightness = f.brightness == null ? 0 : num(f.brightness, 0);
+      if (brightness > 0) {
+        obj.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh && m.name === 'emissive') {
+            const mat = m.material as THREE.MeshStandardMaterial;
+            if (mat && 'emissive' in mat) {
+              mat.emissive.setHex(0xfff1d0);
+              mat.emissiveIntensity = brightness;
+            }
           }
-        }
-      });
-    }
-    group.add(obj);
-    if (f.id) furnitureById.set(f.id, obj);
+        });
+      }
+      group.add(obj);
+      if (f.id) furnitureById.set(f.id, obj);
+    });
+  });
+
+  if (skipped.length) {
+    console.warn(
+      `[3d-floorplan] plan drawn without ${skipped.length} broken element(s): ${skipped.join(', ')}`,
+    );
   }
 
   const bbox = new THREE.Box3().setFromObject(group);
-  return { group, furnitureById, wallById, roomById, bbox, labels };
+  // A NaN box would put the camera at NaN and black the screen; an EMPTY box is
+  // handled (resetView frames a default area around the origin), so degrade to
+  // that instead of trusting a poisoned one.
+  if (!isFiniteBox(bbox)) {
+    console.warn('[3d-floorplan] floor bounding box is not finite — framing a default view instead');
+    bbox.makeEmpty();
+  }
+  return { group, furnitureById, wallById, roomById, bbox, labels, skipped };
 }
 
+/** NaN-safe clamp: `Math.min(hi, NaN)` is NaN, so an unsanitised value used to
+ *  clamp to NaN and travel on into the geometry. */
 function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v));
+  const n = num(v, lo);
+  return Math.max(lo, Math.min(hi, n));
 }
 
 export { DEFAULT_WALL_HEIGHT };

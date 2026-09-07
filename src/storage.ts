@@ -8,138 +8,54 @@
 // integration is unavailable. localStorage is used only with no HA connection
 // at all (a manually-served standalone page).
 //
-// Data shape: { active, projects: { [id]: FloorPlan } }. Each plan also carries
-// a human `name`. Old projects persist until explicitly deleted; "New" creates
-// a fresh id rather than overwriting.
+// Data shape: { active, projects: { [id]: FloorPlan }, version }. Each plan also
+// carries a human `name`. Old projects persist until explicitly deleted; "New"
+// creates a fresh id rather than overwriting.
+//
+// ONE DOCUMENT, MANY DEVICES. `version` is stamped by the integration and rides
+// along inside the set we loaded; every save sends it back as `base_version`.
+// If the stored document moved on meanwhile, the save is REFUSED and comes back
+// as `SaveResult.conflict` with the document that won — instead of the second
+// tablet silently deleting the first tablet's projects.
+//
+// The edit PIN is NOT part of this document any more. It has a store of its own
+// in the integration, because it used to be erased by any plan save from any
+// device. `editPin` still appears on `StoredProjects` — that is the card's view
+// of it — but it is loaded from and written to the PIN store, not the plan.
 //
 // TWO GENERATIONS LIVE SIDE BY SIDE. The previous "3D Floor Plan" integration
-// stays installed and working on customer systems. Its keys are listed at the
-// bottom of this block and are READ-ONLY: they exist so a plan can be COPIED
-// into our store with one button. Nothing in this module ever writes to them.
+// stays installed and working on customer systems; reading its plans so they
+// can be COPIED into ours lives in `storage-legacy.ts`, and is read-only.
+//
+// This file is the entry point for all of it: the card imports everything from
+// here, so `plan-store.ts` (shape + wire) and `storage-legacy.ts` (previous
+// version) are re-exported below rather than imported by anyone else.
 // ---------------------------------------------------------------------------
 
 import type { FloorPlan, HomeAssistant } from './types';
+import {
+  asSet,
+  errMsg,
+  listProjects,
+  readPin,
+  readShared,
+  readUserData,
+  valid,
+  writePin,
+  writeShared,
+} from './plan-store';
+import type { SaveFailReason, StoredProjects } from './plan-store';
+
+// The card imports the whole surface from './storage'; these keep that one door
+// open while the code behind it is split by job.
+export { blankPlan, hashPin, listProjects, newProjectId } from './plan-store';
+export type { ProjectInfo, SaveFailReason, StoredProjects } from './plan-store';
+export { findLegacyProjects, mergeProjects } from './storage-legacy';
+export type { LegacyFind, LegacyScan, LegacySource, MergeResult } from './storage-legacy';
 
 // --- Our own keys (the only ones we ever write) ----------------------------
 const HA_KEY = 'bms_floorplan_projects';
 const LS_KEY = 'bms-floorplan-projects'; // full {active, projects} set
-const PLAN_WS_GET = 'bms_floorplan/plan/get';
-const PLAN_WS_SET = 'bms_floorplan/plan/set';
-
-// --- Previous version's keys — READ ONLY, never written --------------------
-const OLD_HA_KEY = 'ha3d_floorplans';
-const OLD_LS_KEY = 'ha3d-floorplans-set';
-const OLD_LS_SINGLE = 'ha3d-floorplan-default'; // even older single-plan entry
-/** Our integration's admin-only reader for the OLD install-wide plan. It answers
- *  `{found, data}` — we never touch the old integration's storage ourselves. */
-const OLD_WS_GET = 'bms_floorplan/legacy/get';
-
-export interface StoredProjects {
-  active?: string;
-  projects: Record<string, FloorPlan>;
-  /** Hashed PIN that gates Edit mode (casual tamper-protection on a kiosk).
-   *  Not cryptographically strong — just stops a passer-by from editing. */
-  editPin?: string;
-}
-
-/** Small non-cryptographic hash so the edit PIN isn't stored in plain text.
- *  (Casual protection only — clearing browser/HA storage resets it.) */
-export function hashPin(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return 'h' + h.toString(36);
-}
-
-export interface ProjectInfo {
-  id: string;
-  name: string;
-}
-
-function valid(plan: any): plan is FloorPlan {
-  return !!plan && Array.isArray(plan.floors) && plan.floors.length > 0;
-}
-
-function errMsg(e: any): string {
-  return String(e?.message ?? e?.code ?? e ?? 'unknown error');
-}
-
-/** True when the failure means "this endpoint does not exist here" (an older or
- *  absent integration) rather than "the read went wrong". The difference
- *  matters: absent is a normal state we fall back from, a failed read is NOT —
- *  treating it as "empty" is how a save wipes every other device's projects. */
-function isUnavailable(e: any): boolean {
-  const code = String(e?.code ?? '').toLowerCase();
-  if (code === 'unknown_command' || code === 'not_found') return true;
-  const msg = String(e?.message ?? e ?? '').toLowerCase();
-  return msg.includes('unknown command') || msg.includes('unknown_command') || msg.includes('not found');
-}
-
-type ReadStatus =
-  | 'ok' // read succeeded and there is data
-  | 'empty' // read succeeded, nothing stored yet
-  | 'unavailable' // the endpoint does not exist here
-  | 'error'; // the read FAILED — the data may well exist
-
-interface ReadOutcome {
-  status: ReadStatus;
-  data?: StoredProjects;
-  error?: string;
-}
-
-/** Accept both the bare `{active, projects}` document and a `{found, data}`
- *  envelope, so the same reader works for plan/get and legacy/get. */
-function asSet(raw: any): StoredProjects | null {
-  if (!raw || typeof raw !== 'object') return null;
-  if (raw.projects && typeof raw.projects === 'object') return raw as StoredProjects;
-  const inner = (raw as any).data;
-  if (inner && typeof inner === 'object' && inner.projects) return inner as StoredProjects;
-  return null;
-}
-
-/** The install-wide copy served by our integration. */
-async function readShared(hass: HomeAssistant, cmd = PLAN_WS_GET): Promise<ReadOutcome> {
-  if (!hass.callWS) return { status: 'unavailable' };
-  try {
-    const raw: any = await hass.callWS({ type: cmd });
-    const data = asSet(raw);
-    return data ? { status: 'ok', data } : { status: 'empty' };
-  } catch (e) {
-    return isUnavailable(e) ? { status: 'unavailable' } : { status: 'error', error: errMsg(e) };
-  }
-}
-
-/** A `frontend/get_user_data` document (ours, or — read-only — the old one). */
-async function readUserData(hass: HomeAssistant, key: string): Promise<ReadOutcome> {
-  if (!hass.callWS) return { status: 'unavailable' };
-  try {
-    const res: any = await hass.callWS({ type: 'frontend/get_user_data', key });
-    const data = asSet(res?.value);
-    return data ? { status: 'ok', data } : { status: 'empty' };
-  } catch (e) {
-    return isUnavailable(e) ? { status: 'unavailable' } : { status: 'error', error: errMsg(e) };
-  }
-}
-
-interface WriteOutcome {
-  ok: boolean;
-  /** The endpoint isn't there (older/absent integration) — not a failure of ours. */
-  unavailable?: boolean;
-  error?: string;
-}
-
-/** Mirror the set to the install-wide copy. Writing is admin-only in the
- *  integration, so a non-admin editor legitimately gets a refusal here. */
-async function writeShared(hass: HomeAssistant, data: StoredProjects): Promise<WriteOutcome> {
-  if (!hass.callWS) return { ok: false, unavailable: true };
-  try {
-    await hass.callWS({ type: PLAN_WS_SET, value: data });
-    return { ok: true };
-  } catch (e) {
-    return isUnavailable(e)
-      ? { ok: false, unavailable: true, error: errMsg(e) }
-      : { ok: false, error: errMsg(e) };
-  }
-}
 
 export interface LoadResult {
   /** FALSE means the store could not be read. The caller must NOT save on top
@@ -165,24 +81,95 @@ export interface LoadResult {
 export async function loadProjectsResult(hass?: HomeAssistant): Promise<LoadResult> {
   if (hass?.callWS) {
     const shared = await readShared(hass);
-    if (shared.status === 'ok') return { ok: true, data: shared.data!, source: 'shared' };
     if (shared.status === 'error') {
       return { ok: false, data: { projects: {} }, source: 'none', error: shared.error };
     }
-    const mine = await readUserData(hass, HA_KEY);
-    if (mine.status === 'ok') {
-      // First load after the upgrade: publish this user's plan so other devices
-      // pick it up straight away rather than waiting for the next save.
-      await writeShared(hass, mine.data!);
-      return { ok: true, data: mine.data!, source: 'user' };
+    if (shared.status === 'unavailable') {
+      // No integration here at all: no versioning, no PIN store — the old
+      // per-user path, exactly as it behaved before.
+      const mine = await readUserData(hass, HA_KEY);
+      if (mine.status === 'ok') return { ok: true, data: mine.data!, source: 'user' };
+      if (mine.status === 'error') {
+        return { ok: false, data: { projects: {} }, source: 'none', error: mine.error };
+      }
+      return { ok: true, data: { projects: {} }, source: 'none' };
     }
+
+    // The integration answered, so it is the authority on both the version and
+    // the PIN. `empty` means the document really is empty (a failed read raises
+    // instead), so version 0 is the correct base for the first save.
+    if (shared.status === 'ok') {
+      const data = shared.data!;
+      if (typeof data.version !== 'number') data.version = 0;
+      const pin = await hydratePin(hass, data);
+      if (!pin.ok) return { ok: false, data, source: 'shared', error: pin.error };
+      return { ok: true, data, source: 'shared' };
+    }
+
+    const mine = await readUserData(hass, HA_KEY);
     if (mine.status === 'error') {
       return { ok: false, data: { projects: {} }, source: 'none', error: mine.error };
     }
-    return { ok: true, data: { projects: {} }, source: 'none' };
+    const data: StoredProjects = mine.status === 'ok' ? mine.data! : { projects: {} };
+    data.version = 0;
+    const pin = await hydratePin(hass, data);
+    if (!pin.ok) return { ok: false, data, source: 'none', error: pin.error };
+    if (mine.status === 'ok') {
+      // First load after the upgrade: publish this user's plan so other devices
+      // pick it up straight away rather than waiting for the next save. Written
+      // through saveShared so it carries base_version 0 — if another device got
+      // there first, this seeding write is refused instead of replacing it.
+      await saveShared(hass, data);
+      return { ok: true, data, source: 'user' };
+    }
+    return { ok: true, data, source: 'none' };
   }
   const local = loadLocalSet();
   return { ok: true, data: local ?? { projects: {} }, source: local ? 'local' : 'none' };
+}
+
+// The PIN this session last saw in the PIN store, so a save can tell "the
+// operator changed the PIN" from "the operator changed the plan". Before the
+// PIN moved out of the plan document, every save rewrote it and any device
+// whose copy predated the PIN erased it.
+let lastKnownPin: string | null | undefined;
+/** undefined until the first attempt; false when the integration has no PIN
+ *  store (older version), in which case the PIN stays inside the plan. */
+let pinStoreAvailable: boolean | undefined;
+
+/** Fill `data.editPin` from the PIN's own document.
+ *
+ *  A FAILED read is reported, never guessed at: `ok: false` stops the card from
+ *  saving, which is what keeps a hiccup from clearing the PIN. */
+async function hydratePin(
+  hass: HomeAssistant,
+  data: StoredProjects,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await readPin(hass);
+  if (res.status === 'ok') {
+    pinStoreAvailable = true;
+    lastKnownPin = res.pin ?? null;
+    if (res.pin) data.editPin = res.pin;
+    else delete data.editPin;
+    return { ok: true };
+  }
+  if (res.status === 'unavailable') {
+    // Integration older than the PIN store: leave whatever the plan carried.
+    pinStoreAvailable = false;
+    lastKnownPin = undefined;
+    return { ok: true };
+  }
+  pinStoreAvailable = false;
+  lastKnownPin = undefined;
+  return { ok: false, error: res.error };
+}
+
+/** The plan document as it goes on the wire — without the PIN, which lives in
+ *  its own document now. */
+function withoutPin(data: StoredProjects): StoredProjects {
+  const copy: StoredProjects = { ...data };
+  delete copy.editPin;
+  return copy;
 }
 
 /** Convenience wrapper for read-only callers (rendering a plan). Anything that
@@ -202,6 +189,78 @@ export interface SaveResult {
   ha: boolean;
   sharedError?: string;
   userError?: string;
+  /** TRUE means the install-wide copy moved on while this edit was open, so
+   *  NOTHING was written to it — the projects on the other device are intact and
+   *  this edit is the one that still has to be re-applied. */
+  conflict?: boolean;
+  /** Why the shared write did not happen (rights / conflict / size / store). */
+  reason?: SaveFailReason;
+  /** Version now stored; on a conflict, the version that won. */
+  version?: number;
+  /** On a conflict: the document that is actually stored, ready to show or
+   *  merge into, so nobody has to guess what the other device saved. */
+  current?: StoredProjects;
+  /** The edit PIN was written to its own document. Undefined = unchanged, so
+   *  no plan save can erase it any more. */
+  pin?: boolean;
+  pinError?: string;
+}
+
+interface SharedWrite {
+  ok: boolean;
+  conflict?: boolean;
+  reason?: SaveFailReason;
+  error?: string;
+  version?: number;
+  current?: StoredProjects;
+  pin?: boolean;
+  pinError?: string;
+  /** The document as it went on the wire (PIN removed) — mirrored per-user too,
+   *  so the two copies do not disagree about the PIN. */
+  payload: StoredProjects;
+}
+
+/** Write the set to the install-wide copy: the PIN into its own document, the
+ *  plan with `base_version` so a concurrent edit is refused, not overwritten.
+ *
+ *  On success `data.version` is UPDATED IN PLACE — the caller is holding the
+ *  same object the card keeps in memory, so its next save carries the version
+ *  this one produced. On a conflict it is deliberately left alone: a blind
+ *  retry must keep failing until the operator reloads. */
+async function saveShared(hass: HomeAssistant, data: StoredProjects): Promise<SharedWrite> {
+  let pin: boolean | undefined;
+  let pinError: string | undefined;
+  if (pinStoreAvailable) {
+    const wanted = data.editPin ?? null;
+    // Only when THIS session actually changed it. A plan save by a device that
+    // never saw the PIN must leave the PIN exactly where it is.
+    if (wanted !== lastKnownPin) {
+      const res = await writePin(hass, wanted);
+      pin = res.ok;
+      if (res.ok) lastKnownPin = wanted;
+      else pinError = res.error;
+    }
+  }
+  // Keep the PIN out of the plan — but only once it is safely in its own
+  // document, otherwise dropping it here would lose it altogether.
+  const payload = pinStoreAvailable && pinError === undefined ? withoutPin(data) : data;
+  const base = typeof data.version === 'number' ? data.version : undefined;
+  const res = await writeShared(hass, payload, base);
+  if (res.ok && typeof res.version === 'number') {
+    data.version = res.version;
+    payload.version = res.version;
+  }
+  return {
+    ok: res.ok,
+    conflict: res.conflict,
+    reason: res.reason,
+    error: res.error,
+    version: res.version,
+    current: res.current,
+    pin,
+    pinError,
+    payload,
+  };
 }
 
 /** Persist the full project set. Inside HA it is written to BOTH the
@@ -219,13 +278,23 @@ export async function saveProjects(
 ): Promise<SaveResult> {
   if (!hass?.callWS) {
     const local = saveLocalSet(data);
-    return { shared: false, user: false, local, ha: false };
+    return {
+      shared: false,
+      user: false,
+      local,
+      ha: false,
+      reason: local ? undefined : 'unavailable',
+    };
   }
-  const shared = await writeShared(hass, data);
+  const shared = await saveShared(hass, data);
   let user = false;
   let userError: string | undefined;
   try {
-    await hass.callWS({ type: 'frontend/set_user_data', key: HA_KEY, value: data });
+    await hass.callWS({
+      type: 'frontend/set_user_data',
+      key: HA_KEY,
+      value: shared.payload,
+    });
     user = true;
   } catch (e) {
     userError = errMsg(e);
@@ -233,15 +302,23 @@ export async function saveProjects(
   let local = false;
   if (!shared.ok && !user) {
     console.error('[bms-floorplan] HA save failed, kept a local copy:', shared.error ?? userError);
-    local = saveLocalSet(data);
+    local = saveLocalSet(shared.payload);
   }
   return {
     shared: shared.ok,
     user,
     local,
     ha: shared.ok || user,
+    // Already a human sentence in Russian, so an interface that only prints it
+    // still says something true about WHY.
     sharedError: shared.error,
     userError,
+    conflict: shared.conflict,
+    reason: shared.reason,
+    version: shared.version,
+    current: shared.current,
+    pin: shared.pin,
+    pinError: shared.pinError,
   };
 }
 
@@ -267,156 +344,6 @@ function saveLocalSet(data: StoredProjects): boolean {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Previous version — READ ONLY.
-//
-// Three places may hold a plan made with the old integration. Everything below
-// only reads; the old store is left exactly as it was, so the old card keeps
-// working for the customer until they decide to remove it.
-// ---------------------------------------------------------------------------
-
-export type LegacySource = 'shared' | 'user' | 'local';
-
-export interface LegacyFind {
-  /** Where it was found: the old install-wide plan, this account's per-user
-   *  copy, or this browser's localStorage. */
-  source: LegacySource;
-  count: number;
-  /** Project names, in the order they will be copied. */
-  names: string[];
-  data: StoredProjects;
-}
-
-export interface LegacyScan {
-  finds: LegacyFind[];
-  /** Places that could not be read (so "nothing found" is never a guess). */
-  errors: { source: LegacySource; error: string }[];
-}
-
-function legacyLocalSet(): StoredProjects | null {
-  try {
-    const raw = localStorage.getItem(OLD_LS_KEY);
-    if (raw) {
-      const data = asSet(JSON.parse(raw));
-      if (data) return data;
-    }
-  } catch {
-    /* ignore */
-  }
-  try {
-    const raw = localStorage.getItem(OLD_LS_SINGLE);
-    if (raw) {
-      const plan = JSON.parse(raw);
-      if (valid(plan)) return { active: 'default', projects: { default: plan } };
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
-function describe(source: LegacySource, data: StoredProjects): LegacyFind | null {
-  const list = listProjects(data);
-  if (!list.length) return null;
-  return { source, count: list.length, names: list.map((p) => p.name), data };
-}
-
-/** Look for plans made with the PREVIOUS integration, in all three places.
- *  Reads only — nothing is written anywhere by this call. */
-export async function findLegacyProjects(hass?: HomeAssistant): Promise<LegacyScan> {
-  const finds: LegacyFind[] = [];
-  const errors: { source: LegacySource; error: string }[] = [];
-
-  if (hass?.callWS) {
-    const shared = await readShared(hass, OLD_WS_GET);
-    if (shared.status === 'ok') {
-      const f = describe('shared', shared.data!);
-      if (f) finds.push(f);
-    } else if (shared.status === 'error') {
-      errors.push({ source: 'shared', error: shared.error ?? 'unknown error' });
-    }
-
-    const mine = await readUserData(hass, OLD_HA_KEY);
-    if (mine.status === 'ok') {
-      const f = describe('user', mine.data!);
-      if (f) finds.push(f);
-    } else if (mine.status === 'error') {
-      errors.push({ source: 'user', error: mine.error ?? 'unknown error' });
-    }
-  }
-
-  const local = legacyLocalSet();
-  if (local) {
-    const f = describe('local', local);
-    if (f) finds.push(f);
-  }
-  return { finds, errors };
-}
-
-export interface MergeResult {
-  data: StoredProjects;
-  added: number;
-  /** How many had to be renamed because a project of that name already existed. */
-  renamed: number;
-}
-
-/** Copy `incoming` projects into `current` WITHOUT overwriting anything.
- *
- *  A clashing id gets a fresh one; a clashing name gets `mark` appended (and a
- *  counter after that), so the operator can tell the imported copy from the one
- *  they already had instead of silently losing one of them. */
-export function mergeProjects(
-  current: StoredProjects,
-  incoming: StoredProjects,
-  mark: string,
-): MergeResult {
-  const data: StoredProjects = {
-    ...current,
-    projects: { ...current.projects },
-  };
-  const usedNames = new Set(
-    Object.values(data.projects)
-      .filter(valid)
-      .map((p) => (p.name || '').trim().toLowerCase()),
-  );
-  let added = 0;
-  let renamed = 0;
-  let firstAdded: string | undefined;
-
-  for (const [id, plan] of Object.entries(incoming.projects ?? {})) {
-    if (!valid(plan)) continue;
-    const copy: FloorPlan = JSON.parse(JSON.stringify(plan));
-    let name = (copy.name || id).trim() || id;
-    if (usedNames.has(name.toLowerCase())) {
-      let candidate = `${name} ${mark}`;
-      let n = 2;
-      while (usedNames.has(candidate.toLowerCase())) candidate = `${name} ${mark} ${n++}`;
-      name = candidate;
-      renamed++;
-    }
-    copy.name = name;
-    usedNames.add(name.toLowerCase());
-
-    let newId = id;
-    while (!newId || data.projects[newId]) newId = newProjectId();
-    data.projects[newId] = copy;
-    if (!firstAdded) firstAdded = newId;
-    added++;
-  }
-
-  // Only adopt an active project if there wasn't one — never move the operator
-  // off the plan they were looking at.
-  if (!data.active || !valid(data.projects[data.active])) data.active = firstAdded ?? data.active;
-  return { data, added, renamed };
-}
-
-export function listProjects(data: StoredProjects): ProjectInfo[] {
-  return Object.entries(data.projects)
-    .filter(([, p]) => valid(p))
-    .map(([id, p]) => ({ id, name: p.name || id }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 /** Load the active (or first valid) plan — used for View mode / zero-config. */
 export async function loadPlan(hass?: HomeAssistant): Promise<FloorPlan | null> {
   const data = await loadProjects(hass);
@@ -426,24 +353,4 @@ export async function loadPlan(hass?: HomeAssistant): Promise<FloorPlan | null> 
       : listProjects(data)[0]?.id;
   const plan = id ? data.projects[id] : null;
   return valid(plan) ? plan : null;
-}
-
-export function newProjectId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && (crypto as any).randomUUID) {
-      return 'p' + (crypto as any).randomUUID().replace(/-/g, '').slice(0, 12);
-    }
-  } catch {
-    /* fall through */
-  }
-  return `p${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
-}
-
-/** A fresh empty plan to draw on from scratch. */
-export function blankPlan(name = 'New Plan'): FloorPlan {
-  return {
-    name,
-    wallHeight: 2.6,
-    floors: [{ name: 'Ground Floor', elevation: 0, wallHeight: 2.6, walls: [], rooms: [], furniture: [], bindings: [] }],
-  };
 }

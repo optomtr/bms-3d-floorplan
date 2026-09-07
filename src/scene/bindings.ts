@@ -16,6 +16,7 @@ import type {
   HassEntity,
 } from '../types';
 import type { BuiltFloor } from './builder';
+import { num } from './sanitize';
 import { TextLabel } from './labels';
 
 interface ActiveBinding {
@@ -27,6 +28,9 @@ interface ActiveBinding {
   emissiveMeshes: THREE.Mesh[];
   pointLight?: THREE.PointLight;
   label?: TextLabel;
+  /** Signature of the state this binding was last drawn from: the state string
+   *  plus every attribute the drawing actually reads. Used for a hard early
+   *  exit — see applyState. */
   lastState?: string;
   /** Domain-default fan/cover spin handle (the currently-spinning object). */
   spin?: THREE.Object3D;
@@ -220,24 +224,73 @@ export class BindingManager {
     }
   }
 
-  /** Apply current HA state to all bindings. Only changed entities do work. */
-  update(hass: HomeAssistant): void {
+  /** Apply current HA state to all bindings. Only changed entities do work.
+   *  Returns true if anything on screen actually changed. */
+  update(hass: HomeAssistant): boolean {
+    let changed = false;
     for (const ab of this.bindings) {
       const ent = hass.states[ab.def.entity_id];
-      this.applyState(ab, ent);
+      if (this.applyState(ab, ent)) changed = true;
+    }
+    return changed;
+  }
+
+  /** Targeted update for a single entity (used on subscribed state changes).
+   *  Returns true if this manager holds that entity AND its look changed. */
+  updateEntity(entityId: string, hass: HomeAssistant): boolean {
+    const list = this.byEntity.get(entityId);
+    if (!list) return false;
+    const ent = hass.states[entityId];
+    let changed = false;
+    for (const ab of list) if (this.applyState(ab, ent)) changed = true;
+    return changed;
+  }
+
+  /** Is this entity bound here at all? */
+  has(entityId: string): boolean {
+    return this.byEntity.has(entityId);
+  }
+
+  /** Every entity id this manager reacts to. */
+  entityIds(): IterableIterator<string> {
+    return this.byEntity.keys();
+  }
+
+  /**
+   * Everything the drawing of one binding depends on, as one short string.
+   * HA re-reports an entity on any attribute change (and a card update can push
+   * the same state again), so without this every arriving update rewrote
+   * materials and, through them, asked for another frame. Only the attributes
+   * actually read below are included, so a changed `last_changed` costs nothing.
+   */
+  private static signature(behavior: BindingBehavior, ent?: HassEntity): string {
+    const s = ent?.state ?? 'unavailable';
+    const a = ent?.attributes;
+    switch (behavior) {
+      case 'light':
+        return `${s}|${a?.brightness ?? ''}`;
+      case 'climate':
+        return `${s}|${a?.hvac_action ?? ''}`;
+      case 'cover':
+        return `${s}|${a?.current_position ?? ''}`;
+      case 'sensor':
+      case 'label':
+      case 'binary_sensor':
+      case 'lock':
+        return `${s}|${a?.unit_of_measurement ?? ''}|${a?.friendly_name ?? ''}`;
+      default:
+        return s;
     }
   }
 
-  /** Targeted update for a single entity (used on subscribed state changes). */
-  updateEntity(entityId: string, hass: HomeAssistant): void {
-    const list = this.byEntity.get(entityId);
-    if (!list) return;
-    const ent = hass.states[entityId];
-    for (const ab of list) this.applyState(ab, ent);
-  }
-
-  private applyState(ab: ActiveBinding, ent?: HassEntity): void {
+  /** Returns true when this call actually changed what's drawn. */
+  private applyState(ab: ActiveBinding, ent?: HassEntity): boolean {
     const state = ent?.state ?? 'unavailable';
+    const sig = BindingManager.signature(ab.behavior, ent);
+    // Nothing this binding draws from has moved — do not touch a single
+    // material. (`lastState` was written here and never read before; a repeated
+    // update rewrote every emissive material and requested a redraw for it.)
+    if (ab.lastState === sig) return false;
     const friendly =
       ab.def.label ?? ent?.attributes?.friendly_name ?? ab.def.entity_id;
 
@@ -294,12 +347,19 @@ export class BindingManager {
         // stale at 100 even once shut — and can sit in "closing" for good — so
         // reading the position would draw a shut curtain wide open. Position
         // still refines a settled "open" (e.g. a blind stopped half way).
-        const pos = ent?.attributes?.current_position;
+        // Number.isFinite, not typeof: a motor reporting NaN/Infinity (or a
+        // string that parsed to NaN) used to set the curtain's target scale to
+        // NaN — the panel silently lost that curtain FOREVER, because the
+        // animation compares against NaN and never settles.
+        const raw = ent?.attributes?.current_position;
+        const pos = typeof raw === 'number' && Number.isFinite(raw)
+          ? Math.max(0, Math.min(100, raw))
+          : undefined;
         const open =
           state === 'closed' || state === 'closing' ? 0
             : state === 'opening' ? 1
-              : state === 'open' ? (typeof pos === 'number' ? pos / 100 : 1)
-                : typeof pos === 'number' ? pos / 100 : 0;
+              : state === 'open' ? (pos !== undefined ? pos / 100 : 1)
+                : pos !== undefined ? pos / 100 : 0;
         if (
           (ab.curtains && ab.curtains.length) ||
           (ab.blindsV && ab.blindsV.length) ||
@@ -316,7 +376,8 @@ export class BindingManager {
         break;
       }
     }
-    ab.lastState = state;
+    ab.lastState = sig;
+    return true;
   }
 
   private setEmissive(ab: ActiveBinding, color: number, intensity: number): void {
@@ -332,19 +393,28 @@ export class BindingManager {
     }
   }
 
-  /** Per-frame animation for fans + sliding curtains. Returns true if anything
-   *  is still moving, so the render loop knows a redraw is needed this frame. */
+  /** Animation step for fans + sliding curtains. Returns true if anything is
+   *  still moving, so the render loop knows a redraw is needed.
+   *
+   *  `delta` is the time to advance by, NOT necessarily one frame: the scene
+   *  calls this on a rate limit (see SceneManager's loop) so a fan that is on
+   *  for a week can't hold the panel at 60 fps. Everything below is therefore
+   *  written in terms of elapsed time, and the step is clamped so coming back
+   *  from a hidden tab doesn't teleport a curtain. */
   animate(delta: number): boolean {
+    const dt = Math.min(Math.max(0, num(delta, 0)), 0.25);
     let active = false;
     for (const ab of this.bindings) {
       if (ab.behavior === 'fan' && ab.spin) {
-        ab.spin.rotation.y += delta * 6;
+        // A running fan never "settles", so this is the one animation that asks
+        // for frames indefinitely — which is exactly why the caller rate-limits.
+        ab.spin.rotation.y = (ab.spin.rotation.y + dt * 6) % (Math.PI * 2);
         active = true;
       }
       if (ab.curtains && ab.curtains.length && ab.coverOpen !== undefined) {
         // Closed = scale.x 1 (full span); open = 0.16 (gathered to the side).
         const target = 1 - 0.84 * ab.coverOpen;
-        const k = Math.min(1, delta * 4); // smooth slide
+        const k = Math.min(1, dt * 4); // smooth slide
         for (const piv of ab.curtains) {
           if (Math.abs(target - piv.scale.x) > 0.001) {
             piv.scale.x += (target - piv.scale.x) * k;
@@ -358,7 +428,7 @@ export class BindingManager {
         // Vertical blind: closed = scale.y 1 (full drop); open = 0.04 (slats
         // retracted up into the headrail → opens bottom→top).
         const target = 1 - 0.96 * ab.coverOpen;
-        const k = Math.min(1, delta * 4);
+        const k = Math.min(1, dt * 4);
         for (const piv of ab.blindsV) {
           if (Math.abs(target - piv.scale.y) > 0.001) {
             piv.scale.y += (target - piv.scale.y) * k;
@@ -371,7 +441,7 @@ export class BindingManager {
       if (ab.vents && ab.vents.length && ab.coverOpen !== undefined) {
         // Top-hinged roof vent: shut = rotation.x 0; open tilts outward ~34°.
         const target = 0.6 * ab.coverOpen;
-        const k = Math.min(1, delta * 4);
+        const k = Math.min(1, dt * 4);
         for (const piv of ab.vents) {
           if (Math.abs(target - piv.rotation.x) > 0.002) {
             piv.rotation.x += (target - piv.rotation.x) * k;
@@ -483,10 +553,21 @@ export class BindingManager {
 
   dispose(): void {
     for (const ab of this.bindings) {
-      if (ab.pointLight) this.root.remove(ab.pointLight);
+      if (ab.pointLight) {
+        this.root.remove(ab.pointLight);
+        ab.pointLight.dispose();
+      }
+      // Drop the references to scene objects so a manager that outlives its
+      // floor (a stale closure, a pending timer) can't keep the geometry alive.
+      ab.emissiveMeshes = [];
+      ab.curtains = ab.blindsV = ab.vents = [];
+      ab.anchor = null;
+      ab.spin = ab.spinTarget = undefined;
+      ab.label = undefined;
     }
     this.bindings = [];
     this.byEntity.clear();
+    this.pointLightsUsed = 0;
   }
 }
 

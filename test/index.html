@@ -149,7 +149,9 @@
       const card = document.createElement('bms-floorplan-card');
       // Cache-busted: a browser-cached plan silently keeps testing the OLD
       // layout after you edit the example, which reads as "my change did nothing".
-      const plan = await (await fetch('../examples/home.json', { cache: 'no-store' })).json();
+      // ?plan=<path> loads a different example without editing this file.
+      const planUrl = new URLSearchParams(location.search).get('plan') || '../examples/home.json';
+      const plan = await (await fetch(planUrl, { cache: 'no-store' })).json();
       card.setConfig({ type: 'custom:bms-floorplan-card', height: '520px', plan });
       document.getElementById('card-host').appendChild(card);
 
@@ -157,6 +159,10 @@
         card.hass = makeHass();
       }
       push();
+
+      // Ручные пробы из консоли браузера: BMS.card, BMS.states, BMS.push().
+      // Автопроверки этим стендом НЕ пользуются — у них свой, tests/fixtures/.
+      window.BMS = { card, states, push, plan, planUrl };
 
       // --- Test buttons -----------------------------------------------------
       const flip = (id, on, off) => {

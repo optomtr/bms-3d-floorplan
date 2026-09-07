@@ -30,6 +30,7 @@ from .const import (
     DATA_ACTIVE,
     DATA_ALLOW_KIOSK_EXIT,
     DATA_MODULE_URL,
+    DATA_PIN_STORE,
     DATA_PLAN_STORE,
     DATA_STATIC_PATH,
     DATA_VIEWS,
@@ -39,10 +40,14 @@ from .const import (
     PANEL_ICON,
     PANEL_TITLE,
     PANEL_URL,
+    PIN_STORAGE_KEY,
+    PIN_STORAGE_VERSION,
     STORAGE_KEY,
     STORAGE_VERSION,
     URL_BASE,
     WS_LEGACY_GET,
+    WS_PIN_GET,
+    WS_PIN_SET,
     WS_PLAN_GET,
     WS_PLAN_SET,
     module_url,
@@ -104,7 +109,7 @@ def _unregister_ws(hass: HomeAssistant) -> None:
     try:
         handlers = hass.data.get(_WS_HANDLERS_KEY)
         if isinstance(handlers, dict):
-            for command in (WS_PLAN_GET, WS_PLAN_SET, WS_LEGACY_GET):
+            for command in (WS_PLAN_GET, WS_PLAN_SET, WS_LEGACY_GET, WS_PIN_GET, WS_PIN_SET):
                 handlers.pop(command, None)
     except Exception as err:  # noqa: BLE001 - best effort
         _LOGGER.debug("Не удалось снять WS-команды: %s", err)
@@ -221,10 +226,18 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     except Exception as err:  # noqa: BLE001 - removal must not fail the delete
         _LOGGER.warning("Не удалось удалить хранилище плана: %s", err)
 
+    # The edit PIN lives in its own document, so it needs its own removal —
+    # otherwise its hash outlives the integration it belonged to.
+    try:
+        await Store(hass, PIN_STORAGE_VERSION, PIN_STORAGE_KEY).async_remove()
+    except Exception as err:  # noqa: BLE001 - removal must not fail the delete
+        _LOGGER.warning("Не удалось удалить хранилище PIN: %s", err)
+
     # Drop the in-memory copy so a re-add starts empty, but KEEP the
     # static-path/view guards: those routes still exist in aiohttp and must not
     # be registered a second time.
     data = hass.data.get(DOMAIN)
     if data is not None:
         data.pop(DATA_PLAN_STORE, None)
+        data.pop(DATA_PIN_STORE, None)
         data[DATA_ACTIVE] = False

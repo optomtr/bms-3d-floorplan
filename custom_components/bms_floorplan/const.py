@@ -61,6 +61,32 @@ WS_PLAN_GET = f"{DOMAIN}/plan/get"
 WS_PLAN_SET = f"{DOMAIN}/plan/set"
 WS_LEGACY_GET = f"{DOMAIN}/legacy/get"
 
+# --- Document versioning ---------------------------------------------------
+# Two reserved keys the SERVER owns inside the stored plan document. A writer
+# sends `base_version`; when it no longer matches, the write is refused instead
+# of quietly replacing whatever the other device saved a second earlier.
+# A document written before versioning existed simply has no `version` key and
+# reads as 0 — nothing has to be migrated by hand.
+DOC_VERSION_KEY = "version"
+DOC_UPDATED_KEY = "updated_at"
+# Field name a writer uses to say which version it is editing on top of.
+BASE_VERSION_FIELD = "base_version"
+
+# --- Edit PIN (its OWN document) -------------------------------------------
+# The PIN that gates Edit mode used to live inside the plan document, so every
+# plan save rewrote it — and a device whose copy predated the PIN erased it.
+# It now has a store of its own with its own commands: reading is open (the card
+# must know whether Edit is locked), writing is admin-only like the plan.
+PIN_STORAGE_VERSION = 1
+PIN_STORAGE_KEY = f"{DOMAIN}.pin"
+WS_PIN_GET = f"{DOMAIN}/pin/get"
+WS_PIN_SET = f"{DOMAIN}/pin/set"
+# What is stored is the card's hash of the PIN, never the digits themselves.
+MAX_PIN_LENGTH = 128
+# The key the PIN used to occupy inside the plan document. Read once, to carry
+# an existing PIN over; never written by us again.
+LEGACY_PLAN_PIN_KEY = "editPin"
+
 # --- Previous version (READ-ONLY, never written) ---------------------------
 # The old integration keeps running for customers who already have it. We only
 # ever read these to offer a one-button import.
@@ -92,5 +118,6 @@ DATA_ACTIVE = "active"
 DATA_MODULE_URL = "module_url"
 DATA_ALLOW_KIOSK_EXIT = "allow_kiosk_exit"
 DATA_PLAN_STORE = "plan_store"
+DATA_PIN_STORE = "pin_store"
 DATA_STATIC_PATH = "static_path_registered"
 DATA_VIEWS = "views_registered"

@@ -33,7 +33,7 @@ import {
   LegacySource,
 } from './storage';
 import { FURNITURE_KEYS, LIGHT_KEYS, entityDomainsFor, ventCount } from './furniture/library';
-import { getThumbnail } from './furniture/thumbnails';
+import { getThumbnail, releaseThumbnailRenderer } from './furniture/thumbnails';
 import { WALL_MATERIALS, FLOOR_MATERIALS } from './scene/materials';
 import { isZirconPlan, convertZircon } from './import/zircon';
 import { DOOR_VARIANTS, WINDOW_VARIANTS } from './scene/builder';
@@ -196,6 +196,23 @@ export const CARD_TAG = 'bms-floorplan-card';
 export const CARD_EDITOR_TAG = 'bms-floorplan-card-editor';
 const KIOSK_PATH = '/bms-floorplan-kiosk';
 
+/** How long a detached card waits before freeing its 3D scene. Long enough to
+ *  ride out Lovelace re-attaching a card during a re-layout, short enough that
+ *  a closed panel gives its WebGL context back straight away. */
+const DISPOSE_GRACE_MS = 4000;
+
+/** Cards whose scene is waiting out the grace period above. The delay tells a
+ *  Lovelace re-layout apart from a real removal, but it bounds the leak in TIME
+ *  only — twenty quick opens leave twenty scenes waiting, and a browser keeps
+ *  ~8-16 WebGL contexts before it starts killing live ones. So a card that is
+ *  ATTACHED reclaims every pending scene immediately: nobody needs a spare
+ *  context more than the visible panel needs to keep drawing. */
+const pendingTeardown = new Set<{ reclaimScene(): void }>();
+
+/** Most sensor history series kept at once (24h, ≤120 points each). Bounded so
+ *  a panel that runs for weeks can't accumulate one series per sensor visited. */
+const HIST_CACHE_MAX = 60;
+
 /** Service domains this card is allowed to CALL.
  *
  *  Every control here is driven by an entity_id that came out of the stored
@@ -226,6 +243,9 @@ export class BmsFloorplanCard extends LitElement {
   @state() private config?: CardConfig;
   @state() private activeProjectId?: string;
   @state() private loadError?: string;
+  /** Set when the plan drew, but parts of it were unusable. A dropped wall must
+   *  never disappear in silence — the installer has to know what to fix. */
+  @state() private planWarning?: string;
   @state() private floorNames: string[] = [];
   @state() private activeFloorIndex = 0;
   @state() private editing = false;
@@ -372,6 +392,12 @@ export class BmsFloorplanCard extends LitElement {
    *  fetch time. Fetched on demand from HA's history API, refreshed every ~5min. */
   private histCache = new Map<string, { pts: [number, number][]; ts: number }>();
   private histInFlight = new Set<string>();
+  /** Pending scene teardown after the card leaves the DOM (see disconnectedCallback). */
+  private disposeTimer?: number;
+  /** Memoised whole-home rollup (humidity / temperature / lights on). Rebuilt
+   *  when hass or an optimistic override changes — not per call, and not three
+   *  times per render. See homeStats(). */
+  private homeStatsCache?: { hass: HomeAssistant; opt: number; hum: string; temp: number | null; on: number };
   private currentPlan?: FloorPlan;
   private editor?: EditorController;
   private toastTimer?: number;
@@ -447,7 +473,11 @@ export class BmsFloorplanCard extends LitElement {
   }
 
   protected override updated(_changed: PropertyValues): void {
-    if (!this.sceneManager && this.viewport) {
+    // `isConnected` matters: Lit keeps updating a DETACHED element, and the
+    // teardown below touches reactive state (rooms) — without this guard the
+    // teardown's own re-render immediately built a fresh scene, with a fresh
+    // WebGL context, for a card that had already left the page.
+    if (!this.sceneManager && this.viewport && this.isConnected) {
       this.initScene();
     }
     // While editing, don't apply live entity updates — they'd churn the
@@ -518,6 +548,7 @@ export class BmsFloorplanCard extends LitElement {
         if (hass.states[id] !== this.lastHass.states[id]) {
           clearTimeout(ov.timer);
           this.optimistic.delete(id);
+          this.optGen++; // the effective state moved — see homeStats()'s memo key
         }
       }
     }
@@ -589,15 +620,22 @@ export class BmsFloorplanCard extends LitElement {
     return { ...base, states } as HomeAssistant;
   }
 
-  /** Push the effective state to the 3D scene, updating only what changed. */
+  /** Push the effective state to the 3D scene, updating only what changed.
+   *
+   *  Walks ONLY the entities the scene actually reacts to (bindings + room
+   *  membership). It used to walk `eff.states` — every entity in the home — on
+   *  every single update: with 2000 entities and a handful of them ticking each
+   *  second, that is millions of comparisons an hour for a few hundred that can
+   *  possibly matter. */
   private pushEffective(base: HomeAssistant): void {
     if (!this.sceneManager) return;
     const eff = this.effectiveHass(base);
     if (!this.lastPushed) {
       this.sceneManager.syncAll(eff);
     } else {
-      for (const id in eff.states) {
-        if (eff.states[id] !== this.lastPushed.states[id]) this.sceneManager.updateEntity(id, eff);
+      const prev = this.lastPushed;
+      for (const id of this.sceneManager.trackedEntities()) {
+        if (eff.states[id] !== prev.states[id]) this.sceneManager.updateEntity(id, eff);
       }
     }
     this.lastPushed = eff;
@@ -624,6 +662,7 @@ export class BmsFloorplanCard extends LitElement {
     if (!ov) return;
     clearTimeout(ov.timer);
     this.optimistic.delete(id);
+    this.optGen++; // the effective state moved — see homeStats()'s memo key
     if (this.hass) this.pushEffective(this.hass);
     this.requestUpdate();
   }
@@ -732,12 +771,22 @@ export class BmsFloorplanCard extends LitElement {
   private async loadActiveProject(): Promise<void> {
     if (!this.config || !this.sceneManager) return;
     this.loadError = undefined;
+    this.planWarning = undefined;
     this.planLoaded = false;
     try {
       const plan = await this.resolvePlan();
       this.currentPlan = plan;
       this.sceneManager.loadPlan(plan);
       this.sceneManager.optimizeForView(); // merge static geometry (view mode)
+      const broken = this.sceneManager.brokenParts();
+      if (broken.length) {
+        const list = broken.slice(0, 3).join(', ');
+        const more = broken.length > 3 ? ` и ещё ${broken.length - 3}` : '';
+        this.planWarning = this.tx(
+          `Часть плана не удалось построить (${list}${more}) — проверьте размеры этих элементов. Остальное показано.`,
+          `Some plan elements could not be built (${list}${more}) — check their sizes. The rest is shown.`,
+        );
+      }
       this.floorNames = plan.floors.map((f, i) => f.name || `Floor ${i + 1}`);
       this.activeFloorIndex = 0;
       this.planLoaded = true;
@@ -2081,7 +2130,19 @@ export class BmsFloorplanCard extends LitElement {
   public override connectedCallback(): void {
     super.connectedCallback();
     BmsFloorplanCard.injectFonts();
-    this.sceneManager?.start();
+    // A pending teardown means the card was only being MOVED in the DOM
+    // (Lovelace re-layouts do that): keep the scene we already have.
+    if (this.disposeTimer) {
+      clearTimeout(this.disposeTimer);
+      this.disposeTimer = undefined;
+      pendingTeardown.delete(this);
+    }
+    // Someone is on screen again — no scene may sit around waiting any more.
+    for (const card of [...pendingTeardown]) {
+      if (card !== (this as unknown as { reclaimScene(): void })) card.reclaimScene();
+    }
+    if (this.sceneManager) this.sceneManager.start();
+    else if (this.viewport) this.requestUpdate(); // torn down earlier — rebuild in updated()
     window.addEventListener('keydown', this.trackShift);
     window.addEventListener('keyup', this.trackShift);
     // Tick the panel clock on the minute boundary-ish (every 10s is plenty).
@@ -2100,6 +2161,50 @@ export class BmsFloorplanCard extends LitElement {
     if (this.clockTimer) window.clearInterval(this.clockTimer);
     if (this.idleTimer) window.clearTimeout(this.idleTimer);
     this.idleEvents.forEach((ev) => window.removeEventListener(ev, this.onActivity));
+    // Free the 3D scene — but not instantly. Lovelace detaches and re-attaches
+    // a card when it re-lays-out a view, and that happens SYNCHRONOUSLY, so a
+    // short delay tells a real removal apart from a move. Without the teardown
+    // the card left a whole WebGL context behind on every close; a browser
+    // keeps ~8-16 (8 in some Android WebViews) and then starts killing the
+    // oldest — including the one drawing the panel on the wall.
+    if (this.disposeTimer) clearTimeout(this.disposeTimer);
+    pendingTeardown.add(this);
+    this.disposeTimer = window.setTimeout(() => {
+      this.disposeTimer = undefined;
+      pendingTeardown.delete(this);
+      if (!this.isConnected) this.teardownScene();
+    }, DISPOSE_GRACE_MS);
+  }
+
+  /** Drop the 3D scene and everything it holds. The card stays usable: if it is
+   *  attached again, updated() builds a fresh scene and reloads the plan. */
+  /** Give the scene back NOW, without waiting out the grace period. Called on
+   *  another card's mount, so pending scenes can never pile up. */
+  public reclaimScene(): void {
+    if (this.disposeTimer) {
+      clearTimeout(this.disposeTimer);
+      this.disposeTimer = undefined;
+    }
+    pendingTeardown.delete(this);
+    if (!this.isConnected) this.teardownScene();
+  }
+
+  private teardownScene(): void {
+    pendingTeardown.delete(this);
+    if (!this.sceneManager || this.editing) return; // never mid-edit
+    try {
+      this.sceneManager.dispose();
+    } catch (err) {
+      console.warn('[3d-floorplan] scene teardown:', err);
+    }
+    this.sceneManager = undefined;
+    this.planLoaded = false;
+    this.lastPushed = undefined;
+    this.lastHass = undefined;
+    this.rooms = [];
+    this.histCache.clear();
+    this.homeStatsCache = undefined;
+    releaseThumbnailRenderer();
   }
 
   private readonly idleEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
@@ -3103,6 +3208,23 @@ export class BmsFloorplanCard extends LitElement {
     return c ? c.pts : null;
   }
 
+  /** Store a fetched series, keeping the cache BOUNDED. A panel that runs for
+   *  weeks visits many rooms; without a cap this map grew a 120-point series
+   *  per sensor ever looked at and never gave any of it back. Oldest fetch
+   *  first — it will simply be re-fetched if that room is opened again. */
+  private putHistory(entityId: string, pts: [number, number][]): void {
+    this.histCache.set(entityId, { pts, ts: Date.now() });
+    while (this.histCache.size > HIST_CACHE_MAX) {
+      let oldestKey: string | null = null;
+      let oldestTs = Infinity;
+      for (const [k, v] of this.histCache) {
+        if (v.ts < oldestTs) { oldestTs = v.ts; oldestKey = k; }
+      }
+      if (!oldestKey) break;
+      this.histCache.delete(oldestKey);
+    }
+  }
+
   /** Pull the last 24h of a sensor from HA's history. Tries the websocket
    *  (history/history_during_period) first, then falls back to the REST history
    *  API — the data is all in HA, so one of the two reaches it on any core.
@@ -3149,9 +3271,9 @@ export class BmsFloorplanCard extends LitElement {
       }
       // Down-sample a long series so the SVG stays light (≤120 points).
       const step = Math.ceil(pts.length / 120) || 1;
-      this.histCache.set(entityId, { pts: step > 1 ? pts.filter((_, i) => i % step === 0) : pts, ts: Date.now() });
+      this.putHistory(entityId, step > 1 ? pts.filter((_, i) => i % step === 0) : pts);
     } catch {
-      this.histCache.set(entityId, { pts: [], ts: Date.now() });
+      this.putHistory(entityId, []);
     } finally {
       this.histInFlight.delete(entityId);
       this.requestUpdate();
@@ -3247,57 +3369,86 @@ export class BmsFloorplanCard extends LitElement {
     return skip;
   }
 
+  /**
+   * Whole-home rollup: humidity, temperature and the number of lights that are
+   * on. Computed in ONE pass over hass.states and memoised per (hass object,
+   * optimistic generation).
+   *
+   * These three were three separate full scans of every entity in the home, and
+   * render() calls them several times each — on a house with 2000 entities that
+   * is tens of thousands of attribute lookups per interface frame, repeated for
+   * every state change that arrives. The inputs only move when hass or an
+   * optimistic override moves, so a scan per hass object is the honest cost.
+   */
+  private homeStats(): { hum: string; temp: number | null; on: number } {
+    const hass = this.hass;
+    const cached = this.homeStatsCache;
+    if (cached && hass && cached.hass === hass && cached.opt === this.optGen) return cached;
+
+    const humVals: number[] = [];
+    const tempVals: number[] = [];
+    const climateVals: number[] = [];
+    let on = 0;
+    for (const id in hass?.states ?? {}) {
+      const st = hass!.states[id] as HassEntity;
+      // Lights that are on — through effState so an optimistic tap counts.
+      if (id.startsWith('light.')) {
+        if (this.effState(id) === 'on') on++;
+        continue;
+      }
+      const a = st?.attributes;
+      const dc = a?.device_class;
+      if (dc === 'humidity') {
+        const v = Number(st.state);
+        if (Number.isFinite(v)) humVals.push(v);
+      } else if (dc === 'temperature') {
+        // Only real air-temperature readings. The Tuya floor thermostats expose
+        // a unit-less raw floor-probe value (~220-290) as device_class
+        // temperature; averaging that in dragged the whole-home mean to absurd
+        // numbers (110°). Require a °C/°F unit and a sane range so a mis-scaled
+        // probe can't skew it.
+        if (a.unit_of_measurement !== '°C' && a.unit_of_measurement !== '°F') continue;
+        const v = Number(st.state);
+        if (Number.isFinite(v) && v >= -60 && v <= 160) tempVals.push(v);
+      } else if (id.startsWith('climate.')) {
+        const cur = Number(a?.current_temperature);
+        if (Number.isFinite(cur)) climateVals.push(cur);
+      }
+    }
+    const avg = (v: number[]) => v.reduce((s, n) => s + n, 0) / v.length;
+    // Fall back to the climate units' current_temperature when no standalone
+    // temperature sensor reports: some homes only have thermostats.
+    const tSrc = tempVals.length ? tempVals : climateVals;
+    const out = {
+      hum: humVals.length ? `${Math.round(avg(humVals))}%` : '—',
+      temp: tSrc.length ? avg(tSrc) : null,
+      on,
+    };
+    if (hass) this.homeStatsCache = { hass, opt: this.optGen, ...out };
+    return out;
+  }
+
   /** Whole-home humidity = average of every humidity sensor in HA (not just the
    *  ones bound to a room). Humidity sensors are usually auxiliary AC readings
    *  that aren't placed in the 3D scene, so a room-only lookup shows nothing. */
   private homeHumidity(): string {
-    const vals: number[] = [];
-    for (const st of Object.values(this.hass?.states ?? {})) {
-      if ((st as HassEntity).attributes?.device_class === 'humidity') {
-        const v = Number((st as HassEntity).state);
-        if (Number.isFinite(v)) vals.push(v);
-      }
-    }
-    return vals.length ? `${Math.round(vals.reduce((s, v) => s + v, 0) / vals.length)}%` : '—';
+    return this.homeStats().hum;
   }
 
   /** Whole-home temperature (°) = average of every temperature sensor in HA,
-   *  else the climate units' current_temperature. Same reasoning as homeHumidity:
-   *  the temp sensors often aren't bound to a room, and some climates report no
-   *  current_temperature, so a room-only lookup shows "—". Returns null if none. */
+   *  else the climate units' current_temperature. Same reasoning as
+   *  homeHumidity: the temp sensors often aren't bound to a room, and some
+   *  climates report no current_temperature, so a room-only lookup shows "—".
+   *  Returns null if none. */
   private homeTemperature(): number | null {
-    const vals: number[] = [];
-    for (const st of Object.values(this.hass?.states ?? {})) {
-      const a = (st as HassEntity).attributes;
-      if (a?.device_class !== 'temperature') continue;
-      // Only real air-temperature readings. The Tuya floor thermostats expose a
-      // unit-less raw floor-probe value (~220-290) as device_class temperature;
-      // averaging that in dragged the whole-home mean to absurd numbers (110°).
-      // Require a °C/°F unit and a sane range so a mis-scaled probe can't skew it.
-      if (a.unit_of_measurement !== '°C' && a.unit_of_measurement !== '°F') continue;
-      const v = Number((st as HassEntity).state);
-      if (Number.isFinite(v) && v >= -60 && v <= 160) vals.push(v);
-    }
-    if (!vals.length) {
-      for (const [id, st] of Object.entries(this.hass?.states ?? {})) {
-        if (id.startsWith('climate.')) {
-          const cur = Number((st as HassEntity).attributes?.current_temperature);
-          if (Number.isFinite(cur)) vals.push(cur);
-        }
-      }
-    }
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    return this.homeStats().temp;
   }
 
   /** Whole-home count of lights that are on — every light.* entity in HA, not
    *  just the ones assigned to a room on the active floor (a room-only count
    *  shows 0 when the on-lights live on other floors / aren't zoned). */
   private homeLightsOn(): number {
-    let n = 0;
-    for (const id of Object.keys(this.hass?.states ?? {})) {
-      if (id.startsWith('light.') && this.effState(id) === 'on') n++;
-    }
-    return n;
+    return this.homeStats().on;
   }
 
   /** Slider pointer-drag: live visual via dragValue, throttled service calls. */
@@ -4514,6 +4665,13 @@ export class BmsFloorplanCard extends LitElement {
           ? html`<div class="error">⚠ ${this.loadError}</div>`
           : nothing}
 
+        ${this.planWarning && !this.loadError
+          ? html`<div class="plan-warning">
+              <span>⚠ ${this.planWarning}</span>
+              <button class="pw-close" @click=${() => (this.planWarning = undefined)} title="Скрыть">✕</button>
+            </div>`
+          : nothing}
+
         ${this.editing ? nothing : this.renderLeakAlert()}
 
         ${this.editing
@@ -5438,6 +5596,38 @@ export class BmsFloorplanCard extends LitElement {
       color: #ffe7a0;
       font-size: 13px;
     }
+    .plan-warning {
+      position: absolute;
+      z-index: 3;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: #ffe0a8;
+      background: rgba(58, 42, 16, 0.94);
+      border: 1px solid rgba(243, 168, 60, 0.45);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .pw-close {
+      flex: none;
+      min-width: 44px;
+      min-height: 44px;
+      margin: -10px -8px -10px 0;
+      background: none;
+      border: 0;
+      color: inherit;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .pw-close:active {
+      opacity: 0.6;
+    }
+
     .error {
       position: absolute;
       z-index: 3;

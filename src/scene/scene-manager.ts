@@ -15,6 +15,8 @@ import { buildFloorGroup, BuiltFloor } from './builder';
 import { BindingManager } from './bindings';
 import { drawMarkerCanvas, markerIconName } from './icons';
 import { isShapeRoom, roomPolygon } from './room-shapes';
+import { disposeObject3D, releaseGl } from './dispose';
+import { finitePolygon, isFiniteBox, num } from './sanitize';
 
 // ---------------------------------------------------------------------------
 // Scene backdrop: instead of a flat clear colour, paint a soft radial
@@ -102,6 +104,13 @@ function toLambert(std: THREE.MeshStandardMaterial): THREE.MeshLambertMaterial {
 // tablet keeps "low" while a desktop dashboard keeps "high".
 // ---------------------------------------------------------------------------
 
+/** Frames that exist ONLY to advance an animation (a spinning fan, a sliding
+ *  curtain) are limited to this rate. Camera movement is never limited. 20 Hz
+ *  keeps a blade visibly turning while cutting an always-on fan's cost by two
+ *  thirds — the difference between a warm panel and a hot one over a night. */
+const ANIM_HZ = 20;
+const ANIM_STEP = 1 / ANIM_HZ;
+
 export type QualityChoice = 'auto' | 'high' | 'medium' | 'low';
 export const QUALITY_CHOICES: QualityChoice[] = ['auto', 'high', 'medium', 'low'];
 type QualityTier = 'high' | 'medium' | 'low';
@@ -147,11 +156,26 @@ function readStoredQuality(): QualityChoice {
   return 'auto';
 }
 
+/** The GPU never changes under a running page, so the probe below runs ONCE.
+ *  It used to run in the constructor AND on every "Quality" pick, each time
+ *  creating a throw-away WebGL context and dropping it on the floor: switch
+ *  quality a few times and the browser starts killing older contexts to stay
+ *  under its 8-16 limit — including the one drawing the live scene. */
+let tierProbe: QualityTier | null = null;
+
 /** Best-effort device tier from the GPU string + CPU/memory hints. */
 function detectTier(): QualityTier {
+  if (tierProbe) return tierProbe;
+  tierProbe = probeTier();
+  return tierProbe;
+}
+
+function probeTier(): QualityTier {
+  let probeGl: WebGLRenderingContext | null = null;
   try {
     const canvas = document.createElement('canvas');
     const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    probeGl = gl;
     let renderer = '';
     if (gl) {
       const ext = gl.getExtension('WEBGL_debug_renderer_info');
@@ -171,6 +195,9 @@ function detectTier(): QualityTier {
     return 'high';
   } catch {
     return 'medium';
+  } finally {
+    // Hand the probe context straight back — see the note above tierProbe.
+    releaseGl(probeGl);
   }
 }
 
@@ -252,6 +279,17 @@ export class SceneManager {
   // `editing` flag to force continuous rendering.)
   private needsRender = true;
   private resizeObserver?: ResizeObserver;
+  /** Animation time not yet handed to animate() — see the render loop. */
+  private animAccum = 0;
+  /** False while the panel can't be seen (hidden tab / card off screen): the
+   *  whole loop stands still, so a running fan costs nothing behind a
+   *  screensaver or on a dashboard tab nobody is looking at. */
+  private visible = true;
+  private inViewport = true;
+  private viewObserver?: IntersectionObserver;
+  /** Everything hung off `window`/`document`, kept so dispose() can take it all
+   *  back down. Without this the manager stayed pinned to window forever. */
+  private teardown: (() => void)[] = [];
   /** Last size the drawing buffer was fitted to — see resize(). */
   private lastW = -1;
   private lastH = -1;
@@ -276,6 +314,8 @@ export class SceneManager {
   private heavyPlan = false; // big plan → fewer real lights (quality-neutral)
 
   private floors: BuiltFloor[] = [];
+  /** Plan elements the last loadPlan() had to drop (see BuiltFloor.skipped). */
+  private skippedParts: string[] = [];
   private floorGroups: THREE.Group[] = [];
   private bindingManagers: BindingManager[] = [];
   private activeFloor = 0;
@@ -316,6 +356,16 @@ export class SceneManager {
   private alarmOn = true;
   /** Last hass seen, so markers can colour themselves right after a rebuild. */
   private lastHass?: any;
+  /** Every entity the 3D actually reacts to (bindings + zone membership).
+   *  A home has 2000+ entities and the scene cares about a few hundred. */
+  private trackedCache: Set<string> | null = null;
+  /** Which of those currently exist in hass — the only live input the room
+   *  grouping depends on, so the cache below can be invalidated honestly. */
+  private presentTracked = new Set<string>();
+  /** roomsByFloor() result. Rebuilt on plan/marker changes and when a tracked
+   *  entity appears or disappears; NOT on every value change, because the
+   *  grouping doesn't depend on values. */
+  private roomsCache: RoomInfo[][] | null = null;
   /** Per-floor room outlines (world XZ) + name + elevation, for grouping the
    *  floating markers by room ("one icon per room"). */
   private floorRooms: { name?: string; poly: [number, number][]; elev: number; bgImage?: string }[][] = [];
@@ -425,15 +475,54 @@ export class SceneManager {
 
     // Dynamic resolution: coarse while a finger is dragging the view, sharp the
     // instant it lifts (release listeners on window so they fire even off-canvas).
+    // They are REMOVED in dispose(): a window listener holding `this` kept every
+    // scene ever built — renderer, geometry, textures — alive for the life of
+    // the page, which on a wall panel means for weeks.
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', () => this.setViewDragging(true), { passive: true });
     const stopDrag = () => this.setViewDragging(false);
     window.addEventListener('pointerup', stopDrag, { passive: true });
     window.addEventListener('pointercancel', stopDrag, { passive: true });
+    this.teardown.push(() => {
+      window.removeEventListener('pointerup', stopDrag);
+      window.removeEventListener('pointercancel', stopDrag);
+    });
 
     this.setupLights();
     this.setupResize();
     this.setupPointer();
+    this.setupVisibility();
+  }
+
+  /** Watch whether the panel is actually being looked at. Two independent
+   *  reasons to stand still: the tab/app is hidden, or the card is scrolled off
+   *  screen (or on a dashboard tab that isn't showing). */
+  private setupVisibility(): void {
+    const onChange = () => this.setVisible(!document.hidden && this.inViewport);
+    document.addEventListener('visibilitychange', onChange);
+    this.teardown.push(() => document.removeEventListener('visibilitychange', onChange));
+    if (typeof IntersectionObserver !== 'undefined') {
+      this.viewObserver = new IntersectionObserver((entries) => {
+        this.inViewport = entries.some((e) => e.isIntersecting);
+        onChange();
+      });
+      this.viewObserver.observe(this.container);
+    }
+  }
+
+  private setVisible(v: boolean): void {
+    if (this.visible === v) return;
+    this.visible = v;
+    if (!v) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = 0;
+      return;
+    }
+    // Coming back: throw away the elapsed time so nothing jumps a week forward.
+    this.clock.getDelta();
+    this.animAccum = 0;
+    this.needsRender = true;
+    this.pump();
   }
 
   /** Re-render the (static) shadow map once on the next frame. Call after any
@@ -497,6 +586,12 @@ export class SceneManager {
       if (!m.isMesh) return;
       m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material);
     });
+    // Free the PBR originals now that nothing draws with them. Each one holds a
+    // compiled shader program on the GPU; on a panel that reloads its plan for
+    // weeks those add up to a renderer that never gives memory back. Their maps
+    // are shared/cached elsewhere and are deliberately NOT disposed here (the
+    // Lambert twin copied the same texture references).
+    for (const src of cache.keys()) src.dispose();
     this.materialsSimplified = true;
     this.needsRender = true;
   }
@@ -676,8 +771,10 @@ export class SceneManager {
     // idle ratio is nearly free). Dynamic resolution keeps the *drag* coarse.
     this.staticPR = this.heavyPlan ? 2 : QUALITY_PRESETS[this.qualityTier].pixelRatio;
 
+    this.skippedParts = [];
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
+      if (built.skipped.length) this.skippedParts.push(...built.skipped);
       const bm = new BindingManager(built.group, maxLights);
       bm.register(built, floorDef.bindings ?? []);
       this.scene.add(built.group);
@@ -692,7 +789,9 @@ export class SceneManager {
       this.floorRooms.push(
         (floorDef.rooms ?? [])
           .map((room) => {
-            const poly = (isShapeRoom(room) ? roomPolygon(room) : room.polygon) ?? [];
+            // finitePolygon: a NaN corner would make every point-in-polygon test
+            // and every centroid NaN, i.e. a room marker at nowhere.
+            const poly = finitePolygon(isShapeRoom(room) ? roomPolygon(room) : room.polygon);
             return { name: room.name, poly: poly as [number, number][], elev, bgImage: room.bgImage };
           })
           .filter((r) => r.poly.length >= 3),
@@ -716,15 +815,25 @@ export class SceneManager {
     this.requestShadowUpdate();
   }
 
+  /** What the last loaded plan lost to unusable numbers, for the card to show. */
+  public brokenParts(): string[] {
+    return this.skippedParts;
+  }
+
   private clearPlan(): void {
+    this.trackedCache = null;
+    this.roomsCache = null;
+    this.presentTracked.clear();
     for (const bm of this.bindingManagers) bm.dispose();
     for (const f of this.floors) {
-      // CanvasTexture-backed sprite labels aren't freed by mesh disposal.
+      // Label sprites are OWNED by TextLabel (canvas texture + material) and
+      // freed here; the group walk below deliberately leaves every sprite alone
+      // so this can't turn into a double dispose. See scene/dispose.ts.
       for (const label of f.labels) label.dispose();
     }
     for (const g of this.floorGroups) {
       this.scene.remove(g);
-      disposeGroup(g);
+      disposeObject3D(g);
     }
     for (const child of [...this.markerGroup.children]) {
       // Textures are cached/shared — free only the per-sprite material.
@@ -769,7 +878,10 @@ export class SceneManager {
    *  wide Обзор banner, where the fit-to-view distance leaves the model tiny). */
   resetView(distMul = 1): void {
     let box = this.floors[this.activeFloor]?.bbox ?? this.fullBBox;
-    if (!box || box.isEmpty()) {
+    // isEmpty() answers FALSE for a NaN box (every NaN comparison is false), so
+    // a poisoned box would be framed as if it were real and park the camera at
+    // NaN — a black screen with nothing in the console. Check finiteness too.
+    if (!box || box.isEmpty() || !isFiniteBox(box)) {
       // Blank/empty plan: frame a default area around the origin so the camera
       // isn't left parked far away with nothing in view.
       box = new THREE.Box3(
@@ -779,12 +891,12 @@ export class SceneManager {
     }
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.z, 2);
+    const maxDim = Math.max(num(size.x, 0), num(size.z, 0), 2);
 
     this.controls.target.copy(center);
     // Pull back enough to frame the floor. `cameraDistance` (config) scales it —
     // <1 = closer, >1 = further. Default sits noticeably closer than before.
-    const dist = (maxDim * 0.95 + 3) * this.cameraDistance * distMul;
+    const dist = Math.max(0.5, (maxDim * 0.95 + 3) * num(this.cameraDistance, 1) * num(distMul, 1));
     this.camera.position.set(center.x + dist * 0.7, center.y + dist * 0.8, center.z + dist * 0.7);
     this.controls.maxDistance = dist * 3;
     this.controls.minDistance = Math.max(1.2, maxDim * 0.1);
@@ -1003,6 +1115,9 @@ export class SceneManager {
   }
 
   private buildMarkers(): void {
+    // The room grouping is being rebuilt — the cached whole-home view of it
+    // (roomsByFloor) is stale by definition.
+    this.roomsCache = null;
     // Sprites share cached textures, so only dispose the materials here.
     for (const child of [...this.markerGroup.children]) {
       (child as THREE.Sprite).material.dispose();
@@ -1229,9 +1344,49 @@ export class SceneManager {
 
   /** Every floor's rooms (index = floor), for the whole-home Обзор dashboard.
    *  Room keys are floor-qualified (`f{n}::…`) so they stay unique across
-   *  floors — the active-floor getRooms() keys never contain "::". */
+   *  floors — the active-floor getRooms() keys never contain "::".
+   *
+   *  CACHED: the card calls this from render(), and the work inside is a
+   *  point-in-polygon test per device per room per floor (300 devices x 20
+   *  rooms x 3 floors = thousands of tests) — for an answer that only changes
+   *  when the plan changes or a tracked entity appears/disappears. */
   roomsByFloor(): RoomInfo[][] {
-    return this.floors.map((_, fi) => this.computeFloorRooms(fi));
+    if (!this.roomsCache) {
+      this.roomsCache = this.floors.map((_, fi) => this.computeFloorRooms(fi));
+    }
+    return this.roomsCache;
+  }
+
+  /** Every entity the scene reacts to: bound entities plus the ones a manual
+   *  zone lists. The card diffs only these instead of walking all ~2000 states
+   *  in the home on every update. */
+  trackedEntities(): ReadonlySet<string> {
+    if (!this.trackedCache) {
+      const s = new Set<string>();
+      for (const bm of this.bindingManagers) for (const id of bm.entityIds()) s.add(id);
+      for (const zs of this.floorZones) for (const z of zs) for (const id of z.entities ?? []) s.add(id);
+      this.trackedCache = s;
+    }
+    return this.trackedCache;
+  }
+
+  /** Note whether a tracked entity exists right now; a flip (renamed, removed,
+   *  newly added) is the only state change that alters the room grouping. */
+  private notePresence(entityId: string, hass: any): boolean {
+    if (!this.trackedEntities().has(entityId)) return false;
+    const now = !!hass?.states?.[entityId];
+    const was = this.presentTracked.has(entityId);
+    if (now === was) return false;
+    if (now) this.presentTracked.add(entityId);
+    else this.presentTracked.delete(entityId);
+    this.roomsCache = null;
+    return true;
+  }
+
+  private notePresenceAll(hass: any): boolean {
+    let flipped = false;
+    for (const id of this.trackedEntities()) if (this.notePresence(id, hass)) flipped = true;
+    return flipped;
   }
 
   /** Rooms with a live water-leak alarm: their pins flash red. This is the one
@@ -1401,35 +1556,41 @@ export class SceneManager {
 
   /** Tint a marker: the selected room's pin is accent-orange; other room pins
    *  glow soft-amber when any of their lights are on; loose device markers turn
-   *  blue when on. */
-  private colorMarker(sp: THREE.Sprite, hass: any): void {
+   *  blue when on. Returns true when the colour actually MOVED — the caller uses
+   *  that to decide whether a new frame is worth drawing at all. */
+  private colorMarker(sp: THREE.Sprite, hass: any): boolean {
     const ud = sp.userData;
+    const mat = sp.material as THREE.SpriteMaterial;
+    const paint = (hex: number): boolean => {
+      if (mat.color.getHex() === hex) return false;
+      mat.color.setHex(hex);
+      return true;
+    };
     if (ud.roomMarker) {
       if (ud.roomKey && this.alarmRooms.has(ud.roomKey)) {
         // Red ↔ pale red, so the pin reads as flashing rather than just tinted.
-        (sp.material as THREE.SpriteMaterial).color.setHex(this.alarmOn ? 0xff3b30 : 0xffd8d5);
-        return;
+        return paint(this.alarmOn ? 0xff3b30 : 0xffd8d5);
       }
-      if (ud.roomKey && ud.roomKey === this.selectedRoomKey) {
-        (sp.material as THREE.SpriteMaterial).color.setHex(0xf3a83c);
-        return;
-      }
+      if (ud.roomKey && ud.roomKey === this.selectedRoomKey) return paint(0xf3a83c);
       const anyOn = (ud.roomEntities || []).some((e: any) => this.isDeviceActive(e.behavior, hass?.states?.[e.entity_id]?.state));
-      (sp.material as THREE.SpriteMaterial).color.setHex(anyOn ? 0xf6c98a : 0xffffff);
-      return;
+      return paint(anyOn ? 0xf6c98a : 0xffffff);
     }
     const on = this.isDeviceActive(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
-    (sp.material as THREE.SpriteMaterial).color.setHex(on ? 0x4da3ff : 0xffffff);
+    return paint(on ? 0x4da3ff : 0xffffff);
   }
 
-  private refreshAllMarkerColors(hass: any): void {
-    if (!hass?.states) return;
-    for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, hass);
+  private refreshAllMarkerColors(hass: any): boolean {
+    if (!hass?.states) return false;
+    let changed = false;
+    for (const c of this.markerGroup.children) {
+      if (this.colorMarker(c as THREE.Sprite, hass)) changed = true;
+    }
+    return changed;
   }
 
-  private updateMarkerColor(entityId: string, hass: any): void {
+  private updateMarkerColor(entityId: string, hass: any): boolean {
     const sp = this.markerByEntity.get(entityId);
-    if (sp) this.colorMarker(sp, hass);
+    return sp ? this.colorMarker(sp, hass) : false;
   }
 
   /** Keep markers a roughly constant on-screen size as the camera dollies. */
@@ -1763,25 +1924,35 @@ export class SceneManager {
     return bm.near(new THREE.Vector3(point[0], point[1], point[2]), radius);
   }
 
-  /** Targeted live update for a single entity. */
+  /**
+   * Targeted live update for a single entity.
+   *
+   * Asks for a redraw ONLY when this entity actually changed something visible.
+   * It used to set needsRender for ANY entity — so one power meter ticking once
+   * a second held the GPU in a permanent render loop and quietly cancelled the
+   * whole render-on-demand design the weak-tablet performance rests on.
+   */
   updateEntity(entityId: string, hass: any): void {
     this.lastHass = hass;
-    const bm = this.bindingManagers[this.activeFloor];
-    bm?.updateEntity(entityId, hass);
-    // Other floors may bind the same entity; update them too (cheap).
-    this.bindingManagers.forEach((m, i) => {
-      if (i !== this.activeFloor) m.updateEntity(entityId, hass);
-    });
-    this.updateMarkerColor(entityId, hass);
-    this.needsRender = true;
+    let changed = false;
+    // Every floor: another floor may bind the same entity (cheap — the manager
+    // answers from a map and returns immediately when it doesn't hold it).
+    for (const m of this.bindingManagers) {
+      if (m.updateEntity(entityId, hass)) changed = true;
+    }
+    if (this.updateMarkerColor(entityId, hass)) changed = true;
+    if (this.notePresence(entityId, hass)) changed = true;
+    if (changed) this.needsRender = true;
   }
 
   /** Full state sync (called on each hass update from the card). */
   syncAll(hass: any): void {
     this.lastHass = hass;
-    for (const bm of this.bindingManagers) bm.update(hass);
-    this.refreshAllMarkerColors(hass);
-    this.needsRender = true;
+    let changed = false;
+    for (const bm of this.bindingManagers) if (bm.update(hass)) changed = true;
+    if (this.refreshAllMarkerColors(hass)) changed = true;
+    if (this.notePresenceAll(hass)) changed = true;
+    if (changed) this.needsRender = true;
   }
 
   // -- Render loop ------------------------------------------------------------
@@ -1789,30 +1960,53 @@ export class SceneManager {
   start(): void {
     if (this.running) return;
     this.running = true;
-    const loop = () => {
-      if (!this.running) return;
-      this.rafId = requestAnimationFrame(loop);
-      const delta = this.clock.getDelta();
-      // update() eases damping and returns true while the camera is still moving;
-      // animate() returns true while a fan spins / curtain slides. Render only
-      // when the view actually changes (or while editing) — a static kiosk then
-      // idles the GPU, which is what keeps high quality smooth on weak tablets.
-      const moved = this.controls.update();
-      const anim = this.bindingManagers[this.activeFloor]?.animate(delta) ?? false;
-      const interacting = moved || anim; // continuous frames — where lag is felt
-      if (this.needsRender || interacting || this.editing) {
-        this.updateMarkerScales();
-        this.renderer.render(this.scene, this.camera);
-        this.needsRender = false;
-        if (interacting) this.trackFrame(delta);
-      }
-    };
-    loop();
+    this.clock.getDelta(); // discard time spent stopped
+    this.pump();
   }
+
+  /** Schedule the next frame, unless one is already scheduled or the panel is
+   *  stopped / can't be seen. */
+  private pump(): void {
+    if (!this.running || !this.visible || this.rafId) return;
+    this.rafId = requestAnimationFrame(this.loop);
+  }
+
+  private loop = (): void => {
+    this.rafId = 0;
+    if (!this.running || !this.visible) return;
+    this.pump();
+    const delta = this.clock.getDelta();
+    // update() eases damping and returns true while the camera is still moving;
+    // animate() returns true while a fan spins / curtain slides. Render only
+    // when the view actually changes (or while editing) — a static kiosk then
+    // idles the GPU, which is what keeps high quality smooth on weak tablets.
+    const moved = this.controls.update();
+    // Camera motion is NEVER rate-limited (that's where lag is felt). Frames
+    // that exist only for an animation ARE: a fan that is switched on has no
+    // end state, so before this it pinned the panel at 60 fps for as long as it
+    // ran — all night, at full GPU. ANIM_HZ still reads as a spinning blade.
+    this.animAccum += delta;
+    let anim = false;
+    // The epsilon keeps the step landing on a fixed frame boundary (every 3rd
+    // frame at 60 Hz) instead of alternating 3/4 frames on float jitter, which
+    // would show up as an unevenly turning blade.
+    if (this.animAccum >= ANIM_STEP - 1e-3) {
+      anim = this.bindingManagers[this.activeFloor]?.animate(this.animAccum) ?? false;
+      this.animAccum = 0;
+    }
+    const interacting = moved || anim; // continuous frames — where lag is felt
+    if (this.needsRender || interacting || this.editing) {
+      this.updateMarkerScales();
+      this.renderer.render(this.scene, this.camera);
+      this.needsRender = false;
+      if (interacting) this.trackFrame(delta);
+    }
+  };
 
   stop(): void {
     this.running = false;
     cancelAnimationFrame(this.rafId);
+    this.rafId = 0;
   }
 
   /** Smooth the interaction frame time; step quality down if it stays slow, so a
@@ -1859,27 +2053,71 @@ export class SceneManager {
     this.frameMs = 16; // reset the average so the next rung waits for real slowness
   }
 
+  /**
+   * Give EVERYTHING back. Until this was actually called (and actually
+   * complete), every open-and-close of the panel left behind a WebGLRenderer
+   * with its own GL context, all of the plan's geometry, materials and
+   * textures, two window listeners pinning the manager to `window`, and the
+   * leak-flash timer. A browser keeps only ~8-16 WebGL contexts (8 in some
+   * Android WebViews) and silently kills the oldest to make room — which is
+   * exactly how a wall panel that has been opened a few times ends up showing
+   * a black rectangle with nothing in the console.
+   */
   dispose(): void {
     this.stop();
     this.resizeObserver?.disconnect();
+    this.resizeObserver = undefined;
+    this.viewObserver?.disconnect();
+    this.viewObserver = undefined;
+    for (const off of this.teardown) {
+      try {
+        off();
+      } catch {
+        /* keep tearing the rest down */
+      }
+    }
+    this.teardown = [];
+    if (this.alarmTimer != null) {
+      clearInterval(this.alarmTimer);
+      this.alarmTimer = null;
+    }
+    this.alarmRooms.clear();
+
     this.clearPlan();
+    this.clearPreview();
+    this.clearGizmo();
+    this.setUnderlay(null);
+    this.setSelection(null);
+    if (this.gridHelper) {
+      this.scene.remove(this.gridHelper);
+      disposeObject3D(this.gridHelper);
+      this.gridHelper = undefined;
+    }
     for (const t of this.markerTexCache.values()) t.dispose();
     this.markerTexCache.clear();
+    // The gradient backdrop is a 512x512 CanvasTexture built per scene.
+    this.defaultBackdrop?.dispose();
+    this.scene.background = null;
+    this.sun?.shadow?.map?.dispose();
+    this.scene.clear();
+
+    this.onPick = undefined;
+    this.onRoomsChanged = undefined;
+    this.onBackdrop = undefined;
+    this.onGround = undefined;
+    this.onDrag = undefined;
+    this.lastHass = undefined;
+
     this.controls.dispose();
     this.renderer.dispose();
+    // dispose() frees Three's own caches but leaves the GL context itself to
+    // the garbage collector — which is far too late when the browser's context
+    // budget is 8. Hand it back explicitly.
+    this.renderer.forceContextLoss();
+    this.renderer.domElement.width = 0;
+    this.renderer.domElement.height = 0;
     this.renderer.domElement.remove();
   }
-}
-
-function disposeGroup(group: THREE.Object3D): void {
-  group.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (mesh.geometry) mesh.geometry.dispose();
-    if (mesh.material) {
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      mats.forEach((m) => m.dispose());
-    }
-  });
 }
 
 /** Ray-casting point-in-polygon test (polygon points are world [x, z]). */

@@ -21,6 +21,20 @@ import type { FloorPlan, FloorDef, WallDef, RoomDef, FurnitureDef, BindingDef, V
 const DEG = Math.PI / 180;
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
+/** A finite number from a foreign export, or the fallback. */
+const finite = (v: unknown, fallback: number): number => {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+/** NaN-safe clamp — `Math.min(hi, NaN)` is NaN, which is how a bad export used
+ *  to smuggle NaN into the geometry. Returns NaN so the caller can drop it. */
+const clampNum = (v: unknown, lo: number, hi: number): number => {
+  const n = finite(v, NaN);
+  const top = finite(hi, NaN);
+  if (!Number.isFinite(n) || !Number.isFinite(top)) return NaN;
+  return Math.max(lo, Math.min(top, n));
+};
+
 interface ZUnits {
   [id: string]: any;
 }
@@ -151,11 +165,17 @@ export function convertZircon(j: any): FloorPlan {
           const b = world[(i + 1) % world.length];
           const eid = `edge:${pts[i].i}-${pts[(i + 1) % pts.length].i}`;
           const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-          const ops = (byEdge[eid] || []).map((d) => ({
-            kind: 'door' as const,
-            position: Math.max(0, Math.min(len, d.start)),
-            width: Math.max(0.3, d.end - d.start),
-          }));
+          // Sanitised: a missing/garbled start or end in the export used to
+          // produce NaN here (Math.min(len, NaN) is NaN), and a NaN opening
+          // reaches BoxGeometry and takes the whole floor's bounding box — and
+          // with it the camera — down with it. An unusable opening is dropped.
+          const ops = (byEdge[eid] || [])
+            .map((d) => ({
+              kind: 'door' as const,
+              position: clampNum(d?.start, 0, len),
+              width: Math.max(0.3, finite(d?.end, NaN) - finite(d?.start, NaN)),
+            }))
+            .filter((o) => Number.isFinite(o.position) && Number.isFinite(o.width));
           walls.push({
             start: [r3(a[0]), r3(a[1])],
             end: [r3(b[0]), r3(b[1])],
@@ -168,14 +188,16 @@ export function convertZircon(j: any): FloorPlan {
         const b = MAP(worldPoint(units, id, [pts[1].p.x, pts[1].p.y]));
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
         const parts = sd?.parts || {};
-        const ops = Object.keys(parts).map((k) => {
-          const d = parts[k].data;
-          return {
-            kind: 'door' as const,
-            position: Math.max(0, Math.min(len, d.start)),
-            width: Math.max(0.3, d.end - d.start),
-          };
-        });
+        const ops = Object.keys(parts)
+          .map((k) => {
+            const d = parts[k]?.data;
+            return {
+              kind: 'door' as const,
+              position: clampNum(d?.start, 0, len),
+              width: Math.max(0.3, finite(d?.end, NaN) - finite(d?.start, NaN)),
+            };
+          })
+          .filter((o) => Number.isFinite(o.position) && Number.isFinite(o.width));
         walls.push({
           start: [r3(a[0]), r3(a[1])],
           end: [r3(b[0]), r3(b[1])],

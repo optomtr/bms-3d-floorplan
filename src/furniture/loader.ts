@@ -5,11 +5,29 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { buildFurniture } from './library';
+import { disposeObject3D, isDisposed } from '../scene/dispose';
+import { num } from '../scene/sanitize';
 import type { FurnitureDef, Vec3 } from '../types';
 
 const gltfLoader = new GLTFLoader();
 // Cache loaded GLB scenes by URL so repeated placements clone instead of refetch.
+// CAPPED: a panel that runs for weeks and gets its plan re-synced (or edited)
+// would otherwise accumulate every .glb ever referenced, textures included.
+// Entries are only clone SOURCES — every placement owns its own copy (see
+// ownResources) — so evicting one is always safe.
+const GLB_CACHE_MAX = 16;
 const glbCache = new Map<string, Promise<THREE.Group>>();
+
+function cacheGlb(url: string, p: Promise<THREE.Group>): void {
+  glbCache.set(url, p);
+  while (glbCache.size > GLB_CACHE_MAX) {
+    const oldest = glbCache.keys().next();
+    if (oldest.done) break;
+    const evicted = glbCache.get(oldest.value);
+    glbCache.delete(oldest.value);
+    evicted?.then((scene) => disposeObject3D(scene)).catch(() => { /* never loaded */ });
+  }
+}
 
 function loadGlb(url: string): Promise<THREE.Group> {
   let p = glbCache.get(url);
@@ -28,17 +46,21 @@ function loadGlb(url: string): Promise<THREE.Group> {
         (err) => reject(err),
       );
     });
-    glbCache.set(url, p);
+    cacheGlb(url, p);
   }
   return p;
 }
 
 function applyTransform(obj: THREE.Object3D, def: FurnitureDef): void {
-  obj.position.set(def.position[0], def.position[1], def.position[2]);
-  if (def.rotation) obj.rotation.y = THREE.MathUtils.degToRad(def.rotation);
+  // A piece with a missing or broken position used to throw, and took the WHOLE
+  // plan down with it — the customer saw a red error line instead of their home.
+  // See scene/sanitize.ts.
+  const p = Array.isArray(def.position) ? def.position : [];
+  obj.position.set(num(p[0], 0), num(p[1], 0), num(p[2], 0));
+  if (def.rotation) obj.rotation.y = THREE.MathUtils.degToRad(num(def.rotation, 0));
   const s = def.scale ?? 1;
-  if (Array.isArray(s)) obj.scale.set(s[0], s[1], s[2]);
-  else obj.scale.setScalar(s as number);
+  if (Array.isArray(s)) obj.scale.set(num(s[0], 1), num(s[1], 1), num(s[2], 1));
+  else obj.scale.setScalar(Math.max(1e-3, num(s, 1)));
 }
 
 /**
@@ -87,7 +109,16 @@ export function resolveFurniture(def: FurnitureDef): THREE.Object3D {
       .then((scene) => {
         const clone = scene.clone(true);
         ownResources(clone, def.color); // independent geometry/material per placement
+        // The plan may have been torn down while this was downloading (floor
+        // switch, plan re-sync, card removed). Attaching the clone then would
+        // leak its own geometry + materials forever: no dispose walk can ever
+        // reach a group that is no longer in the scene.
+        if (isDisposed(container)) {
+          disposeObject3D(clone);
+          return;
+        }
         container.remove(placeholder);
+        disposeObject3D(placeholder);
         container.add(clone);
       })
       .catch((err) => {

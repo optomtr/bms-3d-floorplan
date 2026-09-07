@@ -7,6 +7,9 @@ name: Auto release on tag
 # Assistant needs to change; HACS just picks up the new release.
 #
 # Flow from now on: commit -> `git tag vX.Y.Z` -> `git push --tags`. Done.
+#
+# ВАЖНО: релиз выпускается ТОЛЬКО после сборки, проверки типов и автопроверок.
+# Раньше тег можно было повесить на несобирающийся код, и он уезжал клиентам.
 
 on:
   push:
@@ -17,7 +20,32 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    name: Сборка, типы, автопроверки
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm run typecheck:tests
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Отчёт Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-release
+          path: playwright-report/
+          retention-days: 14
+
   release:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

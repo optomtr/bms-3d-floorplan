@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import type { RoomDef, WallDef, Vec2, OpeningDef, BuildingDef, FloorPlan } from '../types';
+import { num } from './sanitize';
 
 export function isShapeRoom(room: RoomDef): boolean {
   return !!room.shape;
@@ -22,11 +23,14 @@ function rotate(x: number, z: number, deg: number): Vec2 {
 /** Corner ring (CCW) of a shape room in world XZ. */
 export function roomPolygon(room: RoomDef): Vec2[] {
   if (room.shape === 'rect' || room.shape === 'bevel' || room.shape === 'lshape') {
-    const x = room.x ?? 0;
-    const z = room.z ?? 0;
-    const w = room.width ?? 3;
-    const d = room.depth ?? 3;
-    const rot = room.rotation ?? 0;
+    // `??` only catches null/undefined — a NaN slipping in here (a half-typed
+    // editor field, a bad import) would make every derived corner NaN and take
+    // the floor's bounding box, and with it the camera, down with it.
+    const x = num(room.x, 0);
+    const z = num(room.z, 0);
+    const w = Math.max(0.05, num(room.width, 3));
+    const d = Math.max(0.05, num(room.depth, 3));
+    const rot = num(room.rotation, 0);
     const hw = w / 2;
     const hd = d / 2;
     let local: Vec2[];
@@ -79,21 +83,22 @@ export function roomWalls(
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i];
     const b = poly[(i + 1) % poly.length];
-    const openings: OpeningDef[] = (room.openings ?? [])
-      .filter((o) => o.edge === i)
+    const openings: OpeningDef[] = (Array.isArray(room.openings) ? room.openings : [])
+      .filter((o) => o && o.edge === i)
       .map((o) => ({
         kind: o.kind,
-        position: o.position,
-        width: o.width,
-        sill: o.sill,
-        top: o.top,
+        position: num(o.position, 0),
+        width: Math.max(0, num(o.width, 0)),
+        sill: o.sill == null ? undefined : num(o.sill, 0),
+        top: o.top == null ? undefined : num(o.top, 0),
         bare: o.bare,
-      }));
+      }))
+      .filter((o) => o.width > 1e-3);
     walls.push({
       start: a,
       end: b,
-      height: room.height ?? defaultHeight,
-      thickness: room.thickness ?? defaultThickness,
+      height: Math.max(0.05, num(room.height, defaultHeight)),
+      thickness: Math.max(0.01, num(room.thickness, defaultThickness)),
       color: room.wallColor,
       material: room.wallMaterial,
       openings: openings.length ? openings : undefined,

@@ -12,3 +12,11 @@ examples/durmon*.json
 
 # Local scratch harnesses (kept on disk, never shipped)
 _scratch*
+
+# Автопроверки: временные копии бандла и отчёты Playwright
+tests/.tmp/
+test-results/
+playwright-report/
+
+# Служебные файлы инструментов, в продукт не входят
+.claude-flow/
