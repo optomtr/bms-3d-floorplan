@@ -37,4 +37,5 @@ export {
   modelBackZ,
 } from './metadata';
 
-// (names.ts подключается ниже по ходу работы)
+export { MODEL_CATEGORIES, MODEL_NAMES, categoryLabel, modelCategory, modelLabel } from './names';
+export type { ModelCategory } from './names';
