@@ -11,16 +11,16 @@ import { css } from 'lit';
 export const controlsStyles = css`
     .toast {
       position: absolute;
-      z-index: 4;
-      bottom: 14px;
+      z-index: var(--z-menu);
+      bottom: var(--sp-4);
       left: 50%;
       transform: translateX(-50%);
-      color: #fff;
-      background: rgba(20, 22, 26, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      padding: 9px 14px;
-      border-radius: 10px;
-      font-size: 13px;
+      color: var(--tx);
+      background: var(--glass);
+      border: 1px solid var(--w-5);
+      padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--r-3);
+      font-size: var(--fs-3);
       max-width: 86%;
       text-align: center;
       backdrop-filter: blur(4px);
@@ -28,104 +28,101 @@ export const controlsStyles = css`
     .control-backdrop {
       position: absolute;
       inset: 0;
-      z-index: 5;
+      z-index: var(--z-panel);
     }
     .control-popup {
       position: absolute;
-      z-index: 6;
+      z-index: var(--z-popup);
       /* Horizontal centering only; the vertical "top" is set in JS
        * (positionControlPopup) from the popup's measured height so it can never
        * be clipped by the card's overflow:hidden edges. */
       transform: translateX(-50%);
       width: max-content;
-      min-width: 180px;
-      max-width: min(320px, 84%);
+      min-width: 200px;
+      /* Было min(320px, 84%): в него больше не влезает ряд кнопок 44px. */
+      max-width: min(380px, 88%);
       max-height: 90%;
       overflow-y: auto;
       overflow-x: hidden;
       background: rgba(20, 22, 26, 0.62);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 12px;
-      padding: 5px 8px;
+      border: 1px solid var(--w-5);
+      border-radius: var(--r-3);
+      padding: var(--sp-2) var(--sp-3);
       backdrop-filter: blur(7px);
-      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 6px 22px var(--scrim);
     }
     .control-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: 600;
-      font-size: 12px;
-      color: #cfe0ff;
-      padding: 1px 1px 4px;
-      gap: 8px;
+      font-size: var(--fs-2);
+      color: var(--info);
+      padding: 1px 1px var(--sp-1);
+      gap: var(--sp-3);
     }
     .control-head span {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-    }
-    .ctl.back {
-      min-width: 26px;
-      min-height: 24px;
-      padding: 2px 5px;
+      gap: var(--sp-2);
     }
     .ctl.back .icn {
-      width: 15px;
-      height: 15px;
+      width: 20px;
+      height: 20px;
       transform: rotate(-90deg);
     }
     /* Room category chooser (Lights / Climate / Curtains …). */
     .cat-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      padding: 4px 0 2px;
+      gap: var(--sp-2);
+      padding: var(--sp-1) 0 2px;
     }
     .cat-btn {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--sp-3);
       font: inherit;
-      font-size: 13px;
-      color: #eee;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 9px;
-      padding: 10px 10px;
+      font-size: var(--fs-4);
+      min-height: var(--tap);
+      color: var(--tx);
+      background: var(--w-3);
+      border: 1px solid var(--w-5);
+      border-radius: var(--r-2);
+      padding: var(--sp-3) var(--sp-3);
       cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .cat-btn:active {
-      background: rgba(255, 255, 255, 0.18);
+      background: var(--w-5);
     }
     .cat-btn .icn {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       flex: 0 0 auto;
     }
     .cat-btn span {
       flex: 1 1 auto;
     }
     .cat-btn small {
-      color: #9fb3cc;
-      font-size: 11px;
+      color: var(--mut);
+      font-size: var(--fs-1);
     }
     .control-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 5px 2px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      gap: var(--sp-3);
+      padding: var(--sp-1) 2px;
+      border-top: 1px solid var(--w-3);
     }
     .ctl.big {
-      padding: 6px 12px;
-      font-size: 15px;
+      padding: var(--sp-2) var(--sp-4);
+      font-size: var(--fs-4);
     }
     .control-name {
-      color: #eee;
-      font-size: 13px;
+      color: var(--tx);
+      font-size: var(--fs-3);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -135,60 +132,61 @@ export const controlsStyles = css`
     .control-ctls {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--sp-2);
       flex: 0 0 auto;
     }
+    /* Кнопки поп-апа. Было min 36x34 (и 30x28 у «✕», 26x24 у «назад») —
+       ни одна не дотягивала до пальца. */
     .ctl {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      color: #eee;
-      border-radius: 8px;
-      padding: 6px 9px;
-      font-size: 14px;
+      background: var(--w-3);
+      border: 1px solid var(--w-5);
+      color: var(--tx);
+      border-radius: var(--r-2);
+      padding: var(--sp-2) var(--sp-2);
+      font-size: var(--fs-3);
       cursor: pointer;
       line-height: 1;
-      /* Reliable finger tap targets on tablets. */
-      min-width: 36px;
-      min-height: 34px;
+      min-width: var(--tap);
+      min-height: var(--tap);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
     }
     .ctl:active {
-      background: rgba(255, 255, 255, 0.18);
-    }
-    .ctl.close {
-      min-width: 30px;
-      min-height: 28px;
-      padding: 3px 7px;
+      background: var(--w-5);
     }
     .ctl.on {
-      background: rgba(3, 169, 244, 0.35);
-      border-color: var(--primary-color, #03a9f4);
+      background: var(--pri-soft);
+      border-color: var(--pri);
     }
+    /* Один общий значок. Раньше это правило дублировалось: 18px здесь и 20px
+       ниже, в room-view — то есть 18px не действовали НИКОГДА (побеждал
+       последний файл). Дубль убран, оставлен действовавший размер. */
     .icn {
-      width: 18px;
-      height: 18px;
-      display: block;
-    }
-    .ctl.big .icn {
       width: 20px;
       height: 20px;
+      display: block;
+      flex: none;
+    }
+    .ctl.big .icn {
+      width: 22px;
+      height: 22px;
     }
     .ctl-range {
       width: 92px;
+      height: var(--tap);
+      accent-color: var(--accent);
     }
     .ctl-col {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: var(--sp-1);
       align-items: flex-end;
     }
     .ctl-row {
       display: flex;
-      gap: 5px;
+      gap: var(--sp-1);
       align-items: center;
     }
     .ctl-row.wrap {
@@ -198,11 +196,17 @@ export const controlsStyles = css`
     .ctl-temp {
       min-width: 70px;
       text-align: center;
-      color: #9ad0ff;
-      font-size: 13px;
+      color: var(--cool);
+      font-size: var(--fs-3);
     }
     .ctl-state {
-      color: #ffe7a0;
-      font-size: 13px;
+      color: var(--accent);
+      font-size: var(--fs-3);
+    }
+    @media (hover: hover) {
+      .cat-btn:hover,
+      .ctl:hover {
+        background: var(--w-4);
+      }
     }
 `;

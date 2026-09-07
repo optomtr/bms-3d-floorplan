@@ -13,19 +13,14 @@ export const roomViewStyles = css`
     /* ===================================================================
        Room-in-focus layout (Option 1A): 3D + clock + pills on the left,
        the selected room's device panel on the right.
+
+       Переменные, которые раньше объявлялись ЗДЕСЬ (--accent, --cool, --tx,
+       --mut, --brd, --card, --card2, --panel-w), переехали в :host
+       (styles/tokens.ts): пока они висели на ha-card.view, весь редактор
+       (ha-card.editing) оставался вне системы оформления.
        =================================================================== */
     ha-card.view {
-      --accent: #f3a83c;
-      --cool: #5bb8e8;
-      --tx: #f2f3f6;
-      --mut: #99a0ac;
-      --brd: rgba(255, 255, 255, 0.09);
-      --card: rgba(255, 255, 255, 0.045);
-      --card2: rgba(255, 255, 255, 0.08);
-      --panel-w: clamp(300px, 36%, 470px);
-      color: var(--tx);
-      font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
-      background: radial-gradient(150% 120% at 80% 4%, #20222a, #141519 52%, #0f1013);
+      background: radial-gradient(150% 120% at 80% 4%, var(--bg-3), var(--bg-1) 52%, var(--bg-0));
     }
     ha-card.view.room .viewport {
       position: absolute;
@@ -47,42 +42,37 @@ export const roomViewStyles = css`
     ha-card.view.room.has-room .viewport {
       right: var(--panel-w);
     }
-    .icn {
-      width: 20px;
-      height: 20px;
-      flex: none;
-    }
 
     /* ---- Clock + status dots + room pills (over the 3D) ---- */
     .clock {
       position: absolute;
-      top: 26px;
+      top: var(--sp-6);
       left: 30px;
-      z-index: 3;
+      z-index: var(--z-chrome);
       pointer-events: none;
     }
     .ctime {
       font-family: 'Unbounded', 'Onest', sans-serif;
-      font-size: 64px;
+      font-size: var(--fs-clock);
       line-height: 0.9;
       font-weight: 300;
       letter-spacing: -0.02em;
-      color: #fff;
+      color: var(--tx-hi);
       font-variant-numeric: tabular-nums;
     }
     .cdate {
-      margin-top: 10px;
-      font-size: 15px;
+      margin-top: var(--sp-3);
+      font-size: var(--fs-4);
       color: var(--mut);
     }
     .topstat {
       position: absolute;
       top: 30px;
       right: 30px;
-      z-index: 4;
+      z-index: var(--z-menu);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--sp-3);
       /* Not animated. Easing the right edge relayouts this row on every frame of
          the panel animation. A transform would be compositor-only, but --panel-w
          is a clamp() holding a percentage, and inside transform a percentage
@@ -90,13 +80,15 @@ export const roomViewStyles = css`
          lands in the wrong place. Snapping matches .stage-bottom below. */
     }
     ha-card.view.room.has-room .topstat {
-      right: calc(var(--panel-w) + 24px);
+      right: calc(var(--panel-w) + var(--sp-6));
     }
+    /* Было 42x42 плюс рамка — порог 44 брался только за счёт рамки, а с
+       box-sizing рамка уже внутри. Задаём 44 явно. */
     .sdot {
       position: relative;
-      width: 42px;
-      height: 42px;
-      border-radius: 13px;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: var(--r-4);
       background: var(--card);
       border: 1px solid var(--brd);
       color: var(--mut);
@@ -105,14 +97,19 @@ export const roomViewStyles = css`
       justify-content: center;
       cursor: pointer;
       font: inherit;
+      touch-action: manipulation;
+    }
+    .sdot:active {
+      background: var(--w-4);
+      color: var(--tx);
     }
     .sdot .on-dot {
       position: absolute;
-      top: 8px;
-      right: 8px;
+      top: var(--sp-3);
+      right: var(--sp-3);
       width: 6px;
       height: 6px;
-      border-radius: 50%;
+      border-radius: var(--r-circle);
       background: var(--accent);
     }
     /* Bottom stack over the 3D: floor tabs, room pills, and the "pick a room"
@@ -122,80 +119,88 @@ export const roomViewStyles = css`
       left: 26px;
       right: 26px;
       bottom: 22px;
-      z-index: 3;
+      z-index: var(--z-chrome);
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 11px;
+      gap: var(--sp-4);
       /* Not animated: this box is pinned on BOTH edges, so easing the right one
          animates its WIDTH — a relayout of the floor tabs and room pills every
          frame. Its content is left-aligned, so snapping the edge is invisible
          unless the pills happen to wrap. */
     }
     ha-card.view.room.has-room .stage-bottom {
-      right: calc(var(--panel-w) + 24px);
+      right: calc(var(--panel-w) + var(--sp-6));
     }
     .pills {
       display: flex;
       flex-wrap: wrap;
-      gap: 9px;
+      gap: var(--sp-3);
     }
     .ftabs {
       display: inline-flex;
-      padding: 4px;
-      gap: 3px;
-      border-radius: 13px;
+      padding: var(--sp-1);
+      gap: var(--sp-1);
+      border-radius: var(--r-4);
       background: var(--card);
       border: 1px solid var(--brd);
     }
     .ftab {
-      padding: 8px 15px;
-      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: var(--tap);
+      padding: 0 var(--sp-5);
+      border-radius: var(--r-3);
       border: none;
       background: transparent;
       color: var(--mut);
       font: inherit;
-      font-size: 13px;
+      font-size: var(--fs-4);
       font-weight: 600;
       cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .ftab:active {
+      background: var(--w-4);
+      color: var(--tx);
     }
     .ftab.on {
-      background: #fff;
-      color: #17181c;
+      background: var(--fill-hi);
+      color: var(--ink);
     }
     .ahint {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 15px;
-      border-radius: 13px;
-      background: rgba(243, 168, 60, 0.14);
-      border: 1px solid rgba(243, 168, 60, 0.4);
+      gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-5);
+      border-radius: var(--r-4);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-line);
       color: var(--accent);
-      font-size: 13.5px;
+      font-size: var(--fs-4);
       font-weight: 600;
       max-width: 100%;
     }
     .ahint .icn {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
     }
     /* Room panel header top row (name + close). */
     .rp-top {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--sp-3);
     }
     .rp-top .rp-name {
       flex: 1;
       min-width: 0;
     }
     .closebtn {
-      width: 38px;
-      height: 38px;
+      width: var(--tap);
+      height: var(--tap);
       flex: none;
-      border-radius: 12px;
+      border-radius: var(--r-3);
       border: 1px solid var(--brd);
       background: var(--card);
       color: var(--mut);
@@ -203,9 +208,10 @@ export const roomViewStyles = css`
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      touch-action: manipulation;
     }
-    .closebtn:hover {
-      background: var(--card2);
+    .closebtn:active {
+      background: var(--w-5);
       color: var(--tx);
     }
     /* Climate mode chips — wrap onto more rows so a unit with many modes
@@ -213,45 +219,53 @@ export const roomViewStyles = css`
     .seg {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 14px;
+      gap: var(--sp-2);
+      margin-top: var(--sp-4);
     }
     .segb {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       flex: 1 1 auto;
       min-width: 72px;
-      padding: 10px 8px;
-      border-radius: 11px;
+      min-height: var(--tap);
+      padding: var(--sp-3) var(--sp-3);
+      border-radius: var(--r-3);
       border: 1px solid var(--brd);
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--w-2);
       color: var(--mut);
       font: inherit;
-      font-size: 13px;
+      font-size: var(--fs-4);
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .segb:active {
+      background: var(--w-4);
+      color: var(--tx);
     }
     .segb.on {
-      background: rgba(91, 184, 232, 0.18);
-      border-color: rgba(91, 184, 232, 0.5);
+      background: var(--cool-soft);
+      border-color: var(--cool-line);
       color: var(--cool);
     }
     /* Blinds quick buttons. */
     .qbtns {
       display: flex;
-      gap: 8px;
-      margin-top: 12px;
+      gap: var(--sp-3);
+      margin-top: var(--sp-4);
     }
     /* Intercom: two big pill buttons, icon over label. */
     .intercom-btns {
-      gap: 10px;
+      gap: var(--sp-3);
     }
     .intercom-btns .qb {
       flex-direction: column;
-      gap: 8px;
-      padding: 16px 0;
-      font-size: 14px;
-      border-radius: 14px;
+      gap: var(--sp-3);
+      padding: var(--sp-5) 0;
+      font-size: var(--fs-4);
+      border-radius: var(--r-4);
       transition: background 0.15s ease;
     }
     .intercom-btns .qb-ic {
@@ -260,25 +274,25 @@ export const roomViewStyles = css`
       justify-content: center;
     }
     .intercom-btns .qb-ic .icn {
-      width: 25px;
-      height: 25px;
+      width: 26px;
+      height: 26px;
     }
     .intercom-btns .qb.on {
-      background: var(--accent, #f3a83c);
-      color: #17181c;
+      background: var(--accent);
+      color: var(--ink);
       border-color: transparent;
     }
     .intercom-btns .qb.primary {
-      background: #2e7d5b;
-      color: #fff;
+      background: var(--ok);
+      color: var(--tx);
       border-color: transparent;
     }
-    .intercom-btns .qb.primary:hover {
-      background: #34926a;
+    .intercom-btns .qb.primary:active {
+      filter: brightness(1.18);
     }
     .card.intercom.ring .cicon {
-      background: #d64545;
-      color: #fff;
+      background: var(--bad);
+      color: var(--ink);
       animation: pulse 1.1s ease-in-out infinite;
     }
     @keyframes pulse {
@@ -286,41 +300,36 @@ export const roomViewStyles = css`
       50% { opacity: 0.45; }
     }
     .qb {
-      flex: 1;
-      padding: 11px 0;
-      border-radius: 12px;
-      border: 1px solid var(--brd);
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--tx);
-      font: inherit;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .qb.gate.on {
-      border-color: var(--accent, #f3a83c);
-      color: #fff;
-      background: rgba(243, 168, 60, 0.14);
-    }
-    .qb.icon-only {
       display: flex;
       align-items: center;
       justify-content: center;
+      flex: 1;
+      min-height: var(--tap);
+      padding: var(--sp-4) 0;
+      border-radius: var(--r-3);
+      border: 1px solid var(--brd);
+      background: var(--w-2);
+      color: var(--tx);
+      font: inherit;
+      font-size: var(--fs-4);
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
     }
-    .qb.icon-only .icn {
-      width: 20px;
-      height: 20px;
+    .qb.gate.on {
+      border-color: var(--accent);
+      color: var(--tx);
+      background: var(--accent-soft);
     }
-    .qb:hover {
-      background: rgba(255, 255, 255, 0.12);
+    .qb:active {
+      background: var(--w-5);
     }
     /* ---- Screensaver (idle) ---- */
     .saver {
       position: absolute;
       inset: 0;
-      z-index: 40;
-      background: radial-gradient(150% 120% at 50% 0%, #14161d, #0a0b0e 60%);
+      z-index: var(--z-saver);
+      background: radial-gradient(150% 120% at 50% 0%, var(--bg-1), var(--bg-0) 60%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -335,10 +344,14 @@ export const roomViewStyles = css`
       position: absolute;
       inset: -20%;
       background:
-        radial-gradient(40% 40% at 25% 30%, rgba(243, 168, 60, 0.22), transparent 70%),
-        radial-gradient(35% 35% at 78% 65%, rgba(91, 184, 232, 0.2), transparent 70%),
+        radial-gradient(40% 40% at 25% 30%, var(--accent-soft), transparent 70%),
+        radial-gradient(35% 35% at 78% 65%, var(--cool-soft), transparent 70%),
         radial-gradient(30% 30% at 60% 20%, rgba(185, 140, 255, 0.16), transparent 70%);
       filter: blur(20px);
+      /* Бесконечная 16-секундная анимация ровно тогда, когда панель обязана
+         утихнуть. На сенсорных устройствах (то есть на настенных панелях) она
+         выключена — см. блок @media (pointer: coarse) в detail.ts. На
+         настольном браузере она ничего не стоит и остаётся. */
       animation: aurora 16s ease-in-out infinite alternate;
     }
     @keyframes aurora {
@@ -347,14 +360,14 @@ export const roomViewStyles = css`
     }
     .saver-in {
       position: relative;
-      z-index: 2;
+      z-index: var(--z-over);
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
     }
     .saver-home {
-      font-size: 20px;
+      font-size: var(--fs-6);
       font-weight: 600;
       color: var(--mut);
       letter-spacing: 0.04em;
@@ -362,32 +375,32 @@ export const roomViewStyles = css`
     .saver-time {
       font-family: 'Unbounded', 'Onest', sans-serif;
       font-weight: 300;
-      font-size: 132px;
+      font-size: var(--fs-saver);
       line-height: 0.92;
-      color: #fff;
+      color: var(--tx-hi);
       letter-spacing: -0.03em;
       font-variant-numeric: tabular-nums;
-      margin-top: 6px;
+      margin-top: var(--sp-2);
     }
     .saver-date {
-      font-size: 18px;
+      font-size: var(--fs-6);
       color: var(--mut);
-      margin-top: 10px;
+      margin-top: var(--sp-3);
     }
     .saver-info {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 14px;
+      gap: var(--sp-4);
       margin-top: 34px;
     }
     .si {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 13px 18px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.045);
+      gap: var(--sp-3);
+      padding: var(--sp-4) var(--sp-5);
+      border-radius: var(--r-5);
+      background: var(--card);
       border: 1px solid var(--brd);
       color: var(--mut);
     }
@@ -399,62 +412,77 @@ export const roomViewStyles = css`
       color: var(--cool);
     }
     .si.good .icn {
-      color: #37c58e;
+      color: var(--good);
     }
     .sitx {
       text-align: left;
     }
     .siv {
-      font-size: 19px;
+      font-size: var(--fs-6);
       font-weight: 700;
-      color: #fff;
+      color: var(--tx-hi);
       line-height: 1;
     }
     .sil {
-      font-size: 12px;
+      font-size: var(--fs-2);
       color: var(--mut);
       margin-top: 3px;
     }
+    /* ЕДИНСТВЕННАЯ надпись на заставке — «Коснитесь экрана, чтобы вернуться».
+       Висит на экране круглые сутки, а цвет был --fnt (переменная, которой
+       нигде нет) с запасным #646a75 — контраст 3,35:1. Теперь --faint (5,6:1)
+       и кегль 16px вместо 14: читать её будут с двух-трёх метров. */
     .saver-hint {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--sp-3);
       margin-top: 38px;
-      font-size: 14px;
-      color: var(--fnt, #646a75);
+      font-size: var(--fs-4);
+      color: var(--faint);
     }
     .saver-hint .icn {
-      width: 17px;
-      height: 17px;
+      width: 18px;
+      height: 18px;
     }
     .pill {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-radius: 14px;
+      gap: var(--sp-3);
+      min-height: var(--tap);
+      padding: 0 var(--sp-5);
+      border-radius: var(--r-4);
       background: var(--card);
       border: 1px solid var(--brd);
       color: var(--mut);
       font: inherit;
-      font-size: 14px;
+      font-size: var(--fs-4);
       font-weight: 600;
       cursor: pointer;
       transition: background 0.16s, color 0.16s;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
-    .pill .icn {
-      width: 18px;
-      height: 18px;
-    }
-    .pill:hover {
-      background: var(--card2);
+    .pill:active {
+      background: var(--w-5);
       color: var(--tx);
     }
     .pill.on {
-      background: #fff;
-      color: #17181c;
-      border-color: #fff;
+      background: var(--fill-hi);
+      color: var(--ink);
+      border-color: var(--tx-hi);
+    }
+    @media (hover: hover) {
+      .sdot:hover,
+      .closebtn:hover,
+      .pill:hover {
+        background: var(--card2);
+        color: var(--tx);
+      }
+      .qb:hover {
+        background: var(--w-4);
+      }
+      .intercom-btns .qb.primary:hover {
+        filter: brightness(1.12);
+      }
     }
 
 `;

@@ -14,17 +14,17 @@ export const leakStyles = css`
        seen. Not dismissible — it goes when the sensor dries, not when tapped. */
     .leak-alert {
       position: absolute;
-      z-index: 60;
+      z-index: var(--z-leak);
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      padding: 24px;
+      gap: var(--sp-5);
+      padding: var(--sp-6);
       text-align: center;
-      color: #fff;
-      background: radial-gradient(ellipse at center, rgba(206, 38, 30, 0.98), rgba(120, 14, 11, 0.99));
+      color: var(--tx);
+      background: radial-gradient(ellipse at center, var(--leak-a), var(--leak-b));
       animation: leak-flash 1.1s ease-in-out infinite;
     }
     @keyframes leak-flash {
@@ -33,45 +33,55 @@ export const leakStyles = css`
     }
     .leak-x {
       position: absolute;
-      top: 14px;
-      right: 16px;
+      top: var(--sp-4);
+      right: var(--sp-5);
       appearance: none;
       cursor: pointer;
       width: 52px;
       height: 52px;
-      border-radius: 50%;
-      color: #fff;
-      font-size: 24px;
+      border-radius: var(--r-circle);
+      color: var(--tx);
+      font-size: var(--fs-7);
       line-height: 1;
-      background: rgba(255, 255, 255, 0.16);
-      border: 1px solid rgba(255, 255, 255, 0.34);
+      background: var(--w-5);
+      border: 1px solid var(--w-5);
+      touch-action: manipulation;
+    }
+    .leak-x:active {
+      background: var(--w-6);
     }
     .leak-ic {
       display: grid;
       place-items: center;
       width: 84px;
       height: 84px;
-      border-radius: 26px;
-      background: rgba(255, 255, 255, 0.18);
+      border-radius: var(--r-6);
+      background: var(--w-5);
     }
     .leak-ic .icn { width: 46px; height: 46px; }
-    .leak-title { font-size: 34px; font-weight: 800; letter-spacing: 0.3px; }
-    .leak-sub { font-size: 18px; opacity: 0.95; max-width: 80%; }
-    .leak-hint { font-size: 14px; opacity: 0.78; }
-    .leak-btns { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+    .leak-title { font-size: var(--fs-8); font-weight: 800; letter-spacing: 0.3px; }
+    .leak-sub { font-size: var(--fs-6); opacity: 0.95; max-width: 80%; }
+    .leak-hint { font-size: var(--fs-4); opacity: 0.85; }
+    .leak-btns { display: flex; gap: var(--sp-4); margin-top: var(--sp-3); flex-wrap: wrap; justify-content: center; }
     /* Deliberately large: this gets tapped in a hurry, sometimes with wet hands. */
     .leak-b {
       appearance: none;
       cursor: pointer;
-      color: #fff;
-      background: rgba(255, 255, 255, 0.16);
-      border: 1px solid rgba(255, 255, 255, 0.34);
-      border-radius: 14px;
-      padding: 16px 28px;
-      font-size: 18px;
+      color: var(--tx);
+      background: var(--w-5);
+      border: 1px solid var(--w-5);
+      border-radius: var(--r-4);
+      padding: var(--sp-5) 28px;
+      min-height: var(--tap);
+      font-size: var(--fs-6);
       font-weight: 700;
+      touch-action: manipulation;
     }
-    .leak-b.primary { color: #8f1410; background: #fff; border-color: #fff; }
+    .leak-b:active {
+      background: var(--w-6);
+    }
+    .leak-b.primary { color: var(--leak-ink); background: var(--fill-hi); border-color: var(--fill-hi); }
+    .leak-b.primary:active { background: var(--tx); }
     .leak-b[disabled] { opacity: 0.55; cursor: default; }
 
 `;

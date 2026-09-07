@@ -14,8 +14,8 @@ export const deviceCardStyles = css`
     .card {
       background: var(--card);
       border: 1px solid var(--brd);
-      border-radius: 18px;
-      padding: 16px;
+      border-radius: var(--r-5);
+      padding: var(--sp-5);
       animation: rp-rise 0.36s both;
     }
     @keyframes rp-rise {
@@ -23,26 +23,26 @@ export const deviceCardStyles = css`
       to { opacity: 1; transform: none; }
     }
     .card.on {
-      border-color: rgba(243, 168, 60, 0.5);
-      background: linear-gradient(rgba(243, 168, 60, 0.16), transparent 60%), var(--card);
+      border-color: var(--accent-line);
+      background: linear-gradient(var(--accent-soft), transparent 60%), var(--card);
     }
     .card.on.cool {
-      border-color: rgba(91, 184, 232, 0.5);
-      background: linear-gradient(rgba(91, 184, 232, 0.15), transparent 60%), var(--card);
+      border-color: var(--cool-line);
+      background: linear-gradient(var(--cool-soft), transparent 60%), var(--card);
     }
     .crow {
       display: flex;
       align-items: center;
-      gap: 13px;
+      gap: var(--sp-4);
     }
     .cicon {
-      width: 44px;
-      height: 44px;
-      border-radius: 13px;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: var(--r-4);
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--w-2);
       color: var(--mut);
       flex: none;
       border: none;
@@ -50,17 +50,21 @@ export const deviceCardStyles = css`
     }
     button.cicon {
       cursor: pointer;
+      touch-action: manipulation;
+    }
+    button.cicon:active {
+      background: var(--w-5);
     }
     .cicon .icn {
-      width: 23px;
-      height: 23px;
+      width: 24px;
+      height: 24px;
     }
     .card.on .cicon.lit {
-      background: rgba(243, 168, 60, 0.16);
+      background: var(--accent-soft);
       color: var(--accent);
     }
     .card.on.cool .cicon.lit {
-      background: rgba(91, 184, 232, 0.16);
+      background: var(--cool-soft);
       color: var(--cool);
     }
     /* Per-light tiles: a wrapping grid so each light is controlled on its own,
@@ -68,41 +72,45 @@ export const deviceCardStyles = css`
     .lgrid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
-      gap: 8px;
-      margin-top: 12px;
+      gap: var(--sp-3);
+      margin-top: var(--sp-4);
     }
     .ltile {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: var(--sp-3);
       min-width: 0;
-      padding: 12px 6px 10px;
-      border-radius: 14px;
+      min-height: var(--tap);
+      padding: var(--sp-4) var(--sp-2) var(--sp-3);
+      border-radius: var(--r-4);
       border: 1px solid var(--brd);
-      background: rgba(255, 255, 255, 0.04);
+      background: var(--w-1);
       color: var(--mut);
       font: inherit;
       cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .ltile:active {
+      background: var(--w-4);
     }
     .ltile.on {
-      background: rgba(243, 168, 60, 0.14);
-      border-color: rgba(243, 168, 60, 0.4);
+      background: var(--accent-soft);
+      border-color: var(--accent-line);
       color: var(--tx);
     }
     .lti {
       width: 48px;
       height: 48px;
-      border-radius: 13px;
+      border-radius: var(--r-4);
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--w-2);
       color: var(--mut);
     }
     .lti.lit {
-      background: rgba(243, 168, 60, 0.18);
+      background: var(--accent-soft);
       color: var(--accent);
     }
     .lti .icn {
@@ -110,7 +118,7 @@ export const deviceCardStyles = css`
       height: 26px;
     }
     .ltn {
-      font-size: 12px;
+      font-size: var(--fs-2);
       font-weight: 600;
       line-height: 1.2;
       text-align: center;
@@ -126,11 +134,7 @@ export const deviceCardStyles = css`
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 11px 0;
-    }
-    .seg.vol .segb .icn {
-      width: 20px;
-      height: 20px;
+      padding: var(--sp-4) 0;
     }
     /* Volume % readout between the − / + chips (replaces the slider). */
     .seg.vol .volind {
@@ -138,17 +142,20 @@ export const deviceCardStyles = css`
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 15px;
+      font-size: var(--fs-4);
       font-weight: 700;
       font-variant-numeric: tabular-nums;
-      color: var(--txt);
+      /* Было var(--txt) — ОПЕЧАТКА вместо --tx, и БЕЗ запасного значения:
+         индикатор громкости наследовал цвет родителя (.segb — приглушённый
+         серый), то есть числа выглядели выключенными. */
+      color: var(--tx);
     }
     .cgrow {
       flex: 1;
       min-width: 0;
     }
     .clabel {
-      font-size: 16px;
+      font-size: var(--fs-5);
       font-weight: 700;
       color: var(--tx);
       white-space: nowrap;
@@ -156,7 +163,7 @@ export const deviceCardStyles = css`
       text-overflow: ellipsis;
     }
     .csub {
-      font-size: 13px;
+      font-size: var(--fs-3);
       color: var(--mut);
       margin-top: 3px;
       white-space: nowrap;
@@ -164,48 +171,73 @@ export const deviceCardStyles = css`
       text-overflow: ellipsis;
     }
     .info-val {
-      font-size: 15px;
+      font-size: var(--fs-4);
       font-weight: 700;
-      color: #fff;
+      color: var(--tx-hi);
       flex: none;
     }
-    /* Toggle switch */
+    /* ---- Главный тумблер --------------------------------------------------
+       Ежедневный контакт клиента с системой: этим включают свет. Был 54x31 —
+       самая заметная промашка по пальцу во всём продукте. Кнопка стала
+       56x44, а видимая дорожка (та же на вид: 56x32) переехала в ::before,
+       чтобы вырасти могла ЗОНА НАЖАТИЯ, а не рисунок. */
     .sw {
-      width: 54px;
-      height: 31px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.14);
+      width: 56px;
+      height: var(--tap);
+      border-radius: var(--r-pill);
+      background: transparent;
       position: relative;
       cursor: pointer;
       flex: none;
       border: none;
       padding: 0;
+      touch-action: manipulation;
+    }
+    .sw::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 6px;
+      bottom: 6px;
+      border-radius: var(--r-pill);
+      background: var(--w-4);
       transition: background 0.2s;
     }
     .sw-k {
       position: absolute;
-      top: 3px;
+      top: 9px;
       left: 3px;
-      width: 25px;
-      height: 25px;
-      border-radius: 50%;
-      background: #fff;
-      transition: left 0.2s;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+      width: 26px;
+      height: 26px;
+      border-radius: var(--r-circle);
+      background: var(--fill-hi);
+      transition: left 0.2s, transform 0.12s;
+      box-shadow: 0 2px 5px var(--shadow);
     }
-    .sw.on {
+    .sw.on::before {
       background: var(--accent);
     }
     .sw.on .sw-k {
-      left: 26px;
+      left: 27px;
+    }
+    .sw:active::before {
+      background: var(--w-5);
+    }
+    .sw.on:active::before {
+      background: var(--accent);
+      filter: brightness(1.12);
+    }
+    .sw:active .sw-k {
+      transform: scale(0.92);
     }
     /* Slider */
     .slider {
-      height: 44px;
-      border-radius: 13px;
-      background: rgba(255, 255, 255, 0.08);
+      height: var(--tap);
+      border-radius: var(--r-4);
+      background: var(--w-3);
       position: relative;
-      margin-top: 14px;
+      margin-top: var(--sp-4);
       cursor: pointer;
       overflow: hidden;
       touch-action: none;
@@ -218,10 +250,10 @@ export const deviceCardStyles = css`
       bottom: 0;
       width: 0;
       background: var(--accent);
-      border-radius: 13px;
+      border-radius: var(--r-4);
     }
     .slider-fill.white {
-      background: rgba(255, 255, 255, 0.88);
+      background: var(--tx);
     }
     .slider-lab {
       position: absolute;
@@ -229,30 +261,30 @@ export const deviceCardStyles = css`
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 14px;
-      font-size: 13px;
+      padding: 0 var(--sp-4);
+      font-size: var(--fs-3);
       font-weight: 700;
-      color: #fff;
+      color: var(--tx-hi);
       pointer-events: none;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      text-shadow: 0 1px 3px var(--shadow);
     }
     /* White (cover) fill: dark labels read better on the light bar. */
     .slider.cover .slider-lab {
-      color: #2b2e35;
-      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+      color: var(--ink);
+      text-shadow: 0 1px 2px var(--w-5);
     }
     /* Climate stepper */
     .stepper {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: var(--sp-1);
       flex: none;
     }
     .stbtn {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.07);
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: var(--r-3);
+      background: var(--w-2);
       border: 1px solid var(--brd);
       color: var(--tx);
       display: flex;
@@ -260,30 +292,31 @@ export const deviceCardStyles = css`
       justify-content: center;
       cursor: pointer;
       flex: none;
+      touch-action: manipulation;
     }
-    .stbtn:hover {
-      background: rgba(255, 255, 255, 0.13);
+    .stbtn:active {
+      background: var(--w-5);
     }
     .tval {
-      font-size: 24px;
+      font-size: var(--fs-7);
       font-weight: 700;
       min-width: 46px;
       text-align: center;
-      color: #fff;
+      color: var(--tx-hi);
       font-variant-numeric: tabular-nums;
     }
     /* Media */
     .mp {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-top: 14px;
+      gap: var(--sp-4);
+      margin-top: var(--sp-4);
     }
     .mpart {
       width: 48px;
       height: 48px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #3a3d47, #22242a);
+      border-radius: var(--r-3);
+      background: linear-gradient(135deg, var(--bg-3), var(--bg-2));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -295,48 +328,50 @@ export const deviceCardStyles = css`
       min-width: 0;
     }
     .mptrack {
-      font-size: 15px;
+      font-size: var(--fs-4);
       font-weight: 700;
-      color: #fff;
+      color: var(--tx-hi);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .mpartist {
-      font-size: 13px;
+      font-size: var(--fs-3);
       color: var(--mut);
       margin-top: 1px;
     }
     .mpctl {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: var(--sp-1);
       flex: none;
     }
     .mpb {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: var(--r-circle);
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--tx);
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--w-2);
       border: none;
       flex: none;
+      touch-action: manipulation;
     }
-    .mpb:hover {
-      background: rgba(255, 255, 255, 0.12);
+    .mpb:active {
+      background: var(--w-5);
+      transform: scale(0.92);
     }
     .mpb.play {
-      background: #fff;
-      color: #17181c;
+      background: var(--fill-hi);
+      color: var(--ink);
     }
     /* Speakers currently synced together: the link button lights accent. */
     .mpb.on {
-      background: var(--accent, #f3a83c);
-      color: #17181c;
+      background: var(--accent);
+      color: var(--ink);
     }
     .mpb .icn {
       width: 22px;
@@ -346,35 +381,53 @@ export const deviceCardStyles = css`
     .lockbtn {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--sp-4);
       width: 100%;
-      padding: 15px;
-      border-radius: 16px;
+      min-height: var(--tap);
+      padding: var(--sp-5);
+      border-radius: var(--r-5);
       cursor: pointer;
       font: inherit;
       border: 1px solid var(--brd);
       background: var(--card);
       animation: rp-rise 0.36s both;
+      touch-action: manipulation;
+    }
+    /* Заливку трогать нельзя: у .locked / .unlocked она смысловая (зелёный
+       «заперто» / красный «отперто»), и правило-состояние стоит НИЖЕ. */
+    .lockbtn:active {
+      filter: brightness(1.3);
     }
     .lockbtn.locked {
-      background: rgba(55, 197, 142, 0.13);
-      border-color: rgba(55, 197, 142, 0.42);
-      color: #37c58e;
+      background: var(--good-soft);
+      border-color: var(--good-line);
+      color: var(--good);
     }
     .lockbtn.unlocked {
-      background: rgba(242, 106, 75, 0.13);
-      border-color: rgba(242, 106, 75, 0.42);
-      color: #f26a4b;
+      background: var(--bad-soft);
+      border-color: var(--bad-line);
+      color: var(--bad);
     }
     .lktxt {
-      font-size: 16px;
+      font-size: var(--fs-5);
       font-weight: 700;
     }
     .lksub {
-      font-size: 13px;
+      font-size: var(--fs-3);
       opacity: 0.75;
       font-weight: 500;
       margin-top: 1px;
+    }
+    @media (hover: hover) {
+      button.cicon:hover,
+      .ltile:hover,
+      .stbtn:hover,
+      .mpb:hover {
+        background: var(--w-4);
+      }
+      .lockbtn:hover {
+        filter: brightness(1.15);
+      }
     }
 
 `;
