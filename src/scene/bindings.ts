@@ -52,6 +52,11 @@ interface ActiveBinding {
   /** Подпись «Нет связи». Создаётся ТОЛЬКО когда связь действительно пропала:
    *  делать её всем привязкам заранее — это лишний холст 256×128 на каждую. */
   offlineLabel?: TextLabel;
+  /** НАРИСОВАНА ли сейчас надпись «Нет связи». Именно нарисована, а не «должна
+   *  бы»: признак ставится в showOffline и снимается в hideOffline. Считать его
+   *  по состоянию сущности нельзя — тогда проверка «на плане видно, что связи
+   *  нет» останется зелёной даже с полностью выключённой отрисовкой. */
+  offlineShown?: boolean;
 }
 
 /** Подписи, которые сцена рисует прямо на плане. Русский по умолчанию —
@@ -430,6 +435,7 @@ export class BindingManager {
   /** Написать «Нет связи» над привязкой. У датчика/замка подпись уже есть —
    *  занимаем её; остальным заводим свою, но только в момент обрыва. */
   private showOffline(ab: ActiveBinding): void {
+    ab.offlineShown = true;
     if (ab.label) {
       ab.label.setText(T().offline, '#ff9a9a');
       return;
@@ -449,6 +455,7 @@ export class BindingManager {
   /** Связь вернулась — убрать надпись (сам спрайт остаётся, чтобы следующий
    *  обрыв не создавал холст заново). */
   private hideOffline(ab: ActiveBinding): void {
+    ab.offlineShown = false;
     if (ab.offlineLabel) ab.offlineLabel.sprite.visible = false;
   }
 
@@ -457,7 +464,10 @@ export class BindingManager {
   isOffline(entityId: string): boolean {
     const list = this.byEntity.get(entityId);
     if (!list) return false;
-    return list.some((ab) => !!ab.offlineLabel?.sprite.visible || ab.lastState?.startsWith('unavailable') === true);
+    // Только по факту отрисовки. Через состояние сущности было бы «удобнее» —
+    // и абсолютно бесполезно: такая проверка не краснеет, даже если подпись
+    // перестать рисовать вовсе (проверено, см. отчёт).
+    return list.some((ab) => ab.offlineShown === true);
   }
 
   private setEmissive(ab: ActiveBinding, color: number, intensity: number): void {
@@ -647,6 +657,7 @@ export class BindingManager {
       // Сами подписи освобождает этаж (BuiltFloor.labels) — здесь только
       // отпускаем ссылки, чтобы переживший этаж менеджер не держал сцену.
       ab.offlineLabel = undefined;
+      ab.offlineShown = false;
       ab.labelSink = undefined;
     }
     this.bindings = [];
