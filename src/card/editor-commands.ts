@@ -17,7 +17,7 @@ export function onRenameFloor(host: BmsFloorplanCard, e: Event): void {
 export function enterEditNow(host: BmsFloorplanCard): void {
   if (!host.sceneManager || !host.currentPlan) return;
   host.qualityMenuOpen = false; // don't let the view-mode menu outlive its DOM
-// Edit a deep copy so View mode keeps the last saved/loaded plan until save.
+  // Edit a deep copy so View mode keeps the last saved/loaded plan until save.
   const editable: FloorPlan = JSON.parse(JSON.stringify(host.currentPlan));
   host.editor = new EditorController(host.sceneManager, editable);
   host.editor.onChange = () => {
@@ -57,7 +57,7 @@ export function enterEditNow(host: BmsFloorplanCard): void {
     void calibrateUnderlay(host, measured);
   };
   host.sceneManager.loadPlan(editable, true);
-// Edit the floor the user is currently viewing — not always floor 0.
+  // Edit the floor the user is currently viewing — not always floor 0.
   host.editor.floorIndex = Math.min(host.activeFloorIndex, editable.floors.length - 1);
   host.editFloorIndex = host.editor.floorIndex;
   host.editor.setSnap(host.editSnap); // carry the snap preference into the new editor
@@ -83,21 +83,21 @@ export async function calibrateUnderlay(host: BmsFloorplanCard, measured: number
     okLabel: host.tx('Применить', 'Apply'),
     input: { placeholder: host.tx('например 8,1', 'e.g. 8.1'), inputmode: 'decimal' },
   });
-// Accept a comma decimal: on a RU/UZ keyboard "8,1" is the natural way to
-// type 8.1, and parseFloat reads it as 8 — silently mis-scaling the plan by
-// whatever the fraction was, with nothing on screen to show it happened.
+  // Accept a comma decimal: on a RU/UZ keyboard "8,1" is the natural way to
+  // type 8.1, and parseFloat reads it as 8 — silently mis-scaling the plan by
+  // whatever the fraction was, with nothing on screen to show it happened.
   const real = parseFloat(String(answer ?? '').trim().replace(',', '.'));
   if (real > 0) host.editor?.applyUnderlayScale(measured, real);
   else host.showToast(host.tx('Калибровка отменена', 'Calibration cancelled'));
 }
 
 export async function exitEdit(host: BmsFloorplanCard): Promise<void> {
-// Done = auto-save: no need to press Save separately.
+  // Done = auto-save: no need to press Save separately.
   if (host.editor) await onSavePlan(host);
   host.editor?.stop();
   host.editor = undefined;
   host.editing = false;
-// Reload the last saved/loaded plan for clean View mode.
+  // Reload the last saved/loaded plan for clean View mode.
   if (host.currentPlan && host.sceneManager) {
     host.sceneManager.loadPlan(host.currentPlan);
     host.sceneManager.optimizeForView(); // re-merge static geometry for view
@@ -377,7 +377,7 @@ export function pickDesignPhoto(host: BmsFloorplanCard, e: Event, apply: (data: 
 
 export function trackShift(host: BmsFloorplanCard, e: KeyboardEvent) {
   if (host.editor) host.editor.shiftHeld = e.shiftKey;
-// Undo/redo shortcuts while editing.
+  // Undo/redo shortcuts while editing.
   if (host.editing && host.editor && e.type === 'keydown' && (e.ctrlKey || e.metaKey)) {
     const k = e.key.toLowerCase();
     if (k === 'z' && !e.shiftKey) {
@@ -388,7 +388,7 @@ export function trackShift(host: BmsFloorplanCard, e: KeyboardEvent) {
       host.editor.redo();
     }
   }
-// Enter finishes the current wall run; Escape cancels it.
+  // Enter finishes the current wall run; Escape cancels it.
   if (host.editing && host.editor && e.type === 'keydown') {
     if (e.key === 'Enter') {
       e.preventDefault();

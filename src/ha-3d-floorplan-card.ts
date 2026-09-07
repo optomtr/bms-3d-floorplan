@@ -1,5 +1,15 @@
 // ---------------------------------------------------------------------------
 // <bms-floorplan-card> — the custom Lovelace card entry point.
+//
+// Здесь остаётся только то, что обязано быть на самом элементе: договор с
+// Lovelace, жизненный цикл Lit, поля состояния, render() и склейка кусков.
+// Всё остальное живёт в src/card/**: обычные функции, первым параметром
+// которых идёт сама карточка (host). Контекст-объектов нет — их пришлось бы
+// собирать из сотни полей, а host и есть готовый контекст.
+//
+// Теневой корень ОДИН на всю карточку (никаких вложенных веб-компонентов),
+// поэтому таблица стилей общая, а .viewport, по которому updated() создаёт
+// 3D-сцену, остаётся в том же корне.
 // ---------------------------------------------------------------------------
 
 import { LitElement, html, PropertyValues, nothing } from 'lit';
@@ -26,8 +36,8 @@ import { enterEditNow, exitEdit, trackShift, onSetWallThickness } from './card/e
 import { currentLeak, roomOfEntity, renderLeakAlert } from './card/leak';
 import { renderEditor } from './card/views/editor-panel';
 import { renderControlPopup } from './card/views/control-popup';
-import { renderRoomPanel, renderStageChrome, renderScreensaver, renderReport, renderDetail } from './card/views/room-panel';
-import { renderOverview } from './card/views/overview';
+import { renderRoomPanel, renderStageChrome, renderScreensaver, renderReport } from './card/views/room-panel';
+import { renderOverview, renderDetail } from './card/views/overview';
 
 import { baseStyles } from './card/styles/base';
 import { editorPanelStyles } from './card/styles/editor-panel';
@@ -170,9 +180,7 @@ export class BmsFloorplanCard extends LitElement {
   @state() public legacyFinds: LegacyFind[] = [];
   @state() public legacyErrors: { source: LegacySource; error: string }[] = [];
   public storedProjects: StoredProjects = { projects: {} };
-
   @query('.viewport') public viewport?: HTMLDivElement;
-
   public sceneManager?: SceneManager;
   public planLoaded = false;
   public lastHass?: HomeAssistant;
@@ -211,7 +219,24 @@ export class BmsFloorplanCard extends LitElement {
   public editor?: EditorController;
   public toastTimer?: number;
 
-  // -- Lovelace lifecycle -----------------------------------------------------
+  // --- Hidden Edit entry (long-press top-left corner) ----------------------
+  // A deliberate 5s hold enters the editor (then the PIN gate, if set). It's a
+  // long-press, NOT a tap count, so it can't clash with a kiosk browser's own
+  // multi-tap menu gesture. Moving the finger cancels it.
+  public hotspotTimer?: number;
+  public hotspotStart?: { x: number; y: number };
+  public readonly idleEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+  /** Слушатели на window снимаются ПО ССЫЛКЕ, поэтому это поля-стрелки с
+   *  постоянной идентичностью, а не методы: тело живёт в модулях. */
+  public trackShift = (e: KeyboardEvent): void => trackShift(this, e);
+  public onActivity = (): void => wake(this);
+  /** Set when someone closes the alarm with the X. Cleared the moment the house
+   *  is back to normal (dry and the supply open), so the NEXT leak alarms again
+   *  — an acknowledgement must not silence the sensor for good. */
+  @state() public leakAck = false;
+  public leakCache?: { hass: unknown; leak: LeakAlarm | null };
+
+  // -- Lovelace API -----------------------------------------------------------
 
   public setConfig(config: CardConfig): void {
     if (!config) throw new Error('Invalid configuration');
@@ -241,7 +266,7 @@ export class BmsFloorplanCard extends LitElement {
     return document.createElement(CARD_EDITOR_TAG);
   }
 
-  // -- hass updates -----------------------------------------------------------
+  // -- Жизненный цикл Lit -----------------------------------------------------
 
   protected override willUpdate(changed: PropertyValues): void {
     // Used as a sidebar panel (panel_custom): take config from panel.config and
@@ -296,71 +321,6 @@ export class BmsFloorplanCard extends LitElement {
       input?.focus();
       input?.select();
     }
-  }
-
-  /** Call a HA service for an entity in the control popup. When `optimisticState`
-   *  is given we assume that result immediately (fast UI) and revert if the call
-   *  rejects or HA never confirms. */
-  public svc(domain: string, service: string, data: Record<string, any> = {}, entityId?: string, optimisticState?: string): void {
-    callService(this, domain, service, data, entityId, optimisticState);
-  }
-
-  /** True when this entity belongs to a domain the card may actually control.
-   *  Everything else is rendered as information only. */
-  public canControl(id: string): boolean {
-    return isControllable(id);
-  }
-
-  /** Effective (optimistic-aware) state of an entity, for rendering controls. */
-  public effState(id: string): string {
-    return effectiveState(this, id);
-  }
-
-  /** Toggle every device in a category at once: if any is on → all off, else all
-   *  on (optimistic + revert-on-fail, like the individual controls). */
-  public onToggleAll(ents: { entity_id: string; behavior: string }[]): void {
-    toggleAll(this, ents);
-  }
-
-  // --- Hidden Edit entry (long-press top-left corner) ----------------------
-  // A deliberate 5s hold enters the editor (then the PIN gate, if set). It's a
-  // long-press, NOT a tap count, so it can't clash with a kiosk browser's own
-  // multi-tap menu gesture. Moving the finger cancels it.
-  public hotspotTimer?: number;
-  public hotspotStart?: { x: number; y: number };
-
-  /** True when the UI should be Russian.
-   *
-   *  This is a BMS product: Russian is the DEFAULT, not something that switches
-   *  itself off because Home Assistant happens to be set to English. Set
-   *  `language: en` in the card config for English, or `language: auto` for the
-   *  old behaviour (follow the HA user, then the browser). */
-  public get isRu(): boolean {
-    return isRuLang(this);
-  }
-
-  /** Translate a user-visible string. English is the key + fallback. */
-  public t(en: string): string {
-    return uiText(this, en);
-  }
-
-  public doEnterEdit(): void {
-    enterEditNow(this);
-  }
-
-  public onSetWallThickness(e: Event): void {
-    onSetWallThickness(this, e);
-  }
-
-  public trackShift = (e: KeyboardEvent): void => trackShift(this, e);
-
-  public showToast(msg: string): void {
-    pushToast(this, msg);
-  }
-
-  /** Bilingual one-liner for text added after RU_STRINGS was written. */
-  public tx(ru: string, en: string): string {
-    return uiTx(this, ru, en);
   }
 
   public override connectedCallback(): void {
@@ -425,8 +385,69 @@ export class BmsFloorplanCard extends LitElement {
     if (!this.isConnected) teardownScene(this);
   }
 
-  public readonly idleEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
-  public onActivity = (): void => wake(this);
+  // -- Тонкие обёртки над модулями src/card/** --------------------------------
+  //
+  // Тела уехали в модули, но САМИ методы остались на элементе по двум
+  // причинам: svc / effState / onToggleAll / doEnterEdit / onSetWallThickness
+  // дёргают автопроверки прямо у элемента, а t / tx / ic / showToast /
+  // cardName / canControl / isRu / uiLocale зовутся из модулей сотни раз —
+  // так они пишутся как host.t(…), а не тащат ещё один импорт в каждый файл.
+
+  /** Call a HA service for an entity in the control popup. When `optimisticState`
+   *  is given we assume that result immediately (fast UI) and revert if the call
+   *  rejects or HA never confirms. */
+  public svc(
+    domain: string,
+    service: string,
+    data: Record<string, any> = {},
+    entityId?: string,
+    optimisticState?: string,
+  ): void {
+    callService(this, domain, service, data, entityId, optimisticState);
+  }
+
+  /** True when this entity belongs to a domain the card may actually control.
+   *  Everything else is rendered as information only. */
+  public canControl(id: string): boolean {
+    return isControllable(id);
+  }
+
+  /** Effective (optimistic-aware) state of an entity, for rendering controls. */
+  public effState(id: string): string {
+    return effectiveState(this, id);
+  }
+
+  /** Toggle every device in a category at once: if any is on → all off, else all
+   *  on (optimistic + revert-on-fail, like the individual controls). */
+  public onToggleAll(ents: { entity_id: string; behavior: string }[]): void {
+    toggleAll(this, ents);
+  }
+
+  public doEnterEdit(): void {
+    enterEditNow(this);
+  }
+
+  public onSetWallThickness(e: Event): void {
+    onSetWallThickness(this, e);
+  }
+
+  public showToast(msg: string): void {
+    pushToast(this, msg);
+  }
+
+  public cardName(id: string, fallback?: string): string {
+    return entityCardName(this, id, fallback);
+  }
+
+  /** Translate a user-visible string. English is the key + fallback. */
+  public t(en: string): string {
+    return uiText(this, en);
+  }
+
+  /** Bilingual one-liner for text added after RU_STRINGS was written. */
+  public tx(ru: string, en: string): string {
+    return uiTx(this, ru, en);
+  }
 
   /** Inline SVG icon (shared path set) — never an emoji, so it renders the same
    *  on every tablet/browser instead of a tofu box. */
@@ -434,24 +455,22 @@ export class BmsFloorplanCard extends LitElement {
     return svgIcon(name);
   }
 
-  // -- Room control panel (Option 1A: room in focus) --------------------------
+  /** True when the UI should be Russian.
+   *
+   *  This is a BMS product: Russian is the DEFAULT, not something that switches
+   *  itself off because Home Assistant happens to be set to English. Set
+   *  `language: en` in the card config for English, or `language: auto` for the
+   *  old behaviour (follow the HA user, then the browser). */
+  public get isRu(): boolean {
+    return isRuLang(this);
+  }
 
+  /** Локаль для Intl: русская, если интерфейс русский, иначе — из hass. */
   public get uiLocale(): string {
     return localeTag(this);
   }
 
-  /** Set when someone closes the alarm with the X. Cleared the moment the house
-   *  is back to normal (dry and the supply open), so the NEXT leak alarms again
-   *  — an acknowledgement must not silence the sensor for good. */
-  @state() public leakAck = false;
-
-  public leakCache?: { hass: unknown; leak: LeakAlarm | null };
-
-  public cardName(id: string, fallback?: string): string {
-    return entityCardName(this, id, fallback);
-  }
-
-  // -- Render -----------------------------------------------------------------
+  // -- Разметка ---------------------------------------------------------------
 
   protected override render() {
     if (!this.config) return nothing;

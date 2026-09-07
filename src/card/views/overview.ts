@@ -1,17 +1,21 @@
 // ---------------------------------------------------------------------------
-// Режим «Обзор»: сводка дома и сетка комнат.
+// Режим «Обзор»: сводка дома, сетка комнат и выдвижная карточка комнаты.
+//
+// «Обзор» и «Детали» живут в ОДНОМ файле не для красоты: renderOverviewRooms
+// по ходу отрисовки наполняет host.overviewRoomByKey, а detailRoom() читает
+// эту карту. Разнести их — значит развязать побочный эффект и его читателя.
 // ---------------------------------------------------------------------------
 
+import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import type { RoomInfo } from '../../scene/scene-manager';
-import { houseStatus, overviewStats, roomLights, roomTempStrs } from '../aggregates';
+import { deviceCount, houseStatus, overviewStats, roomLights, roomTempStrs, tempSensorsToHide } from '../aggregates';
 import { shortLightName } from '../entities';
-import { fmtClockDate, fmtClockTime, roomIcon } from '../i18n';
-import { openDetail } from '../scene';
+import { fmtClockDate, fmtClockTime, roomIcon, ruPlural } from '../i18n';
+import { closeDetail, detailRoom, openDetail } from '../scene';
 import { onSleep } from '../session';
 import { allOffHouse, lockAction } from '../state';
-import { renderViewToggle } from '../views/room-panel';
-import { html, nothing } from 'lit';
+import { renderRoomSpark, renderTempChips, renderViewToggle, roomCards } from './room-panel';
 
 export function renderOverview(host: BmsFloorplanCard) {
   const stats = overviewStats(host);
@@ -82,7 +86,7 @@ export function renderOverviewCard(host: BmsFloorplanCard, room: RoomInfo, num: 
   const self = roomLights(host, room);
   const ids = self.ids;
   const kids = children.map((c) => ({ room: c, ids: roomLights(host, c).ids }));
-// Header count/toggle span the room AND its sub-rooms.
+  // Header count/toggle span the room AND its sub-rooms.
   const allIds = [...ids, ...kids.flatMap((k) => k.ids)];
   const anyOn = allIds.some((id) => host.effState(id) === 'on');
   const onCount = allIds.filter((id) => host.effState(id) === 'on').length;
@@ -95,7 +99,7 @@ export function renderOverviewCard(host: BmsFloorplanCard, room: RoomInfo, num: 
   const { air: tempStr, floor: floorStr } = roomTempStrs(host, room, num);
   const humStr = humEnt && Number.isFinite(Number(humEnt.state)) ? `${num(humEnt.state, 0)}%` : null;
 
-// One extra footer chip (lock > climate > cover), mirroring the mockup.
+  // One extra footer chip (lock > climate > cover), mirroring the mockup.
   let extraChip = nothing as unknown;
   if (lock) {
     const locked = host.effState(lock.entity_id) === 'locked';
@@ -146,4 +150,35 @@ export function renderOverviewCard(host: BmsFloorplanCard, room: RoomInfo, num: 
         </div>`
       : nothing}
   </div>`;
+}
+
+/** Overview (1B) full-screen detail slide-over for one room. */
+export function renderDetail(host: BmsFloorplanCard) {
+  const room = detailRoom(host);
+  if (!room) return nothing;
+  const humEnt = room.humiditySensor ? host.hass?.states[room.humiditySensor] : undefined;
+  const skip = tempSensorsToHide(host, room);
+  if (humEnt) skip.add(humEnt.entity_id);
+  const num = (v: any, d: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString(host.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
+  };
+  const { air: tempChip, floor: floorChip } = roomTempStrs(host, room, num);
+  const humChip = humEnt && Number.isFinite(Number(humEnt.state)) ? `${num(humEnt.state, 0)}%` : null;
+  const n = deviceCount(room);
+  return html`
+    <div class="detail-back" @click=${() => closeDetail(host)}></div>
+    <div class="detail" @click=${(e: Event) => e.stopPropagation()}>
+      <div class="dhead">
+        <button type="button" class="dback" title="Back" @click=${() => closeDetail(host)}>${host.ic('arrowLeft')}</button>
+        <div class="cgrow">
+          <div class="dtitle">${room.name || host.t('Room')}</div>
+          <div class="dsub">${n} ${ruPlural(n, 'устройство', 'устройства', 'устройств')}</div>
+        </div>
+        ${renderTempChips(host, tempChip, floorChip, humChip)}
+        ${renderRoomSpark(host, room, host.sparkMetric)}
+      </div>
+      <div class="dbody">${roomCards(host, room, skip)}</div>
+    </div>
+  `;
 }

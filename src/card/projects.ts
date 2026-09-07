@@ -4,8 +4,8 @@
 
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
 import { convertZircon, isZirconPlan } from '../import/zircon';
-import { DEMO_PLAN } from '../scene/demo-plan';
 import { LegacySource, blankPlan, findLegacyProjects, listProjects, loadProjects, loadProjectsResult, mergeProjects, newProjectId, saveProjects } from '../storage';
+import { DEMO_PLAN } from '../scene/demo-plan';
 import type { FloorPlan, ProjectRef } from '../types';
 import { askConfirm } from './dialogs';
 import { applyHass } from './state';
@@ -46,10 +46,10 @@ export async function loadActiveProject(host: BmsFloorplanCard): Promise<void> {
 
 export async function resolvePlan(host: BmsFloorplanCard): Promise<FloorPlan> {
   const cfg = host.config!;
-// Always load the stored set first — it carries the edit PIN (and any saved
-// projects) regardless of how the plan itself is sourced. Without this, a
-// card configured with plan/url/projects would never see the PIN and the
-// edit lock would silently do nothing.
+  // Always load the stored set first — it carries the edit PIN (and any saved
+  // projects) regardless of how the plan itself is sourced. Without this, a
+  // card configured with plan/url/projects would never see the PIN and the
+  // edit lock would silently do nothing.
   host.storedProjects = await loadProjects(host.hass);
   if (cfg.projects && cfg.projects.length) {
     const proj =
@@ -58,7 +58,7 @@ export async function resolvePlan(host: BmsFloorplanCard): Promise<FloorPlan> {
   }
   if (cfg.plan) return cfg.plan;
   if (cfg.url) return fetchPlan(cfg.url);
-// Nothing configured → named projects (HA shared / localStorage) or demo.
+  // Nothing configured → named projects (HA shared / localStorage) or demo.
   host.projectList = listProjects(host.storedProjects);
   const id =
     host.storedProjects.active && host.storedProjects.projects[host.storedProjects.active]
@@ -94,7 +94,7 @@ export function onSelectProject(host: BmsFloorplanCard, e: Event): void {
 
 export async function onNewPlan(host: BmsFloorplanCard): Promise<void> {
   if (!host.editor) return;
-// "New" creates a separate project — your other SAVED projects are untouched.
+  // "New" creates a separate project — your other SAVED projects are untouched.
   const ok = await askConfirm(host, 
     host.tx('Создать НОВЫЙ проект?', 'Create a NEW project?'),
     host.tx(
@@ -107,8 +107,8 @@ export async function onNewPlan(host: BmsFloorplanCard): Promise<void> {
   if (!ok) return;
   if (!host.editor) return;
   const name = `Plan ${host.projectList.length + 1}`;
-// New is an unsaved project — don't touch currentProjectId (the view plan).
-// It gets a fresh id only on Save, so it never overwrites another project.
+  // New is an unsaved project — don't touch currentProjectId (the view plan).
+  // It gets a fresh id only on Save, so it never overwrites another project.
   host.editingProjectId = null;
   host.editor.loadPlan(blankPlan(name));
   host.editPlanName = name;
@@ -167,8 +167,8 @@ export async function onSelectStorageProject(host: BmsFloorplanCard, e: Event): 
 
 export async function onDeleteProject(host: BmsFloorplanCard): Promise<void> {
   const id = host.editingProjectId ?? host.currentProjectId;
-// Re-read so a concurrent change elsewhere isn't lost by this delete-save.
-// A failed read must not be mistaken for "there is nothing there".
+  // Re-read so a concurrent change elsewhere isn't lost by this delete-save.
+  // A failed read must not be mistaken for "there is nothing there".
   const loaded = await loadProjectsResult(host.hass);
   if (!loaded.ok) {
     host.showToast(
@@ -253,10 +253,10 @@ export async function onSavePlan(host: BmsFloorplanCard): Promise<void> {
   if (!host.editor) return;
   const plan = host.editor.plan;
   if (!plan.name) plan.name = host.editPlanName || 'Plan';
-// Re-read the shared set first, then apply only THIS project, so we never
-// clobber projects saved meanwhile on another device/tab. A FAILED read
-// looks exactly like an empty store, so saving on top of one would delete
-// every other project on every device — refuse instead.
+  // Re-read the shared set first, then apply only THIS project, so we never
+  // clobber projects saved meanwhile on another device/tab. A FAILED read
+  // looks exactly like an empty store, so saving on top of one would delete
+  // every other project on every device — refuse instead.
   const loaded = await loadProjectsResult(host.hass);
   if (!loaded.ok) {
     host.showToast(
@@ -278,13 +278,13 @@ export async function onSavePlan(host: BmsFloorplanCard): Promise<void> {
   host.storedProjects.projects[id] = JSON.parse(JSON.stringify(plan));
   host.storedProjects.active = id;
   const res = await saveProjects(host.storedProjects, host.hass);
-// Adopt the saved plan as the current View-mode plan + refresh project list.
+  // Adopt the saved plan as the current View-mode plan + refresh project list.
   host.currentPlan = JSON.parse(JSON.stringify(plan));
   host.projectList = listProjects(host.storedProjects);
   host.floorNames = plan.floors.map((f, i) => f.name || `Floor ${i + 1}`);
-// Say what actually happened. The shared (install-wide) write is the only
-// one that reaches other devices, and it is admin-only in the integration —
-// so "saved to all devices" must not be printed after it was refused.
+  // Say what actually happened. The shared (install-wide) write is the only
+  // one that reaches other devices, and it is admin-only in the integration —
+  // so "saved to all devices" must not be printed after it was refused.
   let msg: string;
   if (res.shared) {
     msg = host.tx(`«${plan.name}» сохранён на все устройства`, `Saved "${plan.name}" to all devices`);
@@ -306,8 +306,6 @@ export async function onSavePlan(host: BmsFloorplanCard): Promise<void> {
   }
   host.showToast(msg);
 }
-
-// -- Import from the PREVIOUS version (read-only) --------------------------
 
 export function legacySourceLabel(host: BmsFloorplanCard, src: LegacySource): string {
   if (src === 'shared') return host.tx('Старая интеграция (общий план)', 'Old integration (shared plan)');

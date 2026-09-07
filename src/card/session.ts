@@ -42,8 +42,6 @@ export function clearHotspot(host: BmsFloorplanCard): void {
   host.hotspotStart = undefined;
 }
 
-// -- Editor -----------------------------------------------------------------
-
 /** Edit button → enter edit, unless a PIN is set and we're still locked. */
 export function enterEdit(host: BmsFloorplanCard): void {
   if (hasEditPin(host) && !host.editUnlocked) {

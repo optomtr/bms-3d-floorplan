@@ -2,13 +2,13 @@
 // Поп-ап управления по тапу в 3D: устройство или комната.
 // ---------------------------------------------------------------------------
 
+import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { climateModeIconName } from '../../scene/icons';
 import { DEVICE_CATEGORIES } from '../constants';
 import { climateStep } from '../format';
 import { closeControl } from '../scene';
 import { effTarget, lockAction, stepTemp } from '../state';
-import { html, nothing } from 'lit';
 
 /** View-mode control popup: a list of the tapped (+ nearby) entities, each
  *  with domain-appropriate controls / a mini remote. */
@@ -42,7 +42,7 @@ export function renderRoomPopup(host: BmsFloorplanCard) {
     ...c,
     ents: present.filter((e) => c.behaviors.includes(e.behavior)),
   })).filter((c) => c.ents.length);
-// Any device whose behavior matches no category still needs to be reachable.
+  // Any device whose behavior matches no category still needs to be reachable.
   const categorized = new Set(DEVICE_CATEGORIES.flatMap((c) => c.behaviors));
   const otherEnts = present.filter((e) => !categorized.has(e.behavior));
   if (otherEnts.length) cats.push({ key: 'other', label: 'Other', icon: 'dot', behaviors: [], ents: otherEnts });

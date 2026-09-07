@@ -2,13 +2,13 @@
 // Карточки устройств в панели комнаты.
 // ---------------------------------------------------------------------------
 
+import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { climateModeIconName } from '../../scene/icons';
 import { climateStep } from '../format';
 import { climateModeLabel } from '../i18n';
 import { effTarget, effVol, intercomOpenDoor, lightSupportsBrightness, lightSupportsCT, lockAction, mediaVolStep, onSliderDown, setLightCT, sliderValue, stepTemp } from '../state';
 import type { IntercomGroup } from '../types';
-import { html, nothing } from 'lit';
 
 /** One card for the whole intercom: Просмотр(Звук) + Открыть
  *  дверь. The live two-way CALL is intentionally left to the integration's own
@@ -56,7 +56,7 @@ export function renderLightCard(host: BmsFloorplanCard, ids: string[]) {
   const briKey = ids[0];
   const bri = sliderValue(host, briKey, briReal);
   const setAllBri = (p: number) => { for (const id of dimIds) host.svc('light', 'turn_on', { brightness_pct: p }, id, 'on'); };
-// Colour temperature (warm↔cold) from the lights that expose it.
+  // Colour temperature (warm↔cold) from the lights that expose it.
   const ctIds = ids.filter((id) => lightSupportsCT(host, id));
   const ctRep = ctIds.find((id) => host.effState(id) === 'on') ?? ctIds[0];
   const a = ctRep ? host.hass?.states[ctRep]?.attributes ?? {} : {};
@@ -171,13 +171,13 @@ export function renderClimateCard(host: BmsFloorplanCard, id: string) {
     stepTemp(host, id, ent, target, step, d);
   };
   const cur = ent?.attributes?.current_temperature as number | undefined;
-// The setpoint shows in the stepper and the mode in the segments below, so
-// the sub carries the measured room temperature ("22,5° сейчас").
+  // The setpoint shows in the stepper and the mode in the segments below, so
+  // the sub carries the measured room temperature ("22,5° сейчас").
   const curStr = cur != null ? Number(cur).toLocaleString(host.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
   const sub = on ? (curStr != null ? `${curStr}° ${host.t('now')}` : climateModeLabel(host, mode)) : host.t('Off');
-// Only offer the modes the device actually supports — sending an unsupported
-// mode (e.g. heat_cool / heat to a cool-only AC) errors in HA. Active modes
-// first, "off" last. A fan-speed row appears when the unit exposes fan_modes.
+  // Only offer the modes the device actually supports — sending an unsupported
+  // mode (e.g. heat_cool / heat to a cool-only AC) errors in HA. Active modes
+  // first, "off" last. A fan-speed row appears when the unit exposes fan_modes.
   const modes: string[] =
     (ent?.attributes?.hvac_modes as string[] | undefined)?.length
       ? (ent!.attributes!.hvac_modes as string[])
@@ -239,9 +239,9 @@ export function renderCoverCard(host: BmsFloorplanCard, id: string) {
         <div class="clabel">${host.cardName(id)}</div>
       </div>
     </div>`;
-// The one-touch single button is ONLY for gates (device_class gate/garage/
-// door, or a gate-like name). Every other cover — curtains, blinds — keeps
-// the explicit Open / Stop / Close buttons.
+  // The one-touch single button is ONLY for gates (device_class gate/garage/
+  // door, or a gate-like name). Every other cover — curtains, blinds — keeps
+  // the explicit Open / Stop / Close buttons.
   const dc = String(ent?.attributes?.device_class ?? '').toLowerCase();
   const nm = (String(ent?.attributes?.friendly_name ?? '') + ' ' + id).toLowerCase();
   const isGate = dc === 'gate' || dc === 'garage' || dc === 'door' || /ворот|gate|darvoza|калитк/.test(nm);
@@ -288,22 +288,22 @@ export function renderMediaCard(host: BmsFloorplanCard, id: string, title?: stri
   const state = host.effState(id);
   const on = state !== 'off' && state !== 'unavailable' && state !== 'unknown' && state !== 'standby';
   const playing = state === 'playing';
-// Only show controls the device actually supports (a TV usually has power +
-// volume up/down/mute, no play/pause and no volume slider).
+  // Only show controls the device actually supports (a TV usually has power +
+  // volume up/down/mute, no play/pause and no volume slider).
   const sf = Number(ent?.attributes?.supported_features) || 0;
   const can = (b: number) => (sf & b) === b;
   const powerable = can(128) || can(256); // TURN_ON | TURN_OFF
   const volSet = can(4), volStep = can(1024), volMute = can(8); // SET | STEP | MUTE
   const muted = !!ent?.attributes?.is_volume_muted;
-// Read the EFFECTIVE volume so the % jumps the instant ± is tapped, and so a
-// synced pair shows the shared level rather than this speaker's stale one.
+  // Read the EFFECTIVE volume so the % jumps the instant ± is tapped, and so a
+  // synced pair shows the shared level rather than this speaker's stale one.
   const volReal = Math.round(effVol(host, id) * 100);
   const track = ent?.attributes?.media_title ?? host.cardName(id, title);
   const artist = ent?.attributes?.media_artist ?? '';
-// Now-playing line, shown while the speaker is playing. Transport controls
-// (play/pause/next/…) are omitted on purpose — these panels drive speakers
-// that play from a phone or an HA automation; power + volume is all that's
-// needed here.
+  // Now-playing line, shown while the speaker is playing. Transport controls
+  // (play/pause/next/…) are omitted on purpose — these panels drive speakers
+  // that play from a phone or an HA automation; power + volume is all that's
+  // needed here.
   const showMedia = playing;
   return html`<div class="card ${on ? 'on' : ''}">
     <div class="crow">

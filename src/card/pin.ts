@@ -40,8 +40,8 @@ export async function onSetEditPin(host: BmsFloorplanCard): Promise<void> {
     host.showToast('PIN must be at least 3 characters');
     return;
   }
-// Re-read the shared set first so we don't clobber projects (or a PIN) saved
-// meanwhile on another device/tab — same guard as onSavePlan/onDeleteProject.
+  // Re-read the shared set first so we don't clobber projects (or a PIN) saved
+  // meanwhile on another device/tab — same guard as onSavePlan/onDeleteProject.
   const loaded = await loadProjectsResult(host.hass);
   if (!loaded.ok) {
     host.showToast(

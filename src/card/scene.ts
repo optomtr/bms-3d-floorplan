@@ -90,15 +90,13 @@ export function bakeRoomPhoto(host: BmsFloorplanCard, url: string): void {
   img.src = url;
 }
 
-// -- Interaction ------------------------------------------------------------
-
 export function handlePick(host: BmsFloorplanCard, r: ClickResult | null): void {
   if (!r || !host.hass) {
     host.controlOpen = false;
     return;
   }
-// Anchor the popup near the tap (final vertical placement is clamped in
-// positionControlPopup once its real height is known).
+  // Anchor the popup near the tap (final vertical placement is clamped in
+  // positionControlPopup once its real height is known).
   const vw = host.viewport?.clientWidth ?? 360;
   const vh = host.viewport?.clientHeight ?? 480;
   const sx = r.screen ? r.screen[0] : vw / 2;
@@ -111,7 +109,7 @@ export function handlePick(host: BmsFloorplanCard, r: ClickResult | null): void 
     selectRoom(host, r.roomKey);
     return;
   }
-// A device tap → the tapped entity + any others stacked at the same spot.
+  // A device tap → the tapped entity + any others stacked at the same spot.
   const near = r.point ? host.sceneManager!.entitiesNear(r.point, 1.6) : [];
   const list = near.length ? near : [{ entity_id: r.entity_id, behavior: r.behavior }];
   const seen = new Set<string>();
@@ -132,9 +130,9 @@ export function onRoomsChanged(host: BmsFloorplanCard, rooms: RoomInfo[]): void 
   if (host.activeRoomKey && !rooms.some((r) => r.key === host.activeRoomKey)) {
     host.activeRoomKey = null;
   }
-// The Обзор detail uses floor-qualified keys ("f{n}::…"), which never match
-// the active-floor list here — those are validated against the whole-home
-// map at render time (renderDetail returns nothing if a room vanished).
+  // The Обзор detail uses floor-qualified keys ("f{n}::…"), which never match
+  // the active-floor list here — those are validated against the whole-home
+  // map at render time (renderDetail returns nothing if a room vanished).
   if (host.detailRoomKey && !host.detailRoomKey.includes('::') && !rooms.some((r) => r.key === host.detailRoomKey)) {
     host.detailRoomKey = null;
   }
@@ -176,9 +174,9 @@ export function detailRoom(host: BmsFloorplanCard): RoomInfo | undefined {
 }
 
 export function closeControl(host: BmsFloorplanCard): void {
-// A touch tap fires a synthesized "ghost" click ~300ms later that lands on
-// the freshly-rendered backdrop; ignore closes within that window so the
-// popup doesn't flash open and vanish on tablets.
+  // A touch tap fires a synthesized "ghost" click ~300ms later that lands on
+  // the freshly-rendered backdrop; ignore closes within that window so the
+  // popup doesn't flash open and vanish on tablets.
   if (performance.now() - host.controlOpenedAt < 400) return;
   host.controlOpen = false;
   host.controlRoom = null;
@@ -188,7 +186,7 @@ export function closeControl(host: BmsFloorplanCard): void {
 export function onSelectFloor(host: BmsFloorplanCard, index: number): void {
   host.activeFloorIndex = index;
   host.sceneManager?.setActiveFloor(index);
-// Re-sync state to the now-visible floor.
+  // Re-sync state to the now-visible floor.
   if (host.hass) host.sceneManager?.syncAll(host.hass);
 }
 
@@ -226,15 +224,13 @@ export function teardownScene(host: BmsFloorplanCard): void {
   releaseThumbnailRenderer();
 }
 
-// -- Overview (Option 1B: house overview) -----------------------------------
-
 export function setViewMode(host: BmsFloorplanCard, mode: 'room' | 'overview'): void {
   if (host.viewMode === mode) return;
   host.viewMode = mode;
   host.detailRoomKey = null;
   host.requestUpdate();
-// Обзор hides the 3D; when returning to Комната the viewport is shown again,
-// so reframe it once the layout has settled.
+  // Обзор hides the 3D; when returning to Комната the viewport is shown again,
+  // so reframe it once the layout has settled.
   if (mode === 'room') {
     requestAnimationFrame(() => requestAnimationFrame(() => host.sceneManager?.resetView()));
   }

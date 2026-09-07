@@ -41,8 +41,6 @@ export function uiTx(host: BmsFloorplanCard, ru: string, en: string): string {
   return host.isRu ? ru : en;
 }
 
-// -- Room control panel (Option 1A: room in focus) --------------------------
-
 export function localeTag(host: BmsFloorplanCard): string {
   if (host.isRu) return 'ru-RU';
   return host.hass?.locale?.language || host.hass?.language || 'en';

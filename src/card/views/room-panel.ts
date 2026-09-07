@@ -2,17 +2,17 @@
 // Режим «Комната»: правая панель, график, заставка, «Отчёт».
 // ---------------------------------------------------------------------------
 
+import { html, nothing, svg } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import type { RoomInfo } from '../../scene/scene-manager';
-import { deviceCount, homeSummary, roomTempStrs, tempSensorsToHide } from '../aggregates';
+import { homeSummary, roomTempStrs, tempSensorsToHide } from '../aggregates';
 import { detectIntercom } from '../entities';
 import { historyPts } from '../history';
-import { fmtClockDate, fmtClockTime, roomIcon, ruPlural } from '../i18n';
-import { activeRoom, closeDetail, detailRoom, onResetView, onSelectFloor, selectRoom, setViewMode, toggleSparkMetric } from '../scene';
+import { fmtClockDate, fmtClockTime, roomIcon } from '../i18n';
+import { activeRoom, onResetView, onSelectFloor, selectRoom, setViewMode, toggleSparkMetric } from '../scene';
 import { onSleep, openKiosk, wake } from '../session';
 import { allOffHouse, onRoomAllOff } from '../state';
-import { renderClimateCard, renderCoverCard, renderFanCard, renderInfoCard, renderIntercomCard, renderLightCard, renderLockCard, renderMediaCard, renderToggleCard } from '../views/device-cards';
-import { html, nothing, svg } from 'lit';
+import { renderClimateCard, renderCoverCard, renderFanCard, renderInfoCard, renderIntercomCard, renderLightCard, renderLockCard, renderMediaCard, renderToggleCard } from './device-cards';
 
 /** Compact 24h LINE GRAPH for a room's bound degree sensors (air + floor on one
  *  shared axis). A left gutter shows the temperature scale in degrees with
@@ -25,8 +25,8 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
     { key: 'floor', id: room.floorSensor, cls: 'warm', label: 'Пол', unit: '°' },
     { key: 'humidity', id: room.humiditySensor, cls: 'hum', label: 'Влажность', unit: '%' },
   ] as { key: string; id?: string; cls: string; label: string; unit: string }[]).filter((m) => !!m.id);
-// Tapping a chip graphs just that metric; 'auto' shows the degree metrics
-// (air + floor) together, else the single bound one.
+  // Tapping a chip graphs just that metric; 'auto' shows the degree metrics
+  // (air + floor) together, else the single bound one.
   const chosen = metric === 'auto'
     ? (defs.some((m) => m.unit === '°') ? defs.filter((m) => m.unit === '°') : defs.slice(0, 1))
     : defs.filter((m) => m.key === metric);
@@ -37,11 +37,11 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
   const unit = series[0].unit;
   const all = series.flatMap((s) => s.pts);
   const vs = all.map((p) => p[1]);
-// Fixed, exact 24-hour window (now − 24h → now), so the time axis always
-// reads as a clear 24h regardless of how dense the recorder data is.
+  // Fixed, exact 24-hour window (now − 24h → now), so the time axis always
+  // reads as a clear 24h regardless of how dense the recorder data is.
   const t1 = Date.now();
   const t0 = t1 - 24 * 3600 * 1000;
-// Value scale with headroom; minimum span 2° for temperature, 5% for humidity.
+  // Value scale with headroom; minimum span 2° for temperature, 5% for humidity.
   const minSpan = unit === '%' ? 5 : 2;
   let lo = Math.floor(Math.min(...vs));
   let hi = Math.ceil(Math.max(...vs));
@@ -49,7 +49,7 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
   const W = 260, H = 116, axisW = 30, top = 8, bot = H - 22, right = W - 6;
   const xFor = (t: number) => (t1 === t0 ? (axisW + right) / 2 : axisW + ((t - t0) / (t1 - t0)) * (right - axisW));
   const yFor = (v: number) => bot - ((v - lo) / (hi - lo)) * (bot - top);
-// Degree scale down the left, faint horizontal gridlines.
+  // Degree scale down the left, faint horizontal gridlines.
   const TICKS = 4;
   const grid: unknown[] = [];
   for (let i = 0; i <= TICKS; i++) {
@@ -58,12 +58,12 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
     grid.push(svg`<line class="spark-grid" x1=${axisW} y1=${y.toFixed(1)} x2=${right} y2=${y.toFixed(1)}></line>`);
     grid.push(svg`<text class="spark-axis" x=${axisW - 5} y=${(y + 3).toFixed(1)} text-anchor="end">${Math.round(v)}${unit}</text>`);
   }
-// Time scale along the bottom (HH:MM), faint vertical gridlines. Edge labels
-// are start/end-anchored so they don't clip.
+  // Time scale along the bottom (HH:MM), faint vertical gridlines. Edge labels
+  // are start/end-anchored so they don't clip.
   const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString(host.uiLocale, { hour: '2-digit', minute: '2-digit' });
-// Ticks on ROUND local 6-hour marks (00:00 / 06:00 / 12:00 / 18:00), so the
-// labels are clean and each sits exactly where that clock time falls on the
-// line (positioned by real timestamp, not an even fraction of the window).
+  // Ticks on ROUND local 6-hour marks (00:00 / 06:00 / 12:00 / 18:00), so the
+  // labels are clean and each sits exactly where that clock time falls on the
+  // line (positioned by real timestamp, not an even fraction of the window).
   const mark = new Date(t0);
   mark.setMinutes(0, 0, 0);
   while (mark.getHours() % 6 !== 0 || mark.getTime() < t0) mark.setHours(mark.getHours() + 1);
@@ -238,49 +238,18 @@ export function renderRoomPanel(host: BmsFloorplanCard) {
   `;
 }
 
-/** Overview (1B) full-screen detail slide-over for one room. */
-export function renderDetail(host: BmsFloorplanCard) {
-  const room = detailRoom(host);
-  if (!room) return nothing;
-  const humEnt = room.humiditySensor ? host.hass?.states[room.humiditySensor] : undefined;
-  const skip = tempSensorsToHide(host, room);
-  if (humEnt) skip.add(humEnt.entity_id);
-  const num = (v: any, d: number) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString(host.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
-  };
-  const { air: tempChip, floor: floorChip } = roomTempStrs(host, room, num);
-  const humChip = humEnt && Number.isFinite(Number(humEnt.state)) ? `${num(humEnt.state, 0)}%` : null;
-  const n = deviceCount(room);
-  return html`
-    <div class="detail-back" @click=${() => closeDetail(host)}></div>
-    <div class="detail" @click=${(e: Event) => e.stopPropagation()}>
-      <div class="dhead">
-        <button type="button" class="dback" title="Back" @click=${() => closeDetail(host)}>${host.ic('arrowLeft')}</button>
-        <div class="cgrow">
-          <div class="dtitle">${room.name || host.t('Room')}</div>
-          <div class="dsub">${n} ${ruPlural(n, 'устройство', 'устройства', 'устройств')}</div>
-        </div>
-        ${renderTempChips(host, tempChip, floorChip, humChip)}
-        ${renderRoomSpark(host, room, host.sparkMetric)}
-      </div>
-      <div class="dbody">${roomCards(host, room, skip)}</div>
-    </div>
-  `;
-}
-
 /** Build the ordered device cards for a room (lights, climate, covers, …). */
 export function roomCards(host: BmsFloorplanCard, room: RoomInfo, skip: Set<string>) {
   const hass = host.hass;
   if (!hass) return [];
   const ents0 = room.entities.filter((e) => hass.states[e.entity_id] && !skip.has(e.entity_id));
-// A BMS Intercom (домофон) exposes camera/vyzov/prosmotr/open/… sharing a
-// base name. Collapse them into ONE intercom card and hide the members from
-// the normal per-domain cards.
+  // A BMS Intercom (домофон) exposes camera/vyzov/prosmotr/open/… sharing a
+  // base name. Collapse them into ONE intercom card and hide the members from
+  // the normal per-domain cards.
   const intercom = detectIntercom(host, ents0);
   const ents = intercom ? ents0.filter((e) => !intercom.ids.has(e.entity_id)) : ents0;
-// A binding can name any entity; one we may not control is shown as a
-// read-only readout instead of a switch (see CONTROL_DOMAINS).
+  // A binding can name any entity; one we may not control is shown as a
+  // read-only readout instead of a switch (see CONTROL_DOMAINS).
   const of = (...b: string[]) =>
     ents.filter((e) => host.canControl(e.entity_id) && b.includes(e.behavior));
   const lights = of('light');
@@ -295,14 +264,14 @@ export function roomCards(host: BmsFloorplanCard, room: RoomInfo, skip: Set<stri
 
   const out: unknown[] = [];
   if (intercom) out.push(renderIntercomCard(host, intercom));
-// All of a room's lights collapse into ONE "Свет" card (matches the design);
-// per-light on/off stays available via the overview segment buttons.
+  // All of a room's lights collapse into ONE "Свет" card (matches the design);
+  // per-light on/off stays available via the overview segment buttons.
   if (lights.length) out.push(renderLightCard(host, lights.map((e) => e.entity_id)));
   switches.forEach((e) => out.push(renderToggleCard(host, e.entity_id, 'power')));
-// Always label a climate card with the device's own HA name. A room with a
-// single climate device used to be labelled with the generic category
-// ("Климат"), which hid the real names — "Тёплый пол", "Радиатор",
-// "Кондиционер" — exactly the ones that tell two heaters in a room apart.
+  // Always label a climate card with the device's own HA name. A room with a
+  // single climate device used to be labelled with the generic category
+  // ("Климат"), which hid the real names — "Тёплый пол", "Радиатор",
+  // "Кондиционер" — exactly the ones that tell two heaters in a room apart.
   climates.forEach((e) => out.push(renderClimateCard(host, e.entity_id)));
   fans.forEach((e) => out.push(renderFanCard(host, e.entity_id)));
   covers.forEach((e) => out.push(renderCoverCard(host, e.entity_id)));

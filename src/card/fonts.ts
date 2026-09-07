@@ -4,8 +4,6 @@
 
 import { FONT_FACE_CSS } from '../scene/fonts';
 
-// -- Lit lifecycle ----------------------------------------------------------
-
 /** Register the Onest webfont once at the document level. @font-face rules are
  *  ignored inside Shadow DOM, so the card's shadow styles can only *use* the
  *  family if it's declared in the light DOM (here). Guarded so many cards share

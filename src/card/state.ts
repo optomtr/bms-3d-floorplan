@@ -11,12 +11,12 @@ import { askConfirm } from './dialogs';
 
 export function applyHass(host: BmsFloorplanCard, hass: HomeAssistant): void {
   if (!host.sceneManager) return;
-// Keep the scene's asset origin current so `/local/...` room photos resolve
-// against Home Assistant (needed on the file:// kiosk).
+  // Keep the scene's asset origin current so `/local/...` room photos resolve
+  // against Home Assistant (needed on the file:// kiosk).
   host.sceneManager.setImageBase(assetBase(hass));
-// Reconcile optimistic overrides: once HA re-reports an entity (its state
-// object reference changed), the real value is authoritative — drop the
-// override so we don't fight it.
+  // Reconcile optimistic overrides: once HA re-reports an entity (its state
+  // object reference changed), the real value is authoritative — drop the
+  // override so we don't fight it.
   if (host.optimistic.size && host.lastHass) {
     for (const [id, ov] of [...host.optimistic]) {
       if (hass.states[id] !== host.lastHass.states[id]) {
@@ -26,11 +26,11 @@ export function applyHass(host: BmsFloorplanCard, hass: HomeAssistant): void {
       }
     }
   }
-// A pending setpoint stands until HA reports OUR value (confirmed) or some
-// other value (changed at the wall unit — that's authoritative). It must
-// NOT clear just because the entity object changed: these thermostats
-// re-report current_temperature long before the target, which would snap
-// the number back to the stale setpoint mid-press.
+  // A pending setpoint stands until HA reports OUR value (confirmed) or some
+  // other value (changed at the wall unit — that's authoritative). It must
+  // NOT clear just because the entity object changed: these thermostats
+  // re-report current_temperature long before the target, which would snap
+  // the number back to the stale setpoint mid-press.
   if (host.optTemp.size) {
     for (const [id, ov] of [...host.optTemp]) {
       const t = hass.states[id]?.attributes?.temperature;
@@ -41,9 +41,9 @@ export function applyHass(host: BmsFloorplanCard, hass: HomeAssistant): void {
       }
     }
   }
-// Same idea for a pending volume: clear once HA reports our value (confirmed)
-// or a different one (changed elsewhere). Speakers report within ~1s, so
-// this hands control back quickly without the number snapping mid-tap.
+  // Same idea for a pending volume: clear once HA reports our value (confirmed)
+  // or a different one (changed elsewhere). Speakers report within ~1s, so
+  // this hands control back quickly without the number snapping mid-tap.
   if (host.optVol.size) {
     for (const [id, ov] of [...host.optVol]) {
       const v = hass.states[id]?.attributes?.volume_level;
@@ -213,10 +213,10 @@ export function lightSupportsBrightness(host: BmsFloorplanCard, id: string): boo
  *  rejects or HA never confirms. */
 export function callService(host: BmsFloorplanCard, domain: string, service: string, data: Record<string, any> = {}, entityId?: string, optimisticState?: string): void {
   if (!host.hass) return;
-// The plan is DATA: it names the entities, and the domain above comes
-// straight out of it. Anything outside CONTROL_DOMAINS is shown read-only
-// rather than called, so a tampered (or careless) plan cannot turn a tap on
-// a sofa into `script.…` / `automation.…`.
+  // The plan is DATA: it names the entities, and the domain above comes
+  // straight out of it. Anything outside CONTROL_DOMAINS is shown read-only
+  // rather than called, so a tampered (or careless) plan cannot turn a tap on
+  // a sofa into `script.…` / `automation.…`.
   if (!CONTROL_DOMAINS.has(domain) || (entityId && !host.canControl(entityId))) {
     host.showToast(
       host.tx(`Только просмотр: ${entityId ?? domain}`, `Read-only: ${entityId ?? domain}`),
@@ -224,7 +224,7 @@ export function callService(host: BmsFloorplanCard, domain: string, service: str
     return;
   }
   const gen = entityId && optimisticState !== undefined ? setOptimistic(host, entityId, optimisticState) : -1;
-// Revert only if OUR override is still the current one (a newer re-tap wins).
+  // Revert only if OUR override is still the current one (a newer re-tap wins).
   const revertIfCurrent = () => {
     if (entityId && gen >= 0 && host.optimistic.get(entityId)?.gen === gen) clearOptimistic(host, entityId);
   };
@@ -293,9 +293,9 @@ export function effectiveState(host: BmsFloorplanCard, id: string): string {
 /** Toggle every device in a category at once: if any is on → all off, else all
  *  on (optimistic + revert-on-fail, like the individual controls). */
 export function toggleAll(host: BmsFloorplanCard, ents0: { entity_id: string; behavior: string }[]): void {
-// `homeassistant.turn_on` takes an arbitrary entity list and would happily
-// start a script or an automation, so the list is filtered down to the
-// domains this card controls before it is sent (see CONTROL_DOMAINS).
+  // `homeassistant.turn_on` takes an arbitrary entity list and would happily
+  // start a script or an automation, so the list is filtered down to the
+  // domains this card controls before it is sent (see CONTROL_DOMAINS).
   const ents = ents0.filter((e) => host.canControl(e.entity_id));
   if (!host.hass || !ents.length) return;
   const anyOn = ents.some((e) => host.effState(e.entity_id) === 'on');
@@ -437,11 +437,11 @@ export function onRoomAllOff(host: BmsFloorplanCard, room: RoomInfo): void {
 /** Master "everything off" across the whole home (overview). */
 export function allOffHouse(host: BmsFloorplanCard): void {
   if (!host.hass) return;
-// "All off" turns off everything EXCEPT the TV and heating (warm floor /
-// radiators). Only two categories need a keep/off split — climate and media:
-//   climate → turn off anything that can COOL (an AC); keep heat-only units.
-//   media   → pause speakers; keep the TV.
-// Lights, switches, input_booleans and fans are always turned off.
+  // "All off" turns off everything EXCEPT the TV and heating (warm floor /
+  // radiators). Only two categories need a keep/off split — climate and media:
+  //   climate → turn off anything that can COOL (an AC); keep heat-only units.
+  //   media   → pause speakers; keep the TV.
+  // Lights, switches, input_booleans and fans are always turned off.
   const offIds: string[] = [];
   const seen = new Set<string>();
   for (const room of host.rooms) {

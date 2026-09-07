@@ -54,8 +54,8 @@ export function candidateEntities(host: BmsFloorplanCard, domains: string[]): { 
     : all;
   const fellBack = domains.length > 0 && ids.length === 0;
   if (fellBack) ids = all; // filter too strict → show everything
-// Sort by room (area) first, then friendly name — groups same-named entities
-// by where they are so the right one is easy to pick.
+  // Sort by room (area) first, then friendly name — groups same-named entities
+  // by where they are so the right one is easy to pick.
   ids = [...ids].sort((a, b) => {
     const ra = entityArea(host, a);
     const rb = entityArea(host, b);

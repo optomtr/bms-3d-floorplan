@@ -2,11 +2,11 @@
 // Свой слой диалогов и всплывающих сообщений (системные alert/confirm/prompt запрещены).
 // ---------------------------------------------------------------------------
 
+import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
 import { ruPlural } from './i18n';
 import { legacySourceLabel, onImportLegacy } from './projects';
 import type { AskOptions } from './types';
-import { html, nothing } from 'lit';
 
 export function pushToast(host: BmsFloorplanCard, msg: string): void {
   host.toast = msg;
@@ -16,8 +16,6 @@ export function pushToast(host: BmsFloorplanCard, msg: string): void {
     host.requestUpdate();
   }, 3200);
 }
-
-// -- Own modal layer (window.alert/confirm/prompt are forbidden) -----------
 
 /** Open the card's own dialog. Resolves with the entered text (or `'ok'` for a
  *  plain confirm), or `null` when the user cancels. */

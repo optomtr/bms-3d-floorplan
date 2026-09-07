@@ -35,9 +35,9 @@ export function boundReading(host: BmsFloorplanCard, id?: string): number | null
 }
 
 export function roomTempStrs(host: BmsFloorplanCard, room: RoomInfo, num: (v: any, d: number) => string): { air: string | null; floor: string | null } {
-// Read ONLY the sensors explicitly bound to the room in the editor
-// (zone.tempSensor / zone.floorSensor). No auto-detect: an unbound metric is
-// blank (null), never a guess or a dash.
+  // Read ONLY the sensors explicitly bound to the room in the editor
+  // (zone.tempSensor / zone.floorSensor). No auto-detect: an unbound metric is
+  // blank (null), never a guess or a dash.
   const air = boundReading(host, room.tempSensor);
   const floor = boundReading(host, room.floorSensor);
   return { air: air != null ? `${num(air, 1)}°` : null, floor: floor != null ? `${num(floor, 1)}°` : null };
@@ -108,8 +108,8 @@ export function homeStats(host: BmsFloorplanCard): { hum: string; temp: number |
     }
   }
   const avg = (v: number[]) => v.reduce((s, n) => s + n, 0) / v.length;
-// Fall back to the climate units' current_temperature when no standalone
-// temperature sensor reports: some homes only have thermostats.
+  // Fall back to the climate units' current_temperature when no standalone
+  // temperature sensor reports: some homes only have thermostats.
   const tSrc = tempVals.length ? tempVals : climateVals;
   const out = {
     hum: humVals.length ? `${Math.round(avg(humVals))}%` : '—',

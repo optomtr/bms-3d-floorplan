@@ -2,11 +2,11 @@
 // Протечка воды: обнаружение и полноэкранная тревога.
 // ---------------------------------------------------------------------------
 
+import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
 import type { RoomInfo } from '../scene/scene-manager';
 import { selectRoom } from './scene';
 import type { LeakAlarm } from './types';
-import { html, nothing } from 'lit';
 
 /** The leak as of the latest state push. Recomputed once per hass object, not
  *  once per render — render runs far more often, and this scans every entity. */
@@ -30,9 +30,9 @@ export function detectLeak(host: BmsFloorplanCard): LeakAlarm | null {
     if (host.effState(id) === 'on') sensors.push(id);
   }
   const valve = waterValve(host);
-// The alarm outlives the puddle. Once the automation has shut the supply it
-// stays up until someone opens it again, so nobody can walk past a panel
-// that looks calm while the house is still without water.
+  // The alarm outlives the puddle. Once the automation has shut the supply it
+  // stays up until someone opens it again, so nobody can walk past a panel
+  // that looks calm while the house is still without water.
   const shut = !!valve && valveShut(host, valve);
   if (!sensors.length && !shut) return null;
   return { sensors, valve, wet: sensors.length > 0 };

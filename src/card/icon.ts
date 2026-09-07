@@ -2,8 +2,8 @@
 // Встроенная SVG-иконка (не эмодзи: на планшетах эмодзи рисуются по-разному).
 // ---------------------------------------------------------------------------
 
-import { ICON_PATHS } from '../scene/icons';
 import { html, svg } from 'lit';
+import { ICON_PATHS } from '../scene/icons';
 
 /** Inline SVG icon (shared path set) — never an emoji, so it renders the same
  *  on every tablet/browser instead of a tofu box. */
