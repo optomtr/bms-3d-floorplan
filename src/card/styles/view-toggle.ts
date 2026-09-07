@@ -14,34 +14,50 @@ export const viewToggleStyles = css`
       display: inline-flex;
       align-self: center;
       flex: none;
-      padding: 4px;
-      gap: 3px;
-      border-radius: 13px;
+      padding: var(--sp-1);
+      gap: var(--sp-1);
+      border-radius: var(--r-4);
       background: var(--card);
       border: 1px solid var(--brd);
     }
+    /* Было 29,6px по высоте — а это главная развилка интерфейса: «Обзор» или
+       «Комната». Теперь 44. */
     .vt-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 7px 12px;
-      border-radius: 9px;
+      justify-content: center;
+      gap: var(--sp-2);
+      min-height: var(--tap);
+      padding: 0 var(--sp-4);
+      border-radius: var(--r-3);
       border: none;
       background: transparent;
       color: var(--mut);
       font: inherit;
-      font-size: 13px;
+      font-size: var(--fs-4);
       font-weight: 600;
       cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .vt-btn .icn {
-      width: 15px;
-      height: 15px;
+      width: 18px;
+      height: 18px;
+    }
+    .vt-btn:active {
+      background: var(--w-4);
+      color: var(--tx);
     }
     .vt-btn.on {
-      background: #fff;
-      color: #17181c;
+      background: var(--fill-hi);
+      color: var(--ink);
+    }
+    @media (hover: hover) {
+      .vt-btn:hover {
+        color: var(--tx);
+      }
+      .vt-btn.on:hover {
+        color: var(--ink);
+      }
     }
 
 `;

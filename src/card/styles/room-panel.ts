@@ -17,10 +17,13 @@ export const roomPanelStyles = css`
       right: 0;
       bottom: 0;
       width: var(--panel-w);
-      z-index: 5;
+      z-index: var(--z-panel);
       display: flex;
       flex-direction: column;
-      background: var(--model, #141519);
+      /* Было var(--model, #141519) — переменной --model НЕ СУЩЕСТВОВАЛО ни в
+         одном файле, то есть панель всегда красилась запасным значением.
+         Теперь это честная ступень грунта. */
+      background: var(--bg-1);
       border-left: 1px solid var(--brd);
       animation: panel-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
@@ -29,56 +32,62 @@ export const roomPanelStyles = css`
       to { transform: none; opacity: 1; }
     }
     .rp-head {
-      padding: 26px 22px 12px;
+      padding: var(--sp-6) var(--sp-6) var(--sp-4);
     }
     .rp-name {
-      font-size: 25px;
+      font-size: var(--fs-7);
       font-weight: 700;
-      color: #fff;
+      color: var(--tx-hi);
       letter-spacing: -0.01em;
     }
     .rp-chips {
       display: flex;
-      gap: 8px;
-      margin-top: 12px;
+      gap: var(--sp-3);
+      margin-top: var(--sp-4);
     }
     .rp-chip {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 7px 11px;
-      border-radius: 11px;
+      gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-4);
+      border-radius: var(--r-3);
       background: var(--card);
       border: 1px solid var(--brd);
-      font-size: 14px;
+      font-size: var(--fs-4);
       font-weight: 600;
       color: var(--tx);
     }
     .rp-chip .icn {
-      width: 17px;
-      height: 17px;
+      width: 18px;
+      height: 18px;
       color: var(--mut);
     }
     .rp-chip.cool .icn {
       color: var(--cool);
     }
     .rp-chip.warm .icn {
-      color: var(--accent, #f3a83c);
+      color: var(--accent);
     }
+    /* Чип-кнопка переключает метрику графика — значит, это цель под палец. */
     button.rp-chip {
       cursor: pointer;
       font: inherit;
+      min-height: var(--tap);
+      touch-action: manipulation;
+    }
+    button.rp-chip:active {
+      background: var(--card2);
     }
     .rp-chip.sel {
-      border-color: var(--accent, #f3a83c);
-      box-shadow: inset 0 0 0 1px var(--accent, #f3a83c);
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--accent);
     }
     .rp-spark-wrap {
-      margin-top: 10px;
-      padding: 6px 8px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--brd, rgba(255, 255, 255, 0.08));
+      margin-top: var(--sp-3);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--r-3);
+      background: var(--w-1);
+      border: 1px solid var(--brd);
     }
     .rp-spark {
       display: block;
@@ -93,63 +102,66 @@ export const roomPanelStyles = css`
       vector-effect: non-scaling-stroke;
     }
     .rp-spark .spark.air {
-      stroke: var(--accent, #f3a83c);
+      stroke: var(--accent);
     }
     .rp-spark .spark.warm {
-      stroke: #ff6b5e;
+      stroke: var(--bad);
       opacity: 0.85;
     }
     .rp-spark .spark.hum {
-      stroke: var(--cool, #5aa9e6);
+      stroke: var(--cool);
     }
     .rp-spark .spark-grid {
-      stroke: rgba(255, 255, 255, 0.09);
+      stroke: var(--w-3);
       stroke-width: 1;
       vector-effect: non-scaling-stroke;
     }
+    /* 9px здесь — НЕ экранные пиксели: это пользовательские единицы внутри
+       viewBox, а сама svg тянется по ширине панели. Кегельная шкала к ним
+       неприменима, поэтому значение осталось числом. */
     .rp-spark .spark-axis {
-      fill: rgba(255, 255, 255, 0.55);
+      fill: var(--w-6);
       font-size: 9px;
     }
     .spark-legend {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 4px;
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-1);
     }
     .spark-leg {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.7);
+      gap: var(--sp-1);
+      font-size: var(--fs-1);
+      color: var(--mut);
     }
     .spark-leg i {
       width: 11px;
       height: 3px;
-      border-radius: 2px;
+      border-radius: var(--r-pill);
       display: inline-block;
     }
-    .spark-leg.air i { background: var(--accent, #f3a83c); }
-    .spark-leg.warm i { background: #ff6b5e; }
-    .spark-leg.hum i { background: var(--cool, #5aa9e6); }
+    .spark-leg.air i { background: var(--accent); }
+    .spark-leg.warm i { background: var(--bad); }
+    .spark-leg.hum i { background: var(--cool); }
     .report-back {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.55);
-      z-index: 20;
+      background: var(--scrim);
+      z-index: var(--z-scrim);
       animation: panel-in 0.2s ease both;
     }
     .report {
       position: absolute;
       inset: 4%;
-      z-index: 21;
+      z-index: var(--z-sheet);
       display: flex;
       flex-direction: column;
-      background: var(--model, #141519);
+      background: var(--bg-1);
       border: 1px solid var(--brd);
-      border-radius: 18px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border-radius: var(--r-5);
+      box-shadow: 0 20px 60px var(--scrim);
       overflow: hidden;
       animation: panel-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
@@ -157,69 +169,75 @@ export const roomPanelStyles = css`
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: var(--sp-5) var(--sp-6);
       border-bottom: 1px solid var(--brd);
     }
     .report-tabs {
       display: flex;
-      gap: 8px;
+      gap: var(--sp-3);
       flex-wrap: wrap;
-      padding: 12px 20px 0;
+      padding: var(--sp-4) var(--sp-6) 0;
     }
     .report-tab {
       cursor: pointer;
       font: inherit;
-      font-size: 14px;
+      font-size: var(--fs-4);
       font-weight: 600;
-      color: var(--mut, #9aa0a6);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--brd, rgba(255, 255, 255, 0.08));
-      border-radius: 10px;
-      padding: 8px 14px;
+      min-height: var(--tap);
+      color: var(--mut);
+      background: var(--w-1);
+      border: 1px solid var(--brd);
+      border-radius: var(--r-3);
+      padding: var(--sp-3) var(--sp-4);
+      touch-action: manipulation;
+    }
+    .report-tab:active {
+      background: var(--w-4);
+      color: var(--tx);
     }
     .report-tab.sel {
-      color: #fff;
-      background: rgba(243, 168, 60, 0.16);
-      border-color: var(--accent, #f3a83c);
+      color: var(--tx);
+      background: var(--accent-soft);
+      border-color: var(--accent);
     }
     .report-tab em {
       font-style: normal;
       opacity: 0.6;
-      font-size: 12px;
+      font-size: var(--fs-2);
     }
     .report-title {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 18px;
+      gap: var(--sp-3);
+      font-size: var(--fs-6);
       font-weight: 700;
-      color: #fff;
+      color: var(--tx-hi);
     }
     .report-title .icn {
       width: 22px;
       height: 22px;
-      color: var(--accent, #f3a83c);
+      color: var(--accent);
     }
     .report-grid {
       flex: 1;
       overflow-y: auto;
-      padding: 16px 20px;
+      padding: var(--sp-5) var(--sp-6);
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 14px;
+      gap: var(--sp-4);
       align-content: start;
     }
     .report-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--brd, rgba(255, 255, 255, 0.08));
-      border-radius: 12px;
-      padding: 10px 12px;
+      background: var(--w-1);
+      border: 1px solid var(--brd);
+      border-radius: var(--r-3);
+      padding: var(--sp-3) var(--sp-4);
     }
     .report-room {
-      font-size: 14px;
+      font-size: var(--fs-4);
       font-weight: 600;
-      color: #dfe3e8;
-      margin-bottom: 6px;
+      color: var(--tx);
+      margin-bottom: var(--sp-2);
     }
     .report-item .rp-spark-wrap {
       margin-top: 0;
@@ -231,10 +249,10 @@ export const roomPanelStyles = css`
          axis 'auto' too, so any hair of horizontal overflow (a wide light grid,
          a long name) turns into a left-right drag/wobble. Clip it instead. */
       overflow-x: hidden;
-      padding: 6px 20px 18px;
+      padding: var(--sp-2) var(--sp-6) var(--sp-5);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: var(--sp-4);
     }
     /* Let cards + their grid tiles shrink to the panel width instead of forcing
        a horizontal overflow (flex/grid items default to min-width:auto). */
@@ -246,33 +264,44 @@ export const roomPanelStyles = css`
     }
     .rp-empty {
       color: var(--mut);
-      font-size: 14px;
-      padding: 24px 4px;
+      font-size: var(--fs-4);
+      padding: var(--sp-6) var(--sp-1);
       text-align: center;
     }
     .rp-foot {
-      padding: 12px 20px 18px;
+      padding: var(--sp-4) var(--sp-6) var(--sp-5);
       border-top: 1px solid var(--brd);
     }
     .rp-master {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 9px;
+      gap: var(--sp-3);
       width: 100%;
-      padding: 14px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.06);
+      min-height: var(--tap);
+      padding: var(--sp-4);
+      border-radius: var(--r-4);
+      background: var(--w-2);
       border: 1px solid var(--brd);
       color: var(--tx);
       font: inherit;
       font-weight: 700;
-      font-size: 15px;
+      font-size: var(--fs-4);
       cursor: pointer;
       transition: background 0.15s;
+      touch-action: manipulation;
     }
-    .rp-master:hover {
-      background: rgba(255, 255, 255, 0.11);
+    .rp-master:active {
+      background: var(--w-5);
+    }
+    @media (hover: hover) {
+      .rp-master:hover {
+        background: var(--w-4);
+      }
+      button.rp-chip:hover,
+      .report-tab:hover {
+        background: var(--card2);
+      }
     }
 
 `;

@@ -11,31 +11,32 @@ import { css } from 'lit';
 export const statusStyles = css`
     .plan-warning {
       position: absolute;
-      z-index: 3;
-      left: 12px;
-      right: 12px;
-      bottom: 12px;
+      z-index: var(--z-chrome);
+      left: var(--sp-4);
+      right: var(--sp-4);
+      bottom: var(--sp-4);
       display: flex;
       align-items: flex-start;
-      gap: 10px;
-      color: #ffe0a8;
-      background: rgba(58, 42, 16, 0.94);
-      border: 1px solid rgba(243, 168, 60, 0.45);
-      padding: 10px 12px;
-      border-radius: 10px;
-      font-size: 13px;
+      gap: var(--sp-3);
+      color: var(--accent);
+      background: var(--warn-bg);
+      border: 1px solid var(--accent-line);
+      padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--r-3);
+      font-size: var(--fs-3);
       line-height: 1.35;
     }
     .pw-close {
       flex: none;
-      min-width: 44px;
-      min-height: 44px;
-      margin: -10px -8px -10px 0;
+      min-width: var(--tap);
+      min-height: var(--tap);
+      margin: calc(var(--sp-3) * -1) calc(var(--sp-3) * -1) calc(var(--sp-3) * -1) 0;
       background: none;
       border: 0;
       color: inherit;
-      font-size: 15px;
+      font-size: var(--fs-4);
       cursor: pointer;
+      touch-action: manipulation;
     }
     .pw-close:active {
       opacity: 0.6;
@@ -43,14 +44,16 @@ export const statusStyles = css`
 
     .error {
       position: absolute;
-      z-index: 3;
+      z-index: var(--z-chrome);
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: #ffb3b3;
-      background: rgba(40, 20, 20, 0.9);
-      padding: 12px 16px;
-      border-radius: 8px;
+      color: var(--bad);
+      background: var(--bad-bg);
+      border: 1px solid var(--bad-line);
+      padding: var(--sp-4) var(--sp-5);
+      border-radius: var(--r-2);
+      font-size: var(--fs-4);
       max-width: 80%;
       text-align: center;
     }
