@@ -247,12 +247,8 @@ export function renderEditorSelection(host: BmsFloorplanCard) {
               </div>
               <div class="toolrow">
                 <span class="hint">${T('Толщина (м):', 'Thickness (m):')}</span>
-                <!-- title ЗДЕСЬ — зацепка проверки tests/10
-                     (input.num-input[title^="Wall thickness"]). Человеку
-                     адресован aria-label: всплывающей подсказки на сенсорном
-                     экране не бывает. Видимая подпись поля — слева. -->
                 <input class="num-input" type="text" inputmode="decimal" min="0.05" step="0.01"
-                  title="Wall thickness in meters (e.g. 0.25, 0.38, 0.78)" data-field="wall-thickness"
+                  data-field="wall-thickness" title=${host.tx('Толщина стены в метрах (например 0,25 · 0,38 · 0,78)', 'Wall thickness in meters (e.g. 0.25, 0.38, 0.78)')}
                   aria-label=${T('Толщина стены в метрах (например 0,25 · 0,38 · 0,78)', 'Wall thickness in metres (e.g. 0.25, 0.38, 0.78)')}
                   .value=${host.editSelectedWallThickness != null ? host.editSelectedWallThickness.toFixed(2) : ''}
                   @change=${host.onSetWallThickness} />

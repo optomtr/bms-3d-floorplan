@@ -29,7 +29,7 @@ test.describe('Числа с запятой', () => {
     await enterEditFast(page);
     await selectFirstWall(page);
 
-    const input = page.locator('bms-floorplan-card input.num-input[title^="Wall thickness"]');
+    const input = page.locator('bms-floorplan-card input.num-input[data-field="wall-thickness"]');
     await expect(input).toHaveCount(1);
     const before = await page.evaluate(() => window.BMS.card.editor.selectedWallThickness);
 
@@ -50,7 +50,7 @@ test.describe('Числа с запятой', () => {
     await enterEditFast(page);
     await selectFirstWall(page);
 
-    const input = page.locator('bms-floorplan-card input.num-input[title^="Wall thickness"]');
+    const input = page.locator('bms-floorplan-card input.num-input[data-field="wall-thickness"]');
     await input.click();
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.type('3.5');

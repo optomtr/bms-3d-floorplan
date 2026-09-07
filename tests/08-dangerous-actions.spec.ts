@@ -78,7 +78,7 @@ test.describe('Опасные действия', () => {
 
     // Кнопка замка: сейчас закрыт → предлагает открыть.
     await page.evaluate(() =>
-      (window.BMS.root().querySelector('.control-popup [title="Unlock"]') as HTMLElement).click(),
+      (window.BMS.root().querySelector('.control-popup [data-act="unlock"]') as HTMLElement).click(),
     );
     await page.waitForFunction(() => !!window.BMS.root().querySelector('.ask-form'));
 
@@ -103,7 +103,7 @@ test.describe('Опасные действия', () => {
     // Контроль: подтверждение действительно открывает — иначе «нулей» выше было
     // бы достаточно и у полностью сломанной кнопки.
     await page.evaluate(() =>
-      (window.BMS.root().querySelector('.control-popup [title="Unlock"]') as HTMLElement).click(),
+      (window.BMS.root().querySelector('.control-popup [data-act="unlock"]') as HTMLElement).click(),
     );
     await page.waitForFunction(() => !!window.BMS.root().querySelector('.ask-form'));
     await page.evaluate(async () => {

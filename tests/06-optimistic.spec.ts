@@ -33,7 +33,7 @@ test.describe('Оптимистичное состояние', () => {
 
     await openPopup(page, ['light.zal']);
     await page.evaluate(() => {
-      (window.BMS.root().querySelector('.control-popup [title="Toggle"]') as HTMLElement).click();
+      (window.BMS.root().querySelector('.control-popup [data-act="toggle"]') as HTMLElement).click();
     });
 
     // Мгновенная реакция — ради неё оптимизм и заведён.
@@ -68,9 +68,9 @@ test.describe('Оптимистичное состояние', () => {
     await openPopup(page, ['cover.shtory']);
     await page.evaluate(async () => {
       const root = window.BMS.root();
-      (root.querySelector('.control-popup [title="Close"]') as HTMLElement).click();
+      (root.querySelector('.control-popup [data-act="close"]') as HTMLElement).click();
       await new Promise((r) => setTimeout(r, 60));
-      (root.querySelector('.control-popup [title="Open"]') as HTMLElement).click();
+      (root.querySelector('.control-popup [data-act="open"]') as HTMLElement).click();
     });
 
     expect(await effState(page, 'cover.shtory')).toBe('open');

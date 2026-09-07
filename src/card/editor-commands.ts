@@ -294,7 +294,31 @@ export function onPickUnderlay(host: BmsFloorplanCard, e: Event): void {
     const url = String(reader.result || '');
     const img = new Image();
     img.onload = () => {
-      host.editor?.setUnderlayImage(url, img.naturalWidth, img.naturalHeight);
+      // Скан подложки клали в план КАК ЕСТЬ: файл на 4 МБ превращался в 5,3 МБ
+      // текста внутри плана, который потом уезжает на каждый планшет. Фото
+      // комнат ужимаются давно — здесь этого не делали. Ужимаем и тут, но
+      // мягче: по кальке чертят, мельче 2048 px нельзя.
+      const MAX = 2048;
+      const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      let data = url;
+      if (scale < 1 || url.length > 1_500_000) {
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            data = canvas.toDataURL('image/jpeg', 0.85);
+          } catch {
+            data = url; // «испорченный» холст (редко) — лучше тяжёлый скан, чем никакого
+          }
+        }
+      }
+      // Размеры передаём ИСХОДНЫЕ: из них берётся только соотношение сторон.
+      host.editor?.setUnderlayImage(data, img.naturalWidth, img.naturalHeight);
     };
     img.onerror = () => host.showToast(host.tx('Не удалось прочитать изображение', 'Could not read that image'));
     img.src = url;

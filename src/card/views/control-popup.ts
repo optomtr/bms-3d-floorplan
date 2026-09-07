@@ -115,21 +115,19 @@ export function renderEntityControl(host: BmsFloorplanCard, id: string) {
     </div>`;
   }
   if (domain === 'light' || domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
-    // ВНИМАНИЕ: `title` здесь — не подпись для человека, а ЗАЦЕПКА проверок
-    // (tests/06, tests/08 ищут кнопку по `[title="Toggle" | "Open" | "Close" |
-    // "Unlock"]`). Человеку адресован `aria-label`: на сенсорном экране
-    // всплывающая подсказка не показывается никогда, наведения там нет.
-    // Для будущего переезда проверок рядом лежит `data-act`.
-    controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" title="Toggle" data-act="toggle"
+    // Проверки цепляются за `data-act`, а не за текст: подпись — для человека и
+    // переводится. Основное имя кнопки живёт в `aria-label`, потому что на
+    // сенсорном экране всплывающая подсказка не показывается никогда.
+    controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" data-act="toggle" title=${host.tx('Переключить', 'Toggle')}
       aria-label=${`${name} — ${on ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
       @click=${() => host.svc(domain, 'toggle', {}, id, on ? 'off' : 'on')}>${host.ic('power')}</button>`;
   } else if (domain === 'cover') {
     controls = html`
-      <button type="button" class="ctl" title="Open" data-act="open" aria-label=${host.tx('Открыть', 'Open')}
+      <button type="button" class="ctl" data-act="open" title=${host.tx('Открыть', 'Open')} aria-label=${host.tx('Открыть', 'Open')}
         @click=${() => host.svc('cover', 'open_cover', {}, id, 'open')}>${host.ic('chevUp')}</button>
-      <button type="button" class="ctl" title="Stop" data-act="stop" aria-label=${host.tx('Остановить', 'Stop')}
+      <button type="button" class="ctl" data-act="stop" title=${host.tx('Остановить', 'Stop')} aria-label=${host.tx('Остановить', 'Stop')}
         @click=${() => host.svc('cover', 'stop_cover', {}, id)}>${host.ic('stop')}</button>
-      <button type="button" class="ctl" title="Close" data-act="close" aria-label=${host.tx('Закрыть', 'Close')}
+      <button type="button" class="ctl" data-act="close" title=${host.tx('Закрыть', 'Close')} aria-label=${host.tx('Закрыть', 'Close')}
         @click=${() => host.svc('cover', 'close_cover', {}, id, 'closed')}>${host.ic('chevDown')}</button>`;
   } else if (domain === 'lock') {
     controls = html`<button type="button" class="ctl ${on ? '' : 'on'}" title=${on ? 'Lock' : 'Unlock'}

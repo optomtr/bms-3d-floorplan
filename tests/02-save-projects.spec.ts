@@ -29,7 +29,7 @@ test.describe('Сохранение плана', () => {
 
     await page.evaluate(() => {
       window.BMS.card.toast = undefined; // не поймать чужое сообщение
-      const btn = window.BMS.root().querySelector('[title="Save this project"]') as HTMLElement;
+      const btn = window.BMS.root().querySelector('[data-act="save"]') as HTMLElement;
       btn.click();
     });
     await waitToast(page);
@@ -46,7 +46,7 @@ test.describe('Сохранение плана', () => {
     await page.evaluate(async () => {
       window.BMS.card.toast = undefined;
       window.BMS.card.editor.plan.name = 'Первый объект (правка)';
-      const btn = window.BMS.root().querySelector('[title="Save this project"]') as HTMLElement;
+      const btn = window.BMS.root().querySelector('[data-act="save"]') as HTMLElement;
       btn.click();
     });
     await waitToast(page, 'сохранён');
@@ -65,7 +65,7 @@ test.describe('Сохранение плана', () => {
     // Без этого проверка ниже была бы декоративной — «фразы нет» верно и для
     // пустого сообщения, и для переписанного текста.
     await page.evaluate(() => { window.BMS.card.toast = undefined; });
-    await page.evaluate(() => (window.BMS.root().querySelector('[title="Save this project"]') as HTMLElement).click());
+    await page.evaluate(() => (window.BMS.root().querySelector('[data-act="save"]') as HTMLElement).click());
     const good = await waitToast(page, 'сохранён');
     expect(good, 'успешная общая запись должна отчитываться именно так').toContain('на все устройства');
 
@@ -80,7 +80,7 @@ test.describe('Сохранение плана', () => {
       };
     });
 
-    await page.evaluate(() => (window.BMS.root().querySelector('[title="Save this project"]') as HTMLElement).click());
+    await page.evaluate(() => (window.BMS.root().querySelector('[data-act="save"]') as HTMLElement).click());
     const msg = await waitToast(page);
 
     expect(msg, 'сообщение обязано быть').not.toBe('');

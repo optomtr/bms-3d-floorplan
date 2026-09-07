@@ -49,10 +49,7 @@ export function renderEditorProject(host: BmsFloorplanCard) {
             hint: T('Создать новый проект (остальные сохранятся)', 'Create a new project (keeps the others)'),
             onClick: () => onNewPlan(host),
           })}
-          <!-- title ЗДЕСЬ — зацепка проверки tests/02 ([title="Save this project"]).
-               Человеку адресованы видимая подпись и aria-label; на сенсорном
-               экране всплывающая подсказка не показывается вовсе. -->
-          <button class="btn ic-btn primary" title="Save this project" data-act="save"
+          <button class="btn ic-btn primary" data-act="save" title=${host.tx('Сохранить этот проект', 'Save this project')}
             aria-label=${T('Сохранить проект', 'Save this project')}
             @click=${() => onSavePlan(host)}>${host.ic('save')}<span class="ic-btn-lab">${T('Сохранить', 'Save')}</span></button>
         </div>

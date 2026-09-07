@@ -50,6 +50,7 @@ import { roomPanelStyles } from './card/styles/room-panel';
 import { deviceCardStyles } from './card/styles/device-cards';
 import { viewToggleStyles } from './card/styles/view-toggle';
 import { overviewStyles } from './card/styles/overview';
+import { stateStyles } from './card/styles/states';
 import { detailStyles } from './card/styles/detail';
 
 // Теги — часть договора с интеграцией: их спрашивают и снаружи модуля.
@@ -670,6 +671,7 @@ export class BmsFloorplanCard extends LitElement {
     deviceCardStyles,
     viewToggleStyles,
     overviewStyles,
+    stateStyles,
     detailStyles,
   ];
 }
