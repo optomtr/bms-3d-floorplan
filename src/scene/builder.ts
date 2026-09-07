@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorDef, WallDef, RoomDef, OpeningDef, Vec2 } from '../types';
+import type { FloorDef, WallDef, RoomDef, OpeningDef, OpeningKind, Vec2 } from '../types';
 import { resolveFurniture } from '../furniture/loader';
 import { TextLabel } from './labels';
 import { isShapeRoom, roomPolygon, roomWalls } from './room-shapes';
@@ -24,6 +24,50 @@ const DEFAULT_THICKNESS = 0.12;
 /** Selectable style variants for door / window openings. */
 export const DOOR_VARIANTS = ['single', 'double', 'glass', 'sliding'];
 export const WINDOW_VARIANTS = ['single', 'double', 'picture', 'sliding', 'terrace', 'storefront'];
+
+// ---------------------------------------------------------------------------
+// Русские подписи для списков в редакторе. Ключи ('single', 'terrace', 'door')
+// лежат в сохранённых планах — их менять нельзя; человеку показывается только
+// название. У двери и окна ключи совпадают, а род разный, поэтому карты две.
+// ---------------------------------------------------------------------------
+
+export const DOOR_VARIANT_LABELS: Record<string, string> = {
+  single: 'Одностворчатая',
+  double: 'Двустворчатая',
+  glass: 'Стеклянная',
+  sliding: 'Раздвижная',
+};
+
+export const WINDOW_VARIANT_LABELS: Record<string, string> = {
+  single: 'Одностворчатое',
+  double: 'Двустворчатое',
+  picture: 'Витраж',
+  sliding: 'Раздвижное',
+  // Остекление во всю высоту: с дверной створкой и без неё.
+  terrace: 'Панорамное с дверью',
+  storefront: 'Панорамное',
+};
+
+/** Кирпич проёма: чем он вообще является. */
+export const OPENING_KIND_LABELS: Record<OpeningKind, string> = {
+  door: 'Дверь',
+  window: 'Окно',
+  opening: 'Проём',
+};
+
+/** Название варианта створки для показа человеку. Незнакомый ключ (план из
+ *  будущей версии, ручная правка JSON) возвращается как есть. */
+export function openingVariantLabel(kind: OpeningKind | string | undefined, variant?: string): string {
+  const map = kind === 'door' ? DOOR_VARIANT_LABELS : WINDOW_VARIANT_LABELS;
+  const key = variant || 'single';
+  return map[key] ?? key;
+}
+
+/** Название вида проёма (дверь / окно / проём). */
+export function openingKindLabel(kind?: OpeningKind | string): string {
+  if (!kind) return OPENING_KIND_LABELS.opening;
+  return OPENING_KIND_LABELS[kind as OpeningKind] ?? kind;
+}
 
 export interface BuiltFloor {
   group: THREE.Group;
