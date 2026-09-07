@@ -7,12 +7,11 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, cyl, tint, WOOD, FABRIC, METAL, WHITE, DARK, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, WOOD, FABRIC, METAL, WHITE, DARK, type FurnitureBuilder } from '../primitives';
 
 export const wellnessModels = {
   // ---- SPA / gym / pool (basement plan) ----
-  treadmill: (c) => {
-    const g = new THREE.Group();
+  treadmill: defineModel((g, c) => {
     const frame = mat(DARK);
     // low running deck near the floor
     const deck = tint(box(0.9, 0.14, 2.0, mat(WHITE), 0, 0.1, 0), c);
@@ -27,10 +26,8 @@ export const wellnessModels = {
     const bar = cyl(0.03, 0.03, 0.68, mat(METAL), 0, 1.02, 0.9); bar.rotation.z = Math.PI / 2; g.add(bar);
     g.add(box(0.66, 0.36, 0.08, frame, 0, 1.15, 0.86));
     g.add(box(0.42, 0.24, 0.02, mat(0x0a1016, { emissive: 0x16405e }), 0, 1.17, 0.91));
-    return g;
-  },
-  exercise_bike: (c) => {
-    const g = new THREE.Group();
+  }),
+  exercise_bike: defineModel((g, c) => {
     const frame = mat(METAL, { roughness: 0.4, metalness: 0.5 });
     const foot = mat(DARK, { roughness: 0.6 });
     // stabiliser feet (front & rear bars across the width)
@@ -50,10 +47,8 @@ export const wellnessModels = {
     g.add(box(0.4, 0.05, 0.05, mat(METAL), 0, 1.12, 0.24)); // handlebars
     g.add(box(0.05, 0.05, 0.22, mat(METAL), 0, 1.12, 0.34));
     g.add(box(0.24, 0.16, 0.03, mat(0x1a1d22, { emissive: 0x223344 }), 0, 1.2, 0.4)); // console
-    return g;
-  },
-  weight_bench: (c) => {
-    const g = new THREE.Group();
+  }),
+  weight_bench: defineModel((g, c) => {
     const frame = mat(DARK, { metalness: .5, roughness: .4 });
     const steel = mat(METAL, { metalness: .7, roughness: .3 });
     // padded flat bench top
@@ -70,10 +65,8 @@ export const wellnessModels = {
     [-.22, .22].forEach(x => g.add(box(.05, 1.3, .05, steel, x, .65, .55)));
     const bar = cyl(.022, .022, 1.5, steel, 0, 1.15, .55); bar.rotation.z = Math.PI / 2; g.add(bar);
     [-.62, .62].forEach(x => g.add(cyl(.16, .16, .06, frame, x, 1.15, .55)));
-    return g;
-  },
-  gym_machine: (c) => {
-    const g = new THREE.Group();
+  }),
+  gym_machine: defineModel((g, c) => {
     const frame = mat(METAL, { roughness: 0.35, metalness: 0.7 });
     const pad = mat(FABRIC, { roughness: 0.85 });
     const stack = mat(DARK, { roughness: 0.5, metalness: 0.4 });
@@ -98,10 +91,8 @@ export const wellnessModels = {
       g.add(arm);
       g.add(tint(box(0.1, 0.45, 0.1, pad, sx * 0.5, 1.15, 0.15), c)); // forearm pad
     }
-    return g;
-  },
-  dumbbell_rack: (c) => {
-    const g = new THREE.Group();
+  }),
+  dumbbell_rack: defineModel((g, c) => {
     const steel = mat(METAL, { roughness: 0.35, metalness: 0.7 });
     const dark = mat(DARK, { roughness: 0.6 });
     const chrome = mat(METAL, { roughness: 0.2, metalness: 0.85 });
@@ -126,10 +117,8 @@ export const wellnessModels = {
       dumbbell(x, 0.44, 0.13, 0.075); // lower front row, heavier
       dumbbell(x, 0.69, -0.12, 0.055); // upper back row, lighter
     }
-    return g;
-  },
-  swimming_pool: (c) => {
-    const g = new THREE.Group();
+  }),
+  swimming_pool: defineModel((g, c) => {
     const stone = mat(0xc9c3b3, { roughness: 0.85 });
     const w = 6.0, d = 4.0, rim = 0.35, wallH = 0.25;
     // coping rim: four stone bars framing the basin
@@ -142,10 +131,8 @@ export const wellnessModels = {
     const iw = w - rim * 2, id = d - rim * 2;
     g.add(box(iw, 0.02, id, mat(0x1a5f7a, { roughness: 0.4 }), 0, 0.06, 0)); // basin floor
     g.add(box(iw, 0.02, id, mat(0x2f9fd0, { transparent: true, opacity: 0.75, roughness: 0.15 }), 0, wallH - 0.05, 0));
-    return g;
-  },
-  sauna_bench: (c) => {
-    const g = new THREE.Group();
+  }),
+  sauna_bench: defineModel((g, c) => {
     const wood = mat(WOOD);
     const slatT = 0.04, gap = 0.008;
     // two tiers: [depth, front-Z, top-Y]
@@ -160,10 +147,8 @@ export const wellnessModels = {
       [[-0.9, depth / 2 - 0.05 + cz], [0.9, depth / 2 - 0.05 + cz], [-0.9, -depth / 2 + 0.05 + cz], [0.9, -depth / 2 + 0.05 + cz]].forEach(([lx, lz]) =>
         g.add(box(0.06, legY, 0.06, wood, lx, legY / 2, lz)));
     });
-    return g;
-  },
-  sauna_heater: (c) => {
-    const g = new THREE.Group();
+  }),
+  sauna_heater: defineModel((g, c) => {
     const metal = mat(METAL, { roughness: 0.5, metalness: 0.7 });
     const body = box(0.5, 0.6, 0.5, metal, 0, 0.31, 0);
     tint(body, c);
@@ -179,10 +164,8 @@ export const wellnessModels = {
       s.scale.set(1, 0.8, 1);
       g.add(s);
     });
-    return g;
-  },
-  massage_table: (c) => {
-    const g = new THREE.Group();
+  }),
+  massage_table: defineModel((g, c) => {
     const padMat = mat(FABRIC);
     const frameMat = mat(WOOD);
     const legMat = mat(METAL, { metalness: 0.4, roughness: 0.5 });
@@ -199,10 +182,8 @@ export const wellnessModels = {
     // round face-cradle pad at head end (+X), raised slightly
     const cradle = tint(cyl(0.13, 0.13, 0.05, padMat, 1.05, 0.665, 0, 20), c);
     g.add(cradle);
-    return g;
-  },
-  barber_chair: (c) => {
-    const g = new THREE.Group();
+  }),
+  barber_chair: defineModel((g, c) => {
     const chrome = mat(METAL, { roughness: 0.2, metalness: 0.9 });
     const uph = mat(0x3f6f8c, { roughness: 0.7 }); // padded leather (tinted)
 
@@ -229,10 +210,8 @@ export const wellnessModels = {
       g.add(box(0.1, 0.06, 0.4, mat(DARK, { roughness: 0.5 }), s * 0.32, 0.74, 0.06));
       g.add(cyl(0.03, 0.03, 0.16, chrome, s * 0.32, 0.66, 0.22, 10));
     }
-    return g;
-  },
-  prayer_mat: (c) => {
-    const g = new THREE.Group();
+  }),
+  prayer_mat: defineModel((g, c) => {
     const L = 1.2, W = 0.7;
     const field = tint(box(W, 0.015, L, mat(0x3f6d5a), 0, 0.008, 0), c);
     g.add(field);
@@ -250,6 +229,5 @@ export const wellnessModels = {
     const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.018, 20, 1, false, 0, Math.PI), aC);
     arch.position.set(0, 0.02, L / 2 - 0.44);
     g.add(arch);
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

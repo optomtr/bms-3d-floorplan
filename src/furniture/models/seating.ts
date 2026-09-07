@@ -7,11 +7,10 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, cyl, tint, WOOD, FABRIC, METAL, DARK, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, legs4, legs4Box, legs4Cyl, WOOD, FABRIC, METAL, DARK, type FurnitureBuilder } from '../primitives';
 
 export const seatingModels = {
-  sofa: (c) => {
-    const g = new THREE.Group();
+  sofa: defineModel((g, c) => {
     const frameC = c.clone().multiplyScalar(0.62);          // two-tone: darker frame
     const seatMat = () => mat(FABRIC, { roughness: 0.9 }); // fresh mat per cushion so tint is independent
     const frameMat = () => mat(FABRIC, { roughness: 0.97 });
@@ -57,15 +56,13 @@ export const seatingModels = {
       p.rotation.x = -0.2;
       g.add(tint(p, frameC));
     }
-    return g;
-  },
-  sofa_round: (c) => {
+  }),
+  sofa_round: defineModel((g, c) => {
     // Curved (semi-circular) sofa — a conversation-pit lounge. Built from three
     // torus arcs that share the SAME orientation so their open gaps line up.
     // NOTE: the torus lies in its local XY plane with the tube along local Z;
     // after rotation.x the tube becomes the WORLD-VERTICAL axis, so the cushion
     // is flattened via scale.z (NOT scale.y) and lifted so nothing dips below 0.
-    const g = new THREE.Group();
     const fabric = mat(FABRIC);
     const R = 1.0;
     const arc = Math.PI * 1.15; // a bit more than a half-ring
@@ -92,20 +89,18 @@ export const seatingModels = {
     base.scale.z = 0.18;
     base.position.y = 0.1;
     g.add(base);
-    return g;
-  },
-  armchair: (c) => {
-    const g = new THREE.Group();
+  }),
+  armchair: defineModel((g, c) => {
     const fabric = mat(FABRIC, { roughness: 0.9 });
     const wood = mat(0x5b3f28, { roughness: 0.45, metalness: 0.05 });
     const seam = mat(0x4a4f57, { roughness: 0.7 });
     // Four tapered wooden legs, splayed slightly outward (mid-century base).
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+    legs4(g, (sx, sz) => {
       const leg = cyl(0.022, 0.038, 0.2, wood, sx * 0.3, 0.1, sz * 0.32, 10);
       leg.rotation.z = sx * 0.08;
       leg.rotation.x = -sz * 0.06;
-      g.add(leg);
-    }
+      return leg;
+    });
     // Slim base frame / plinth the cushions rest on.
     g.add(box(0.72, 0.09, 0.76, wood, 0, 0.24, 0));
     // Seat cushion — chamfered (fat box + smaller rounded top layer).
@@ -129,23 +124,17 @@ export const seatingModels = {
       roll.rotation.x = Math.PI / 2;
       g.add(roll);
     }
-    return g;
-  },
-  chair: (c) => {
-    const g = new THREE.Group();
+  }),
+  chair: defineModel((g, c) => {
     const wood = mat(WOOD);
     g.add(tint(box(0.45, 0.05, 0.45, wood, 0, 0.45, 0), c)); // seat
     g.add(tint(box(0.45, 0.45, 0.05, wood, 0, 0.68, -0.2), c)); // back
     const lx = 0.18, lz = 0.18;
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-      g.add(box(0.05, 0.45, 0.05, wood, sx * lx, 0.22, sz * lz));
-    }
-    return g;
-  },
+    legs4Box(g, 0.05, 0.45, 0.05, wood, lx, lz, 0.22);
+  }),
   // Chunky rounded tub armchair (Roly-Poly style) — a fat cushion, a wrap-around
   // back/arms, and 4 stubby rounded legs.
-  roly_chair: (c) => {
-    const g = new THREE.Group();
+  roly_chair: defineModel((g, c) => {
     const body = mat(0x9aa878, { roughness: 0.95 }); // sage green default
     g.add(tint(cyl(0.26, 0.28, 0.18, body, 0, 0.4, 0, 28), c)); // seat cushion
     const back = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.1, 12, 24, Math.PI * 1.3), body);
@@ -155,16 +144,14 @@ export const seatingModels = {
     back.rotation.x = Math.PI / 2;
     back.rotation.z = -Math.PI * 0.15; // open the ring toward the front
     g.add(tint(back, c));
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+    legs4(g, (sx, sz) => {
       const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.2, 4, 8), body);
       leg.castShadow = true;
       leg.position.set(sx * 0.17, 0.14, sz * 0.17);
-      g.add(tint(leg, c));
-    }
-    return g;
-  },
-  office_chair: (c) => {
-    const g = new THREE.Group();
+      return tint(leg, c);
+    });
+  }),
+  office_chair: defineModel((g, c) => {
     const chrome = mat(METAL, { roughness: 0.25, metalness: 0.85 });
     const dark = mat(DARK, { roughness: 0.6 });
     const uph = mat(0x3a3e44, { roughness: 0.85 }); // executive upholstery (tinted)
@@ -221,34 +208,27 @@ export const seatingModels = {
       g.add(box(0.075, 0.05, 0.26, stitch, sx * 0.29, 0.73, 0.03)); // padded armrest top
     }
 
-    return g;
-  },
-  bar_stool: (c) => {
-    const g = new THREE.Group();
+  }),
+  bar_stool: defineModel((g, c) => {
     g.add(tint(cyl(0.18, 0.18, 0.05, mat(WOOD), 0, 0.66, 0), c));
     g.add(cyl(0.03, 0.03, 0.66, mat(METAL), 0, 0.33, 0));
     g.add(cyl(0.2, 0.2, 0.02, mat(METAL), 0, 0.02, 0));
-    return g;
-  },
+  }),
   // ---- Living / common ----
-  recliner: (c) => {
-    const g = new THREE.Group();
+  recliner: defineModel((g, c) => {
     const f = mat(FABRIC);
     g.add(tint(box(0.9, 0.4, 0.95, f, 0, 0.25, 0), c));
     g.add(tint(box(0.9, 0.7, 0.18, f, 0, 0.6, -0.38), c));
     g.add(tint(box(0.18, 0.35, 0.95, f, -0.45, 0.45, 0), c));
     g.add(tint(box(0.18, 0.35, 0.95, f, 0.45, 0.45, 0), c));
     g.add(box(0.78, 0.16, 0.36, f, 0, 0.22, 0.62)); // footrest
-    return g;
-  },
-  ottoman: (c) => {
-    const g = new THREE.Group();
+  }),
+  ottoman: defineModel((g, c) => {
     const fabric = mat(FABRIC, { roughness: 0.9 });
     const wood = mat(0x5b3f28, { roughness: 0.45, metalness: 0.05 });
     const pipe = mat(0x4a4f57, { roughness: 0.7 }); // contrast piping/trim
     // Small tapered feet.
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(cyl(0.02, 0.03, 0.09, wood, sx * 0.24, 0.045, sz * 0.24, 8));
+    legs4Cyl(g, 0.02, 0.03, 0.09, wood, 0.24, 0.24, 0.045, 8);
     // Upholstered body.
     g.add(tint(box(0.56, 0.22, 0.56, fabric, 0, 0.2, 0), c));
     // Piped rim around the top edge.
@@ -258,85 +238,77 @@ export const seatingModels = {
     g.add(tint(box(0.48, 0.04, 0.48, fabric, 0, 0.4, 0), c));
     // Center button tuft.
     g.add(cyl(0.02, 0.02, 0.025, pipe, 0, 0.41, 0, 8));
-    return g;
-  },
-  bench: (c) => {
-    const g = new THREE.Group();
+  }),
+  bench: defineModel((g, c) => {
     const w = mat(WOOD);
     g.add(tint(box(1.1, 0.1, 0.4, mat(FABRIC), 0, 0.45, 0), c));
     for (const sx of [-1, 1]) g.add(box(0.06, 0.45, 0.36, w, sx * 0.5, 0.225, 0));
-    return g;
-  },
-  conference_chair: (c) => {
-  const g = new THREE.Group();
-  const fab = mat(0x454b54, { roughness: 0.85 }); // upholstery
-  const frame = mat(METAL, { roughness: 0.4, metalness: 0.5 });
-  const dark = mat(DARK, { roughness: 0.6 });
-  // Seat — chamfered slab: pan + slightly smaller cushion stacked on top
-  g.add(box(0.48, 0.06, 0.46, dark, 0, 0.42, 0)); // seat pan/frame
-  g.add(tint(box(0.44, 0.06, 0.42, fab, 0, 0.47, 0), c)); // seat cushion
-  // Gas post + hub
-  g.add(cyl(0.028, 0.03, 0.30, frame, 0, 0.24, 0, 12)); // post
-  g.add(cyl(0.055, 0.06, 0.05, dark, 0, 0.08, 0, 12)); // hub
-  // 4-star base with foot glides
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    const arm = box(0.26, 0.035, 0.06, frame, Math.cos(a) * 0.12, 0.055, Math.sin(a) * 0.12);
-    arm.rotation.y = -a;
-    g.add(arm);
-    g.add(cyl(0.03, 0.035, 0.04, dark, Math.cos(a) * 0.23, 0.025, Math.sin(a) * 0.23, 10)); // glide
-  }
-  // Back — support riser + mid-back panel + cushion (slight recline)
-  g.add(box(0.07, 0.30, 0.05, dark, 0, 0.56, -0.19)); // riser
-  const back = box(0.46, 0.42, 0.06, dark, 0, 0.74, -0.21);
-  back.rotation.x = -0.10;
-  g.add(back);
-  const backPad = box(0.42, 0.38, 0.05, fab, 0, 0.74, -0.18);
-  backPad.rotation.x = -0.10;
-  g.add(tint(backPad, c));
-  // Thin arms — L-shaped (vertical support + horizontal top)
-  for (const sx of [-1, 1]) {
-    g.add(box(0.04, 0.20, 0.04, frame, sx * 0.25, 0.57, 0.02)); // upright
-    g.add(box(0.05, 0.03, 0.26, dark, sx * 0.25, 0.66, 0.0)); // armrest top
-  }
-  return g;
-},
-  tub_chair: (c) => {
-  const g = new THREE.Group();
-  const fab = mat(0xa89a86, { roughness: 0.9 }); // taupe upholstery
-  const wood = mat(WOOD, { roughness: 0.5 });
-  // Upholstered base skirt + round seat cushion (chamfered top)
-  g.add(tint(cyl(0.26, 0.28, 0.16, fab, 0, 0.28, 0, 28), c)); // skirt / base
-  g.add(tint(cyl(0.25, 0.26, 0.13, fab, 0, 0.44, 0, 28), c)); // seat cushion
-  g.add(cyl(0.21, 0.22, 0.05, mat(0x8f8271, { roughness: 0.9 }), 0, 0.51, 0, 24)); // cushion top inset
-  // Wrap-around barrel back — partial torus, open toward the front (+Z)
-  const barrel = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.12, 12, 30, Math.PI * 1.4), fab);
-  barrel.castShadow = true;
-  barrel.receiveShadow = true;
-  barrel.position.set(0, 0.53, 0.0);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.rotation.z = -Math.PI * 0.20; // open the wrap toward the front
-  g.add(tint(barrel, c));
-  // Slim piping trim along the top rim (two-tone accent)
-  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.025, 8, 30, Math.PI * 1.4), wood);
-  trim.castShadow = true;
-  trim.position.set(0, 0.64, 0.0);
-  trim.rotation.x = Math.PI / 2;
-  trim.rotation.z = -Math.PI * 0.20;
-  g.add(trim);
-  // Four short splayed wooden legs
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    const leg = cyl(0.02, 0.032, 0.20, wood, Math.cos(a) * 0.20, 0.10, Math.sin(a) * 0.20, 10);
-    leg.rotation.z = Math.cos(a) * 0.12;
-    leg.rotation.x = -Math.sin(a) * 0.12; // slight outward splay
-    g.add(leg);
-  }
-  return g;
-},
+  }),
+  conference_chair: defineModel((g, c) => {
+    const fab = mat(0x454b54, { roughness: 0.85 }); // upholstery
+    const frame = mat(METAL, { roughness: 0.4, metalness: 0.5 });
+    const dark = mat(DARK, { roughness: 0.6 });
+    // Seat — chamfered slab: pan + slightly smaller cushion stacked on top
+    g.add(box(0.48, 0.06, 0.46, dark, 0, 0.42, 0)); // seat pan/frame
+    g.add(tint(box(0.44, 0.06, 0.42, fab, 0, 0.47, 0), c)); // seat cushion
+    // Gas post + hub
+    g.add(cyl(0.028, 0.03, 0.30, frame, 0, 0.24, 0, 12)); // post
+    g.add(cyl(0.055, 0.06, 0.05, dark, 0, 0.08, 0, 12)); // hub
+    // 4-star base with foot glides
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2 + Math.PI / 4;
+      const arm = box(0.26, 0.035, 0.06, frame, Math.cos(a) * 0.12, 0.055, Math.sin(a) * 0.12);
+      arm.rotation.y = -a;
+      g.add(arm);
+      g.add(cyl(0.03, 0.035, 0.04, dark, Math.cos(a) * 0.23, 0.025, Math.sin(a) * 0.23, 10)); // glide
+    }
+    // Back — support riser + mid-back panel + cushion (slight recline)
+    g.add(box(0.07, 0.30, 0.05, dark, 0, 0.56, -0.19)); // riser
+    const back = box(0.46, 0.42, 0.06, dark, 0, 0.74, -0.21);
+    back.rotation.x = -0.10;
+    g.add(back);
+    const backPad = box(0.42, 0.38, 0.05, fab, 0, 0.74, -0.18);
+    backPad.rotation.x = -0.10;
+    g.add(tint(backPad, c));
+    // Thin arms — L-shaped (vertical support + horizontal top)
+    for (const sx of [-1, 1]) {
+      g.add(box(0.04, 0.20, 0.04, frame, sx * 0.25, 0.57, 0.02)); // upright
+      g.add(box(0.05, 0.03, 0.26, dark, sx * 0.25, 0.66, 0.0)); // armrest top
+    }
+  }),
+  tub_chair: defineModel((g, c) => {
+    const fab = mat(0xa89a86, { roughness: 0.9 }); // taupe upholstery
+    const wood = mat(WOOD, { roughness: 0.5 });
+    // Upholstered base skirt + round seat cushion (chamfered top)
+    g.add(tint(cyl(0.26, 0.28, 0.16, fab, 0, 0.28, 0, 28), c)); // skirt / base
+    g.add(tint(cyl(0.25, 0.26, 0.13, fab, 0, 0.44, 0, 28), c)); // seat cushion
+    g.add(cyl(0.21, 0.22, 0.05, mat(0x8f8271, { roughness: 0.9 }), 0, 0.51, 0, 24)); // cushion top inset
+    // Wrap-around barrel back — partial torus, open toward the front (+Z)
+    const barrel = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.12, 12, 30, Math.PI * 1.4), fab);
+    barrel.castShadow = true;
+    barrel.receiveShadow = true;
+    barrel.position.set(0, 0.53, 0.0);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.rotation.z = -Math.PI * 0.20; // open the wrap toward the front
+    g.add(tint(barrel, c));
+    // Slim piping trim along the top rim (two-tone accent)
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.025, 8, 30, Math.PI * 1.4), wood);
+    trim.castShadow = true;
+    trim.position.set(0, 0.64, 0.0);
+    trim.rotation.x = Math.PI / 2;
+    trim.rotation.z = -Math.PI * 0.20;
+    g.add(trim);
+    // Four short splayed wooden legs
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2 + Math.PI / 4;
+      const leg = cyl(0.02, 0.032, 0.20, wood, Math.cos(a) * 0.20, 0.10, Math.sin(a) * 0.20, 10);
+      leg.rotation.z = Math.cos(a) * 0.12;
+      leg.rotation.x = -Math.sin(a) * 0.12; // slight outward splay
+      g.add(leg);
+    }
+  }),
   // Generic fallback marker so an unknown model key still renders something.
-  sofa_l: (c) => {
-    const g = new THREE.Group();
+  sofa_l: defineModel((g, c) => {
     const frameC = c.clone().multiplyScalar(0.62);          // two-tone: darker frame
     const seatMat = () => mat(FABRIC, { roughness: 0.9 });
     const frameMat = () => mat(FABRIC, { roughness: 0.97 });
@@ -386,76 +358,72 @@ export const seatingModels = {
       p.rotation.x = -0.18;
       g.add(tint(p, frameC));
     }
-    return g;
-  },
-  sofa_u: (c) => {
-  // Premium U-shaped modular lounge, ~3.0m wide x 2.6m deep, opening toward +Z.
-  // A continuous plinth carries three seating runs (back + two sides); upholstered
-  // backrests wrap the inner perimeter, plush arms cap the two open front ends,
-  // and layered seat cushions + leaning back cushions + accent throw pillows give
-  // the generous, one-piece sectional read. Seats seven (3 back + 2 + 2 sides).
-  const g = new THREE.Group();
-  const fabric = mat(FABRIC, { roughness: 0.9 });                  // main upholstery (tinted)
-  const frame = mat(0x4d5560, { roughness: 0.85 });                // darker plinth (two-tone)
-  const foot = mat(0x2e2823, { roughness: 0.5, metalness: 0.25 }); // low dark feet
-  const accent = mat(0xc9b48f, { roughness: 0.95 });              // accent throw pillows
+  }),
+  sofa_u: defineModel((g, c) => {
+    // Premium U-shaped modular lounge, ~3.0m wide x 2.6m deep, opening toward +Z.
+    // A continuous plinth carries three seating runs (back + two sides); upholstered
+    // backrests wrap the inner perimeter, plush arms cap the two open front ends,
+    // and layered seat cushions + leaning back cushions + accent throw pillows give
+    // the generous, one-piece sectional read. Seats seven (3 back + 2 + 2 sides).
+    const fabric = mat(FABRIC, { roughness: 0.9 });                  // main upholstery (tinted)
+    const frame = mat(0x4d5560, { roughness: 0.85 });                // darker plinth (two-tone)
+    const foot = mat(0x2e2823, { roughness: 0.5, metalness: 0.25 }); // low dark feet
+    const accent = mat(0xc9b48f, { roughness: 0.95 });              // accent throw pillows
 
-  const W = 3.0, D = 2.6, run = 0.85;
-  const hW = W / 2, hD = D / 2;
-  const baseH = 0.24, baseY = 0.18, seatTop = 0.30;
+    const W = 3.0, D = 2.6, run = 0.85;
+    const hW = W / 2, hD = D / 2;
+    const baseH = 0.24, baseY = 0.18, seatTop = 0.30;
 
-  // --- low feet (bottoms at y~0; the plinth rests just above) ---
-  const feet: number[][] = [[-1.30, -1.15], [1.30, -1.15], [-1.30, 1.15], [1.30, 1.15], [0, -1.15], [0, 0.9]];
-  for (const [fx, fz] of feet) g.add(cyl(0.05, 0.065, 0.09, foot, fx, 0.045, fz, 10));
+    // --- low feet (bottoms at y~0; the plinth rests just above) ---
+    const feet: number[][] = [[-1.30, -1.15], [1.30, -1.15], [-1.30, 1.15], [1.30, 1.15], [0, -1.15], [0, 0.9]];
+    for (const [fx, fz] of feet) g.add(cyl(0.05, 0.065, 0.09, foot, fx, 0.045, fz, 10));
 
-  // --- continuous U plinth: back run + two full-depth side runs (solid corners) ---
-  g.add(box(W, baseH, run, frame, 0, baseY, -(hD - run / 2)));     // back run
-  g.add(box(run, baseH, D, frame, -(hW - run / 2), baseY, 0));     // left run
-  g.add(box(run, baseH, D, frame, (hW - run / 2), baseY, 0));      // right run
+    // --- continuous U plinth: back run + two full-depth side runs (solid corners) ---
+    g.add(box(W, baseH, run, frame, 0, baseY, -(hD - run / 2)));     // back run
+    g.add(box(run, baseH, D, frame, -(hW - run / 2), baseY, 0));     // left run
+    g.add(box(run, baseH, D, frame, (hW - run / 2), baseY, 0));      // right run
 
-  // --- upholstered backrest blocks wrapping the three inner sides ---
-  g.add(tint(box(2.60, 0.50, 0.20, fabric, 0, 0.55, -1.15), c));       // back
-  g.add(tint(box(0.20, 0.50, 2.30, fabric, -1.40, 0.55, -0.10), c));   // left
-  g.add(tint(box(0.20, 0.50, 2.30, fabric, 1.40, 0.55, -0.10), c));    // right
+    // --- upholstered backrest blocks wrapping the three inner sides ---
+    g.add(tint(box(2.60, 0.50, 0.20, fabric, 0, 0.55, -1.15), c));       // back
+    g.add(tint(box(0.20, 0.50, 2.30, fabric, -1.40, 0.55, -0.10), c));   // left
+    g.add(tint(box(0.20, 0.50, 2.30, fabric, 1.40, 0.55, -0.10), c));    // right
 
-  // --- plush arms capping the two open front ends (slab + chamfer cap) ---
-  for (const sx of [-1, 1]) {
-    const ax = sx * (hW - run / 2);
-    g.add(tint(box(run, 0.30, 0.30, fabric, ax, 0.45, hD - 0.15), c));
-    g.add(tint(box(run - 0.06, 0.05, 0.26, fabric, ax, 0.625, hD - 0.15), c)); // rounded top
-  }
+    // --- plush arms capping the two open front ends (slab + chamfer cap) ---
+    for (const sx of [-1, 1]) {
+      const ax = sx * (hW - run / 2);
+      g.add(tint(box(run, 0.30, 0.30, fabric, ax, 0.45, hD - 0.15), c));
+      g.add(tint(box(run - 0.06, 0.05, 0.26, fabric, ax, 0.625, hD - 0.15), c)); // rounded top
+    }
 
-  // --- seat cushions (soft slab + thin chamfer cap) across all three runs ---
-  const seat = (x: number, z: number, w: number, d: number) => {
-    g.add(tint(box(w, 0.12, d, fabric, x, seatTop + 0.06, z), c));
-    g.add(tint(box(w - 0.06, 0.035, d - 0.06, fabric, x, seatTop + 0.14, z), c));
-  };
-  for (const bx of [-0.72, 0, 0.72]) seat(bx, -0.72, 0.68, 0.62);        // back run (3)
-  for (const sx of [-1, 1]) {                                            // sides (2 + 2)
-    seat(sx * 0.925, -0.01, 0.72, 0.66);
-    seat(sx * 0.925, 0.66, 0.72, 0.66);
-  }
+    // --- seat cushions (soft slab + thin chamfer cap) across all three runs ---
+    const seat = (x: number, z: number, w: number, d: number) => {
+      g.add(tint(box(w, 0.12, d, fabric, x, seatTop + 0.06, z), c));
+      g.add(tint(box(w - 0.06, 0.035, d - 0.06, fabric, x, seatTop + 0.14, z), c));
+    };
+    for (const bx of [-0.72, 0, 0.72]) seat(bx, -0.72, 0.68, 0.62);        // back run (3)
+    for (const sx of [-1, 1]) {                                            // sides (2 + 2)
+      seat(sx * 0.925, -0.01, 0.72, 0.66);
+      seat(sx * 0.925, 0.66, 0.72, 0.66);
+    }
 
-  // --- leaning back cushions on all three runs ---
-  const backCush = (x: number, z: number, w: number, d: number) =>
-    g.add(tint(box(w, 0.40, d, fabric, x, 0.60, z), c));
-  for (const bx of [-0.80, 0, 0.80]) backCush(bx, -1.00, 0.74, 0.16);   // back (3)
-  for (const sx of [-1, 1]) {                                           // sides (2 + 2)
-    backCush(sx * 1.26, -0.45, 0.16, 0.74);
-    backCush(sx * 1.26, 0.40, 0.16, 0.74);
-  }
+    // --- leaning back cushions on all three runs ---
+    const backCush = (x: number, z: number, w: number, d: number) =>
+      g.add(tint(box(w, 0.40, d, fabric, x, 0.60, z), c));
+    for (const bx of [-0.80, 0, 0.80]) backCush(bx, -1.00, 0.74, 0.16);   // back (3)
+    for (const sx of [-1, 1]) {                                           // sides (2 + 2)
+      backCush(sx * 1.26, -0.45, 0.16, 0.74);
+      backCush(sx * 1.26, 0.40, 0.16, 0.74);
+    }
 
-  // --- accent throw pillows tucked into corners (rotated for a casual look) ---
-  const pillow = (x: number, z: number, ry: number) => {
-    const p = box(0.38, 0.36, 0.12, accent, x, 0.60, z);
-    p.rotation.y = ry;
-    g.add(p);
-  };
-  pillow(-0.95, -0.90, Math.PI * 0.18);
-  pillow(0.95, -0.90, -Math.PI * 0.18);
-  pillow(-1.12, 0.55, Math.PI * 0.5 - 0.3);
-  pillow(1.05, -0.10, -Math.PI * 0.5 + 0.3);
-
-  return g;
-},
+    // --- accent throw pillows tucked into corners (rotated for a casual look) ---
+    const pillow = (x: number, z: number, ry: number) => {
+      const p = box(0.38, 0.36, 0.12, accent, x, 0.60, z);
+      p.rotation.y = ry;
+      g.add(p);
+    };
+    pillow(-0.95, -0.90, Math.PI * 0.18);
+    pillow(0.95, -0.90, -Math.PI * 0.18);
+    pillow(-1.12, 0.55, Math.PI * 0.5 - 0.3);
+    pillow(1.05, -0.10, -Math.PI * 0.5 + 0.3);
+  }),
 } satisfies Record<string, FurnitureBuilder>;

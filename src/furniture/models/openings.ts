@@ -7,11 +7,46 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, cyl, tint, WOOD, METAL, WHITE, GLASS, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, WOOD, METAL, WHITE, GLASS, type FurnitureBuilder } from '../primitives';
+
+/** Карниз над проёмом: круглая штанга чуть длиннее самого проёма. */
+function curtainRod(g: THREE.Group, W: number, H: number, off: number, r: number, over: number): void {
+  const rod = cyl(r, r, W + over, mat(METAL), 0, H + 0.02, off, 8);
+  rod.rotation.z = Math.PI / 2;
+  g.add(rod);
+}
+
+/**
+ * Полотнище шторы, собранное в складки, на петле с именем 'curtainPivot':
+ * привязанная штора (cover) раздвигается именно поворотом этой группы.
+ * `sign` — в какую сторону от петли уходят складки. Один сборщик на все пять
+ * штор: две створки, одинарная, короткая и обе тюлевые.
+ */
+function pleatedPanel(
+  c: THREE.Color,
+  o: {
+    x: number;
+    sign: number;
+    span: number;
+    n: number;
+    H: number;
+    off: number;
+    thick: number;
+    wave: (i: number) => number;
+    fabric: THREE.Material;
+  },
+): THREE.Group {
+  const pivot = new THREE.Group();
+  pivot.name = 'curtainPivot';
+  pivot.position.x = o.x;
+  const seg = o.span / o.n;
+  for (let i = 0; i < o.n; i++)
+    pivot.add(tint(box(seg * 0.96, o.H, o.thick, o.fabric, o.sign * (i + 0.5) * seg, o.H / 2, o.off + o.wave(i)), c));
+  return pivot;
+}
 
 export const openingModels = {
-  door: (c) => {
-    const g = new THREE.Group();
+  door: defineModel((g, c) => {
     const jamb = mat(WHITE);
     // Frame (jambs + header) so it reads as a real door, then the leaf + panels.
     g.add(box(0.06, 2.06, 0.16, jamb, -0.46, 1.03, 0));
@@ -20,10 +55,8 @@ export const openingModels = {
     const leaf = tint(box(0.84, 2.0, 0.06, mat(WOOD), 0, 1.0, 0), c);
     g.add(leaf);
     g.add(cyl(0.03, 0.03, 0.12, mat(0xb8932e), 0.33, 1.0, 0.06)); // brass handle
-    return g;
-  },
-  window_frame: (c) => {
-    const g = new THREE.Group();
+  }),
+  window_frame: defineModel((g, c) => {
     const frame = mat(0x55606a); // dark frame so the window is clearly visible
     const W = 1.2, H = 1.2, yc = 1.45, fw = 0.07, d = 0.1;
     g.add(tint(box(W, fw, d, frame, 0, yc + H / 2, 0), c)); // top
@@ -33,121 +66,57 @@ export const openingModels = {
     g.add(box(0.05, H, d * 0.6, frame, 0, yc, 0)); // vertical mullion
     g.add(box(W, 0.05, d * 0.6, frame, 0, yc, 0)); // horizontal mullion
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.5, metalness: 0.2 }), 0, yc, 0));
-    return g;
-  },
-  curtain: (c) => {
+  }),
+  curtain: defineModel((g, c) => {
     // Pleated fabric, slightly off the wall, in two pivot panels named
     // "curtainPivot" so a bound cover entity can slide them open/closed.
-    const g = new THREE.Group();
     const W = 1.8, H = 2.2, OFF = 0.03;
     const fabric = mat(0x9a8b76, { roughness: 1 });
-    const rod = cyl(0.022, 0.022, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
-    rod.rotation.z = Math.PI / 2;
-    g.add(rod);
-    const panel = (sign: number) => {
-      const pivot = new THREE.Group();
-      pivot.name = 'curtainPivot';
-      pivot.position.x = (sign * W) / 2; // hinge at the outer edge
-      const half = W / 2, n = 9, seg = half / n;
-      for (let i = 0; i < n; i++) {
-        const px = -sign * (i + 0.5) * seg; // pleats run inward
-        const wave = i % 2 === 0 ? 0.035 : -0.025;
-        pivot.add(tint(box(seg * 0.96, H, 0.05, fabric, px, H / 2, OFF + wave), c));
-      }
-      return pivot;
-    };
-    g.add(panel(-1));
-    g.add(panel(1));
-    return g;
-  },
+    curtainRod(g, W, H, OFF, 0.022, 0.2);
+    const wave = (i: number) => (i % 2 === 0 ? 0.035 : -0.025);
+    // Hinge at each outer edge; pleats run inward.
+    for (const sign of [-1, 1])
+      g.add(pleatedPanel(c, { x: (sign * W) / 2, sign: -sign, span: W / 2, n: 9, H, off: OFF, thick: 0.05, wave, fabric }));
+  }),
   // Half curtain: ONE panel that slides to a single side (not centre-split).
-  curtain_single: (c) => {
-    const g = new THREE.Group();
+  curtain_single: defineModel((g, c) => {
     const W = 1.6, H = 2.2, OFF = 0.03;
     const fabric = mat(0x9a8b76, { roughness: 1 });
-    const rod = cyl(0.022, 0.022, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
-    rod.rotation.z = Math.PI / 2;
-    g.add(rod);
-    const pivot = new THREE.Group();
-    pivot.name = 'curtainPivot';
-    pivot.position.x = -W / 2; // hinge at the left edge → gathers to the left
-    const n = 14, seg = W / n;
-    for (let i = 0; i < n; i++) {
-      const px = (i + 0.5) * seg; // pleats run rightward from the hinge
-      const wave = i % 2 === 0 ? 0.035 : -0.025;
-      pivot.add(tint(box(seg * 0.96, H, 0.05, fabric, px, H / 2, OFF + wave), c));
-    }
-    g.add(pivot);
-    return g;
-  },
+    curtainRod(g, W, H, OFF, 0.022, 0.2);
+    // Hinge at the left edge → gathers to the left.
+    g.add(pleatedPanel(c, { x: -W / 2, sign: 1, span: W, n: 14, H, off: OFF, thick: 0.05, fabric,
+      wave: (i) => (i % 2 === 0 ? 0.035 : -0.025) }));
+  }),
   // Short curtain for a transom / clerestory band — the same gathering
   // curtainPivot as the full-height ones, but only ~0.62 m deep, so it dresses a
   // window strip near the ceiling instead of a floor-length opening.
-  curtain_short: (c) => {
-    const g = new THREE.Group();
+  curtain_short: defineModel((g, c) => {
     const W = 2.3, H = 0.62, OFF = 0.03;
     const fabric = mat(0x9a8b76, { roughness: 1 });
-    const rod = cyl(0.02, 0.02, W + 0.18, mat(METAL), 0, H + 0.02, OFF, 8);
-    rod.rotation.z = Math.PI / 2;
-    g.add(rod);
-    const pivot = new THREE.Group();
-    pivot.name = 'curtainPivot';
-    pivot.position.x = -W / 2; // hinge at the left edge -> gathers to the left
-    const n = 16, seg = W / n;
-    for (let i = 0; i < n; i++) {
-      const px = (i + 0.5) * seg;
-      const wave = i % 2 === 0 ? 0.03 : -0.022;
-      pivot.add(tint(box(seg * 0.96, H, 0.045, fabric, px, H / 2, OFF + wave), c));
-    }
-    g.add(pivot);
-    return g;
-  },
-  curtain_sheer: (c) => {
-    const g = new THREE.Group();
+    curtainRod(g, W, H, OFF, 0.02, 0.18);
+    g.add(pleatedPanel(c, { x: -W / 2, sign: 1, span: W, n: 16, H, off: OFF, thick: 0.045, fabric,
+      wave: (i) => (i % 2 === 0 ? 0.03 : -0.022) }));
+  }),
+  curtain_sheer: defineModel((g, c) => {
     const W = 1.8, H = 2.2, OFF = 0.03;
     const sheer = mat(0xf2efe9, { transparent: true, opacity: 0.5, roughness: 1 });
-    const rod = cyl(0.02, 0.02, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
-    rod.rotation.z = Math.PI / 2;
-    g.add(rod);
-    const panel = (sign: number) => {
-      const pivot = new THREE.Group();
-      pivot.name = 'curtainPivot';
-      pivot.position.x = (sign * W) / 2;
-      const half = W / 2, n = 8, seg = half / n;
-      for (let i = 0; i < n; i++) {
-        const px = -sign * (i + 0.5) * seg;
-        pivot.add(tint(box(seg * 0.96, H, 0.03, sheer, px, H / 2, OFF + (i % 2 ? 0.02 : -0.02)), c));
-      }
-      return pivot;
-    };
-    g.add(panel(-1));
-    g.add(panel(1));
-    return g;
-  },
+    curtainRod(g, W, H, OFF, 0.02, 0.2);
+    const wave = (i: number) => (i % 2 ? 0.02 : -0.02);
+    for (const sign of [-1, 1])
+      g.add(pleatedPanel(c, { x: (sign * W) / 2, sign: -sign, span: W / 2, n: 8, H, off: OFF, thick: 0.03, wave, fabric: sheer }));
+  }),
   // Half sheer: ONE tulle panel that slides to a single side (not centre-split),
   // the sheer twin of curtain_single.
-  curtain_sheer_single: (c) => {
-    const g = new THREE.Group();
+  curtain_sheer_single: defineModel((g, c) => {
     const W = 1.6, H = 2.2, OFF = 0.03;
     const sheer = mat(0xf2efe9, { transparent: true, opacity: 0.5, roughness: 1 });
-    const rod = cyl(0.02, 0.02, W + 0.2, mat(METAL), 0, H + 0.02, OFF, 8);
-    rod.rotation.z = Math.PI / 2;
-    g.add(rod);
-    const pivot = new THREE.Group();
-    pivot.name = 'curtainPivot';
-    pivot.position.x = -W / 2; // hinge at the left edge → gathers to the left
-    const n = 12, seg = W / n;
-    for (let i = 0; i < n; i++) {
-      const px = (i + 0.5) * seg;
-      pivot.add(tint(box(seg * 0.96, H, 0.03, sheer, px, H / 2, OFF + (i % 2 ? 0.02 : -0.02)), c));
-    }
-    g.add(pivot);
-    return g;
-  },
-  roller_blind: (c) => {
+    curtainRod(g, W, H, OFF, 0.02, 0.2);
+    g.add(pleatedPanel(c, { x: -W / 2, sign: 1, span: W, n: 12, H, off: OFF, thick: 0.03, fabric: sheer,
+      wave: (i) => (i % 2 ? 0.02 : -0.02) }));
+  }),
+  roller_blind: defineModel((g, c) => {
     // Window roller blind: a roll at top + a panel that "rolls up" (scale.y) via
     // the curtainPivot hook (anchored at the top).
-    const g = new THREE.Group();
     const W = 1.4, H = 1.9, OFF = 0.02;
     const roll = cyl(0.05, 0.05, W, mat(0xd8d2c4), 0, H, OFF, 10);
     roll.rotation.z = Math.PI / 2;
@@ -156,10 +125,8 @@ export const openingModels = {
     pivot.name = 'curtainPivot';
     pivot.add(tint(box(W, H, 0.02, mat(0xbfae93, { roughness: 1 }), 0, H / 2, OFF), c));
     g.add(pivot);
-    return g;
-  },
-  roman_blind: (c) => {
-    const g = new THREE.Group();
+  }),
+  roman_blind: defineModel((g, c) => {
     const W = 1.4, H = 1.9, OFF = 0.02;
     const fabric = mat(0x8a7f6c, { roughness: 1 });
     const rod = cyl(0.04, 0.04, W, mat(METAL), 0, H + 0.02, OFF, 8);
@@ -171,13 +138,11 @@ export const openingModels = {
       pivot.add(tint(box(W, 0.36, 0.04 + (i % 2 ? 0.02 : 0), fabric, 0, 0.2 + i * 0.36, OFF), c)); // folds
     }
     g.add(pivot);
-    return g;
-  },
+  }),
   // Bottom-up venetian blind (jalyuzi) — opens from the BOTTOM upward: the slats
   // retract up into the fixed top headrail. Uses the vertical cover hook
   // 'blindPivotV' (the binding scales it in Y, anchored at the top).
-  blind_bottomup: (c) => {
-    const g = new THREE.Group();
+  blind_bottomup: defineModel((g, c) => {
     const W = 1.6, H = 2.0, OFF = 0.03;
     g.add(box(W + 0.06, 0.07, 0.08, mat(METAL), 0, H + 0.02, OFF)); // fixed headrail
     const pivot = new THREE.Group();
@@ -194,8 +159,7 @@ export const openingModels = {
     for (const sx of [-1, 1]) // lift cords
       pivot.add(box(0.006, H, 0.006, mat(0xcfc8ba), sx * W * 0.3, -H / 2, 0.012));
     g.add(pivot);
-    return g;
-  },
+  }),
   // Pyramidal glass roof lantern (световой фонарь / фонарь-крыша) that sits on TOP
   // of a room, like the reference photo: a rectangular kerb rising through hip-
   // sloped blue glazing to a short ridge, dark aluminium bars along every edge and
@@ -203,8 +167,7 @@ export const openingModels = {
   // faces. Each vent is a top-hinged 'ventPivot' group — bind a `cover` and both
   // tilt outward as it opens (see bindings.ts). Place it at ceiling height
   // (defaultY = wallHeight). 2.6 x 1.8 x ~0.95 m.
-  roof_lantern: (c) => {
-    const g = new THREE.Group();
+  roof_lantern: defineModel((g, c) => {
     const W = 2.6, Dep = 1.8, Hh = 0.78, Rl = 1.0;
     const hw = W / 2, hd = Dep / 2;
     const frame = mat(0x3a3f45, { metalness: 0.6, roughness: 0.4 });
@@ -285,21 +248,17 @@ export const openingModels = {
     };
     g.add(makeVent(true));
     g.add(makeVent(false));
-    return g;
-  },
-  double_door: (c) => {
-    const g = new THREE.Group();
+  }),
+  double_door: defineModel((g, c) => {
     g.add(tint(box(0.7, 2.0, 0.05, mat(WOOD), -0.36, 1.0, 0), c));
     g.add(tint(box(0.7, 2.0, 0.05, mat(WOOD), 0.36, 1.0, 0), c));
     g.add(cyl(0.025, 0.025, 0.1, mat(METAL), -0.05, 1.0, 0.05));
     g.add(cyl(0.025, 0.025, 0.1, mat(METAL), 0.05, 1.0, 0.05));
-    return g;
-  },
+  }),
   // Cottage sectional garage door — opens UPWARD (the panelled door lifts into the
   // headbox). Reuses the vertical cover hook 'blindPivotV' so a bound `cover`
   // entity raises/lowers it; closed = down, open = retracted to the top.
-  garage_door: (c) => {
-    const g = new THREE.Group();
+  garage_door: defineModel((g, c) => {
     const W = 2.6, H = 2.2, OFF = 0.05;
     const frameMat = mat(0xe6e4de, { roughness: 0.7 });
     g.add(box(0.12, H + 0.14, 0.16, frameMat, -(W / 2 + 0.06), (H + 0.14) / 2, OFF)); // left jamb
@@ -319,18 +278,14 @@ export const openingModels = {
     }
     pivot.add(box(0.28, 0.05, 0.05, mat(METAL), 0, -H + 0.55, 0.07)); // handle
     g.add(pivot);
-    return g;
-  },
-  sliding_door: (c) => {
-    const g = new THREE.Group();
+  }),
+  sliding_door: defineModel((g, c) => {
     g.add(box(1.6, 0.06, 0.08, mat(METAL), 0, 2.05, 0)); // rail
     g.add(tint(box(0.78, 1.95, 0.04, mat(GLASS, { transparent: true, opacity: 0.4 }), -0.4, 1.0, 0), c));
     g.add(tint(box(0.78, 1.95, 0.04, mat(GLASS, { transparent: true, opacity: 0.4 }), 0.4, 1.0, 0.05), c));
-    return g;
-  },
-  patio_door: (c) => {
+  }),
+  patio_door: defineModel((g, c) => {
     // Wide floor-to-ceiling terrace door / glass wall (built from the floor up).
-    const g = new THREE.Group();
     const fr = mat(0x55606a);
     const W = 2.6, H = 2.2, fw = 0.08, d = 0.1;
     g.add(tint(box(W, fw, d, fr, 0, H - fw / 2, 0), c));
@@ -340,11 +295,9 @@ export const openingModels = {
     g.add(box(0.06, H, d * 0.6, fr, -W / 6, H / 2, 0)); // mullions → 3 panes
     g.add(box(0.06, H, d * 0.6, fr, W / 6, H / 2, 0));
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.42, metalness: 0.2 }), 0, H / 2, 0));
-    return g;
-  },
-  terrace_window: (c) => {
+  }),
+  terrace_window: defineModel((g, c) => {
     // Wide panoramic window, centered at local y=0 (placed at defaultY).
-    const g = new THREE.Group();
     const fr = mat(0x55606a);
     const W = 2.6, H = 1.5, fw = 0.07, d = 0.1;
     g.add(tint(box(W, fw, d, fr, 0, H / 2, 0), c));
@@ -354,8 +307,7 @@ export const openingModels = {
     g.add(box(0.05, H, d * 0.6, fr, -W / 4, 0, 0)); // mullions → 3 panes
     g.add(box(0.05, H, d * 0.6, fr, W / 4, 0, 0));
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.45 }), 0, 0, 0));
-    return g;
-  },
+  }),
   // Floor-to-ceiling terrace WINDOW (mullioned, no door) — a black-framed
   // panoramic window. Placed like the other glazing (cuts a real opening).
   // Small openable transom window (форточка) — the band of top-hinged sashes that
@@ -367,8 +319,7 @@ export const openingModels = {
   // lantern's vents sit in, which lets the shared ventPivot animation swing the
   // bottom edge out with no special case. Wall-mounted, centred on its origin
   // like terrace_window. 2.2 x 0.44 m.
-  transom_window: (c) => {
-    const g = new THREE.Group();
+  transom_window: defineModel((g, c) => {
     const W = 2.2, H = 0.44, fw = 0.05, d = 0.09;
     const fr = mat(0x2c3138, { roughness: 0.5, metalness: 0.3 });
     const glass = mat(0x9fc4e6, { transparent: true, opacity: 0.32, roughness: 0.12, metalness: 0.25, side: THREE.DoubleSide });
@@ -396,10 +347,8 @@ export const openingModels = {
       mount.add(pivot);
       g.add(mount);
     }
-    return g;
-  },
-  terrace_window_full: (c) => {
-    const g = new THREE.Group();
+  }),
+  terrace_window_full: defineModel((g, c) => {
     const fr = mat(0x2c3138, { roughness: 0.5 });
     const W = 2.6, H = 2.55, fw = 0.08, d = 0.1;
     g.add(tint(box(W, fw, d, fr, 0, H - fw / 2, 0), c)); // top
@@ -409,6 +358,5 @@ export const openingModels = {
     for (let i = 1; i < 3; i++) g.add(box(0.05, H, d * 0.6, fr, -W / 2 + (W * i) / 3, H / 2, 0)); // vertical mullions
     g.add(box(W - fw, 0.05, d * 0.6, fr, 0, H * 0.74, 0)); // horizontal transom
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.38, metalness: 0.2 }), 0, H / 2, 0));
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

@@ -7,27 +7,22 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, cyl, tint, METAL, WHITE, DARK, GLASS, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, METAL, WHITE, DARK, GLASS, type FurnitureBuilder } from '../primitives';
 
 export const bathroomModels = {
-  sink: (c) => {
-    const g = new THREE.Group();
+  sink: defineModel((g, c) => {
     g.add(tint(box(0.6, 0.8, 0.5, mat(WHITE), 0, 0.4, 0), c)); // base
     g.add(box(0.5, 0.08, 0.4, mat(METAL), 0, 0.82, 0)); // basin rim
     g.add(cyl(0.02, 0.02, 0.25, mat(METAL), 0, 0.95, -0.12)); // tap
-    return g;
-  },
-  toilet: (c) => {
-    const g = new THREE.Group();
+  }),
+  toilet: defineModel((g, c) => {
     g.add(tint(cyl(0.22, 0.25, 0.4, mat(WHITE), 0, 0.2, 0.05), c)); // bowl
     g.add(box(0.35, 0.5, 0.18, mat(WHITE), 0, 0.45, -0.18)); // cistern
     g.add(cyl(0.24, 0.24, 0.05, mat(WHITE), 0, 0.42, 0.05)); // seat
-    return g;
-  },
+  }),
   // Freestanding bath — an open shell (4 walls + floor) so it reads as a real
   // empty basin, on a slim plinth, with a chrome mixer at one end.
-  bathtub: (c) => {
-    const g = new THREE.Group();
+  bathtub: defineModel((g, c) => {
     const W = 1.7, H = 0.58, D = 0.78, t = 0.09;
     const shell = mat(WHITE, { roughness: 0.3, metalness: 0.05 });
     g.add(box(W - 0.04, 0.05, D - 0.04, mat(0xe4e8eb, { roughness: 0.6 }), 0, 0.025, 0)); // plinth
@@ -40,13 +35,11 @@ export const bathroomModels = {
     const chrome = mat(METAL, { metalness: 0.8, roughness: 0.2 });
     g.add(cyl(0.018, 0.022, 0.2, chrome, -W / 2 + 0.16, H + 0.1, -D / 2 + 0.15, 12)); // riser
     g.add(box(0.14, 0.025, 0.028, chrome, -W / 2 + 0.24, H + 0.185, -D / 2 + 0.15)); // spout
-    return g;
-  },
+  }),
   // Built-in OVAL bath — a white oval basin sunk into a tiled surround, the shape
   // drawn on this plan. (bathtub is the rectangular freestanding shell.) The basin
   // is left empty, like bathtub. ~1.9 x 1.0 m.
-  bathtub_oval: (c) => {
-    const g = new THREE.Group();
+  bathtub_oval: defineModel((g, c) => {
     const W = 1.9, D = 1.0, H = 0.55;
     const surround = mat(0xdfd8cb, { roughness: 0.7 });
     const shell = mat(WHITE, { roughness: 0.3, metalness: 0.05 });
@@ -61,66 +54,48 @@ export const bathroomModels = {
     g.add(basin);
     g.add(cyl(0.018, 0.022, 0.18, chrome, -W / 2 + 0.16, H + 0.11, 0, 12)); // riser
     g.add(box(0.14, 0.025, 0.028, chrome, -W / 2 + 0.24, H + 0.19, 0)); // spout
-    return g;
-  },
-  shower: (c) => {
-    const g = new THREE.Group();
+  }),
+  shower: defineModel((g, c) => {
     g.add(tint(box(0.9, 0.04, 0.9, mat(WHITE), 0, 0.02, 0), c)); // tray
     g.add(box(0.04, 2.0, 0.9, mat(GLASS, { transparent: true, opacity: 0.25 }), -0.43, 1.0, 0));
     g.add(box(0.9, 2.0, 0.04, mat(GLASS, { transparent: true, opacity: 0.25 }), 0, 1.0, -0.43));
     g.add(cyl(0.06, 0.06, 0.04, mat(METAL), 0.3, 1.9, 0.3));
-    return g;
-  },
+  }),
   // Wall-hung urinal for the WCs (Сан.узел).
-  urinal: (c) => {
-    const g = new THREE.Group();
+  urinal: defineModel((g, c) => {
     const white = mat(WHITE, { roughness: 0.35 });
     g.add(tint(box(0.36, 0.6, 0.32, white, 0, 0, -0.02), c)); // bowl body
     g.add(tint(cyl(0.18, 0.14, 0.16, white, 0, -0.18, 0.06, 18), c)); // rounded lip
     g.add(box(0.08, 0.12, 0.06, mat(METAL, { metalness: 0.7, roughness: 0.3 }), 0, 0.42, -0.06)); // flush valve
-    return g;
-  },
-  washing_machine: (c) => {
-    const g = new THREE.Group();
+  }),
+  washing_machine: defineModel((g, c) => {
     g.add(tint(box(0.6, 0.85, 0.6, mat(WHITE), 0, 0.42, 0), c));
     g.add(cyl(0.2, 0.2, 0.04, mat(DARK), 0, 0.45, 0.31).rotateX(Math.PI / 2) as unknown as THREE.Mesh);
-    return g;
-  },
+  }),
   // ---- Bathroom ----
-  bidet: (c) => {
-    const g = new THREE.Group();
+  bidet: defineModel((g, c) => {
     g.add(tint(box(0.4, 0.4, 0.55, mat(WHITE), 0, 0.2, 0), c));
     g.add(cyl(0.16, 0.18, 0.12, mat(WHITE), 0, 0.42, 0.05, 18));
-    return g;
-  },
-  towel_rack: (c) => {
-    const g = new THREE.Group();
+  }),
+  towel_rack: defineModel((g, c) => {
     g.add(box(0.6, 0.04, 0.05, mat(METAL, { metalness: 0.6, roughness: 0.3 }), 0, 0.12, 0.04));
     g.add(tint(box(0.5, 0.32, 0.02, mat(WHITE), 0, -0.05, 0.06), c)); // towel
-    return g;
-  },
-  bathroom_cabinet: (c) => {
-    const g = new THREE.Group();
+  }),
+  bathroom_cabinet: defineModel((g, c) => {
     g.add(tint(box(0.6, 0.7, 0.15, mat(WHITE), 0, 0, 0.075), c));
     g.add(box(0.56, 0.66, 0.02, mat(0xcfe0e6, { metalness: 0.4, roughness: 0.1 }), 0, 0, 0.16));
-    return g;
-  },
-  dryer: (c) => {
-    const g = new THREE.Group();
+  }),
+  dryer: defineModel((g, c) => {
     g.add(tint(box(0.6, 0.85, 0.6, mat(WHITE), 0, 0.425, 0), c));
     g.add(cyl(0.22, 0.22, 0.04, mat(0x2a2f36, { metalness: 0.3 }), 0, 0.5, 0.3, 24));
     g.add(box(0.5, 0.08, 0.04, mat(METAL), 0, 0.78, 0.31));
-    return g;
-  },
-  water_heater: (c) => {
-    const g = new THREE.Group();
+  }),
+  water_heater: defineModel((g, c) => {
     g.add(tint(cyl(0.25, 0.25, 0.9, mat(WHITE), 0, 0.45, 0, 20), c));
     g.add(cyl(0.25, 0.25, 0.05, mat(METAL), 0, 0.9, 0, 20));
     g.add(box(0.1, 0.1, 0.1, mat(METAL), 0, 0.2, 0.26));
-    return g;
-  },
-  sink_double: (c) => {
-    const g = new THREE.Group();
+  }),
+  sink_double: defineModel((g, c) => {
     // Wall-hung double vanity. Built around the countertop plane at local y=0
     // (like the wall-mounted urinal) so, placed at defaultY, the top lands at a
     // realistic ~0.8m: cabinet hangs below (-y), faucets/backsplash/mirrors rise (+y).
@@ -155,6 +130,5 @@ export const bathroomModels = {
       g.add(box(0.5, 0.62, 0.02, cab, mx, 0.62, -D / 2 + 0.02));            // frame
       g.add(box(0.44, 0.56, 0.01, mat(0xbcd0d6, { metalness: 0.4, roughness: 0.08 }), mx, 0.62, -D / 2 + 0.035)); // glass
     }
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

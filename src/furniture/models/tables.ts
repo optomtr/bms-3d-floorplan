@@ -6,23 +6,17 @@
 // а не порядок записей в этом файле.
 // ---------------------------------------------------------------------------
 
-import * as THREE from 'three';
-import { mat, box, cyl, tint, WOOD, METAL, DARK, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, legs4Box, legs4Cyl, WOOD, METAL, DARK, type FurnitureBuilder } from '../primitives';
 
 export const tableModels = {
-  table: (c) => {
-    const g = new THREE.Group();
+  table: defineModel((g, c) => {
     const wood = mat(WOOD);
     g.add(tint(box(1.4, 0.06, 0.8, wood, 0, 0.74, 0), c)); // top
     const lx = 0.62, lz = 0.32;
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-      g.add(box(0.07, 0.74, 0.07, wood, sx * lx, 0.37, sz * lz));
-    }
-    return g;
-  },
+    legs4Box(g, 0.07, 0.74, 0.07, wood, lx, lz, 0.37);
+  }),
   // Round/oval stone table (travertine look) on two chunky curved feet.
-  round_table: (c) => {
-    const g = new THREE.Group();
+  round_table: defineModel((g, c) => {
     const stone = mat(0xe9e2d5, { roughness: 0.55, metalness: 0.02 });
     const top = cyl(0.75, 0.75, 0.08, stone, 0, 0.73, 0, 44);
     top.scale.z = 0.72; // oval
@@ -32,10 +26,8 @@ export const tableModels = {
       foot.scale.x = 1.3;
       g.add(tint(foot, c));
     }
-    return g;
-  },
-  coffee_table: (c) => {
-    const g = new THREE.Group();
+  }),
+  coffee_table: defineModel((g, c) => {
     const woodDark = mat(0x6f4a28, { roughness: 0.55 }); // edge band / underframe
     const legMat = mat(DARK, { roughness: 0.4, metalness: 0.3 }); // slim tapered metal legs
     // Top slab: darker edge band + a slightly smaller tinted cap (chamfer/reveal)
@@ -47,23 +39,17 @@ export const tableModels = {
     g.add(box(1.02, 0.03, 0.5, mat(WOOD, { roughness: 0.5 }), 0, 0.13, 0));
     g.add(box(0.96, 0.02, 0.44, woodDark, 0, 0.112, 0)); // shelf underframe
     // 4 tapered legs (thinner at the foot)
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(cyl(0.023, 0.036, 0.36, legMat, sx * 0.52, 0.18, sz * 0.245, 12));
-    return g;
-  },
-  dining_table: (c) => {
-    const g = new THREE.Group();
+    legs4Cyl(g, 0.023, 0.036, 0.36, legMat, 0.52, 0.245, 0.18, 12);
+  }),
+  dining_table: defineModel((g, c) => {
     g.add(tint(box(1.8, 0.06, 0.95, mat(WOOD), 0, 0.75, 0), c));
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(box(0.08, 0.75, 0.08, mat(WOOD), sx * 0.8, 0.37, sz * 0.4));
-    return g;
-  },
+    legs4Box(g, 0.08, 0.75, 0.08, mat(WOOD), 0.8, 0.4, 0.37);
+  }),
   // Long racetrack dining table — a flat top with straight sides and semicircular
   // ends, on two pedestal bases. The "yoni yumaloq" table: rectangular in the
   // middle, half-round at each end, so it seats a long side without hard corners.
   // ~2.6 x 1.1 m. (dining_table is the plain rectangle; round_table is a small oval.)
-  dining_table_oval: (c) => {
-    const g = new THREE.Group();
+  dining_table_oval: defineModel((g, c) => {
     const L = 2.6, W = 1.1, t = 0.05, h = 0.75;
     const wood = mat(WOOD, { roughness: 0.45 });
     const dark = mat(0x6f4a28, { roughness: 0.55 });
@@ -79,10 +65,8 @@ export const tableModels = {
       g.add(tint(box(0.12, ph, W - 0.45, wood, sx * (mid / 2 - 0.1), ph / 2, 0), c));
       g.add(box(0.5, 0.05, W - 0.3, dark, sx * (mid / 2 - 0.1), 0.025, 0));
     }
-    return g;
-  },
-  desk: (c) => {
-    const g = new THREE.Group();
+  }),
+  desk: defineModel((g, c) => {
     const wood = mat(WOOD, { roughness: 0.6 });
     const dark = mat(DARK, { roughness: 0.5 });
     const steel = mat(METAL, { roughness: 0.4, metalness: 0.5 });
@@ -101,20 +85,16 @@ export const tableModels = {
     // Slim tapered metal legs on the open (left) side.
     g.add(cyl(0.025, 0.035, 0.68, steel, -0.68, 0.34, 0.3, 12));
     g.add(cyl(0.025, 0.035, 0.68, steel, -0.68, 0.34, -0.3, 12));
-    return g;
-  },
-  console_table: (c) => {
-    const g = new THREE.Group();
+  }),
+  console_table: defineModel((g, c) => {
     const w = mat(WOOD);
     g.add(tint(box(1.2, 0.05, 0.4, w, 0, 0.8, 0), c));
     for (const sx of [-1, 1]) g.add(box(0.06, 0.8, 0.36, w, sx * 0.55, 0.4, 0));
     g.add(box(1.1, 0.04, 0.36, w, 0, 0.4, 0));
-    return g;
-  },
+  }),
   // Modern L-shaped executive (director's) desk — sculptural solid body with a
   // dark-wood top and a lower side return.
-  boss_desk: (c) => {
-    const g = new THREE.Group();
+  boss_desk: defineModel((g, c) => {
     const body = mat(0xcfc9bd, { roughness: 0.5 });
     const top = mat(0x5b3f28, { roughness: 0.4 });
     g.add(box(2.0, 0.05, 0.95, top, 0, 0.76, 0)); // main dark top
@@ -122,16 +102,14 @@ export const tableModels = {
     g.add(box(1.0, 0.62, 0.05, mat(0x2b2f36, { roughness: 0.8 }), 0, 0.33, -0.42)); // kneehole recess
     g.add(box(1.0, 0.05, 0.6, top, -1.4, 0.66, -0.15)); // L return top
     g.add(tint(box(1.0, 0.62, 0.6, body, -1.4, 0.31, -0.15), c)); // L return body
-    return g;
-  },
-  conference_table: (c) => {
-    const g = new THREE.Group();
+  }),
+  conference_table: defineModel((g, c) => {
     const L = 6.8, W = 1.4; // long boardroom footprint (length on X, width on Z)
     const veneer = mat(WOOD, { roughness: 0.45 });
     const bandMat = mat(0x6f4a28, { roughness: 0.55 }); // darker edge band / plinths
     const inlayMat = mat(0x4a3218, { roughness: 0.4 }); // subtle contrast inlay
     const portMat = mat(DARK, { roughness: 0.4, metalness: 0.45 }); // cable/port boxes
-    const glow = mat(0x101418, { emissive: 0x0a1a22 }); // recessed port faces
+    const portFace = mat(0x101418, { emissive: 0x0a1a22 }); // recessed port faces
     // Top: darker edge band + a slightly smaller tinted veneer cap (chamfer/reveal)
     g.add(box(L, 0.045, W, bandMat, 0, 0.695, 0)); // edge band
     g.add(tint(box(L - 0.12, 0.04, W - 0.08, veneer, 0, 0.72, 0), c)); // main veneer top (surface ~0.74)
@@ -149,12 +127,10 @@ export const tableModels = {
     // Hint of cable/port boxes down the centre line
     for (const px of [-1.8, 0, 1.8]) {
       g.add(box(0.38, 0.03, 0.24, portMat, px, 0.755, 0)); // flush cable tray
-      g.add(box(0.3, 0.01, 0.16, glow, px, 0.772, 0)); // recessed port face
+      g.add(box(0.3, 0.01, 0.16, portFace, px, 0.772, 0)); // recessed port face
     }
-    return g;
-  },
-  executive_desk: (c) => {
-    const g = new THREE.Group();
+  }),
+  executive_desk: defineModel((g, c) => {
     const wood = mat(WOOD, { roughness: 0.55 });
     const dark = mat(DARK, { roughness: 0.5 });
     const steel = mat(METAL, { roughness: 0.4, metalness: 0.5 });
@@ -175,12 +151,10 @@ export const tableModels = {
       g.add(box(0.42, 0.2, 0.02, mat(0x3a3f47, { roughness: 0.5 }), 0.72, y, -0.46)); // drawer front
       g.add(box(0.14, 0.02, 0.02, steel, 0.72, y, -0.48)); // handle
     }
-    return g;
-  },
+  }),
   // Reception / front desk (Ресепшн) — counter carcass + raised transaction top +
   // a lower inner work surface.
-  reception: (c) => {
-    const g = new THREE.Group();
+  reception: defineModel((g, c) => {
     // Premium floor-standing reception desk (~2.4 wide): recessed toe-kick, paneled
     // front with reveal grooves, staff-side inner work surface, and a raised stone
     // transaction top floating on slim metal standoffs. Front faces +Z.
@@ -214,6 +188,5 @@ export const tableModels = {
       g.add(cyl(0.012, 0.012, 0.1, metal, sx * (W / 2 - 0.2), H + 0.05, 0.05, 8));
     g.add(box(W + 0.12, 0.05, D + 0.22, stone, 0, H + 0.125, 0.02));  // transaction slab
     g.add(box(W + 0.08, 0.03, D + 0.18, stone, 0, H + 0.09, 0.02));   // stepped under-lip (thick-edge reveal)
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

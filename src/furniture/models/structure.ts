@@ -7,33 +7,63 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, cyl, tint, WOOD, METAL, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, glow, WOOD, METAL, type FurnitureBuilder } from '../primitives';
+
+/** Один прямой марш: `steps` проступей, каждая на (dy, dz) дальше предыдущей.
+ *  Если задан `riser`, под каждой проступью встаёт подступёнок. Из этого
+ *  сборщика сложены и подъём, и спуск, и оба марша разворотной лестницы. */
+interface Flight {
+  steps: number;
+  /** ширина марша */
+  w: number;
+  /** толщина проступи */
+  t: number;
+  /** глубина проступи (она же шаг по Z, со знаком в dz) */
+  run: number;
+  x?: number;
+  y0: number;
+  z0: number;
+  dy: number;
+  dz: number;
+  /** материал проступи; функция — потому что у прямой лестницы он свой на ступень */
+  tread: () => THREE.Material;
+  riser?: { h: number; material: THREE.Material };
+}
+function stairFlight(g: THREE.Group, c: THREE.Color, f: Flight): void {
+  const x = f.x ?? 0;
+  for (let i = 0; i < f.steps; i++) {
+    const y = f.y0 + i * f.dy;
+    const z = f.z0 + i * f.dz;
+    g.add(tint(box(f.w, f.t, f.run, f.tread(), x, y, z), c));
+    if (f.riser)
+      g.add(box(f.w - 0.02, f.riser.h, 0.03, f.riser.material, x, y - f.riser.h / 2, z - f.run / 2));
+  }
+}
 
 export const structureModels = {
-  stairs: (c) => {
-    const g = new THREE.Group();
-    const steps = 8;
-    for (let i = 0; i < steps; i++)
-      g.add(tint(box(1.0, 0.18, 0.3, mat(WOOD), 0, 0.09 + i * 0.18, -i * 0.3), c));
-    return g;
-  },
+  stairs: defineModel((g, c) => {
+    stairFlight(g, c, {
+      steps: 8, w: 1.0, t: 0.18, run: 0.3,
+      y0: 0.09, z0: 0, dy: 0.18, dz: -0.3,
+      tread: () => mat(WOOD),
+    });
+  }),
   // Descending staircase — for an UPPER floor, a flight going DOWN to the level
   // below (steps drop beneath the floor). Treads + risers + side stringers read
   // clearly as a stairwell.
-  stairs_down: (c) => {
-    const g = new THREE.Group();
+  stairs_down: defineModel((g, c) => {
     const steps = 8;
     const rise = 0.19;
     const run = 0.3;
     const w = 1.0;
     const wood = mat(WOOD);
     const riserMat = mat(0x8a5f34);
-    for (let i = 0; i < steps; i++) {
-      const y = -0.02 - i * rise;
-      const z = -0.15 - i * run;
-      g.add(tint(box(w, 0.05, run, wood, 0, y, z), c)); // tread
-      g.add(box(w - 0.02, rise, 0.03, riserMat, 0, y - rise / 2, z - run / 2)); // riser
-    }
+    stairFlight(g, c, {
+      steps, w, t: 0.05, run,
+      y0: -0.02, z0: -0.15, dy: -rise, dz: -run,
+      tread: () => wood,
+      riser: { h: rise, material: riserMat },
+    });
     const strLen = Math.hypot(steps * rise, steps * run);
     const ang = Math.atan2(steps * rise, steps * run);
     for (const sx of [-1, 1]) {
@@ -41,30 +71,24 @@ export const structureModels = {
       s.rotation.x = -ang;
       g.add(s);
     }
-    return g;
-  },
+  }),
   // U-shaped switchback stair: two flights bridged by a mid landing (as drawn in
   // the Лестничная клетка stairwells).
-  stairs_switchback: (c) => {
-    const g = new THREE.Group();
+  stairs_switchback: defineModel((g, c) => {
     const steps = 7, rise = 0.18, run = 0.28, w = 0.95, gap = 0.06;
     const wood = mat(WOOD);
     const lane = w / 2 + gap / 2;
     const zFar = -steps * run;
-    for (let i = 0; i < steps; i++)
-      g.add(tint(box(w, 0.16, run, wood, -lane, 0.08 + i * rise, -i * run - run / 2), c)); // up flight (left)
+    const flight = { steps, w, t: 0.16, run, tread: () => wood };
+    stairFlight(g, c, { ...flight, x: -lane, y0: 0.08, z0: -run / 2, dy: rise, dz: -run }); // up flight (left)
     const landY = 0.08 + (steps - 1) * rise + rise;
     g.add(tint(box(2 * w + gap, 0.16, run * 2, wood, 0, landY, zFar - run), c)); // landing
-    const base2 = landY;
-    for (let i = 0; i < steps; i++)
-      g.add(tint(box(w, 0.16, run, wood, lane, base2 + (i + 1) * rise, zFar - run / 2 + i * run), c)); // down-return flight (right)
-    return g;
-  },
+    stairFlight(g, c, { ...flight, x: lane, y0: landY + rise, z0: zFar - run / 2, dy: rise, dz: run }); // down-return (right)
+  }),
   // Flat, plan-symbol staircase — lies FLUSH on the floor and reads like the way
   // stairs are drawn on the plan: a wooden footprint with tread lines across the
   // run (no arrow), for tracing the plan rather than a raised 3D flight.
-  stairs_flat: (c) => {
-    const g = new THREE.Group();
+  stairs_flat: defineModel((g, c) => {
     const steps = 12, run = 0.27, W = 1.2, t = 0.014;
     const L = steps * run;
     const slab = mat(WOOD, { roughness: 0.96 });
@@ -74,24 +98,18 @@ export const structureModels = {
       g.add(box(W - 0.04, t * 1.4, 0.018, line, 0, t + 0.002, -L / 2 + i * run));
     for (const sx of [-1, 1]) // side stringer outlines
       g.add(box(0.02, t * 1.4, L, line, sx * (W / 2 - 0.01), t + 0.002, 0));
-    return g;
-  },
+  }),
   // Freestanding structural columns (the red-square posts on the grid). A wall of
   // zero length collapses in the builder, so a placeable column model is needed.
-  column_sq: (c) => {
-    const g = new THREE.Group();
+  column_sq: defineModel((g, c) => {
     g.add(tint(box(0.38, 2.6, 0.38, mat(0xd8d2c6, { roughness: 0.9 }), 0, 1.3, 0), c));
-    return g;
-  },
-  column_round: (c) => {
-    const g = new THREE.Group();
+  }),
+  column_round: defineModel((g, c) => {
     g.add(tint(cyl(0.19, 0.19, 2.6, mat(0xd8d2c6, { roughness: 0.9 }), 0, 1.3, 0, 24), c));
-    return g;
-  },
+  }),
   // Elevator (Лифт) — shaft on three sides, a cabin, and two sliding leaves on
   // the open face. Footprint ~3.1 x 1.9 m to match the plan.
-  elevator: (c) => {
-    const g = new THREE.Group();
+  elevator: defineModel((g, c) => {
     const W = 3.1, D = 1.9, H = 2.6;
     const shaft = mat(0xbfc3c8, { roughness: 0.6, metalness: 0.3 });
     g.add(box(W, H, 0.1, shaft, 0, H / 2, -D / 2 + 0.05)); // back
@@ -102,28 +120,22 @@ export const structureModels = {
     const door = mat(METAL, { roughness: 0.35, metalness: 0.7 });
     g.add(box(0.72, H - 0.2, 0.05, door, -0.38, (H - 0.2) / 2, D / 2 - 0.05)); // left leaf
     g.add(box(0.72, H - 0.2, 0.05, door, 0.38, (H - 0.2) / 2, D / 2 - 0.05)); // right leaf
-    return g;
-  },
-  wall_panel: (c) => {
-    const g = new THREE.Group();
+  }),
+  wall_panel: defineModel((g, c) => {
     g.add(tint(box(1.5, 2.6, 0.12, mat(0xe6e6e6), 0, 1.3, 0), c));
-    return g;
-  },
-  arch: (c) => {
-    const g = new THREE.Group();
+  }),
+  arch: defineModel((g, c) => {
     g.add(tint(box(0.15, 2.0, 0.25, mat(0xe6e6e6), -0.6, 1.0, 0), c));
     g.add(tint(box(0.15, 2.0, 0.25, mat(0xe6e6e6), 0.6, 1.0, 0), c));
     g.add(tint(box(1.35, 0.25, 0.25, mat(0xe6e6e6), 0, 2.1, 0), c));
-    return g;
-  },
+  }),
   // Decorative feature wall (декоративная стена, панно): a floor-to-ceiling
   // walnut wood-clad backdrop with thin gold plank reveals, a rounded walnut
   // column, and a tall black-gloss panel in a slim gold frame. The seam between
   // the column and the black panel carries a warm 'emissive' LED reveal, so a
   // bound light/switch lights it. Free-standing — slide it flat against a wall
   // and rotate to face the room. 2.6 x 2.5 x 0.26 m.
-  feature_wall: (c) => {
-    const g = new THREE.Group();
+  feature_wall: defineModel((g, c) => {
     const W = 2.6, H = 2.5, D = 0.26;
     const backZ = -D / 2;           // backing slab hugs the wall
     const faceZ = D / 2 - 0.02;     // front face of the flat cladding
@@ -158,27 +170,21 @@ export const structureModels = {
     g.add(box(0.02, H - 0.02, 0.02, gold, blkX1 - 0.01, H / 2, fz));    // frame right
 
     // ---- Warm LED reveal in the wood/black seam (glows when bound) ----
-    const led = box(0.03, H - 0.22, 0.02, mat(0xffe9c0, { emissive: 0x000000 }), 0.29, H / 2, faceZ + 0.02);
-    led.name = 'emissive';
-    g.add(led);
+    g.add(glow(box(0.03, H - 0.22, 0.02, mat(0xffe9c0, { emissive: 0x000000 }), 0.29, H / 2, faceZ + 0.02)));
 
-    return g;
-  },
+  }),
   // Vertical fluted wood wall panel (реечная панель) — battens on a backing
   // board, floor-to-ceiling; sits flush on the wall surface.
-  wood_slat_panel: (c) => {
-    const g = new THREE.Group();
+  wood_slat_panel: defineModel((g, c) => {
     const W = 1.2, H = 2.6, OFF = 0.02;
     g.add(box(W, H, 0.02, mat(0x6e4a2f, { roughness: 0.85 }), 0, H / 2, OFF - 0.012)); // backing
     const n = 16, gap = W / n;
     for (let i = 0; i < n; i++)
       g.add(tint(box(gap * 0.55, H, 0.045, mat(WOOD, { roughness: 0.7 }), -W / 2 + gap * (i + 0.5), H / 2, OFF + 0.02), c));
-    return g;
-  },
+  }),
   // Climbing / bouldering wall — a tan panel studded with colourful holds.
   // Deterministic pseudo-random layout (no Math.random, so it's stable).
-  climbing_wall: (c) => {
-    const g = new THREE.Group();
+  climbing_wall: defineModel((g, c) => {
     const W = 2.4, H = 2.6, OFF = 0.03;
     g.add(tint(box(W, H, 0.04, mat(0xcbb089, { roughness: 0.95 }), 0, H / 2, OFF - 0.02), c)); // board
     const colors = [0xd0544a, 0x4a7dd0, 0x4caf6a, 0x8a5fb0, 0xe6e6e6, 0xe08a3a, 0x333333, 0xd8c840, 0x30b0b0];
@@ -202,12 +208,10 @@ export const structureModels = {
         hold.castShadow = true;
         g.add(hold);
       }
-    return g;
-  },
+  }),
   // Full-wall floor-to-ceiling terrace glazing WITH a door pane. Placed from the
   // palette it cuts a full-height opening (auto-fits the wall).
-  terrace_wall: (c) => {
-    const g = new THREE.Group();
+  terrace_wall: defineModel((g, c) => {
     const fr = mat(0x4a5560);
     const W = 4, H = 2.55, fw = 0.08, d = 0.12;
     g.add(tint(box(W, fw, d, fr, 0, H - fw / 2, 0), c)); // top
@@ -222,12 +226,10 @@ export const structureModels = {
     g.add(box(W / panes - 0.1, 0.07, d * 0.7, fr, (-W / 2 + dx1) / 2, 0.12, 0));
     g.add(box(0.04, 0.16, d * 1.2, mat(0xcbb26a, { metalness: 0.6, roughness: 0.35 }), dx1 - 0.16, 1.05, 0)); // handle
     g.add(box(W - fw, H - fw, 0.02, mat(0x9cc7da, { transparent: true, opacity: 0.4, metalness: 0.2 }), 0, H / 2, 0));
-    return g;
-  },
+  }),
   // Curved exterior entrance porch — stacked half-round stone treads + railing
   // posts. Self-contained (does not need a curved wall).
-  porch: (c) => {
-    const g = new THREE.Group();
+  porch: defineModel((g, c) => {
     const stone = mat(0xd7d2c8, { roughness: 0.9 });
     const treads = 3;
     for (let i = 0; i < treads; i++) {
@@ -244,16 +246,13 @@ export const structureModels = {
       const a = -Math.PI / 2 + Math.PI * (k / n);
       g.add(cyl(0.03, 0.03, 0.9, post, Math.cos(a) * rTop, yTop + 0.45, Math.sin(a) * rTop * 0.55, 8));
     }
-    return g;
-  },
+  }),
   // Carport canopy (Навес) — a flat roof on four slim posts.
-  canopy: (c) => {
-    const g = new THREE.Group();
+  canopy: defineModel((g, c) => {
     const W = 7.2, D = 7.0, H = 2.7;
     const post = mat(METAL, { roughness: 0.5, metalness: 0.4 });
     for (const sx of [-1, 1])
       for (const sz of [-1, 1]) g.add(cyl(0.08, 0.08, H, post, sx * (W / 2 - 0.2), H / 2, sz * (D / 2 - 0.2), 12));
     g.add(tint(box(W, 0.15, D, mat(0xd8d8dc, { roughness: 0.7 }), 0, H + 0.07, 0), c)); // roof slab
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

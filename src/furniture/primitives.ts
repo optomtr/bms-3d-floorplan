@@ -190,3 +190,122 @@ export function cabinetUnit(c: THREE.Color): THREE.Group {
   }
   return u;
 }
+
+// ---------------------------------------------------------------------------
+// Помощники, снимающие повторы в самих моделях.
+// ---------------------------------------------------------------------------
+
+/**
+ * Обёртка модели. Раньше каждая из 190 моделей начиналась с
+ * `const g = new THREE.Group()` и заканчивалась `return g` — 380 строк, в
+ * которых нельзя ошибиться, но можно забыть. Теперь сборщик получает готовую
+ * группу и просто наполняет её.
+ */
+export function defineModel(
+  build: (g: THREE.Group, color: THREE.Color, opts?: BuildOpts) => void,
+): FurnitureBuilder {
+  return (color, opts) => {
+    const g = new THREE.Group();
+    build(g, color, opts);
+    return g;
+  };
+}
+
+/**
+ * Помечает меш как светящуюся часть. Имя 'emissive' — договор со scene/bindings:
+ * привязанная лампа/выключатель зажигает именно меши с этим именем, поэтому имя
+ * менять НЕЛЬЗЯ. Обёртка нужна, чтобы это имя стояло в одном месте, а не в 36.
+ */
+export function glow<T extends THREE.Object3D>(o: T): T {
+  o.name = 'emissive';
+  return o;
+}
+
+/** Четыре угла пятна: (−x,−z), (+x,−z), (−x,+z), (+x,+z). Порядок важен —
+ *  в этом порядке ножки ложатся в группу. */
+const CORNERS = [
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1],
+] as const;
+
+/** Ножка в каждом из четырёх углов: что вернёт `make`, то и добавится. */
+export function legs4(g: THREE.Group, make: (sx: number, sz: number) => THREE.Object3D): void {
+  for (const [sx, sz] of CORNERS) g.add(make(sx, sz));
+}
+
+/** Четыре одинаковые прямоугольные ножки в углах (±lx, ±lz) на высоте y. */
+export function legs4Box(
+  g: THREE.Group,
+  w: number,
+  h: number,
+  d: number,
+  material: THREE.Material,
+  lx: number,
+  lz: number,
+  y: number,
+): void {
+  legs4(g, (sx, sz) => box(w, h, d, material, sx * lx, y, sz * lz));
+}
+
+/** Четыре одинаковые круглые (обычно чуть конические) ножки в углах (±lx, ±lz). */
+export function legs4Cyl(
+  g: THREE.Group,
+  rTop: number,
+  rBot: number,
+  h: number,
+  material: THREE.Material,
+  lx: number,
+  lz: number,
+  y: number,
+  seg = 16,
+): void {
+  legs4(g, (sx, sz) => cyl(rTop, rBot, h, material, sx * lx, y, sz * lz, seg));
+}
+
+/** Настройка набора: сколько элементов по умолчанию, потолок и шаг при разбросе 1. */
+export interface SetLayout {
+  /** сколько элементов, если пользователь не задал «Количество» */
+  count: number;
+  /** больше этого числа не ставим */
+  max: number;
+  /** расстояние между центрами при «Разбросе» 1 */
+  gap: number;
+}
+
+/**
+ * Раскладка набора вдоль X: элементы РАССТАВЛЯЮТСЯ шире, каждый сохраняет свой
+ * размер. Вызывает `place` с готовым смещением по X для каждого элемента.
+ */
+export function lightSet(
+  opts: BuildOpts | undefined,
+  layout: SetLayout,
+  place: (x: number, i: number) => void,
+): void {
+  const count = Math.max(1, Math.min(layout.max, Math.round(opts?.count ?? layout.count)));
+  const gap = layout.gap * (opts?.spread ?? 1);
+  for (let i = 0; i < count; i++) place((i - (count - 1) / 2) * gap, i);
+}
+
+/** То же, но элемент — целый узел: собрали, сдвинули по X, положили в группу. */
+export function lightSetUnits(
+  g: THREE.Group,
+  opts: BuildOpts | undefined,
+  layout: SetLayout,
+  unit: (i: number) => THREE.Object3D,
+): void {
+  lightSet(opts, layout, (x, i) => {
+    const u = unit(i);
+    u.position.x = x;
+    g.add(u);
+  });
+}
+
+/** Равномерный ряд вдоль X по центру: `n` шагов шириной `width / n`, начиная от
+ *  левого края. Так набираются рейки, ламели, панели, балясины и прочие «через
+ *  равные промежутки». */
+export function alongX(width: number, n: number, put: (x: number, i: number) => void): void {
+  const seg = width / n;
+  for (let i = 0; i < n; i++) put(-width / 2 + (i + 0.5) * seg, i);
+}

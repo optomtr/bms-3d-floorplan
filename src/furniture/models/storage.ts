@@ -7,35 +7,29 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, cyl, tint, WOOD, METAL, WHITE, DARK, GLASS, type FurnitureBuilder } from '../primitives';
+import { mat, box, cyl, tint, defineModel, glow, legs4, legs4Box, WOOD, METAL, WHITE, DARK, GLASS, type FurnitureBuilder } from '../primitives';
 
 export const storageModels = {
-  wardrobe: (c) => {
-    const g = new THREE.Group();
+  wardrobe: defineModel((g, c) => {
     g.add(tint(box(1.2, 2.0, 0.6, mat(WOOD), 0, 1.0, 0), c));
     g.add(box(0.04, 1.8, 0.02, mat(METAL), -0.02, 1.0, 0.31)); // door split
     g.add(cyl(0.02, 0.02, 0.15, mat(METAL), -0.2, 1.0, 0.32)); // handle
     g.add(cyl(0.02, 0.02, 0.15, mat(METAL), 0.16, 1.0, 0.32));
-    return g;
-  },
-  bookshelf: (c) => {
-    const g = new THREE.Group();
+  }),
+  bookshelf: defineModel((g, c) => {
     g.add(tint(box(1.0, 1.8, 0.32, mat(WOOD), 0, 0.9, 0), c));
     for (let i = 1; i <= 4; i++) g.add(box(0.94, 0.03, 0.3, mat(DARK), 0, i * 0.36, 0));
-    return g;
-  },
+  }),
   // ---- Extra kitchen ----
-  wall_cabinet: (c) => {
+  wall_cabinet: defineModel((g, c) => {
     // Upper kitchen cabinets (wall-mounted run of doors).
-    const g = new THREE.Group();
     const W = 1.6, H = 0.7, D = 0.34;
     g.add(tint(box(W, H, D, mat(WHITE), 0, 0, 0), c));
     for (const sx of [-1, 1]) {
       g.add(box(W / 2 - 0.03, H - 0.04, 0.02, mat(0xf6f6f6), (sx * W) / 4, 0, D / 2 + 0.005));
       g.add(box(0.04, 0.18, 0.03, mat(METAL), sx * 0.03, -H / 4, D / 2 + 0.02)); // handles
     }
-    return g;
-  },
+  }),
   // Glass-front kitchen wall cabinet (навесной шкаф со стеклом + подсветкой), as
   // in the reference photo: a dark shaker-frame run whose OUTER sections have
   // glass doors over a lit white interior with glass shelves, and whose CENTRE
@@ -44,8 +38,7 @@ export const storageModels = {
   // washes the backsplash below ("fartukdagi podsvetka"). Every glow mesh is
   // 'emissive', so binding a light/switch lights them together. Wall-mounted;
   // origin at the cabinet's base. 2.4 x 1.0 x 0.35 m.
-  glass_wall_cabinet: (c) => {
-    const g = new THREE.Group();
+  glass_wall_cabinet: defineModel((g, c) => {
     const W = 2.4, H = 1.0, D = 0.35;
     const backZ = -D / 2, frontZ = D / 2;
     const frame = mat(0x1c2622, { roughness: 0.35, metalness: 0.25 }); // dark green-black
@@ -70,12 +63,10 @@ export const storageModels = {
       if (glassCols.includes(i)) {
         // Lit display bay: glowing back, vertical side LEDs, glass shelves.
         const inW = sw - 0.1;
-        const back = box(inW, H - 0.12, 0.01, mat(0xf6f4ee, { emissive: 0x000000 }), cx, H / 2, backZ + 0.03);
-        back.name = 'emissive';
+        const back = glow(box(inW, H - 0.12, 0.01, mat(0xf6f4ee, { emissive: 0x000000 }), cx, H / 2, backZ + 0.03));
         g.add(back);
         for (const s of [-1, 1]) {
-          const strip = box(0.018, H - 0.16, 0.02, mat(0xfff3dc, { emissive: 0x000000 }), cx + s * (inW / 2 - 0.01), H / 2, backZ + 0.07);
-          strip.name = 'emissive';
+          const strip = glow(box(0.018, H - 0.16, 0.02, mat(0xfff3dc, { emissive: 0x000000 }), cx + s * (inW / 2 - 0.01), H / 2, backZ + 0.07));
           g.add(strip);
         }
         for (let s = 0; s < 4; s++) {
@@ -98,17 +89,14 @@ export const storageModels = {
     }
 
     // Under-cabinet LED that washes the marble backsplash below (фартук).
-    const under = box(W - 0.1, 0.02, 0.05, mat(0xffe9c4, { emissive: 0x000000 }), 0, 0.006, frontZ - 0.1);
-    under.name = 'emissive';
+    const under = glow(box(W - 0.1, 0.02, 0.05, mat(0xffe9c4, { emissive: 0x000000 }), 0, 0.006, frontZ - 0.1));
     g.add(under);
 
     g.add(tint(box(W + 0.05, 0.05, D + 0.04, frame, 0, H + 0.02, 0), c)); // slim crown
-    return g;
-  },
+  }),
   // Tall floor-to-ceiling display cabinet — dark tinted glass doors in a
   // brass-framed wood body (the "uzun shkaf"). Sits flush on the wall.
-  tall_cabinet: (c) => {
-    const g = new THREE.Group();
+  tall_cabinet: defineModel((g, c) => {
     const W = 1.5, H = 2.6, D = 0.42;
     const wood = mat(WOOD, { roughness: 0.6 });
     g.add(tint(box(W, H, D, wood, 0, H / 2, 0), c)); // body
@@ -121,17 +109,13 @@ export const storageModels = {
     g.add(box(W - 0.06, 0.03, 0.03, brass, 0, H - 0.22, D / 2 + 0.005)); // top rail
     g.add(box(W - 0.06, 0.03, 0.03, brass, 0, 0.32, D / 2 + 0.005)); // bottom rail
     g.add(tint(box(W, 0.3, D, wood, 0, 0.15, 0), c)); // wood base
-    return g;
-  },
-  tv_stand: (c) => {
-    const g = new THREE.Group();
+  }),
+  tv_stand: defineModel((g, c) => {
     g.add(tint(box(1.4, 0.4, 0.4, mat(DARK), 0, 0.2, 0), c));
     g.add(box(0.6, 0.02, 0.36, mat(METAL), -0.35, 0.41, 0));
-    return g;
-  },
+  }),
   // Low media console under the TV — a wood cabinet with door fronts + a top.
-  tv_console: (c) => {
-    const g = new THREE.Group();
+  tv_console: defineModel((g, c) => {
     const W = 2.0, H = 0.5, D = 0.45;
     const wood = mat(WOOD, { roughness: 0.6 });
     g.add(tint(box(W, H, D, wood, 0, H / 2 + 0.05, 0), c)); // carcass
@@ -139,40 +123,28 @@ export const storageModels = {
     const n = 4, dw = W / n;
     for (let i = 0; i < n; i++) g.add(tint(box(dw - 0.02, H - 0.08, 0.02, wood, -W / 2 + dw * (i + 0.5), H / 2 + 0.05, D / 2 + 0.005), c)); // door fronts
     g.add(box(W - 0.1, 0.06, D - 0.06, mat(0x3a2f26), 0, 0.03, 0)); // toe kick
-    return g;
-  },
-  sideboard: (c) => {
-    const g = new THREE.Group();
+  }),
+  sideboard: defineModel((g, c) => {
     g.add(tint(box(1.6, 0.8, 0.45, mat(WOOD), 0, 0.4, 0), c));
     for (let i = -1; i <= 1; i++) g.add(box(0.02, 0.1, 0.02, mat(METAL), i * 0.5, 0.5, 0.23));
-    return g;
-  },
-  wine_rack: (c) => {
-    const g = new THREE.Group();
+  }),
+  wine_rack: defineModel((g, c) => {
     const w = mat(WOOD);
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(tint(box(0.05, 0.8, 0.05, w, sx * 0.28, 0.4, sz * 0.14), c));
+    legs4(g, (sx, sz) => tint(box(0.05, 0.8, 0.05, w, sx * 0.28, 0.4, sz * 0.14), c));
     for (const y of [0.15, 0.35, 0.55, 0.75]) g.add(box(0.56, 0.03, 0.28, w, 0, y, 0));
-    return g;
-  },
+  }),
   // ---- Office ----
-  filing_cabinet: (c) => {
-    const g = new THREE.Group();
+  filing_cabinet: defineModel((g, c) => {
     g.add(tint(box(0.45, 1.0, 0.55, mat(METAL, { metalness: 0.4, roughness: 0.5 }), 0, 0.5, 0), c));
     for (const y of [0.25, 0.5, 0.75]) g.add(box(0.4, 0.02, 0.02, mat(DARK), 0, y, 0.28));
-    return g;
-  },
+  }),
   // ---- Entry / utility / decor ----
-  shoe_rack: (c) => {
-    const g = new THREE.Group();
+  shoe_rack: defineModel((g, c) => {
     const w = mat(WOOD);
     for (const y of [0.1, 0.3, 0.5]) g.add(tint(box(0.8, 0.03, 0.3, w, 0, y, 0), c));
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(box(0.04, 0.55, 0.04, w, sx * 0.38, 0.275, sz * 0.13));
-    return g;
-  },
-  coat_rack: (c) => {
-    const g = new THREE.Group();
+    legs4Box(g, 0.04, 0.55, 0.04, w, 0.38, 0.13, 0.275);
+  }),
+  coat_rack: defineModel((g, c) => {
     const w = mat(WOOD);
     g.add(tint(cyl(0.04, 0.06, 1.7, w, 0, 0.85, 0, 12), c));
     g.add(cyl(0.25, 0.25, 0.04, w, 0, 0.02, 0, 16));
@@ -180,20 +152,16 @@ export const storageModels = {
       const a = (i * Math.PI) / 2;
       g.add(box(0.18, 0.03, 0.03, w, Math.cos(a) * 0.09, 1.6, Math.sin(a) * 0.09));
     }
-    return g;
-  },
-  wall_shelf: (c) => {
-    const g = new THREE.Group();
+  }),
+  wall_shelf: defineModel((g, c) => {
     const w = mat(WOOD);
     g.add(tint(box(0.8, 0.04, 0.22, w, 0, 0, 0.11), c));
     g.add(box(0.04, 0.2, 0.2, w, -0.36, -0.1, 0.1));
     g.add(box(0.04, 0.2, 0.2, w, 0.36, -0.1, 0.1));
-    return g;
-  },
+  }),
   // ---- Wardrobes / cabinets ----
-  wardrobe_glass: (c) => {
+  wardrobe_glass: defineModel((g, c) => {
     // Multi-shelf wardrobe with transparent glass doors (see the shelves).
-    const g = new THREE.Group();
     const W = 1.2, H = 2.1, D = 0.58;
     g.add(tint(box(W, H, D, mat(WHITE), 0, H / 2, 0), c)); // body
     g.add(box(W - 0.06, H - 0.06, D - 0.08, mat(0x202428), 0, H / 2, -0.02)); // dark interior
@@ -204,11 +172,9 @@ export const storageModels = {
     g.add(box(0.04, H - 0.1, 0.05, mat(METAL), 0, H / 2, D / 2 + 0.015)); // center stile
     g.add(cyl(0.012, 0.012, 0.2, mat(METAL), -0.06, H / 2, D / 2 + 0.05, 8));
     g.add(cyl(0.012, 0.012, 0.2, mat(METAL), 0.06, H / 2, D / 2 + 0.05, 8));
-    return g;
-  },
-  display_cabinet: (c) => {
+  }),
+  display_cabinet: defineModel((g, c) => {
     // Tall glass display cabinet with lit-looking shelves + a couple of items.
-    const g = new THREE.Group();
     const W = 0.9, H = 1.9, D = 0.4;
     g.add(tint(box(W, H, D, mat(WOOD), 0, H / 2, 0), c));
     g.add(box(W - 0.08, H - 0.2, D - 0.06, mat(0x1c2024), 0, H / 2 + 0.04, -0.01)); // interior
@@ -217,23 +183,19 @@ export const storageModels = {
     for (const y of [0.55, 0.95, 1.35, 1.7]) g.add(box(W - 0.1, 0.02, D - 0.08, mat(0xf2f2f2), 0, y, 0));
     g.add(tint(cyl(0.05, 0.07, 0.16, mat(0xdfe6ea), -0.2, 0.63, 0, 12), c));
     g.add(box(0.12, 0.18, 0.1, mat(0x8a3b3b), 0.18, 0.64, 0));
-    return g;
-  },
-  shelving_unit: (c) => {
+  }),
+  shelving_unit: defineModel((g, c) => {
     // Tall open multi-tier shelving.
-    const g = new THREE.Group();
     const w = mat(WOOD);
     const W = 1.0, H = 2.0, D = 0.32;
     g.add(tint(box(0.04, H, D, w, -W / 2, H / 2, 0), c));
     g.add(tint(box(0.04, H, D, w, W / 2, H / 2, 0), c));
     g.add(box(W, 0.03, 0.04, w, 0, H - 0.02, -D / 2 + 0.02)); // top back rail
     for (let i = 0; i < 6; i++) g.add(box(W, 0.03, D, w, 0, 0.04 + (i * (H - 0.08)) / 5, 0));
-    return g;
-  },
-  wardrobe_lit: (c) => {
+  }),
+  wardrobe_lit: defineModel((g, c) => {
     // Backlit wardrobe: the LED strips (named "emissive") glow when a bound
     // light/switch entity is on. Open-front so the glow is visible.
-    const g = new THREE.Group();
     const W = 1.2, H = 2.1, D = 0.58;
     g.add(tint(box(W, H, D, mat(WHITE), 0, H / 2, 0), c)); // body
     g.add(box(W - 0.06, H - 0.06, D - 0.08, mat(0x14171a), 0, H / 2, -0.02)); // dark interior
@@ -243,19 +205,15 @@ export const storageModels = {
     g.add(rod); // hanging rail
     // LED strips laid along the underside of the top and a shelf — these glow.
     for (const y of [H - 0.12, 1.45, 0.55]) {
-      const led = box(W - 0.16, 0.035, 0.04, mat(0xeaeaea, { emissive: 0x000000 }), 0, y, D / 2 - 0.12);
-      led.name = 'emissive';
-      g.add(led);
+      g.add(glow(box(W - 0.16, 0.035, 0.04, mat(0xeaeaea, { emissive: 0x000000 }), 0, y, D / 2 - 0.12)));
     }
-    return g;
-  },
+  }),
   // Built-in arched bookcase wall with a window seat (арочные ниши + скамья).
   // Two arched niches — open cubbies over wood cabinets — flanking a cushioned
   // bench nook with drawers. The face is ONE slab with the arches and the bench
   // nook cut out of it, so the openings read as real reveals; everything else
   // lives behind that face and is occluded by it.
-  arch_shelf_wall: (c) => {
-    const g = new THREE.Group();
+  arch_shelf_wall: defineModel((g, c) => {
     const W = 4.8, H = 2.5, D = 0.42;
     const FZ = D / 2 - 0.06; // front slab spans z FZ .. D/2
     const NX = 1.5;          // niche centre offset
@@ -336,15 +294,13 @@ export const storageModels = {
     }
 
     g.add(tint(box(W, 0.07, D + 0.05, white, 0, H - 0.035, 0.02), c)); // crown
-    return g;
-  },
+  }),
   // Backlit niche display wall (ниши с подсветкой + стеклянные полки). Two tall
   // rectangular niches with a stone back, dark floating glass shelves and a
   // vertical cove-light strip down each inner edge; a framed TV panel between
   // them over a low fluted black console. The light strips are 'emissive', so
   // binding the room's подсветка light glows them. 4.6 x 2.5 x 0.4 m.
-  niche_shelf_wall: (c) => {
-    const g = new THREE.Group();
+  niche_shelf_wall: defineModel((g, c) => {
     const W = 4.6, H = 2.5, D = 0.4;
     const FZ = D / 2 - 0.06;      // front slab front face
     const NX = 1.5, R = 0.48;     // niche centre offset + half-width
@@ -373,10 +329,8 @@ export const storageModels = {
       g.add(tint(box(R * 2, NY1 - NY0, 0.02, stone, cx, (NY0 + NY1) / 2, -D / 2 + 0.01), c));
       for (const s of [-1, 1]) {
         g.add(tint(box(0.02, NY1 - NY0, ID, white, cx + s * R, (NY0 + NY1) / 2, IZ), c));
-        const strip = box(0.03, NY1 - NY0 - 0.1, 0.04, mat(0xfff1d8, { emissive: 0x000000 }),
-          cx + s * (R - 0.05), (NY0 + NY1) / 2, IZ + ID / 2 - 0.03);
-        strip.name = 'emissive';
-        g.add(strip);
+        g.add(glow(box(0.03, NY1 - NY0 - 0.1, 0.04, mat(0xfff1d8, { emissive: 0x000000 }),
+          cx + s * (R - 0.05), (NY0 + NY1) / 2, IZ + ID / 2 - 0.03)));
       }
       for (let i = 0; i < 4; i++) {
         g.add(box(R * 2 - 0.08, 0.02, ID - 0.04, glass, cx, 0.5 + i * 0.48, IZ));
@@ -399,10 +353,8 @@ export const storageModels = {
 
     g.add(tint(box(W, 0.08, D + 0.05, white, 0, H - 0.04, 0.02), c)); // crown
     g.add(tint(box(W, 0.1, D + 0.02, white, 0, 0.05, 0.01), c));      // skirting
-    return g;
-  },
-  books: (c) => {
-    const g = new THREE.Group();
+  }),
+  books: defineModel((g, c) => {
     const cols = [0x8a3b3b, 0x3b5a8a, 0x3b8a5a, 0xb5912f];
     let y = 0.02;
     for (let i = 0; i < 4; i++) {
@@ -410,6 +362,5 @@ export const storageModels = {
       y += 0.045;
     }
     tint(g.children[0] as THREE.Mesh, c);
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

@@ -7,14 +7,35 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { mat, box, rbox, cyl, tint, WOOD, type FurnitureBuilder } from '../primitives';
+import { mat, box, rbox, cyl, tint, defineModel, alongX, WOOD, type FurnitureBuilder } from '../primitives';
+
+/**
+ * Низ каменного парапета: тело плюс облицовочные панели на обеих гранях с
+ * тонким швом между ними. Один сборщик на стеклянный парапет, глухой парапет и
+ * кашпо — раньше это была одна и та же дюжина строк, переписанная трижды.
+ */
+function stoneFacing(
+  g: THREE.Group,
+  c: THREE.Color,
+  stone: THREE.Material,
+  W: number,
+  H: number,
+  D: number,
+  panel: { step: number; joint: number; inset: number; thick: number; dy: number; off: number },
+): void {
+  g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c)); // тело
+  const np = Math.max(3, Math.round(W / panel.step)), pw = W / np;
+  alongX(W, np, (x) => {
+    for (const sz of [1, -1])
+      g.add(tint(box(pw - panel.joint, H - panel.inset, panel.thick, stone, x, H / 2 + panel.dy, sz * (D / 2 + panel.off)), c));
+  });
+}
 
 export const outdoorModels = {
   // Hanging swing (arg'imchoq) — a freestanding A-frame with a rope seat.
-  swing: (c) => {
+  swing: defineModel((g, c) => {
     // House-shaped garden swing: an A-frame carrying a little pitched ROOF canopy
     // ("uycha") over a hanging bench seat with a back + arms.
-    const g = new THREE.Group();
     const post = mat(0x8a6a4a, { roughness: 0.75 });
     const H = 2.05, span = 1.9, depth = 1.4;
     // splayed A-frame legs (two per side)
@@ -49,13 +70,11 @@ export const outdoorModels = {
     for (const sx of [-1, 1])
       for (const sz of [-1, 1])
         g.add(cyl(0.01, 0.01, H - seatY - 0.1, rope, sx * (sw / 2 - 0.05), (H + seatY) / 2, 0.02 + sz * (sd / 2 - 0.06), 6));
-    return g;
-  },
+  }),
   // Wooden Montessori-style children's SLIDE (toyinchoq): a raised deck under a
   // tall rounded arch (a mirror/opening), with a CURVED chute descending to the
   // floor + side rails. Light natural oak.
-  slide: (c) => {
-    const g = new THREE.Group();
+  slide: defineModel((g, c) => {
     const oak = mat(0xdcc5a0, { roughness: 0.72 });
     const oak2 = mat(0xcab086, { roughness: 0.8 });
     const chuteMat = mat(0xe0cba6, { roughness: 0.55 });
@@ -94,11 +113,9 @@ export const outdoorModels = {
         g.add(r);
       }
     }
-    return g;
-  },
+  }),
   // Passenger car (parked under the canopy on the plan).
-  car: (c) => {
-    const g = new THREE.Group();
+  car: defineModel((g, c) => {
     const body = mat(0x30506e, { roughness: 0.4, metalness: 0.5 });
     g.add(tint(box(1.82, 0.55, 4.3, body, 0, 0.5, 0), c)); // lower body
     g.add(tint(box(1.7, 0.35, 3.5, body, 0, 0.85, 0), c)); // waist
@@ -110,16 +127,14 @@ export const outdoorModels = {
         wl.rotation.z = Math.PI / 2;
         g.add(wl);
       }
-    return g;
-  },
+  }),
   // Off-road SUV — an upright 4x4 in the spirit of a classic G-class wagon, but
   // with molded (rounded) panels, gloss paint, alloy wheels with spokes and
   // arch trims, tinted glass and lit LED details so it reads as a real vehicle
   // rather than a block. All original primitive geometry (no badges or logos),
   // recolorable via the body tint; defaults to gloss black. Length runs along Z
   // like `car`, nose toward +Z.
-  offroader: (c) => {
-    const g = new THREE.Group();
+  offroader: defineModel((g, c) => {
     const paint = () => mat(0x15171d, { roughness: 0.15, metalness: 0.68 }); // gloss paint (fresh per panel so tint is independent)
     const clad = mat(0x0c0d10, { roughness: 0.72, metalness: 0.12 });         // matte black bumpers / cladding / arches
     const glass = mat(0x1b2432, { roughness: 0.05, metalness: 0.92 });        // reflective tinted glass
@@ -199,15 +214,13 @@ export const outdoorModels = {
     g.add(rbox(1.5, 0.1, 0.14, clad, 0, 2.12, 0.75, 0.03));                               // roof light bar
     for (let i = -3; i <= 3; i++) g.add(box(0.12, 0.06, 0.04, lamp, i * 0.2, 2.12, 0.83));
 
-    return g;
-  },
+  }),
   // Retractable louvered pergola roof — a ceiling-level slatted canopy that FOLDS
   // toward its mounting (house) side. The cream louvres live in a 'curtainPivot'
   // group, so a bound `cover` gathers them: cover-closed = full canopy over the
   // terrace, cover-open = retracted to the house. Fixed dark side-tracks stay put.
   // Place at ceiling height (defaultY = wallHeight). ~3.2 x 2.8 m.
-  pergola_retractable: (c) => {
-    const g = new THREE.Group();
+  pergola_retractable: defineModel((g, c) => {
     const W = 3.2, Dep = 2.8, hw = W / 2, hd = Dep / 2;
     const frame = mat(0x2b2f33, { metalness: 0.55, roughness: 0.4 });
     const cream = mat(0xede4cc, { roughness: 0.85 });
@@ -228,13 +241,11 @@ export const outdoorModels = {
     // Leading-edge beam travels with the slats (at the far/terrace end).
     pivot.add(box(0.1, 0.16, Dep, frame, W - 0.05, 0, 0));
     g.add(pivot);
-    return g;
-  },
+  }),
   // Half-height terrace parapet — a warm vertical-slat clad low wall topped by a
   // frameless glass balustrade with a slim metal handrail. Free-standing: sits on
   // the deck at the terrace edge. ~2.4 m long, ~0.95 m wall + 0.5 m glass.
-  terrace_parapet: (c) => {
-    const g = new THREE.Group();
+  terrace_parapet: defineModel((g, c) => {
     const W = 2.4, H = 0.95, D = 0.14;
     const wood = mat(0x9c6b3f, { roughness: 0.7 });
     const frame = mat(0x2b2f33, { metalness: 0.5, roughness: 0.4 });
@@ -243,11 +254,10 @@ export const outdoorModels = {
     g.add(box(W, H, D * 0.6, core, 0, H / 2, 0)); // solid core
     // Vertical wood slats cladding both faces.
     const n = Math.max(6, Math.round(W / 0.085)), seg = W / n;
-    for (let i = 0; i < n; i++) {
-      const x = -W / 2 + (i + 0.5) * seg;
+    alongX(W, n, (x) => {
       g.add(tint(box(seg * 0.68, H - 0.06, 0.022, wood, x, H / 2, D * 0.3 + 0.011), c));
       g.add(tint(box(seg * 0.68, H - 0.06, 0.022, wood, x, H / 2, -D * 0.3 - 0.011), c));
-    }
+    });
     g.add(box(W + 0.04, 0.04, D + 0.04, frame, 0, H + 0.02, 0)); // coping cap
     // Glass balustrade + posts + handrail on top.
     const gh = 0.5;
@@ -256,83 +266,61 @@ export const outdoorModels = {
     const rail = cyl(0.018, 0.018, W, frame, 0, H + 0.04 + gh, 0, 8);
     rail.rotation.z = Math.PI / 2;
     g.add(rail);
-    return g;
-  },
+  }),
   // Stone terrace parapet under a REEDED glass screen — the enclosed-terrace
   // wall: cream stone facing panels, a dark stone coping, then a fluted
   // translucent screen between dark end posts. Free-standing at the terrace
   // edge. ~2.4 m long; 0.9 m of wall + 0.62 m of glass.
-  terrace_glass_parapet: (c) => {
-    const g = new THREE.Group();
+  terrace_glass_parapet: defineModel((g, c) => {
     const W = 2.4, H = 0.9, D = 0.16;
     const stone = mat(0xe3d9c4, { roughness: 0.85 });
     const dark = mat(0x33363b, { roughness: 0.55, metalness: 0.25 });
     const glass = mat(0xd8e2df, { transparent: true, opacity: 0.34, roughness: 0.12, metalness: 0.1, side: THREE.DoubleSide });
-    g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c)); // core
-    // Large-format facing panels on both faces, with a slim joint between them.
-    const np = Math.max(3, Math.round(W / 0.62)), pw = W / np;
-    for (let i = 0; i < np; i++) {
-      const x = -W / 2 + (i + 0.5) * pw;
-      for (const sz of [1, -1]) g.add(tint(box(pw - 0.012, H - 0.05, 0.014, stone, x, H / 2, sz * (D / 2 + 0.007)), c));
-    }
+    // Core + large-format facing panels on both faces, with a slim joint between them.
+    stoneFacing(g, c, stone, W, H, D, { step: 0.62, joint: 0.012, inset: 0.05, thick: 0.014, dy: 0, off: 0.007 });
     g.add(box(W + 0.03, 0.05, D + 0.05, dark, 0, H + 0.025, 0)); // dark coping
     // Reeded screen: one translucent pane, with vertical flutes proud of its face.
     const gy = H + 0.05, gh = 0.62;
     g.add(box(W - 0.06, gh, 0.016, glass, 0, gy + gh / 2, 0));
     const nr = Math.max(8, Math.round(W / 0.075)), rw = (W - 0.06) / nr;
-    for (let i = 0; i < nr; i++) {
-      const x = -W / 2 + 0.03 + (i + 0.5) * rw;
-      g.add(box(rw * 0.72, gh - 0.02, 0.012, glass, x, gy + gh / 2, 0.012));
-    }
+    alongX(W - 0.06, nr, (x) => g.add(box(rw * 0.72, gh - 0.02, 0.012, glass, x, gy + gh / 2, 0.012)));
     g.add(box(W - 0.06, 0.035, 0.05, dark, 0, gy + gh + 0.017, 0)); // cap rail
     for (const sx of [-1, 1]) g.add(box(0.05, gh, 0.05, dark, sx * (W / 2 - 0.025), gy + gh / 2, 0)); // end posts
-    return g;
-  },
+  }),
   // Plain stone terrace parapet — cream facing panels between a dark skirting and
   // a dark coping cap. The solid low wall that rings the open roof terrace, and
   // the bench-height ledge inside it. ~2.4 m long, ~1.0 m tall.
-  terrace_stone_parapet: (c) => {
-    const g = new THREE.Group();
+  terrace_stone_parapet: defineModel((g, c) => {
     const W = 2.4, H = 1.0, D = 0.18;
     const stone = mat(0xe3d9c4, { roughness: 0.85 });
     const dark = mat(0x33363b, { roughness: 0.55, metalness: 0.25 });
-    g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c));
-    const np = Math.max(3, Math.round(W / 0.6)), pw = W / np;
-    for (let i = 0; i < np; i++) {
-      const x = -W / 2 + (i + 0.5) * pw;
-      for (const sz of [1, -1]) g.add(tint(box(pw - 0.014, H - 0.08, 0.014, stone, x, H / 2 + 0.01, sz * (D / 2 + 0.007)), c));
-    }
+    stoneFacing(g, c, stone, W, H, D, { step: 0.6, joint: 0.014, inset: 0.08, thick: 0.014, dy: 0.01, off: 0.007 });
     g.add(box(W + 0.04, 0.055, D + 0.06, dark, 0, H + 0.028, 0)); // coping cap
     g.add(box(W, 0.05, D + 0.02, dark, 0, 0.025, 0)); // skirting
-    return g;
-  },
+  }),
   // Classical stone balustrade — turned vase balusters between a moulded plinth
   // and a handrail, as on the open (unroofed) terrace. ~2.4 m long, ~0.8 m tall.
-  balustrade: (c) => {
-    const g = new THREE.Group();
+  balustrade: defineModel((g, c) => {
     const W = 2.4, D = 0.2;
     const stone = mat(0xe3d9c4, { roughness: 0.85 });
     g.add(tint(box(W, 0.06, D, stone, 0, 0.03, 0), c)); // plinth
     g.add(tint(box(W - 0.05, 0.06, D - 0.05, stone, 0, 0.09, 0), c)); // base moulding
     const bY = 0.12, bH = 0.56;
-    const n = Math.max(4, Math.round(W / 0.17)), seg = W / n;
-    for (let i = 0; i < n; i++) {
-      const x = -W / 2 + (i + 0.5) * seg;
+    const n = Math.max(4, Math.round(W / 0.17));
+    alongX(W, n, (x) => {
       // Vase profile: a wide belly tapering up to a narrow neck, then a flare.
       g.add(tint(cyl(0.032, 0.058, bH * 0.62, stone, x, bY + bH * 0.31, 0, 10), c));
       g.add(tint(cyl(0.052, 0.030, bH * 0.28, stone, x, bY + bH * 0.76, 0, 10), c));
       g.add(tint(box(0.085, bH * 0.1, 0.085, stone, x, bY + bH * 0.95, 0), c));
-    }
+    });
     const rY = bY + bH;
     g.add(tint(box(W, 0.05, D - 0.02, stone, 0, rY + 0.025, 0), c)); // rail underside
     g.add(tint(box(W + 0.05, 0.06, D + 0.02, stone, 0, rY + 0.08, 0), c)); // handrail cap
-    return g;
-  },
+  }),
   // Raised star-plan granite fountain (the terrace "hauz") — a two-step polished
   // black granite plinth whose zig-zag parapet rings a circular water basin, with
   // slatted teak decking filling the space between. ~3.2 m square, 0.75 m tall.
-  fountain_pool: (c) => {
-    const g = new THREE.Group();
+  fountain_pool: defineModel((g, c) => {
     const gran = mat(0x24262b, { roughness: 0.25, metalness: 0.25 }); // polished
     const speck = mat(0x44484e, { roughness: 0.7 }); // speckled granite copings
     const wood = mat(0x8a5a30, { roughness: 0.75 });
@@ -346,9 +334,7 @@ export const outdoorModels = {
     g.add(box(S2 + 0.02, 0.025, S2 + 0.02, speck, 0, 0.278, 0));
     // Teak deck, laid inside the parapet and hidden under the basin.
     const dHalf = 0.98, nb = 13, sw = (dHalf * 2) / nb;
-    for (let i = 0; i < nb; i++) {
-      g.add(box(sw * 0.66, 0.035, dHalf * 2, wood, -dHalf + (i + 0.5) * sw, 0.308, 0));
-    }
+    alongX(dHalf * 2, nb, (x) => g.add(box(sw * 0.66, 0.035, dHalf * 2, wood, x, 0.308, 0)));
     // Zig-zag parapet: 8 tangent panels at ALTERNATING radii, which is what gives
     // the plan its star. Each panel is turned to face radially outward.
     const n = 8, ph = 0.46;
@@ -369,23 +355,16 @@ export const outdoorModels = {
     const R = 0.72;
     g.add(cyl(R + 0.13, R + 0.13, 0.17, speck, 0, 0.36, 0, 32));
     g.add(cyl(R, R, 0.02, water, 0, 0.432, 0, 32));
-    return g;
-  },
+  }),
   // Built-in stone planter — cream stone facing over a dark skirting, capped by a
   // dark granite frame around a sunken bed. The window-side boxes that run along
   // the terrace glazing. ~1.6 x 0.6 m, 0.6 m tall.
-  stone_planter: (c) => {
-    const g = new THREE.Group();
+  stone_planter: defineModel((g, c) => {
     const W = 1.6, H = 0.55, D = 0.6;
     const stone = mat(0xe3d9c4, { roughness: 0.85 });
     const dark = mat(0x33363b, { roughness: 0.4, metalness: 0.2 });
     const soil = mat(0x2e2a26, { roughness: 0.95 });
-    g.add(tint(box(W, H, D, stone, 0, H / 2, 0), c));
-    const np = Math.max(3, Math.round(W / 0.4)), pw = W / np;
-    for (let i = 0; i < np; i++) {
-      const x = -W / 2 + (i + 0.5) * pw;
-      for (const sz of [1, -1]) g.add(tint(box(pw - 0.012, H - 0.14, 0.012, stone, x, H / 2 + 0.03, sz * (D / 2 + 0.006)), c));
-    }
+    stoneFacing(g, c, stone, W, H, D, { step: 0.4, joint: 0.012, inset: 0.14, thick: 0.012, dy: 0.03, off: 0.006 });
     g.add(box(W + 0.02, 0.07, D + 0.02, dark, 0, 0.035, 0)); // dark skirting
     // Granite cap as a frame, so the middle reads as a sunken bed.
     const cw = 0.13, cy = H + 0.025;
@@ -394,10 +373,8 @@ export const outdoorModels = {
     g.add(box(cw, 0.05, D + 0.04, dark, (W - cw) / 2 + 0.02, cy, 0));
     g.add(box(cw, 0.05, D + 0.04, dark, -((W - cw) / 2 + 0.02), cy, 0));
     g.add(box(W - cw * 2, 0.02, D - cw * 2, soil, 0, H - 0.03, 0)); // bed
-    return g;
-  },
-  tree: (c) => {
-    const g = new THREE.Group();
+  }),
+  tree: defineModel((g, c) => {
     const bark = mat(0x6b4a2f, { roughness: 0.95 });
     const leaf = mat(0x3f7d3f);
     // Tapered trunk (wider at the base), low seg — it's mostly hidden by canopy.
@@ -425,10 +402,8 @@ export const outdoorModels = {
     g.add(blob(0.55, 0.1, 2.45, 0.2)); // top crown
     g.add(blob(0.5, 0.2, 1.9, 0.58)); // front bulge
     g.add(blob(0.48, -0.16, 1.92, -0.55)); // back bulge
-    return g;
-  },
-  shrub: (c) => {
-    const g = new THREE.Group();
+  }),
+  shrub: defineModel((g, c) => {
     const leaf = mat(0x4a7d3a);
     // A round hedge clump from a few flattened, overlapping low-poly spheres.
     const blob = (r: number, x: number, y: number, z: number) => {
@@ -442,6 +417,5 @@ export const outdoorModels = {
     g.add(blob(0.34, 0, 0.22, 0)); // central mound (main tinted surface)
     g.add(blob(0.27, -0.2, 0.18, 0.06)); // left lobe
     g.add(blob(0.26, 0.2, 0.19, -0.05)); // right lobe
-    return g;
-  },
+  }),
 } satisfies Record<string, FurnitureBuilder>;

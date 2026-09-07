@@ -6,14 +6,15 @@
 // а не порядок записей в этом файле.
 // ---------------------------------------------------------------------------
 
-import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { mat, box, cyl, tint, ledFrame, cabinetUnit, METAL, WHITE, DARK, type FurnitureBuilder } from '../primitives';
 
 // Одиночные люстры вынесены отдельными сборщиками: из них набираются наборы
 // chandelier_double / crystal_chandelier_double, поэтому их нужно звать по имени.
-const chandelier: FurnitureBuilder = (c) => {
-  const g = new THREE.Group();
+
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mat, box, cyl, tint, ledFrame, cabinetUnit, defineModel, glow, legs4Box, lightSet, lightSetUnits, METAL, WHITE, DARK, type FurnitureBuilder } from '../primitives';
+
+const chandelier: FurnitureBuilder = defineModel((g, c) => {
   const gold = mat(0xd9b863, { metalness: 0.6, roughness: 0.35 });
   const crystal = mat(0xcfe6f5, { transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.1 });
   const wax = mat(0xf3ead2);
@@ -44,8 +45,7 @@ const chandelier: FurnitureBuilder = (c) => {
       // Cup, candle, flame.
       g.add(cyl(0.035, 0.05, 0.04, gold, cx, t.y - 0.02, cz));
       g.add(cyl(0.02, 0.022, 0.1, wax, cx, t.y + 0.05, cz));
-      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 10), mat(0xfff1c0, { emissive: 0x000000 }));
-      flame.name = 'emissive';
+      const flame = glow(new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 10), mat(0xfff1c0, { emissive: 0x000000 })));
       flame.position.set(cx, t.y + 0.12, cz);
       g.add(tint(flame, c));
     }
@@ -57,11 +57,9 @@ const chandelier: FurnitureBuilder = (c) => {
     bead.position.set(Math.cos(a) * 0.33, bodyY - 0.05, Math.sin(a) * 0.33);
     g.add(bead);
   }
-  return g;
-};
+});
 
-const crystal_chandelier: FurnitureBuilder = (c) => {
-  const g = new THREE.Group();
+const crystal_chandelier: FurnitureBuilder = defineModel((g, c) => {
   const gold = mat(0xe6c66e, { metalness: 0.7, roughness: 0.3 });
   const crystal = mat(0xdff0fb, { transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.2 });
   g.add(cyl(0.06, 0.08, 0.03, gold, 0, -0.015, 0)); // canopy
@@ -84,77 +82,48 @@ const crystal_chandelier: FurnitureBuilder = (c) => {
       g.add(bead);
     }
   }
-  const glow = cyl(0.05, 0.05, 0.42, mat(0xfff3d0, { emissive: 0x000000, transparent: true, opacity: 0.9 }), 0, -0.4, 0, 16);
-  glow.name = 'emissive';
-  g.add(tint(glow, c));
-  return g;
-};
+  g.add(tint(glow(cyl(0.05, 0.05, 0.42, mat(0xfff3d0, { emissive: 0x000000, transparent: true, opacity: 0.9 }), 0, -0.4, 0, 16)), c));
+});
 
 export const lightingModels = {
-  ceiling_light: (c) => {
-    const g = new THREE.Group();
+  ceiling_light: defineModel((g, c) => {
     // Anchor at ceiling; the binding system attaches a PointLight to this.
-    const shade = cyl(0.18, 0.22, 0.12, mat(WHITE, { emissive: 0x000000 }), 0, 0, 0);
-    shade.name = 'emissive';
+    const shade = glow(cyl(0.18, 0.22, 0.12, mat(WHITE, { emissive: 0x000000 }), 0, 0, 0));
     g.add(tint(shade, c));
     g.add(cyl(0.01, 0.01, 0.25, mat(METAL), 0, 0.18, 0)); // cord
-    return g;
-  },
+  }),
   // A PAIR of tall dark display cabinets flanking a feature wall — `count`
   // cabinets, `spread` sets the GAP between them WITHOUT resizing each. The
   // backlit glass shelves glow when bound to a light/switch.
-  cabinet_pair: (c, opts) => {
-    const g = new THREE.Group();
-    const count = Math.max(1, Math.min(6, Math.round(opts?.count ?? 2)));
-    const spread = opts?.spread ?? 1;
-    const gap = 1.7 * spread;
-    for (let i = 0; i < count; i++) {
-      const u = cabinetUnit(c);
-      u.position.x = (i - (count - 1) / 2) * gap;
-      g.add(u);
-    }
-    return g;
-  },
+  cabinet_pair: defineModel((g, c, opts) => {
+    lightSetUnits(g, opts, { count: 2, max: 6, gap: 1.7 }, () => cabinetUnit(c));
+  }),
   // ---- Extra lighting (emissive; bindable as lights) ----
-  track_light: (c) => {
-    const g = new THREE.Group();
+  track_light: defineModel((g, c) => {
     const rail = box(1.2, 0.05, 0.05, mat(DARK), 0, 0, 0);
     g.add(tint(rail, c));
     for (const x of [-0.4, 0, 0.4]) {
       g.add(box(0.08, 0.1, 0.08, mat(DARK), x, -0.08, 0));
-      const bulb = cyl(0.05, 0.06, 0.08, mat(0xfff4d6, { emissive: 0x000000 }), x, -0.16, 0, 12);
-      bulb.name = 'emissive';
-      g.add(bulb);
+      g.add(glow(cyl(0.05, 0.06, 0.08, mat(0xfff4d6, { emissive: 0x000000 }), x, -0.16, 0, 12)));
     }
-    return g;
-  },
-  lantern: (c) => {
-    const g = new THREE.Group();
+  }),
+  lantern: defineModel((g, c) => {
     g.add(tint(box(0.22, 0.04, 0.22, mat(DARK), 0, 0, 0), c));
     g.add(box(0.22, 0.04, 0.22, mat(DARK), 0, 0.5, 0));
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
-      g.add(box(0.02, 0.5, 0.02, mat(DARK), sx * 0.1, 0.25, sz * 0.1));
-    const glow = box(0.16, 0.42, 0.16, mat(0xfff1c0, { emissive: 0x000000, transparent: true, opacity: 0.85 }), 0, 0.25, 0);
-    glow.name = 'emissive';
-    g.add(glow);
-    return g;
-  },
-  led_panel: (c) => {
-    const g = new THREE.Group();
+    legs4Box(g, 0.02, 0.5, 0.02, mat(DARK), 0.1, 0.1, 0.25);
+    g.add(glow(box(0.16, 0.42, 0.16, mat(0xfff1c0, { emissive: 0x000000, transparent: true, opacity: 0.85 }), 0, 0.25, 0)));
+  }),
+  led_panel: defineModel((g, c) => {
     g.add(tint(box(0.6, 0.04, 0.6, mat(METAL), 0, 0, 0), c));
-    const panel = box(0.56, 0.02, 0.56, mat(0xf7faff, { emissive: 0x000000 }), 0, -0.02, 0);
-    panel.name = 'emissive';
-    g.add(panel);
-    return g;
-  },
+    g.add(glow(box(0.56, 0.02, 0.56, mat(0xf7faff, { emissive: 0x000000 }), 0, -0.02, 0)));
+  }),
   // ---- Consolidated fixtures: ONE model + ONE bound entity in place of many
   //      stacked spots/strips. Fewer meshes, one marker, one point light → much
   //      lighter on weak GPUs than 6-8 separate placements. ----
   // A recessed-spot SET (white trims). `count` spots, `spread` widens the
   // spacing WITHOUT resizing each spot. Trims + lenses each merge into one mesh
   // (2 draw calls) — far lighter than placing N separate spots by hand.
-  spotlight_bar: (c, opts) => {
-    const g = new THREE.Group();
+  spotlight_bar: defineModel((g, c, opts) => {
     const count = Math.max(1, Math.min(12, Math.round(opts?.count ?? 6)));
     const spread = opts?.spread ?? 1;
     const rows = count <= 3 ? 1 : 2;
@@ -180,115 +149,71 @@ export const lightingModels = {
     trim.castShadow = false;
     trimGeos.forEach((gg) => gg.dispose());
     g.add(trim);
-    const lenses = new THREE.Mesh(mergeGeometries(lensGeos, false), mat(0xfff4d6, { emissive: 0x000000 }));
-    lenses.name = 'emissive';
+    const lenses = glow(new THREE.Mesh(mergeGeometries(lensGeos, false), mat(0xfff4d6, { emissive: 0x000000 })));
     lenses.castShadow = false;
     lensGeos.forEach((gg) => gg.dispose());
     g.add(tint(lenses, c));
-    return g;
-  },
+  }),
   // Hollow rectangular LED backlight. `spread` grows the frame (keeps the strip
   // thickness), so the rectangle gets bigger without the border thickening.
-  led_backlight: (c, opts) => {
+  led_backlight: defineModel((g, c, opts) => {
     const s = opts?.spread ?? 1;
-    const g = new THREE.Group();
     g.add(tint(ledFrame(1.0 * s, 0.6 * s, 0.06, 0xf2f7ff), c));
-    return g;
-  },
+  }),
   // Track light ("rels svet") — long thin frame; `spread` extends its length.
-  track_bar: (c, opts) => {
+  track_bar: defineModel((g, c, opts) => {
     const s = opts?.spread ?? 1;
-    const g = new THREE.Group();
     g.add(tint(ledFrame(1.5 * s, 0.22, 0.045, 0xfff4d6), c));
-    return g;
-  },
+  }),
   // Double wall light SET — a pair (default) of modern up/down wall luminaires.
   // `count` fixtures, `spread` sets the GAP between them WITHOUT resizing any of
   // them. Each fixture's up + down glow panels are 'emissive', so binding a
   // light/switch lights the pair together.
-  wall_light_double: (c, opts) => {
-    const g = new THREE.Group();
-    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
-    const spread = opts?.spread ?? 1;
-    const gap = 0.95 * spread; // centre-to-centre at spread 1
-    for (let i = 0; i < count; i++) {
+  wall_light_double: defineModel((g, c, opts) => {
+    lightSetUnits(g, opts, { count: 2, max: 8, gap: 0.95 }, () => {
       const u = new THREE.Group();
       u.add(box(0.09, 0.34, 0.07, mat(0x2b2f36, { metalness: 0.5, roughness: 0.4 }), 0, 0, 0)); // slim body
       for (const sy of [0.19, -0.19]) {
-        const gl = box(0.06, 0.03, 0.055, mat(0xfff2d6, { emissive: 0x000000 }), 0, sy, 0.02);
-        gl.name = 'emissive';
-        u.add(tint(gl, c));
+        u.add(tint(glow(box(0.06, 0.03, 0.055, mat(0xfff2d6, { emissive: 0x000000 }), 0, sy, 0.02)), c));
       }
-      u.position.x = (i - (count - 1) / 2) * gap; // spaced apart, never scaled
-      g.add(u);
-    }
-    return g;
-  },
+      return u;
+    });
+  }),
   // Classic wall-sconce SET ("бра") — a pair (default) of brass sconces with an
   // upward shade. `count` fixtures, `spread` sets the GAP; each keeps its size.
-  sconce_pair: (c, opts) => {
-    const g = new THREE.Group();
-    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
-    const spread = opts?.spread ?? 1;
-    const gap = 0.9 * spread;
-    const brass = mat(0xb8935a, { metalness: 0.6, roughness: 0.35 });
-    for (let i = 0; i < count; i++) {
+  sconce_pair: defineModel((g, c, opts) => {
+    const brass = mat(0xb8935a, { metalness: 0.6, roughness: 0.35 }); // общая на все бра
+    lightSetUnits(g, opts, { count: 2, max: 8, gap: 0.9 }, () => {
       const u = new THREE.Group();
       u.add(box(0.11, 0.12, 0.03, brass, 0, -0.08, 0.015)); // backplate on the wall
       u.add(box(0.03, 0.03, 0.12, brass, 0, -0.04, 0.08));  // arm out into the room
       u.add(box(0.02, 0.16, 0.02, brass, 0, 0.04, 0.13));   // upright stem
-      const shade = cyl(0.09, 0.055, 0.14, mat(0xfff4d6, { emissive: 0x000000, transparent: true, opacity: 0.92 }), 0, 0.16, 0.13, 16);
-      shade.name = 'emissive';
-      u.add(tint(shade, c));
-      u.position.x = (i - (count - 1) / 2) * gap;
-      g.add(u);
-    }
-    return g;
-  },
+      u.add(tint(glow(cyl(0.09, 0.055, 0.14, mat(0xfff4d6, { emissive: 0x000000, transparent: true, opacity: 0.92 }), 0, 0.16, 0.13, 16)), c));
+      return u;
+    });
+  }),
   // Rectangular wall sconce ("bra") — a slim vertical luminous bar on the wall.
-  wall_sconce: (c) => {
-    const g = new THREE.Group();
+  wall_sconce: defineModel((g, c) => {
     g.add(box(0.1, 0.5, 0.1, mat(METAL), 0, 0, 0)); // backplate/body (fixed)
-    const glow = box(
-      0.06,
-      0.44,
-      0.05,
-      mat(0xfff4d6, { emissive: 0x000000, transparent: true, opacity: 0.92 }),
-      0,
-      0,
-      0.06,
-    );
-    glow.name = 'emissive';
-    g.add(tint(glow, c));
-    return g;
-  },
+    g.add(tint(glow(box(0.06, 0.44, 0.05, mat(0xfff4d6, { emissive: 0x000000, transparent: true, opacity: 0.92 }), 0, 0, 0.06)), c));
+  }),
   // ---- Lighting (освещение) — each has an 'emissive' mesh + reads as a lamp ----
-  floor_lamp: (c) => {
-    const g = new THREE.Group();
+  floor_lamp: defineModel((g, c) => {
     g.add(cyl(0.18, 0.22, 0.03, mat(METAL), 0, 0.015, 0)); // base
     g.add(cyl(0.02, 0.02, 1.5, mat(METAL), 0, 0.75, 0)); // pole
-    const shade = cyl(0.18, 0.25, 0.28, mat(0xfff4d6, { emissive: 0x000000 }), 0, 1.55, 0);
-    shade.name = 'emissive';
+    const shade = glow(cyl(0.18, 0.25, 0.28, mat(0xfff4d6, { emissive: 0x000000 }), 0, 1.55, 0));
     g.add(tint(shade, c));
-    return g;
-  },
-  table_lamp: (c) => {
-    const g = new THREE.Group();
+  }),
+  table_lamp: defineModel((g, c) => {
     g.add(cyl(0.1, 0.12, 0.03, mat(METAL), 0, 0.015, 0));
     g.add(cyl(0.015, 0.015, 0.3, mat(METAL), 0, 0.18, 0));
-    const shade = cyl(0.12, 0.16, 0.18, mat(0xfff4d6, { emissive: 0x000000 }), 0, 0.42, 0);
-    shade.name = 'emissive';
+    const shade = glow(cyl(0.12, 0.16, 0.18, mat(0xfff4d6, { emissive: 0x000000 }), 0, 0.42, 0));
     g.add(tint(shade, c));
-    return g;
-  },
-  wall_light: (c) => {
-    const g = new THREE.Group();
+  }),
+  wall_light: defineModel((g, c) => {
     g.add(box(0.12, 0.2, 0.08, mat(METAL), 0, 0, 0));
-    const glow = box(0.1, 0.16, 0.04, mat(0xfff4d6, { emissive: 0x000000 }), 0, 0, 0.06);
-    glow.name = 'emissive';
-    g.add(tint(glow, c));
-    return g;
-  },
+    g.add(tint(glow(box(0.1, 0.16, 0.04, mat(0xfff4d6, { emissive: 0x000000 }), 0, 0, 0.06)), c));
+  }),
   // Ornate two-tier candle chandelier. Origin sits at the ceiling mount; the
   // fixture hangs DOWN (negative Y). Candle "flames" are the emissive meshes.
   chandelier,
@@ -297,94 +222,51 @@ export const lightingModels = {
   crystal_chandelier,
   // A PAIR of chandeliers as a set — `count` fixtures, `spread` sets the GAP
   // between them WITHOUT resizing each (reuses the single-chandelier geometry).
-  chandelier_double: (c, opts) => {
-    const g = new THREE.Group();
-    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
-    const spread = opts?.spread ?? 1;
-    const gap = 1.4 * spread;
-    for (let i = 0; i < count; i++) {
-      const u = chandelier(c, opts);
-      u.position.x = (i - (count - 1) / 2) * gap;
-      g.add(u);
-    }
-    return g;
-  },
-  crystal_chandelier_double: (c, opts) => {
-    const g = new THREE.Group();
-    const count = Math.max(1, Math.min(8, Math.round(opts?.count ?? 2)));
-    const spread = opts?.spread ?? 1;
-    const gap = 1.3 * spread;
-    for (let i = 0; i < count; i++) {
-      const u = crystal_chandelier(c, opts);
-      u.position.x = (i - (count - 1) / 2) * gap;
-      g.add(u);
-    }
-    return g;
-  },
-  spotlight: (c) => {
-    const g = new THREE.Group();
+  chandelier_double: defineModel((g, c, opts) => {
+    lightSetUnits(g, opts, { count: 2, max: 8, gap: 1.4 }, () => chandelier(c, opts));
+  }),
+  crystal_chandelier_double: defineModel((g, c, opts) => {
+    lightSetUnits(g, opts, { count: 2, max: 8, gap: 1.3 }, () => crystal_chandelier(c, opts));
+  }),
+  spotlight: defineModel((g, c) => {
     g.add(cyl(0.05, 0.07, 0.06, mat(METAL), 0, 0, 0));
-    const lens = cyl(0.05, 0.05, 0.01, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.03, 0);
-    lens.name = 'emissive';
-    g.add(tint(lens, c));
-    return g;
-  },
-  pendant_light: (c) => {
-    const g = new THREE.Group();
+    g.add(tint(glow(cyl(0.05, 0.05, 0.01, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.03, 0)), c));
+  }),
+  pendant_light: defineModel((g, c) => {
     g.add(cyl(0.008, 0.008, 0.4, mat(DARK), 0, 0.2, 0));
-    const shade = cyl(0.16, 0.05, 0.2, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.1, 0);
-    shade.name = 'emissive';
-    g.add(tint(shade, c));
-    return g;
-  },
-  led_strip: (c) => {
-    const g = new THREE.Group();
-    const strip = box(1.5, 0.03, 0.04, mat(0xffffff, { emissive: 0x000000 }), 0, 0, 0);
-    strip.name = 'emissive';
+    g.add(tint(glow(cyl(0.16, 0.05, 0.2, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.1, 0)), c));
+  }),
+  led_strip: defineModel((g, c) => {
+    const strip = glow(box(1.5, 0.03, 0.04, mat(0xffffff, { emissive: 0x000000 }), 0, 0, 0));
     g.add(tint(strip, c));
-    return g;
-  },
+  }),
   // Twin parallel linear ceiling lights (the two parallel LED lines on the
   // ceiling). Bindable — the 'emissive' strips glow when linked to a light.
-  track_double: (c) => {
-    const g = new THREE.Group();
+  track_double: defineModel((g, c) => {
     const L = 2.0, sep = 0.5;
     for (const z of [-sep / 2, sep / 2]) {
       g.add(box(L, 0.04, 0.07, mat(DARK, { roughness: 0.7 }), 0, 0, z)); // recessed channel
-      const strip = box(L - 0.06, 0.02, 0.035, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.02, z);
-      strip.name = 'emissive';
+      const strip = glow(box(L - 0.06, 0.02, 0.035, mat(0xfff4d6, { emissive: 0x000000 }), 0, -0.02, z));
       g.add(tint(strip, c));
     }
-    return g;
-  },
+  }),
   // Vertical wall backlight — a tall glowing reveal in a dark channel (the
   // "vertikal podsvetka"). Bindable to a light; mounts on the wall surface.
-  wall_backlight: (c) => {
-    const g = new THREE.Group();
+  wall_backlight: defineModel((g, c) => {
     const H = 2.3, y0 = 0.15;
     g.add(box(0.09, H + 0.06, 0.03, mat(0x2f2620, { roughness: 0.9 }), 0, y0 + H / 2, 0)); // channel
-    const strip = box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), 0, y0 + H / 2, 0.02);
-    strip.name = 'emissive';
+    const strip = glow(box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), 0, y0 + H / 2, 0.02));
     g.add(tint(strip, c));
-    return g;
-  },
+  }),
   // Double vertical wall backlight — a PAIR (default) of the vertical reveals
   // above. `count` strips, `spread` sets the GAP between them WITHOUT resizing
   // any strip. Each strip is 'emissive', so binding a light/switch lights the
   // pair together. Mounts on the wall surface, floor-to-ceiling.
-  wall_backlight_double: (c, opts) => {
-    const g = new THREE.Group();
-    const count = Math.max(1, Math.min(6, Math.round(opts?.count ?? 2)));
-    const spread = opts?.spread ?? 1;
-    const gap = 0.5 * spread;        // centre-to-centre at spread 1
+  wall_backlight_double: defineModel((g, c, opts) => {
     const H = 2.3, y0 = 0.15;
-    for (let i = 0; i < count; i++) {
-      const x = (i - (count - 1) / 2) * gap;
+    lightSet(opts, { count: 2, max: 6, gap: 0.5 }, (x) => {
       g.add(box(0.09, H + 0.06, 0.03, mat(0x2f2620, { roughness: 0.9 }), x, y0 + H / 2, 0)); // channel
-      const strip = box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), x, y0 + H / 2, 0.02);
-      strip.name = 'emissive';
-      g.add(tint(strip, c));
-    }
-    return g;
-  },
+      g.add(tint(glow(box(0.05, H, 0.035, mat(0xfff0d0, { emissive: 0x000000 }), x, y0 + H / 2, 0.02)), c));
+    });
+  }),
 } satisfies Record<string, FurnitureBuilder>;
