@@ -7,8 +7,9 @@
 // здесь — правила: какой ширины, где именно и что делать с совпавшими стенами.
 // ---------------------------------------------------------------------------
 
-import type { FloorDef, OpeningKind, RoomDef, WallDef } from '../types';
+import type { FloorDef, OpeningDef, OpeningKind, RoomDef, WallDef } from '../types';
 import { isShapeRoom, roomPolygon } from '../scene/room-shapes';
+import { newOpeningId } from './ids';
 import { nearestWall } from './snapping';
 
 /** Модели из палитры мебели, которые при установке становятся настоящим
@@ -55,22 +56,25 @@ export function findGlazingSpot(
   return { wallIndex: best.index, width, position };
 }
 
-/** Врезать найденное остекление. Возвращает индекс нового проёма в стене. */
+/** Врезать найденное остекление. Возвращает и номер, и id нового проёма: номер
+ *  нужен строителю прямо сейчас, id — всем, кто переживёт следующую правку. */
 export function applyGlazing(
   walls: WallDef[],
   spot: { wallIndex: number; width: number; position: number },
   cfg: (typeof GLAZING_MODELS)[string],
-): number {
+): { index: number; opening: OpeningDef } {
   const w = walls[spot.wallIndex];
-  (w.openings ??= []).push({
+  const opening: OpeningDef = {
+    id: newOpeningId(),
     kind: cfg.kind,
     position: spot.position,
     width: spot.width,
     variant: cfg.variant,
     ...(cfg.sill !== undefined ? { sill: cfg.sill } : {}),
     ...(cfg.top !== undefined ? { top: cfg.top } : {}),
-  });
-  return w.openings!.length - 1;
+  };
+  (w.openings ??= []).push(opening);
+  return { index: w.openings!.length - 1, opening };
 }
 
 /**
@@ -82,18 +86,29 @@ export function cutForWallModel(
   walls: WallDef[],
   p: { x: number; z: number },
   cfg: { width: number; top: number },
-): { wallIndex: number; openingIndex: number; x: number; z: number; rotation: number } | null {
+): {
+  wallIndex: number;
+  openingIndex: number;
+  wall: WallDef;
+  opening: OpeningDef;
+  x: number;
+  z: number;
+  rotation: number;
+} | null {
   const best = nearestWall(walls, p.x, p.z, 1.0);
   if (!best) return null;
   const w = walls[best.index];
   const len = best.len;
   const { width, position } = placeOn(len, best.along, cfg.width);
-  (w.openings ??= []).push({ kind: 'door', position, width, sill: 0, top: cfg.top, bare: true });
+  const opening: OpeningDef = { id: newOpeningId(), kind: 'door', position, width, sill: 0, top: cfg.top, bare: true };
+  (w.openings ??= []).push(opening);
   const dxu = (w.end[0] - w.start[0]) / len, dzu = (w.end[1] - w.start[1]) / len;
   const centre = position + width / 2;
   return {
     wallIndex: best.index,
     openingIndex: w.openings!.length - 1,
+    wall: w,
+    opening,
     x: w.start[0] + dxu * centre,
     z: w.start[1] + dzu * centre,
     rotation: (-Math.atan2(w.end[1] - w.start[1], w.end[0] - w.start[0]) * 180) / Math.PI,
@@ -164,11 +179,11 @@ export function addOpening(floor: FloorDef, p: { x: number; z: number }, kind: O
   let seg: [number, number, number, number];
   if (hit.type === 'wall') {
     if (!hit.wall.openings) hit.wall.openings = [];
-    hit.wall.openings.push({ kind, position, width, ...(bare ? { bare } : {}) });
+    hit.wall.openings.push({ id: newOpeningId(), kind, position, width, ...(bare ? { bare } : {}) });
     seg = [hit.wall.start[0], hit.wall.start[1], hit.wall.end[0], hit.wall.end[1]];
   } else {
     if (!hit.room.openings) hit.room.openings = [];
-    hit.room.openings.push({ kind, edge: hit.edge, position, width, ...(bare ? { bare } : {}) });
+    hit.room.openings.push({ id: newOpeningId(), kind, edge: hit.edge, position, width, ...(bare ? { bare } : {}) });
     const poly = roomPolygon(hit.room);
     const a = poly[hit.edge];
     const b = poly[(hit.edge + 1) % poly.length];
@@ -201,7 +216,7 @@ export function addOpening(floor: FloorDef, p: { x: number; z: number }, kind: O
   for (const w of floor.walls ?? []) {
     if (hit.type === 'wall' && w === hit.wall) continue;
     const pos = cutSeg(w.start[0], w.start[1], w.end[0], w.end[1]);
-    if (pos != null) (w.openings ??= []).push({ kind, position: pos, width, ...(bare ? { bare } : {}) });
+    if (pos != null) (w.openings ??= []).push({ id: newOpeningId(), kind, position: pos, width, ...(bare ? { bare } : {}) });
   }
   for (const room of floor.rooms ?? []) {
     if (!isShapeRoom(room)) continue;
@@ -210,7 +225,7 @@ export function addOpening(floor: FloorDef, p: { x: number; z: number }, kind: O
       if (hit.type === 'room' && room === hit.room && e === hit.edge) continue;
       const a = poly[e], b = poly[(e + 1) % poly.length];
       const pos = cutSeg(a[0], a[1], b[0], b[1]);
-      if (pos != null) (room.openings ??= []).push({ kind, edge: e, position: pos, width, ...(bare ? { bare } : {}) });
+      if (pos != null) (room.openings ??= []).push({ id: newOpeningId(), kind, edge: e, position: pos, width, ...(bare ? { bare } : {}) });
     }
   }
   return true;

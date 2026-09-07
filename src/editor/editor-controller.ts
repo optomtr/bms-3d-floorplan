@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { FloorPlan, FloorDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, ZoneDef } from '../types';
+import type { FloorPlan, FloorDef, Vec2, Vec3, RoomDef, RoomShape, OpeningKind, OpeningDef, WallDef, ZoneDef } from '../types';
 import type { SceneManager } from '../scene/scene-manager';
 import { defaultY, defaultColor, isWallMount, isLightSet, LIGHT_KEYS } from '../furniture/library';
 import { TextLabel } from '../scene/labels';
@@ -25,7 +25,8 @@ import {
   type WallMountPoint,
 } from './snapping';
 import { centroid, closedFaces, mergeCollinearWalls, signedArea } from './topology';
-import { PlanHistory } from './history';
+import { PlanHistory, type PlanSnapshot } from './history';
+import { ensurePlanIds, newOpeningId, newRoomId, newWallId, resolveAttach, syncAttachments } from './ids';
 import { applyGizmo, buildGizmo, gizmoStart, type GizmoStart } from './gizmo';
 import { renderPreview } from './preview';
 import { makeZone, setZonePhoto, setZoneParent, setZoneSensor, swapInList, toggleZoneDevice } from './zones';
@@ -53,10 +54,31 @@ export class EditorController {
   /** Current selection (select tool). */
   selectedKind: 'furniture' | 'wall' | 'room' | 'opening' | null = null;
   selectedId: string | null = null; // furniture id
-  selectedWall = -1; // wall array index
-  selectedRoom = -1; // room array index
-  selectedOpeningWall = -1; // wall index owning the selected opening
-  selectedOpeningIndex = -1; // opening index within that wall
+
+  // Выбор внутри редактора хранится ИДЕНТИФИКАТОРАМИ, а не номерами позиций.
+  // Номер живёт до первой правки соседа: удалили стену — и «выбрана стена 3»
+  // стало значить другую стену. Наружу (карточке и проверкам) по-прежнему
+  // отдаются номера — форма не изменилась, изменилось только то, что за ней.
+  private selWallId: string | null = null;
+  private selRoomId: string | null = null;
+  private selOpeningId: string | null = null;
+
+  /** Номер выбранной стены в массиве — на момент вопроса. */
+  get selectedWall(): number {
+    return this.selWallId ? this.walls().findIndex((w) => w?.id === this.selWallId) : -1;
+  }
+  /** Номер выбранной комнаты в массиве — на момент вопроса. */
+  get selectedRoom(): number {
+    return this.selRoomId ? (this.floor().rooms ?? []).findIndex((r) => r?.id === this.selRoomId) : -1;
+  }
+  /** Стена, которой принадлежит выбранный проём. Ищется по id самого проёма:
+   *  слияние стен меняет владельца, а проём остаётся тем же. */
+  get selectedOpeningWall(): number {
+    return this.findOpening()?.wallIndex ?? -1;
+  }
+  get selectedOpeningIndex(): number {
+    return this.findOpening()?.index ?? -1;
+  }
   /** Manual room-zone being edited (Rooms panel). */
   selectedZoneId: string | null = null;
   private zonePlaceMode = false;
@@ -78,9 +100,12 @@ export class EditorController {
   private dragMode: 'furniture' | 'endpoint' | 'gizmo' | 'wallmove' | 'opening' | null = null;
   private dragVertex: Vec2 | null = null;
   private wallDrag0: { s: Vec2; e: Vec2 } | null = null;
+  /** Смещение стены, накопленное за жест. Пока палец ведёт, план не трогаем —
+   *  двигается только трансформ; в план это ложится один раз, на отпускании. */
+  private wallDragDelta: Vec2 | null = null;
   private furnDrag0: Vec2 = [0, 0];
   private history = new PlanHistory();
-  private dragSnapshot: string | null = null;
+  private dragSnapshot: PlanSnapshot | null = null;
   private gizmoHandle: string | null = null;
   private gizmoGrab: Vec2 = [0, 0];
   private gizmoRoom0: GizmoStart = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 };
@@ -90,6 +115,36 @@ export class EditorController {
   constructor(sm: SceneManager, plan: FloorPlan) {
     this.sm = sm;
     this.plan = plan;
+    // План клиента приходит без идентификаторов — выдаём их здесь, ДО первой
+    // сборки сцены и до первой правки, пока номера в привязках ещё верны.
+    ensurePlanIds(plan);
+  }
+
+  /** Стены редактируемого этажа (короче, чем `this.floor().walls ?? []`). */
+  private walls(): WallDef[] {
+    return this.floor().walls ?? [];
+  }
+
+  /** Id стены по номеру. Стена без id её тут же получает — иначе выбрать её
+   *  «навсегда» было бы нечем. */
+  private wallIdAt(index: number): string | null {
+    const w = this.walls()[index];
+    if (!w) return null;
+    if (!w.id) w.id = newWallId();
+    return w.id;
+  }
+
+  /** Где сейчас лежит выбранный проём. */
+  private findOpening(): { wall: WallDef; wallIndex: number; openings: OpeningDef[]; index: number } | null {
+    if (!this.selOpeningId) return null;
+    const ws = this.walls();
+    for (let i = 0; i < ws.length; i++) {
+      const ops = ws[i]?.openings;
+      if (!ops) continue;
+      const oi = ops.findIndex((o) => o?.id === this.selOpeningId);
+      if (oi >= 0) return { wall: ws[i], wallIndex: i, openings: ops, index: oi };
+    }
+    return null;
   }
 
   get pointCount(): number {
@@ -208,7 +263,9 @@ export class EditorController {
     // 2.5) A door/window leaf → select the opening and drag it ALONG its wall.
     const opHit = this.sm.pickOpening(e);
     if (opHit) {
-      this.selectOpening(opHit.wallIndex, opHit.openingIndex);
+      // Створка знает СВОЙ id — им и выбираем, номер тут только запасной путь.
+      if (opHit.openingId) this.selectOpeningById(opHit.openingId);
+      else this.selectOpening(opHit.wallIndex, opHit.openingIndex);
       this.dragMode = 'opening';
       return true;
     }
@@ -234,7 +291,8 @@ export class EditorController {
       const hw = this.sm.pickWall(e);
       const w = hw ? this.floor().walls?.[hw.index] : null;
       if (hw && w) {
-        this.selectWall(hw.index);
+        if (hw.id) this.selectWallById(hw.id);
+        else this.selectWall(hw.index);
         this.dragMode = 'wallmove';
         this.gizmoGrab = [gp.x, gp.z];
         this.wallDrag0 = { s: [w.start[0], w.start[1]], e: [w.end[0], w.end[1]] };
@@ -285,24 +343,23 @@ export class EditorController {
     } else if (this.dragMode === 'endpoint' && this.dragVertex) {
       const nv: Vec2 = [snap(p.x), snap(p.z)];
       if (sameVertex(nv, this.dragVertex)) return;
-      this.moveVertex(this.dragVertex, nv);
+      // Только те стены и полы, которые реально держались за эту вершину —
+      // остальные 300 остаются в сцене нетронутыми.
+      const touched = this.moveVertex(this.dragVertex, nv);
       this.dragVertex = nv;
-      this.rebuild();
-      this.reselect();
+      this.refreshParts(touched);
     } else if (this.dragMode === 'wallmove' && this.selectedWall >= 0 && this.wallDrag0) {
-      const w = this.floor().walls?.[this.selectedWall];
-      if (w) {
-        const dx = snap(p.x - this.gizmoGrab[0]);
-        const dz = snap(p.z - this.gizmoGrab[1]);
-        w.start = [this.wallDrag0.s[0] + dx, this.wallDrag0.s[1] + dz];
-        w.end = [this.wallDrag0.e[0] + dx, this.wallDrag0.e[1] + dz];
-        this.rebuild();
-        this.reselect();
-      }
+      // Перенос стены — чистый сдвиг, значит и стоить он должен как сдвиг:
+      // двигаем узел сцены, план правим один раз на отпускании пальца.
+      const dx = snap(p.x - this.gizmoGrab[0]);
+      const dz = snap(p.z - this.gizmoGrab[1]);
+      this.wallDragDelta = [dx, dz];
+      this.sm.offsetWall(this.selectedWall, dx, dz);
     } else if (this.dragMode === 'opening' && this.selectedOpeningWall >= 0) {
       // Slide a door/window along its wall: project the pointer onto the wall
       // line and clamp so the opening stays fully within the wall span.
-      const wall = this.floor().walls?.[this.selectedOpeningWall];
+      const hit = this.findOpening();
+      const wall = hit?.wall;
       const op = this.selectedOpeningData;
       if (wall && op) {
         const ax = wall.start[0], az = wall.start[1];
@@ -314,8 +371,8 @@ export class EditorController {
           const w = op.width ?? 0.9;
           const pos = Math.max(0, Math.min(len - w, t * len - w / 2));
           op.position = snap(pos);
-          this.rebuild();
-          this.reselect();
+          // Меняется одна стена — её и режем заново.
+          this.refreshParts({ walls: [hit!.wallIndex] });
         }
       }
     }
@@ -344,28 +401,56 @@ export class EditorController {
       // The piece moved in place (no rebuild on these branches) → refresh its
       // cached shadow so it doesn't stay behind at the old position.
       this.sm.requestShadowUpdate();
+    } else if (this.dragMode === 'wallmove' && this.wallDrag0 && this.wallDragDelta) {
+      // Жест кончился — теперь и только теперь смещение ложится в план.
+      const [dx, dz] = this.wallDragDelta;
+      const w = this.floor().walls?.[this.selectedWall];
+      if (w && (dx || dz)) {
+        w.start = [this.wallDrag0.s[0] + dx, this.wallDrag0.s[1] + dz];
+        w.end = [this.wallDrag0.e[0] + dx, this.wallDrag0.e[1] + dz];
+        this.rebuild();
+        this.reselect();
+      } else if (w) {
+        // Палец вернулся туда же: снимаем временный сдвиг узла сцены.
+        this.sm.offsetWall(this.selectedWall, 0, 0);
+      }
     }
     this.dragMode = null;
     this.dragVertex = null;
     this.gizmoHandle = null;
     this.wallDrag0 = null;
+    this.wallDragDelta = null;
     // Commit to undo history only if the drag actually changed the plan.
     if (this.dragSnapshot) this.history.commitIfChanged(this.dragSnapshot, this.plan);
     this.dragSnapshot = null;
     this.onChange?.();
   }
 
-  /** Move a shared vertex: all walls + room polygon points at `from` go to `to`. */
-  private moveVertex(from: Vec2, to: Vec2): void {
-    for (const w of this.floor().walls ?? []) {
-      if (sameVertex(w.start as Vec2, from)) w.start = [to[0], to[1]];
-      if (sameVertex(w.end as Vec2, from)) w.end = [to[0], to[1]];
-    }
-    for (const r of this.floor().rooms ?? []) {
+  /** Move a shared vertex: all walls + room polygon points at `from` go to `to`.
+   *  Возвращает, что именно сдвинулось — чтобы пересобрать ровно это. */
+  private moveVertex(from: Vec2, to: Vec2): { walls: number[]; rooms: number[] } {
+    const walls: number[] = [];
+    const rooms: number[] = [];
+    (this.floor().walls ?? []).forEach((w, i) => {
+      let hit = false;
+      if (sameVertex(w.start as Vec2, from)) {
+        w.start = [to[0], to[1]];
+        hit = true;
+      }
+      if (sameVertex(w.end as Vec2, from)) {
+        w.end = [to[0], to[1]];
+        hit = true;
+      }
+      if (hit) walls.push(i);
+    });
+    (this.floor().rooms ?? []).forEach((r, i) => {
+      if (!r.polygon?.some((pt) => sameVertex(pt as Vec2, from))) return;
       r.polygon = r.polygon.map((pt) =>
         sameVertex(pt as Vec2, from) ? ([to[0], to[1]] as Vec2) : pt,
       );
-    }
+      rooms.push(i);
+    });
+    return { walls, rooms };
   }
 
   // -- Wall length ------------------------------------------------------------
@@ -443,7 +528,7 @@ export class EditorController {
       const dz = w.end[1] - w.start[1];
       const cur = Math.hypot(dx, dz) || 1;
       w.end = [w.start[0] + (dx / cur) * len, w.start[1] + (dz / cur) * len];
-    });
+    }, 'wall');
   }
 
   /** Set the selected wall's thickness in meters (e.g. 0.25, 0.38, 0.78). */
@@ -453,7 +538,7 @@ export class EditorController {
     if (!w) return;
     this.edit(() => {
       w.thickness = t;
-    });
+    }, 'wall');
   }
 
   /** Rotate the selected wall to an absolute heading (deg), pivoting on its start
@@ -466,7 +551,7 @@ export class EditorController {
     const r = (deg * Math.PI) / 180;
     this.edit(() => {
       w.end = [w.start[0] + Math.cos(r) * len, w.start[1] + Math.sin(r) * len];
-    });
+    }, 'wall');
   }
 
   setTool(t: EditTool): void {
@@ -552,7 +637,15 @@ export class EditorController {
         rotation: cut.rotation,
         color: defaultColor(this.selectedModel),
         id,
-        attach: { kind: 'wall', index: cut.wallIndex, opening: cut.openingIndex },
+        // Правда — идентификаторы; номера остаются зеркалом для карточки
+        // прежней версии (см. types.ts, FurnitureDef.attach).
+        attach: {
+          kind: 'wall',
+          targetId: cut.wall.id,
+          openingId: cut.opening.id,
+          index: cut.wallIndex,
+          opening: cut.openingIndex,
+        },
       });
       this.rebuild();
       this.selectFurniture(id);
@@ -596,9 +689,9 @@ export class EditorController {
     const spot = findGlazingSpot(walls, p, cfg);
     if (!spot) return false;
     this.pushUndo();
-    const openingIndex = applyGlazing(walls, spot, cfg);
+    const { opening } = applyGlazing(walls, spot, cfg);
     this.rebuild();
-    this.selectOpening(spot.wallIndex, openingIndex);
+    this.selectOpeningById(opening.id);
     this.onMessage?.(`${cfg.kind === 'door' ? 'Glass door' : 'Window'} cut into wall`);
     return true;
   }
@@ -613,32 +706,52 @@ export class EditorController {
     return resolveWallMount(model, p);
   }
 
+  /** Сбросить все три ветви выбора разом — чтобы новая не наложилась на старую. */
+  private clearSelKeys(): void {
+    this.selectedId = null;
+    this.selWallId = null;
+    this.selRoomId = null;
+    this.selOpeningId = null;
+  }
+
   selectFurniture(id: string | null): void {
+    this.clearSelKeys();
     this.selectedKind = id ? 'furniture' : null;
     this.selectedId = id;
-    this.selectedWall = -1;
-    this.selectedRoom = -1;
     this.sm.setSelection(id ? this.sm.getFurnitureObject(id) ?? null : null);
     this.applyReserve();
     this.onChange?.();
   }
 
+  /** Выбрать стену по её номеру (как её называет карточка) — внутри выбор всё
+   *  равно живёт идентификатором. */
   selectWall(index: number): void {
+    this.selectWallById(this.wallIdAt(index));
+  }
+
+  selectWallById(id: string | null): void {
+    if (!id) return;
+    this.clearSelKeys();
     this.selectedKind = 'wall';
-    this.selectedWall = index;
-    this.selectedId = null;
-    this.selectedRoom = -1;
-    this.sm.setSelection(this.sm.getWallObject(index) ?? null);
+    this.selWallId = id;
+    this.sm.setSelection(this.sm.getWallObjectById(id) ?? null);
     this.applyReserve();
     this.onChange?.();
   }
 
   selectRoom(index: number): void {
+    const room = this.floor().rooms?.[index];
+    if (!room) return;
+    if (!room.id) room.id = newRoomId();
+    this.selectRoomById(room.id);
+  }
+
+  selectRoomById(id: string | null): void {
+    if (!id) return;
+    this.clearSelKeys();
     this.selectedKind = 'room';
-    this.selectedRoom = index;
-    this.selectedId = null;
-    this.selectedWall = -1;
-    this.sm.setSelection(this.sm.getRoomObject(index) ?? null);
+    this.selRoomId = id;
+    this.sm.setSelection(this.sm.getRoomObjectById(id) ?? null);
     this.buildGizmo();
     this.applyReserve();
     this.onChange?.();
@@ -646,13 +759,19 @@ export class EditorController {
 
   /** Select a door/window opening directly (picked from its leaf/glass). */
   selectOpening(wallIndex: number, openingIndex: number): void {
+    const op = this.walls()[wallIndex]?.openings?.[openingIndex];
+    if (!op) return;
+    if (!op.id) op.id = newOpeningId();
+    this.selectOpeningById(op.id);
+  }
+
+  selectOpeningById(id: string | null | undefined): void {
+    if (!id) return;
+    this.clearSelKeys();
     this.selectedKind = 'opening';
-    this.selectedOpeningWall = wallIndex;
-    this.selectedOpeningIndex = openingIndex;
-    this.selectedId = null;
-    this.selectedWall = -1;
-    this.selectedRoom = -1;
-    this.sm.setSelection(this.sm.getWallObject(wallIndex) ?? null);
+    this.selOpeningId = id;
+    const hit = this.findOpening();
+    this.sm.setSelection((hit?.wall.id ? this.sm.getWallObjectById(hit.wall.id) : null) ?? null);
     this.applyReserve();
     this.onChange?.();
   }
@@ -660,7 +779,8 @@ export class EditorController {
   /** The currently-selected opening's definition (or null). */
   get selectedOpeningData(): OpeningDef | null {
     if (this.selectedKind !== 'opening') return null;
-    return this.floor().walls?.[this.selectedOpeningWall]?.openings?.[this.selectedOpeningIndex] ?? null;
+    const hit = this.findOpening();
+    return hit ? hit.openings[hit.index] ?? null : null;
   }
   get selectedOpeningKind(): OpeningKind | null {
     return this.selectedOpeningData?.kind ?? null;
@@ -677,21 +797,21 @@ export class EditorController {
     if (!op) return;
     this.edit(() => {
       op.variant = variant;
-    });
+    }, 'wall');
   }
 
   /** Slide the selected opening (door / window / terrace) LEFT/RIGHT along its
    *  wall by `delta` meters, clamped so it stays fully within the wall span. */
   nudgeOpeningPosition(delta: number): void {
     if (this.selectedKind !== 'opening') return;
-    const wall = this.floor().walls?.[this.selectedOpeningWall];
+    const wall = this.findOpening()?.wall;
     const op = this.selectedOpeningData;
     if (!wall || !op) return;
     const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]);
     const w = op.width ?? 0.9;
     this.edit(() => {
       op.position = Math.max(0, Math.min(len - w, (op.position ?? 0) + delta));
-    });
+    }, 'wall');
   }
 
   /** Swap a selected opening between door / window / opening. */
@@ -703,26 +823,26 @@ export class EditorController {
       op.bare = kind === 'opening' ? true : undefined;
       delete op.sill;
       delete op.top; // let the builder pick kind-appropriate defaults
-    });
+    }, 'wall');
   }
 
   setOpeningWidth(width: number): void {
     const op = this.selectedOpeningData;
     if (!op || !(width > 0)) return;
-    const wall = this.floor().walls?.[this.selectedOpeningWall];
+    const wall = this.findOpening()?.wall;
     if (!wall) return;
     const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]);
     this.edit(() => {
       op.width = Math.min(width, Math.max(0.3, len - op.position));
-    });
+    }, 'wall');
   }
 
   deleteSelectedOpening(): void {
     if (this.selectedKind !== 'opening') return;
-    const openings = this.floor().walls?.[this.selectedOpeningWall]?.openings;
-    if (!openings) return;
+    const hit = this.findOpening();
+    if (!hit) return;
     this.edit(() => {
-      openings.splice(this.selectedOpeningIndex, 1);
+      hit.openings.splice(hit.index, 1);
       this.clearSelection();
       this.rebuild();
     }, 'none');
@@ -730,11 +850,7 @@ export class EditorController {
 
   clearSelection(): void {
     this.selectedKind = null;
-    this.selectedId = null;
-    this.selectedWall = -1;
-    this.selectedRoom = -1;
-    this.selectedOpeningWall = -1;
-    this.selectedOpeningIndex = -1;
+    this.clearSelKeys();
     this.sm.setSelection(null);
     this.sm.clearGizmo();
     this.applyReserve();
@@ -755,25 +871,35 @@ export class EditorController {
     this.sm.setLeftReserved(this.isMovableSelected());
   }
 
-  /** Re-apply the selection highlight after a rebuild (object instances change). */
+  /** Re-apply the selection highlight after a rebuild (object instances change).
+   *  Ищет по id: после пересборки это ДРУГИЕ объекты сцены, а номер стены мог
+   *  между делом достаться соседу. */
   private reselect(): void {
     if (this.selectedKind === 'furniture' && this.selectedId)
       this.sm.setSelection(this.sm.getFurnitureObject(this.selectedId) ?? null);
-    else if (this.selectedKind === 'wall' && this.selectedWall >= 0)
-      this.sm.setSelection(this.sm.getWallObject(this.selectedWall) ?? null);
-    else if (this.selectedKind === 'room' && this.selectedRoom >= 0) {
-      this.sm.setSelection(this.sm.getRoomObject(this.selectedRoom) ?? null);
+    else if (this.selectedKind === 'wall' && this.selWallId)
+      this.sm.setSelection(this.sm.getWallObjectById(this.selWallId) ?? null);
+    else if (this.selectedKind === 'room' && this.selRoomId) {
+      this.sm.setSelection(this.sm.getRoomObjectById(this.selRoomId) ?? null);
       this.buildGizmo();
-    } else if (this.selectedKind === 'opening' && this.selectedOpeningWall >= 0) {
-      this.sm.setSelection(this.sm.getWallObject(this.selectedOpeningWall) ?? null);
+    } else if (this.selectedKind === 'opening') {
+      const wallId = this.findOpening()?.wall.id;
+      this.sm.setSelection((wallId ? this.sm.getWallObjectById(wallId) : null) ?? null);
     }
+  }
+
+  /** Точечная пересборка: только названные стены и комнаты, и подсветка обратно.
+   *  Это и есть «во время жеста двигаем, а не строим заново». */
+  private refreshParts(parts: { walls?: number[]; rooms?: number[] }): void {
+    this.sm.refreshParts(parts);
+    this.reselect();
   }
 
   // -- Building Mode: shape rooms + Position Helper gizmo ----------------------
 
   private currentRoom(): RoomDef | null {
-    if (this.selectedKind !== 'room') return null;
-    return this.floor().rooms?.[this.selectedRoom] ?? null;
+    if (this.selectedKind !== 'room' || !this.selRoomId) return null;
+    return (this.floor().rooms ?? []).find((r) => r?.id === this.selRoomId) ?? null;
   }
 
   get selectedRoomData(): RoomDef | null {
@@ -787,7 +913,7 @@ export class EditorController {
       if (!fl.rooms) fl.rooms = [];
       const c = this.sm.controls.target;
       const room: RoomDef = {
-        id: `r${fl.rooms.length}_${Math.floor(performance.now() % 100000)}`,
+        id: newRoomId(),
         name: `Room ${fl.rooms.length + 1}`,
         shape,
         x: snap(c.x),
@@ -807,6 +933,7 @@ export class EditorController {
   setRoomField(field: 'name' | 'width' | 'depth' | 'height' | 'rotation', value: number | string): void {
     const room = this.currentRoom();
     if (!room) return;
+    // Имя комнаты в 3D не рисуется — пересобирать ради него нечего.
     this.edit(() => {
       if (field === 'name') room.name = String(value);
       else {
@@ -818,7 +945,7 @@ export class EditorController {
         else if (field === 'height') room.height = Math.max(1, v);
         else if (field === 'rotation') room.rotation = v;
       }
-    });
+    }, field === 'name' ? 'none' : 'room');
   }
 
   private buildGizmo(): void {
@@ -845,8 +972,9 @@ export class EditorController {
     // Приклеивание к соседям касается только комнат-фигур этого этажа.
     const neighbours = (this.floor().rooms ?? []).filter((r) => isShapeRoom(r));
     applyGizmo(room, this.gizmoHandle, p, this.gizmoGrab, this.gizmoRoom0, this.shiftHeld, neighbours);
-    this.rebuild();
-    this.reselect();
+    // Двигается одна комната — её пол и её периметр, а не весь этаж.
+    const i = this.selectedRoom;
+    if (i >= 0) this.refreshParts({ rooms: [i] });
     this.onChange?.();
   }
 
@@ -1079,7 +1207,7 @@ export class EditorController {
       } else {
         return false;
       }
-    });
+    }, this.selectedKind === 'room' ? 'room' : 'wall');
   }
 
   get selectedMaterial(): string {
@@ -1130,6 +1258,7 @@ export class EditorController {
   /** Set the color of the selected furniture / wall / room. */
   setColor(color: string): void {
     const fl = this.floor();
+    const after = this.selectedKind === 'wall' ? 'wall' : this.selectedKind === 'room' ? 'room' : 'rebuild';
     this.edit(() => {
       if (this.selectedKind === 'furniture') {
         const f = fl.furniture?.find((x) => x.id === this.selectedId);
@@ -1141,7 +1270,7 @@ export class EditorController {
       } else {
         return false;
       }
-    });
+    }, after);
   }
 
   deleteSelected(): void {
@@ -1155,10 +1284,13 @@ export class EditorController {
     if (this.selectedKind === 'furniture' && this.selectedId) {
       const piece = fl.furniture?.find((x) => x.id === this.selectedId);
       // A door/window model linked to an opening removes that opening too.
+      // Привязку разрешает ids.ts: сначала по id проёма, и только потом — по
+      // номерам, для планов, которых этот редактор ещё не касался. Раньше здесь
+      // стоял голый номер, и после удаления стены (или слияния) удаление ворот
+      // вырезало ЧУЖОЙ проём.
       if (piece?.attach) {
-        const a = piece.attach;
-        const ops = a.kind === 'wall' ? fl.walls?.[a.index]?.openings : fl.rooms?.[a.index]?.openings;
-        if (ops && a.opening < ops.length) ops.splice(a.opening, 1);
+        const hit = resolveAttach(fl, piece.attach);
+        if (hit) hit.openings.splice(hit.openingIndex, 1);
       }
       fl.furniture = (fl.furniture ?? []).filter((x) => x.id !== this.selectedId);
       fl.bindings = (fl.bindings ?? []).filter((b) => b.anchor_object !== this.selectedId);
@@ -1290,16 +1422,21 @@ export class EditorController {
     // Створка двери/окна важнее своей стены — иначе её не выбрать.
     const hitOp = e ? this.sm.pickOpening(e) : null;
     if (hitOp) {
-      this.selectOpening(hitOp.wallIndex, hitOp.openingIndex);
+      if (hitOp.openingId) this.selectOpeningById(hitOp.openingId);
+      else this.selectOpening(hitOp.wallIndex, hitOp.openingIndex);
       return;
     }
     const hitW = e ? this.sm.pickWall(e) : null;
     if (hitW) {
-      this.selectWall(hitW.index);
+      if (hitW.id) this.selectWallById(hitW.id);
+      else this.selectWall(hitW.index);
       return;
     }
     const hitR = e ? this.sm.pickRoom(e) : null;
-    if (hitR) this.selectRoom(hitR.index);
+    if (hitR) {
+      if (hitR.id) this.selectRoomById(hitR.id);
+      else this.selectRoom(hitR.index);
+    }
     else this.clearSelection();
   }
 
@@ -1349,7 +1486,7 @@ export class EditorController {
     this.pushUndo();
     const fl = this.floor();
     if (!fl.rooms) fl.rooms = [];
-    fl.rooms.push({ polygon: pts.map((p) => [p[0], p[1]] as Vec2), color: '#c9c4bb' });
+    fl.rooms.push({ id: newRoomId(), polygon: pts.map((p) => [p[0], p[1]] as Vec2), color: '#c9c4bb' });
     this.cancelChain();
     this.rebuild();
     this.onChange?.();
@@ -1368,14 +1505,14 @@ export class EditorController {
     const fl = this.floor();
     if (!fl.walls) fl.walls = [];
     for (let i = 0; i < pts.length - 1; i++) {
-      fl.walls.push({ start: [pts[i][0], pts[i][1]], end: [pts[i + 1][0], pts[i + 1][1]] });
+      fl.walls.push({ id: newWallId(), start: [pts[i][0], pts[i][1]], end: [pts[i + 1][0], pts[i + 1][1]] });
     }
     if (close) {
       const a = pts[pts.length - 1];
       const b = pts[0];
-      fl.walls.push({ start: [a[0], a[1]], end: [b[0], b[1]] });
+      fl.walls.push({ id: newWallId(), start: [a[0], a[1]], end: [b[0], b[1]] });
       if (!fl.rooms) fl.rooms = [];
-      fl.rooms.push({ polygon: pts.map((p) => [p[0], p[1]] as Vec2), color: '#c9c4bb' });
+      fl.rooms.push({ id: newRoomId(), polygon: pts.map((p) => [p[0], p[1]] as Vec2), color: '#c9c4bb' });
     }
     const n = pts.length - 1 + (close ? 1 : 0);
     this.cancelChain();
@@ -1409,7 +1546,7 @@ export class EditorController {
     const fl = this.floor();
     if (!fl.walls) fl.walls = [];
     for (let i = 0; i < nodes.length - 1; i++)
-      fl.walls.push({ start: [nodes[i][0], nodes[i][1]], end: [nodes[i + 1][0], nodes[i + 1][1]] });
+      fl.walls.push({ id: newWallId(), start: [nodes[i][0], nodes[i][1]], end: [nodes[i + 1][0], nodes[i + 1][1]] });
     const n = nodes.length - 1;
     this.cancelChain();
     this.rebuild();
@@ -1491,6 +1628,7 @@ export class EditorController {
 
   /** Start a fresh blank plan to draw from scratch. */
   loadPlan(plan: FloorPlan): void {
+    ensurePlanIds(plan);
     this.plan = plan;
     this.floorIndex = 0;
     this.cancelChain();
@@ -1500,7 +1638,17 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /**
+   * Полная пересборка сцены. Дорогая: сносит и строит заново ВСЁ — стены,
+   * комнаты, мебель, привязки. Поэтому вызывается только там, где изменилось
+   * что-то структурное (появилась или исчезла стена, слились стены, сменился
+   * этаж), и по ОКОНЧАНИИ жеста. Внутри жеста — refreshParts().
+   */
   private rebuild(): void {
+    // Структура плана поехала — номера-зеркала в привязках приводим в согласие
+    // с идентификаторами, чтобы карточка прежней версии на том же файле не
+    // вырезала чужой проём.
+    syncAttachments(this.floor());
     this.sm.loadPlan(this.plan, true); // keep camera where it is
     this.applySceneEditState();
     this.applyUnderlay();
@@ -1605,17 +1753,31 @@ export class EditorController {
    * не сообщаем (снимок при этом остаётся, ровно как было в старом коде).
    *
    * `after` — что делать после изменения:
-   *   'rebuild'  пересобрать сцену и вернуть выделение (обычная правка плана);
+   *   'rebuild'  пересобрать сцену и вернуть выделение (структурная правка);
+   *   'wall'     пересобрать ОДНУ стену — ту, на которой стоит выбор (или ту,
+   *              которой принадлежит выбранный проём). Правка ширины, толщины,
+   *              длины, цвета, створки: меняется одна стена, а раньше на каждое
+   *              нажатие клавиши сносился и строился заново весь дом;
+   *   'room'     то же для одной комнаты (пол и её периметр);
    *   'zones'    перерисовать точки зон (правка ручных комнат);
    *   'underlay' обновить подложку-кальку;
    *   'none'     ничего, изменение видно только карточке.
    */
-  private edit(mutate: () => boolean | void, after: 'rebuild' | 'zones' | 'underlay' | 'none' = 'rebuild'): void {
+  private edit(
+    mutate: () => boolean | void,
+    after: 'rebuild' | 'wall' | 'room' | 'zones' | 'underlay' | 'none' = 'rebuild',
+  ): void {
     this.pushUndo();
     if (mutate() === false) return;
     if (after === 'rebuild') {
       this.rebuild();
       this.reselect();
+    } else if (after === 'wall') {
+      const i = this.selectedKind === 'opening' ? this.selectedOpeningWall : this.selectedWall;
+      if (i >= 0) this.refreshParts({ walls: [i] });
+    } else if (after === 'room') {
+      const i = this.selectedRoom;
+      if (i >= 0) this.refreshParts({ rooms: [i] });
     } else if (after === 'zones') {
       this.refreshZones();
     } else if (after === 'underlay') {
@@ -1646,6 +1808,7 @@ export class EditorController {
   }
 
   private restoreHistory(): void {
+    ensurePlanIds(this.plan); // снимок мог быть снят с плана без id
     this.cancelChain();
     this.clearSelection();
     if (this.floorIndex >= this.plan.floors.length) {
@@ -1695,7 +1858,11 @@ export class EditorController {
         (e) => Math.hypot(e.c[0] - c[0], e.c[1] - c[1]) < 0.4 && Math.abs(e.a - a) / Math.max(e.a, a) < 0.2,
       );
       if (dup) continue;
-      fl.rooms.push({ polygon: f.map((p) => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as Vec2), color: '#c9c4bb' });
+      fl.rooms.push({
+        id: newRoomId(),
+        polygon: f.map((p) => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as Vec2),
+        color: '#c9c4bb',
+      });
       existing.push({ c, a });
       added++;
     }
@@ -1717,8 +1884,18 @@ export class EditorController {
       return;
     }
     this.pushUndo();
-    const out = mergeCollinearWalls(walls);
+    const { walls: out, idMap } = mergeCollinearWalls(walls);
     fl.walls = out;
+    // Слияние — единственная правка, заменяющая массив стен целиком. Привязки
+    // переезжают на новых хозяев по таблице, а не остаются с номером, который
+    // теперь показывает в пустоту.
+    for (const f of fl.furniture ?? []) {
+      const a = f.attach;
+      if (a?.kind === 'wall' && a.targetId) {
+        const next = idMap.get(a.targetId);
+        if (next) a.targetId = next;
+      }
+    }
     this.clearSelection();
     this.rebuild();
     this.onChange?.();

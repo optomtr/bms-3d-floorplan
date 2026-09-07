@@ -11,6 +11,10 @@ export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
 
 export interface WallDef {
+  /** Stable id. Survives inserts, deletes and mergeWalls(), so a door bound to
+   *  this wall keeps pointing at THIS wall and not at whoever slid into its
+   *  array slot. Assigned on load for older plans (see editor/ids.ts). */
+  id?: string;
   /** Start point in meters. */
   start: Vec2;
   /** End point in meters. */
@@ -30,6 +34,9 @@ export interface WallDef {
 export type OpeningKind = 'door' | 'window' | 'opening';
 
 export interface OpeningDef {
+  /** Stable id (see WallDef.id). Kept through mergeWalls(), so a model that
+   *  fills this opening still finds it after the walls were re-cut. */
+  id?: string;
   kind: OpeningKind;
   /** Distance in meters from the wall's start point to the opening's start. */
   position: number;
@@ -131,8 +138,26 @@ export interface FurnitureDef {
   /** Unique id so entity bindings can anchor to this placement. */
   id?: string;
   /** Link to an opening this piece fills (door/window placed by the tool), so
-   *  deleting the piece also removes the wall/room opening. */
-  attach?: { kind: 'wall' | 'room'; index: number; edge?: number; opening: number };
+   *  deleting the piece also removes the wall/room opening.
+   *
+   *  `targetId` + `openingId` are the truth: array positions move under every
+   *  delete and every mergeWalls(), ids do not. `index` / `opening` are kept as
+   *  a MIRROR, refreshed after each structural edit, purely so a card older than
+   *  this version keeps working on the same file (it reads only the numbers and
+   *  ignores the ids). Readers here must prefer the ids — see editor/ids.ts. */
+  attach?: {
+    kind: 'wall' | 'room';
+    /** Id of the wall (or room) that owns the opening. */
+    targetId?: string;
+    /** Id of the opening itself. */
+    openingId?: string;
+    /** Legacy mirror: position of the wall/room in its array. */
+    index?: number;
+    /** Which perimeter edge, for a room opening. */
+    edge?: number;
+    /** Legacy mirror: position of the opening in its array. */
+    opening?: number;
+  };
 }
 
 export type BindingBehavior =

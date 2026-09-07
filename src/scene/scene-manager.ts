@@ -14,8 +14,8 @@
 
 import * as THREE from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { ClickResult, FloorPlan, RoomInfo, Underlay } from '../types';
-import { buildFloorGroup } from './builder';
+import type { ClickResult, FloorDef, FloorPlan, RoomInfo, Underlay } from '../types';
+import { buildFloorGroup, buildRoomElement, buildWallElement, floorWallHeight } from './builder';
 import { BindingManager } from './bindings';
 import { isShapeRoom, roomPolygon } from './room-shapes';
 import { disposeObject3D } from './dispose';
@@ -92,6 +92,10 @@ export class SceneManager implements RenderLoopHost {
 
   /** Every floor of the loaded plan, one record each (see floor-slot.ts). */
   private slots: FloorSlot[] = [];
+  /** The plan the slots were built from — the SAME object the editor mutates.
+   *  Kept so a single wall/room can be re-cut in place (refreshParts) without
+   *  the caller having to hand the floor back in on every pointer move. */
+  private loadedPlan: FloorPlan | null = null;
   /** Plan elements the last loadPlan() had to drop (see BuiltFloor.skipped). */
   private skippedParts: string[] = [];
   private activeFloor = 0;
@@ -447,6 +451,7 @@ export class SceneManager implements RenderLoopHost {
     this.staticPR = this.heavyPlan ? 2 : QUALITY_PRESETS[this.qualityTier].pixelRatio;
 
     this.skippedParts = [];
+    this.loadedPlan = plan;
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
       if (built.skipped.length) this.skippedParts.push(...built.skipped);
@@ -517,6 +522,7 @@ export class SceneManager implements RenderLoopHost {
     this.markers.clear();
     this.markers.clearZoneDots();
     this.slots = [];
+    this.loadedPlan = null;
     this.activeFloor = 0;
   }
 
@@ -901,23 +907,156 @@ export class SceneManager implements RenderLoopHost {
     return this.slots[this.activeFloor]?.built.roomById.get(index);
   }
 
-  /** Raycast for a wall sub-group (returns its wall array-index). */
-  pickWall(e: PointerEvent): { index: number; object: THREE.Object3D } | null {
-    const group = this.activeGroup;
-    return group ? this.picker.byTag(e, group, 'wallIndex') : null;
+  /** The same wall, found by WallDef.id — the key that survives a delete or a
+   *  mergeWalls(), which the array index does not. */
+  getWallObjectById(id: string): THREE.Object3D | undefined {
+    return this.slots[this.activeFloor]?.built.wallByKey.get(id);
   }
 
-  /** Raycast for a room floor mesh (returns its room array-index). */
-  pickRoom(e: PointerEvent): { index: number; object: THREE.Object3D } | null {
-    const group = this.activeGroup;
-    return group ? this.picker.byTag(e, group, 'roomIndex') : null;
+  /** The same room, found by RoomDef.id (see getWallObjectById). */
+  getRoomObjectById(id: string): THREE.Object3D | undefined {
+    return this.slots[this.activeFloor]?.built.roomByKey.get(id);
   }
 
-  /** Raycast for a door/window leaf — returns the wall + opening index so the
-   *  opening can be selected directly (without selecting the wall first). */
-  pickOpening(e: PointerEvent): { wallIndex: number; openingIndex: number; object: THREE.Object3D } | null {
+  /** Raycast for a wall sub-group (returns its array-index AND its id). */
+  pickWall(e: PointerEvent): { index: number; id?: string; object: THREE.Object3D } | null {
     const group = this.activeGroup;
-    return group ? this.picker.opening(e, group) : null;
+    const hit = group ? this.picker.byTag(e, group, 'wallIndex') : null;
+    return hit ? { ...hit, id: hit.object.userData?.wallId as string | undefined } : null;
+  }
+
+  /** Raycast for a room floor mesh (returns its array-index AND its id). */
+  pickRoom(e: PointerEvent): { index: number; id?: string; object: THREE.Object3D } | null {
+    const group = this.activeGroup;
+    const hit = group ? this.picker.byTag(e, group, 'roomIndex') : null;
+    return hit ? { ...hit, id: hit.object.userData?.roomId as string | undefined } : null;
+  }
+
+  /** Raycast for a door/window leaf — returns the wall + opening (index and id)
+   *  so the opening can be selected directly, without selecting the wall first. */
+  pickOpening(e: PointerEvent): {
+    wallIndex: number;
+    openingIndex: number;
+    wallId?: string;
+    openingId?: string;
+    object: THREE.Object3D;
+  } | null {
+    const group = this.activeGroup;
+    const hit = group ? this.picker.opening(e, group) : null;
+    if (!hit) return null;
+    return {
+      ...hit,
+      wallId: hit.object.userData?.openingWallId as string | undefined,
+      openingId: hit.object.userData?.openingId as string | undefined,
+    };
+  }
+
+  // -- In-place edits (a gesture must not rebuild the house) ------------------
+
+  /** The floor definition the active slot was built from. */
+  private activeFloorDef(): FloorDef | null {
+    return this.loadedPlan?.floors?.[this.activeFloor] ?? null;
+  }
+
+  /**
+   * Offset ONE wall by (dx, dz) without touching geometry.
+   *
+   * Wall spans are built at world coordinates inside the wall's own group, so a
+   * pure translation of the whole wall is exactly the group's position — no
+   * re-cut, no rebuild. This is what makes dragging a wall on a tablet cost the
+   * same as dragging a chair.
+   */
+  offsetWall(index: number, dx: number, dz: number): void {
+    const obj = this.slots[this.activeFloor]?.built.wallById.get(index);
+    if (!obj) return;
+    obj.position.set(dx, 0, dz);
+    this.selection.refresh();
+    this.loop.invalidate();
+  }
+
+  /**
+   * Re-cut ONLY the named walls / rooms of the active floor, in place.
+   *
+   * Everything else — the other 300 walls, every piece of furniture, every
+   * binding and every label — stays exactly as it is. Used while a gesture is
+   * running (a vertex dragged, a door slid, a room resized) and for property
+   * edits that touch one element, where a full loadPlan() used to be spent on
+   * every keystroke.
+   */
+  refreshParts(parts: { walls?: number[]; rooms?: number[] }): void {
+    const slot = this.slots[this.activeFloor];
+    const floorDef = this.activeFloorDef();
+    if (!slot || !floorDef) return;
+    const defaultHeight = floorWallHeight(floorDef, this.loadedPlan?.wallHeight);
+    const drop = (obj: THREE.Object3D | undefined): void => {
+      if (!obj) return;
+      slot.group.remove(obj);
+      disposeObject3D(obj);
+    };
+
+    for (const i of parts.walls ?? []) {
+      const old = slot.built.wallById.get(i);
+      if (old) {
+        drop(old);
+        slot.built.wallById.delete(i);
+        const key = old.userData?.wallId as string | undefined;
+        if (key && slot.built.wallByKey.get(key) === old) slot.built.wallByKey.delete(key);
+      }
+      const wall = floorDef.walls?.[i];
+      if (!wall) continue;
+      try {
+        const wg = buildWallElement(slot.group, wall, i, defaultHeight);
+        if (wg) {
+          slot.built.wallById.set(i, wg);
+          if (wall.id) slot.built.wallByKey.set(wall.id, wg);
+        }
+      } catch {
+        /* Unusable coordinates mid-drag: draw nothing, exactly as a full build
+           would have. The next full rebuild reports it to the human. */
+      }
+    }
+
+    for (const i of parts.rooms ?? []) {
+      const old = slot.built.roomById.get(i);
+      if (old) {
+        slot.built.roomById.delete(i);
+        const key = old.userData?.roomId as string | undefined;
+        if (key && slot.built.roomByKey.get(key) === old) slot.built.roomByKey.delete(key);
+      }
+      // A shape room owns its perimeter walls too — they carry its roomIndex.
+      for (const child of [...slot.group.children]) {
+        if (child.userData?.roomIndex === i) drop(child);
+      }
+      const room = floorDef.rooms?.[i];
+      if (!room) continue;
+      try {
+        const mesh = buildRoomElement(slot.group, room, i, defaultHeight);
+        if (mesh) {
+          slot.built.roomById.set(i, mesh);
+          if (room.id) slot.built.roomByKey.set(room.id, mesh);
+        }
+      } catch {
+        /* see above */
+      }
+    }
+
+    // Room outlines feed the marker grouping; they are derived from the same
+    // polygons, so they go stale with them.
+    slot.rooms = (floorDef.rooms ?? [])
+      .map((room) => {
+        const poly = finitePolygon(isShapeRoom(room) ? roomPolygon(room) : room.polygon);
+        return {
+          name: room.name,
+          poly: poly as [number, number][],
+          elev: slot.elevation,
+          bgImage: room.bgImage,
+        };
+      })
+      .filter((r) => r.poly.length >= 3);
+    slot.built.bbox.setFromObject(slot.group);
+    this.selection.refresh();
+    this.requestShadowUpdate();
+    this.loop.invalidate();
   }
 
   /** Raycast the gizmo handles; returns the handle id (userData.gizmoHandle). */

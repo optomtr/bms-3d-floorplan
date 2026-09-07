@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 
 import type { Vec2, WallDef } from '../types';
+import { newWallId } from './ids';
 
 /** Знаковая площадь многоугольника. Знак важен: при обходе граней внутренние
  *  получаются положительными, а внешняя граница — отрицательной. */
@@ -102,14 +103,23 @@ export function closedFaces(walls: WallDef[], weld = 0.2): Vec2[][] {
   return faces;
 }
 
+export interface MergeResult {
+  walls: WallDef[];
+  /** id стены ДО слияния → id стены ПОСЛЕ. Слияние — единственная правка,
+   *  которая заменяет массив стен целиком; без этой таблицы каждая привязка
+   *  двери разом теряла бы своего хозяина. */
+  idMap: Map<string, string>;
+}
+
 /**
  * Слить дубли и перекрывающиеся стены на одной прямой в один отрезок.
  *
  * Совпавшие стены мешают: проём, поставленный там, где две комнаты делят одну
  * стену, остаётся заткнут второй стеной. Проёмы переносятся на слитую стену
- * через мировые координаты, поэтому двери и окна не разъезжаются.
+ * через мировые координаты, поэтому двери и окна не разъезжаются — и вместе со
+ * своими id, поэтому привязки к ним переживают слияние.
  */
-export function mergeCollinearWalls(walls: WallDef[]): WallDef[] {
+export function mergeCollinearWalls(walls: WallDef[]): MergeResult {
   const EPS = 0.08;
   // Каждую стену описываем на её бесконечной прямой.
   type Item = { w: WallDef; ang: number; perp: number; t0: number; t1: number };
@@ -126,6 +136,7 @@ export function mergeCollinearWalls(walls: WallDef[]): WallDef[] {
   });
   const used = new Array(items.length).fill(false);
   const out: WallDef[] = [];
+  const idMap = new Map<string, string>();
   for (let i = 0; i < items.length; i++) {
     if (used[i]) continue;
     const group = [items[i]];
@@ -143,7 +154,10 @@ export function mergeCollinearWalls(walls: WallDef[]): WallDef[] {
       }
     }
     if (group.length === 1) {
-      out.push(group[0].w);
+      const only = group[0].w;
+      if (!only.id) only.id = newWallId();
+      idMap.set(only.id, only.id);
+      out.push(only);
       continue;
     }
     // Группа превращается в один отрезок [min t0, max t1] на своей прямой.
@@ -157,7 +171,11 @@ export function mergeCollinearWalls(walls: WallDef[]): WallDef[] {
     const px = perp * nx, pz = perp * nz;
     const ms: Vec2 = [px + ux * tmin, pz + uz * tmin];
     const me: Vec2 = [px + ux * tmax, pz + uz * tmax];
+    // Слитая стена наследует id первой в группе: привязки, смотревшие на неё,
+    // остаются верны и без правки. Остальные переезжают через idMap.
+    const mergedId = group[0].w.id ?? newWallId();
     const merged: WallDef = {
+      id: mergedId,
       start: ms,
       end: me,
       height: group[0].w.height,
@@ -167,6 +185,7 @@ export function mergeCollinearWalls(walls: WallDef[]): WallDef[] {
       openings: [],
     };
     for (const g of group) {
+      if (g.w.id) idMap.set(g.w.id, mergedId);
       for (const op of g.w.openings ?? []) {
         // мировое начало проёма на своей стене → параметр на слитой прямой
         const wdx = g.w.end[0] - g.w.start[0];
@@ -181,5 +200,5 @@ export function mergeCollinearWalls(walls: WallDef[]): WallDef[] {
     if (!merged.openings!.length) delete merged.openings;
     out.push(merged);
   }
-  return out;
+  return { walls: out, idMap };
 }

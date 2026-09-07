@@ -77,6 +77,12 @@ export interface BuiltFloor {
   wallById: Map<number, THREE.Object3D>;
   /** Map of room array-index -> floor mesh (for editor selection). */
   roomById: Map<number, THREE.Object3D>;
+  /** The same walls keyed by WallDef.id. The index map moves under every delete
+   *  and every mergeWalls(); the editor selects by id, so it needs a key that
+   *  doesn't. Both are filled from one build — they can't drift. */
+  wallByKey: Map<string, THREE.Object3D>;
+  /** The same rooms keyed by RoomDef.id (see wallByKey). */
+  roomByKey: Map<string, THREE.Object3D>;
   /** Bounding box of this floor in world space. */
   bbox: THREE.Box3;
   labels: TextLabel[];
@@ -156,6 +162,7 @@ function buildWall(
   // color/delete the whole wall as a unit.
   const group = new THREE.Group();
   group.userData.wallIndex = index;
+  if (wall.id) group.userData.wallId = wall.id;
   // Rotation so a box's local X aligns with the wall direction (in XZ plane).
   const angle = Math.atan2(dir.y, dir.x);
   const normalAngle = -angle;
@@ -228,6 +235,10 @@ function buildWall(
     if (index >= 0) {
       opGroup.userData.openingWall = index;
       opGroup.userData.openingIndex = oi;
+      // Parallel id keys: the numbers above still answer "which slot", these
+      // answer "which opening" after the slots have moved.
+      if (wall.id) opGroup.userData.openingWallId = wall.id;
+      if (op.id) opGroup.userData.openingId = op.id;
     }
     group.add(opGroup);
     const span = (a: number, b: number, yb: number, yt: number, th: number, mat: THREE.Material) =>
@@ -354,6 +365,7 @@ function buildFloor(
   mesh.position.y = 0.005;
   mesh.receiveShadow = true;
   mesh.userData.roomIndex = index;
+  if (room.id) mesh.userData.roomId = room.id;
   group.add(mesh);
 
   // centroid for label
@@ -368,22 +380,83 @@ function buildFloor(
   };
 }
 
+const isFiniteVec2 = (v: unknown): v is [number, number] =>
+  Array.isArray(v) && v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1]);
+
+/** Default wall height for a floor (per-floor, else per-plan, else 2.6). Shared
+ *  so a single-element rebuild uses exactly the number the full build used. */
+export function floorWallHeight(floor: FloorDef, planWallHeight?: number): number {
+  return Math.max(0.05, num(floor?.wallHeight, num(planWallHeight, DEFAULT_WALL_HEIGHT)));
+}
+
+/**
+ * ONE wall of a floor, built into `group`.
+ *
+ * Exported so an in-place edit (dragging a vertex, sliding a door, typing a
+ * width) can re-cut just the wall that changed instead of tearing the whole
+ * plan down and building it again. Same code path as the full build, so the two
+ * can't drift apart. Throws on unusable coordinates — see the caller's isolate().
+ */
+export function buildWallElement(
+  group: THREE.Group,
+  wall: WallDef,
+  index: number,
+  defaultHeight: number,
+): THREE.Object3D | null {
+  // Sanitising an unusable endpoint to 0 would draw a wall the customer
+  // never drew — worse than a gap, because nothing on screen says so.
+  // A missing coordinate is a MISSING element: skip it and be counted.
+  if (!isFiniteVec2(wall?.start) || !isFiniteVec2(wall?.end)) {
+    throw new Error('координаты стены не заданы или не число');
+  }
+  return buildWall(group, wall, defaultHeight, index);
+}
+
+/**
+ * ONE room of a floor: its floor polygon plus, for a shape room, its perimeter
+ * walls. Returns the floor mesh (the pickable/selectable part).
+ *
+ * Shape-room perimeter walls are owned by the room (tagged roomIndex/roomId,
+ * not wallIndex) so clicking a wall selects the ROOM, not a wall segment.
+ */
+export function buildRoomElement(
+  group: THREE.Group,
+  room: RoomDef,
+  index: number,
+  defaultHeight: number,
+): THREE.Object3D | null {
+  const poly = isShapeRoom(room) ? roomPolygon(room) : room.polygon;
+  const built = buildFloor(group, room, index, poly);
+  // (room name labels intentionally NOT rendered — no floating text in rooms)
+  if (isShapeRoom(room)) {
+    const rh = Math.max(0.05, num(room.height, defaultHeight));
+    const th = Math.max(0.01, num(room.thickness, DEFAULT_THICKNESS));
+    for (const w of roomWalls(room, rh, th)) {
+      const wg = buildWall(group, w, rh, -1);
+      if (wg) {
+        delete wg.userData.wallIndex;
+        delete wg.userData.wallId;
+        wg.userData.roomIndex = index;
+        if (room.id) wg.userData.roomId = room.id;
+      }
+    }
+  }
+  return built?.mesh ?? null;
+}
+
 export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): BuiltFloor {
   const group = new THREE.Group();
   group.position.y = num(floor?.elevation, 0);
-  const defaultHeight = Math.max(
-    0.05,
-    num(floor?.wallHeight, num(planWallHeight, DEFAULT_WALL_HEIGHT)),
-  );
+  const defaultHeight = floorWallHeight(floor, planWallHeight);
   const labels: TextLabel[] = [];
   const wallById = new Map<number, THREE.Object3D>();
   const roomById = new Map<number, THREE.Object3D>();
+  const wallByKey = new Map<string, THREE.Object3D>();
+  const roomByKey = new Map<string, THREE.Object3D>();
   // Every element is built in isolation: one broken wall or one broken piece of
   // furniture is skipped with a named warning, and the rest of the house is
   // still drawn. Before this, a single throw took the whole plan down.
   const skipped: string[] = [];
-  const isFiniteVec2 = (v: unknown): v is [number, number] =>
-    Array.isArray(v) && v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1]);
   const isolate = (what: string, fn: () => void): void => {
     try {
       fn();
@@ -395,39 +468,21 @@ export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): Built
 
   (Array.isArray(floor?.rooms) ? floor.rooms : []).forEach((room, i) => {
     isolate(`комната №${i + 1}${room?.name ? ` «${room.name}»` : ''}`, () => {
-      const poly = isShapeRoom(room) ? roomPolygon(room) : room.polygon;
-      const built = buildFloor(group, room, i, poly);
-      if (built) {
-        roomById.set(i, built.mesh);
-        // (room name labels intentionally NOT rendered — no floating text in rooms)
-      }
-      // Shape rooms also generate their perimeter walls. They're owned by the
-      // room (tagged roomIndex, not wallIndex) so clicking a wall selects the
-      // ROOM, not an individual wall segment.
-      if (isShapeRoom(room)) {
-        const rh = Math.max(0.05, num(room.height, defaultHeight));
-        const th = Math.max(0.01, num(room.thickness, DEFAULT_THICKNESS));
-        for (const w of roomWalls(room, rh, th)) {
-          const wg = buildWall(group, w, rh, -1);
-          if (wg) {
-            delete wg.userData.wallIndex;
-            wg.userData.roomIndex = i;
-          }
-        }
+      const mesh = buildRoomElement(group, room, i, defaultHeight);
+      if (mesh) {
+        roomById.set(i, mesh);
+        if (room.id) roomByKey.set(room.id, mesh);
       }
     });
   });
 
   (Array.isArray(floor?.walls) ? floor.walls : []).forEach((wall, i) => {
     isolate(`стена №${i + 1}`, () => {
-      // Sanitising an unusable endpoint to 0 would draw a wall the customer
-      // never drew — worse than a gap, because nothing on screen says so.
-      // A missing coordinate is a MISSING element: skip it and be counted.
-      if (!isFiniteVec2(wall?.start) || !isFiniteVec2(wall?.end)) {
-        throw new Error('координаты стены не заданы или не число');
+      const wg = buildWallElement(group, wall, i, defaultHeight);
+      if (wg) {
+        wallById.set(i, wg);
+        if (wall.id) wallByKey.set(wall.id, wg);
       }
-      const wg = buildWall(group, wall, defaultHeight, i);
-      if (wg) wallById.set(i, wg);
     });
   });
 
@@ -473,7 +528,7 @@ export function buildFloorGroup(floor: FloorDef, planWallHeight?: number): Built
     console.warn('[3d-floorplan] floor bounding box is not finite — framing a default view instead');
     bbox.makeEmpty();
   }
-  return { group, furnitureById, wallById, roomById, bbox, labels, skipped };
+  return { group, furnitureById, wallById, roomById, wallByKey, roomByKey, bbox, labels, skipped };
 }
 
 /** NaN-safe clamp: `Math.min(hi, NaN)` is NaN, so an unsanitised value used to

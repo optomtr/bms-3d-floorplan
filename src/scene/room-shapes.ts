@@ -86,6 +86,9 @@ export function roomWalls(
     const openings: OpeningDef[] = (Array.isArray(room.openings) ? room.openings : [])
       .filter((o) => o && o.edge === i)
       .map((o) => ({
+        // The opening's id travels with it onto the generated wall, so the
+        // editor can name this hole after the perimeter has been re-derived.
+        id: o.id,
         kind: o.kind,
         position: num(o.position, 0),
         width: Math.max(0, num(o.width, 0)),
