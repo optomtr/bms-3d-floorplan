@@ -6,7 +6,7 @@ import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { climateModeIconName } from '../../scene/icons';
 import { climateStep, isUnknownState } from '../format';
-import { climateModeLabel } from '../i18n';
+import { climateModeLabel, presetLabel } from '../i18n';
 import { effTarget, effVol, intercomOpenDoor, lightSupportsBrightness, lightSupportsCT, lockAction, mediaVolStep, onSliderDown, setLightCT, sliderValue, stepTemp } from '../state';
 import type { IntercomGroup } from '../types';
 
@@ -142,7 +142,9 @@ export function renderFanCard(host: BmsFloorplanCard, id: string) {
   const pcts = count > 1 && count <= 8
     ? Array.from({ length: count }, (_, i) => Math.round(((i + 1) / count) * 100))
     : [];
-  const sub = !on ? host.t('Off') : (curPreset ?? (pct != null ? `${pct}%` : host.t('On')));
+  // Режим приходит от самого устройства («auto», «sleep») — показываем его
+  // по-русски, иначе на русском экране висит английское слово.
+  const sub = !on ? host.t('Off') : (curPreset ? presetLabel(host, curPreset) : (pct != null ? `${pct}%` : host.t('On')));
   return html`<div class="card ${on ? 'on' : ''}">
     <div class="crow">
       <div class="cicon ${on ? 'lit' : ''}">${host.ic('fan')}</div>
@@ -158,11 +160,13 @@ export function renderFanCard(host: BmsFloorplanCard, id: string) {
     ${presets.length
       ? html`<div class="seg fan">
           ${presets.map((p) => html`<button type="button" class="segb ${curPreset === p ? 'on' : ''}"
-            @click=${() => host.svc('fan', 'set_preset_mode', { preset_mode: p }, id)}>${p}</button>`)}
+            aria-label=${`${host.tx('Режим', 'Mode')}: ${presetLabel(host, p)}`}
+            @click=${() => host.svc('fan', 'set_preset_mode', { preset_mode: p }, id)}>${presetLabel(host, p)}</button>`)}
         </div>`
       : pcts.length
         ? html`<div class="seg fan">
             ${pcts.map((p) => html`<button type="button" class="segb ${pct === p ? 'on' : ''}"
+              aria-label=${`${host.tx('Скорость', 'Speed')} ${p}%`}
               @click=${() => host.svc('fan', 'set_percentage', { percentage: p }, id)}>${p}%</button>`)}
           </div>`
         : nothing}
@@ -197,15 +201,9 @@ export function renderClimateCard(host: BmsFloorplanCard, id: string) {
   const toggleIcon = climateModeIconName(on ? mode : onMode) ?? 'power';
   const fanModes = (ent?.attributes?.fan_modes as string[] | undefined) ?? [];
   const fanMode = ent?.attributes?.fan_mode as string | undefined;
-  const fanLabel = (f: string) =>
-    // `middle` is what the Tuya ACs report; without it the raw English word
-    // showed up untranslated between Низкое and Высокое.
-    host.t(
-      ({ low: 'Low', mid: 'Medium', medium: 'Medium', middle: 'Medium', high: 'High', auto: 'Auto' } as Record<
-        string,
-        string
-      >)[f.toLowerCase()] ?? f,
-    );
+  // Скорость вентилятора приходит от самого устройства («middle» у Tuya) —
+  // общий словарь режимов переводит и её (см. presetLabel).
+  const fanLabel = (f: string) => presetLabel(host, f);
   return html`<div class="card ${on ? 'on cool' : ''}">
     <div class="crow">
       <button type="button" class="cicon ${on ? 'lit' : ''}"
@@ -274,6 +272,7 @@ export function renderCoverCard(host: BmsFloorplanCard, id: string) {
       ${head}
       <div class="qbtns">
         <button type="button" class="qb gate icon-only" title=${title}
+          aria-label=${`${host.cardName(id)} — ${title}`}
           @click=${() => host.svc('cover', svcName, {}, id, opt)}>${host.ic('power')}</button>
       </div>
     </div>`;
@@ -399,7 +398,6 @@ export function renderUnavailableCard(host: BmsFloorplanCard, id: string) {
         <div class="clabel">${host.cardName(id)}</div>
         <div class="csub">${host.tx('Нет связи', 'No connection')}</div>
       </div>
-      <div class="info-val na-val">${host.tx('нет связи', 'offline')}</div>
     </div>
     <div class="na-note">${known
       ? host.tx('Устройство не отвечает. Проверьте питание и связь.',

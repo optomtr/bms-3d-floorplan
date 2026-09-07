@@ -67,7 +67,10 @@ export function loadErrorText(host: BmsFloorplanCard, detail: string): { title: 
 /** Экран загрузки. Тёмный прямоугольник без единого слова человек читает как
  *  «сломалось», а не как «идёт загрузка». */
 export function renderPlanLoading(host: BmsFloorplanCard) {
-  return html`<div class="plan-loading" role="status" aria-live="polite">
+  // `toast` здесь — ВРЕМЕННЫЙ носитель оформления: он уже спозиционирован и
+  // читаем. Своё оформление .plan-loading пишет агент по стилям (см. отчёт),
+  // после чего носитель убирается.
+  return html`<div class="plan-loading toast" role="status" aria-live="polite">
     <span class="plan-loading-ic">${host.ic('loading')}</span>
     <span class="plan-loading-t">${host.tx('Загружаем планировку…', 'Loading the floor plan…')}</span>
   </div>`;
@@ -93,7 +96,9 @@ export function renderPlanError(host: BmsFloorplanCard) {
 /** Встроенный пример вместо настоящего плана. Клиент видит чужую квартиру и
  *  не понимает почему — значит, надо сказать прямо и показать выход. */
 export function renderDemoBanner(host: BmsFloorplanCard) {
-  return html`<div class="demo-banner" role="note">
+  // `plan-warning` — тоже временный носитель оформления (та же полоса внизу
+  // экрана). Без него плашка ложится под часы и не читается вовсе.
+  return html`<div class="demo-banner plan-warning" role="note">
     <span class="demo-ic">${host.ic('warn')}</span>
     <span class="demo-text">
       <b>${host.tx('Это пример, а не ваш дом.', 'This is a sample home, not yours.')}</b>
