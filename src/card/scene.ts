@@ -5,6 +5,7 @@
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
 import { releaseThumbnailRenderer } from '../furniture/thumbnails';
 import { ClickResult, QualityChoice, RoomInfo, SceneManager } from '../scene/scene-manager';
+import { setSceneLanguage } from '../scene/bindings';
 import { pendingTeardown } from './constants';
 import { qualityLabel } from './i18n';
 import { loadActiveProject } from './projects';
@@ -33,6 +34,8 @@ export function positionControlPopup(host: BmsFloorplanCard): void {
 
 export function initScene(host: BmsFloorplanCard): void {
   if (!host.viewport) return;
+  // Подписи внутри 3D («Нет связи», «Заперто») говорят на языке карточки.
+  setSceneLanguage(host.isRu);
   const bg = host.config?.background ?? '#1b1d22';
   host.sceneManager = new SceneManager(host.viewport, bg);
   host.qualityChoice = host.sceneManager.getQualityChoice();
@@ -202,7 +205,7 @@ export function onPickQuality(host: BmsFloorplanCard, q: QualityChoice): void {
   const tier = host.sceneManager.getQualityTier();
   host.showToast(
     `${host.t('Quality')}: ${qualityLabel(host, q)}${q === 'auto' ? ` (${tier})` : ''}` +
-      (needsReload ? ' — reload to finish applying' : ''),
+      (needsReload ? host.tx(' — перезагрузите страницу, чтобы применилось полностью', ' — reload to finish applying') : ''),
   );
 }
 

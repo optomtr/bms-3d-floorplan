@@ -7,12 +7,12 @@ import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import type { RoomInfo } from '../../scene/scene-manager';
 import { homeSummary, roomTempStrs, tempSensorsToHide } from '../aggregates';
 import { detectIntercom } from '../entities';
-import { historyPts } from '../history';
+import { historyPts, historyStatus } from '../history';
 import { fmtClockDate, fmtClockTime, roomIcon } from '../i18n';
 import { activeRoom, onResetView, onSelectFloor, selectRoom, setViewMode, toggleSparkMetric } from '../scene';
 import { onSleep, openKiosk, wake } from '../session';
-import { allOffHouse, onRoomAllOff } from '../state';
-import { renderClimateCard, renderCoverCard, renderFanCard, renderInfoCard, renderIntercomCard, renderLightCard, renderLockCard, renderMediaCard, renderToggleCard } from './device-cards';
+import { allOffHouse, isEntityOffline, onRoomAllOff } from '../state';
+import { renderClimateCard, renderCoverCard, renderFanCard, renderInfoCard, renderIntercomCard, renderLightCard, renderLockCard, renderMediaCard, renderToggleCard, renderUnavailableCard } from './device-cards';
 
 /** Compact 24h LINE GRAPH for a room's bound degree sensors (air + floor on one
  *  shared axis). A left gutter shows the temperature scale in degrees with
@@ -25,15 +25,33 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
     { key: 'floor', id: room.floorSensor, cls: 'warm', label: 'Пол', unit: '°' },
     { key: 'humidity', id: room.humiditySensor, cls: 'hum', label: 'Влажность', unit: '%' },
   ] as { key: string; id?: string; cls: string; label: string; unit: string }[]).filter((m) => !!m.id);
+  // Ни одного привязанного датчика: графику просто неоткуда взяться. Это НЕ
+  // то же самое, что «архив не отвечает», и человек обязан видеть разницу.
+  if (!defs.length) {
+    return html`<div class="rp-spark-note">${host.tx(
+      'Датчик не привязан — графика нет',
+      'No sensor bound — no graph',
+    )}</div>`;
+  }
   // Tapping a chip graphs just that metric; 'auto' shows the degree metrics
   // (air + floor) together, else the single bound one.
-  const chosen = metric === 'auto'
+  const chosen0 = metric === 'auto'
     ? (defs.some((m) => m.unit === '°') ? defs.filter((m) => m.unit === '°') : defs.slice(0, 1))
     : defs.filter((m) => m.key === metric);
+  const chosen = chosen0.length ? chosen0 : defs;
   const series = chosen
     .map((m) => ({ cls: m.cls, label: m.label, unit: m.unit, pts: historyPts(host, m.id) }))
     .filter((m) => !!m.pts && m.pts.length >= 2) as { cls: string; label: string; unit: string; pts: [number, number][] }[];
-  if (!series.length) return nothing;
+  if (!series.length) {
+    // Датчик есть, а линии нет. Три разные причины — три разные фразы.
+    const states = chosen.map((m) => historyStatus(host, m.id));
+    const note = states.includes('loading')
+      ? host.tx('Загружаем историю за сутки…', 'Loading 24 h of history…')
+      : states.every((st) => st === 'failed')
+        ? host.tx('Архив истории не отвечает — график недоступен', 'The history archive is not responding — no graph')
+        : host.tx('За сутки данных нет', 'No data for the last 24 h');
+    return html`<div class="rp-spark-note ${states.every((st) => st === 'failed') ? 'bad' : ''}">${note}</div>`;
+  }
   const unit = series[0].unit;
   const all = series.flatMap((s) => s.pts);
   const vs = all.map((p) => p[1]);
@@ -79,7 +97,7 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
     const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xFor(p[0]).toFixed(1)} ${yFor(p[1]).toFixed(1)}`).join(' ');
     return svg`<path class="spark ${s.cls}" d=${d}></path>`;
   });
-  return html`<div class="rp-spark-wrap" title="24h">
+  return html`<div class="rp-spark-wrap" title=${host.tx('За последние сутки', 'The last 24 hours')}>
     <div class="spark-legend">${series.map((s) => html`<span class="spark-leg ${s.cls}"><i></i>${s.label}</span>`)}</div>
     <svg class="rp-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${grid}${lines}</svg>
   </div>`;
@@ -92,6 +110,8 @@ export function renderPills(host: BmsFloorplanCard) {
       (r) => html`<button
         type="button"
         class="pill ${r.key === host.activeRoomKey ? 'on' : ''}"
+        aria-pressed=${r.key === host.activeRoomKey ? 'true' : 'false'}
+        aria-label=${`${host.tx('Комната', 'Room')}: ${r.name || host.t('Room')}`}
         @click=${() => selectRoom(host, r.key)}
       >${host.ic(roomIcon(r.name))}<span>${r.name || host.t('Room')}</span></button>`,
     )}
@@ -103,6 +123,8 @@ export function renderFloorTabs(host: BmsFloorplanCard) {
   return html`<div class="ftabs">
     ${host.floorNames.map(
       (name, i) => html`<button type="button" class="ftab ${i === host.activeFloorIndex ? 'on' : ''}"
+        aria-pressed=${i === host.activeFloorIndex ? 'true' : 'false'}
+        aria-label=${`${host.tx('Этаж', 'Floor')}: ${name}`}
         @click=${() => onSelectFloor(host, i)}>${name}</button>`,
     )}
   </div>`;
@@ -115,11 +137,21 @@ export function renderStageChrome(host: BmsFloorplanCard) {
       <div class="cdate">${fmtClockDate(host)}</div>
     </div>
     <div class="topstat">
-      <button class="sdot" title="Reset view" @click=${() => onResetView(host)}>${host.ic('room')}</button>
-      ${host.panel ? html`<button class="sdot" title="Full-screen 3D" @click=${() => openKiosk()}>${host.ic('shield')}</button>` : nothing}
-      <button class="sdot" title="Screensaver" @click=${(e: Event) => onSleep(host, e)}>${host.ic('moon')}</button>
-      <button class="sdot" title=${host.t('All off short')} @click=${() => allOffHouse(host)}>${host.ic('power')}</button>
-      <button class="sdot" title="Отчёт — графики температуры" @click=${() => { host.showReport = true; }}>${host.ic('chart')}</button>
+      <button class="sdot" title=${host.tx('Показать план целиком', 'Reset the view')}
+        aria-label=${host.tx('Показать план целиком', 'Reset the view')}
+        @click=${() => onResetView(host)}>${host.ic('room')}</button>
+      ${host.panel ? html`<button class="sdot" title=${host.tx('Во весь экран', 'Full-screen 3D')}
+        aria-label=${host.tx('Открыть на весь экран', 'Open full-screen')}
+        @click=${() => openKiosk()}>${host.ic('shield')}</button>` : nothing}
+      <button class="sdot" title=${host.tx('Заставка', 'Screensaver')}
+        aria-label=${host.tx('Включить заставку', 'Turn on the screensaver')}
+        @click=${(e: Event) => onSleep(host, e)}>${host.ic('moon')}</button>
+      <button class="sdot" title=${host.t('All off short')}
+        aria-label=${host.tx('Выключить всё в доме', 'Turn everything off')}
+        @click=${() => allOffHouse(host)}>${host.ic('power')}</button>
+      <button class="sdot" title=${host.tx('Отчёт — графики за сутки', 'Report — 24 h graphs')}
+        aria-label=${host.tx('Открыть отчёт', 'Open the report')}
+        @click=${() => { host.showReport = true; }}>${host.ic('chart')}</button>
       ${renderViewToggle(host)}
     </div>
     <div class="stage-bottom">
@@ -155,6 +187,8 @@ export function renderTempChips(host: BmsFloorplanCard, t: string | null, f: str
   const chip = (val: string | null, m: 'temp' | 'floor' | 'humidity', cls: string, icon: string, title = '') =>
     val
       ? html`<button type="button" class="rp-chip ${cls} ${host.sparkMetric === m ? 'sel' : ''}" title=${title}
+          aria-pressed=${host.sparkMetric === m ? 'true' : 'false'}
+          aria-label=${`${title || host.tx('Температура воздуха', 'Air temperature')}: ${val}`}
           @click=${() => toggleSparkMetric(host, m)}>${host.ic(icon)}${val}</button>`
       : nothing;
   return html`<div class="rp-chips">
@@ -180,8 +214,10 @@ export function renderReport(host: BmsFloorplanCard) {
     <div class="report-back" @click=${() => { host.showReport = false; }}></div>
     <div class="report" @click=${(e: Event) => e.stopPropagation()}>
       <div class="report-head">
-        <div class="report-title">${host.ic('chart')}<span>Отчёт — 24ч</span></div>
-        <button type="button" class="closebtn" title="Close" @click=${() => { host.showReport = false; }}>${host.ic('close')}</button>
+        <div class="report-title">${host.ic('chart')}<span>${host.tx('Отчёт — за сутки', 'Report — last 24 h')}</span></div>
+        <button type="button" class="closebtn" title=${host.tx('Закрыть', 'Close')}
+          aria-label=${host.tx('Закрыть отчёт', 'Close the report')}
+          @click=${() => { host.showReport = false; }}>${host.ic('close')}</button>
       </div>
       <div class="report-tabs">
         ${cats.map((c) => {
@@ -196,7 +232,10 @@ export function renderReport(host: BmsFloorplanCard) {
               <div class="report-room">${r.name || host.t('Room')}</div>
               ${renderRoomSpark(host, r, active)}
             </div>`)
-          : html`<div class="rp-empty">Нет комнат с этим датчиком</div>`}
+          : html`<div class="rp-empty">${host.tx(
+              'Ни в одной комнате этот датчик не привязан. Привяжите его в редакторе — раздел «Комнаты».',
+              'No room has this sensor bound. Bind one in the editor, section "Rooms".',
+            )}</div>`}
       </div>
     </div>`;
 }
@@ -221,7 +260,9 @@ export function renderRoomPanel(host: BmsFloorplanCard) {
       <div class="rp-head">
         <div class="rp-top">
           <div class="rp-name">${room.name || host.t('Room')}</div>
-          <button type="button" class="closebtn" title="Close" @click=${() => selectRoom(host, null)}>${host.ic('close')}</button>
+          <button type="button" class="closebtn" title=${host.tx('Закрыть', 'Close')}
+            aria-label=${host.tx('Закрыть панель комнаты', 'Close the room panel')}
+            @click=${() => selectRoom(host, null)}>${host.ic('close')}</button>
         </div>
         ${renderTempChips(host, tempChip, floorChip, humChip)}
         ${renderRoomSpark(host, room, host.sparkMetric)}
@@ -230,7 +271,9 @@ export function renderRoomPanel(host: BmsFloorplanCard) {
         ${cards.length ? cards : html`<div class="rp-empty">${host.t('No devices in this room')}</div>`}
       </div>
       <div class="rp-foot">
-        <button type="button" class="rp-master" @click=${() => onRoomAllOff(host, room)}>
+        <button type="button" class="rp-master"
+          aria-label=${host.tx('Выключить всё в этой комнате', 'Turn everything off in this room')}
+          @click=${() => onRoomAllOff(host, room)}>
           ${host.ic('power')}<span>${host.t('Turn everything off')}</span>
         </button>
       </div>
@@ -242,7 +285,12 @@ export function renderRoomPanel(host: BmsFloorplanCard) {
 export function roomCards(host: BmsFloorplanCard, room: RoomInfo, skip: Set<string>) {
   const hass = host.hass;
   if (!hass) return [];
-  const ents0 = room.entities.filter((e) => hass.states[e.entity_id] && !skip.has(e.entity_id));
+  // Устройство, которое пропало из Home Assistant или не отвечает, раньше
+  // просто ВЫПАДАЛО из списка комнаты. Теперь оно остаётся — отдельной
+  // карточкой «Нет связи», без органов управления (см. renderUnavailableCard).
+  const inRoom = room.entities.filter((e) => !skip.has(e.entity_id));
+  const gone = inRoom.filter((e) => isEntityOffline(host, e.entity_id));
+  const ents0 = inRoom.filter((e) => hass.states[e.entity_id] && !isEntityOffline(host, e.entity_id));
   // A BMS Intercom (домофон) exposes camera/vyzov/prosmotr/open/… sharing a
   // base name. Collapse them into ONE intercom card and hide the members from
   // the normal per-domain cards.
@@ -278,16 +326,22 @@ export function roomCards(host: BmsFloorplanCard, room: RoomInfo, skip: Set<stri
   medias.forEach((e) => out.push(renderMediaCard(host, e.entity_id, medias.length === 1 ? host.t('Media') : undefined)));
   locks.forEach((e) => out.push(renderLockCard(host, e.entity_id)));
   infos.forEach((e) => out.push(renderInfoCard(host, e.entity_id)));
+  // «Нет связи» — в конце списка: рабочие устройства человек ищет чаще.
+  gone
+    .filter((e) => !intercom?.ids.has(e.entity_id))
+    .forEach((e) => out.push(renderUnavailableCard(host, e.entity_id)));
   return out;
 }
 
 export function renderViewToggle(host: BmsFloorplanCard) {
   const on = (m: string) => (host.viewMode === m ? 'on' : '');
   return html`<div class="view-toggle">
-    <button type="button" class="vt-btn ${on('room')}" @click=${() => setViewMode(host, 'room')}>
+    <button type="button" class="vt-btn ${on('room')}" aria-pressed=${host.viewMode === 'room' ? 'true' : 'false'}
+      @click=${() => setViewMode(host, 'room')}>
       ${host.ic('room')}<span>${host.t('Room')}</span>
     </button>
-    <button type="button" class="vt-btn ${on('overview')}" @click=${() => setViewMode(host, 'overview')}>
+    <button type="button" class="vt-btn ${on('overview')}" aria-pressed=${host.viewMode === 'overview' ? 'true' : 'false'}
+      @click=${() => setViewMode(host, 'overview')}>
       ${host.ic('grid')}<span>${host.t('Overview')}</span>
     </button>
   </div>`;

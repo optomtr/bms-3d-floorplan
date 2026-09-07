@@ -80,6 +80,24 @@ export function climateModeLabel(host: BmsFloorplanCard, mode: string): string {
   );
 }
 
+/** Русское название режима, который прислал сам Home Assistant: скорости
+ *  вентилятора и предустановки (`auto`, `low`, `sleep`, `turbo`…).
+ *
+ *  Незнакомое значение возвращается как есть: у вентилятора вендор может
+ *  прислать что угодно, и лучше показать его слово, чем выдумать своё. */
+export function presetLabel(host: BmsFloorplanCard, raw: string): string {
+  if (!host.isRu) return raw;
+  return (
+    {
+      auto: 'Авто', low: 'Низкая', min: 'Минимум', mid: 'Средняя', middle: 'Средняя', medium: 'Средняя',
+      high: 'Высокая', max: 'Максимум', silent: 'Тихий', quiet: 'Тихий', sleep: 'Ночной', night: 'Ночной',
+      smart: 'Умный', nature: 'Природный', normal: 'Обычный', turbo: 'Турбо', boost: 'Ускорение',
+      eco: 'Эконом', comfort: 'Комфорт', away: 'Отъезд', home: 'Дома', 'fan only': 'Вентиляция',
+      off: 'Выключено', on: 'Включено',
+    } as Record<string, string>
+  )[raw.trim().toLowerCase()] ?? raw;
+}
+
 export function ruPlural(n: number, one: string, few: string, many: string): string {
   const a = n % 10, b = n % 100;
   if (a === 1 && b !== 11) return one;

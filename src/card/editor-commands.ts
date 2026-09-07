@@ -7,6 +7,7 @@ import { EditTool, EditorController } from '../editor/editor-controller';
 import type { FloorPlan, RoomShape } from '../types';
 import { ask, askConfirm } from './dialogs';
 import { humanNum } from './format';
+import { ruPlural } from './i18n';
 import { onSavePlan } from './projects';
 import { applyHass } from './state';
 
@@ -52,7 +53,10 @@ export function enterEditNow(host: BmsFloorplanCard): void {
     host.editZonePlacing = ed.zonePlacing;
     host.requestUpdate();
   };
-  host.editor.onMessage = (m) => host.showToast(m);
+  // Сам EditorController живёт вне карточки и говорит по-английски. Перевод
+  // здесь, на стыке: это единственное место, где сообщение становится видимым
+  // человеку, и единственный слой, который знает язык интерфейса.
+  host.editor.onMessage = (m) => host.showToast(editorMessage(host, m));
   host.editor.onCalibrate = (measured) => {
     void calibrateUnderlay(host, measured);
   };
@@ -67,7 +71,10 @@ export function enterEditNow(host: BmsFloorplanCard): void {
   host.editor.start();
   host.editing = true;
   host.editTool = host.editor.tool;
-  host.showToast('Edit mode — pick "Draw wall", tap the floor to place points');
+  host.showToast(host.tx(
+    'Режим правки: выберите «Стена» и касайтесь пола, чтобы ставить точки',
+    'Edit mode — pick "Wall", tap the floor to place points',
+  ));
 }
 
 /** Ask for the real-world length between the two calibration points. Uses the
@@ -289,10 +296,10 @@ export function onPickUnderlay(host: BmsFloorplanCard, e: Event): void {
     img.onload = () => {
       host.editor?.setUnderlayImage(url, img.naturalWidth, img.naturalHeight);
     };
-    img.onerror = () => host.showToast('Could not read that image');
+    img.onerror = () => host.showToast(host.tx('Не удалось прочитать изображение', 'Could not read that image'));
     img.src = url;
   };
-  reader.onerror = () => host.showToast('Could not read that file');
+  reader.onerror = () => host.showToast(host.tx('Не удалось прочитать файл', 'Could not read that file'));
   reader.readAsDataURL(file);
   input.value = ''; // allow re-picking the same file
 }
@@ -433,5 +440,75 @@ export function onPickEntityPart(host: BmsFloorplanCard, e: Event, part: number)
   const entityId = (e.target as HTMLSelectElement).value || null;
   host.editor?.bindEntity(entityId, part);
   host.requestUpdate();
-  host.showToast(entityId ? `Bound ${entityId}` : 'Binding cleared');
+  host.showToast(entityId
+    ? host.tx(`Привязано: ${entityId}`, `Bound ${entityId}`)
+    : host.tx('Привязка снята', 'Binding cleared'));
+}
+
+/** Перевод сообщений редактора (src/editor/editor-controller.ts) на русский.
+ *
+ *  Английская плюрализация («1 wall added» / «3 walls added») в русском не
+ *  работает вовсе: стена/стены/стен — три формы. Считает их ruPlural, готовая
+ *  функция проекта; сюда же сведены и остальные фразы редактора.
+ *
+ *  Неизвестная фраза возвращается как есть: лучше английский текст, чем
+ *  проглоченное сообщение. */
+export function editorMessage(host: BmsFloorplanCard, msg: string): string {
+  if (!host.isRu) return msg;
+
+  // --- фразы с числами ---
+  let m = /^(\d+) walls? added$/.exec(msg);
+  if (m) {
+    const n = Number(m[1]);
+    return `Добавлено ${n} ${ruPlural(n, 'стена', 'стены', 'стен')}`;
+  }
+  m = /^Curved wall — (\d+) segments?$/.exec(msg);
+  if (m) {
+    const n = Number(m[1]);
+    return `Круглая стена — ${n} ${ruPlural(n, 'отрезок', 'отрезка', 'отрезков')}`;
+  }
+  m = /^Added (\d+) floors?$/.exec(msg);
+  if (m) {
+    const n = Number(m[1]);
+    return `Добавлено ${n} ${ruPlural(n, 'пол', 'пола', 'полов')}`;
+  }
+  m = /^Added "(.*)" — draw it$/.exec(msg);
+  if (m) return `Добавлен «${m[1]}» — начертите его`;
+  m = /^Scale set — (.*) m across those points$/.exec(msg);
+  if (m) return `Масштаб задан: между точками ${m[1]} м`;
+  m = /^Walls merged: (\d+) → (\d+)$/.exec(msg);
+  if (m) return `Стены объединены: ${m[1]} → ${m[2]}`;
+  m = /^(Door|Window|Opening) added — select the wall to edit\/delete it$/.exec(msg);
+  if (m) {
+    const word = { Door: 'Дверь добавлена', Window: 'Окно добавлено', Opening: 'Проём добавлен' }[m[1]]!;
+    return `${word} — выберите стену, чтобы изменить или удалить`;
+  }
+
+  // --- фразы без чисел ---
+  const fixed: Record<string, string> = {
+    'Cannot delete the only floor': 'Единственный этаж удалить нельзя',
+    'Tap on (or near) a wall to place this': 'Коснитесь стены (или рядом с ней), чтобы поставить это',
+    'Tap on (or near) a wall to install the garage door': 'Коснитесь стены (или рядом), чтобы встроить гаражные ворота',
+    'Garage door installed in wall': 'Гаражные ворота встроены в стену',
+    'Glass door cut into wall': 'Стеклянная дверь врезана в стену',
+    'Window cut into wall': 'Окно врезано в стену',
+    'Tap the floor to place the room icon': 'Коснитесь пола, чтобы поставить значок комнаты',
+    'Now tap the second point': 'Теперь коснитесь второй точки',
+    'Tap at least 3 corners for a floor': 'Для пола нужно не меньше трёх углов',
+    'Floor added': 'Пол добавлен',
+    'Room closed — floor added': 'Контур замкнут — пол добавлен',
+    'Tap closer to a wall (or room edge)': 'Коснитесь ближе к стене (или к краю комнаты)',
+    'Reference image added — set its width (m), then trace walls':
+      'Подложка добавлена — укажите её ширину в метрах и обводите стены',
+    'Add a reference image first': 'Сначала загрузите подложку',
+    'Calibrate: tap two points a known distance apart on the image':
+      'Масштаб: отметьте на картинке две точки, расстояние между которыми известно',
+    'Reference image removed': 'Подложка убрана',
+    'Draw or import some walls first': 'Сначала начертите или загрузите стены',
+    'No closed rooms found — make sure walls connect at corners':
+      'Замкнутых комнат не найдено — проверьте, что стены сходятся в углах',
+    'All rooms already have floors': 'У всех комнат пол уже есть',
+    'Nothing to merge': 'Объединять нечего',
+  };
+  return fixed[msg] ?? msg;
 }

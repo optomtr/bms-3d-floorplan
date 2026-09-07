@@ -46,6 +46,40 @@ interface ActiveBinding {
   vents?: THREE.Object3D[];
   /** Target open fraction for curtains (0 closed .. 1 open). */
   coverOpen?: number;
+  /** Куда класть лениво созданную подпись, чтобы этаж освободил её вместе с
+   *  остальными (см. BuiltFloor.labels). */
+  labelSink?: TextLabel[];
+  /** Подпись «Нет связи». Создаётся ТОЛЬКО когда связь действительно пропала:
+   *  делать её всем привязкам заранее — это лишний холст 256×128 на каждую. */
+  offlineLabel?: TextLabel;
+  /** НАРИСОВАНА ли сейчас надпись «Нет связи». Именно нарисована, а не «должна
+   *  бы»: признак ставится в showOffline и снимается в hideOffline. Считать его
+   *  по состоянию сущности нельзя — тогда проверка «на плане видно, что связи
+   *  нет» останется зелёной даже с полностью выключённой отрисовкой. */
+  offlineShown?: boolean;
+}
+
+/** Подписи, которые сцена рисует прямо на плане. Русский по умолчанию —
+ *  как и во всей карточке; карточка выставляет язык через setSceneLanguage. */
+const SCENE_TEXT = {
+  ru: { offline: 'Нет связи', unknown: 'нет данных', locked: 'Заперто', unlocked: 'Открыто', on: 'Сработал', off: 'норма' },
+  en: { offline: 'No connection', unknown: 'no data', locked: 'Locked', unlocked: 'Unlocked', on: 'Triggered', off: 'normal' },
+};
+let sceneRu = true;
+
+/** Язык подписей внутри 3D-сцены. Зовётся карточкой (src/card/scene.ts). */
+export function setSceneLanguage(ru: boolean): void {
+  sceneRu = ru;
+}
+
+function T(): typeof SCENE_TEXT.ru {
+  return sceneRu ? SCENE_TEXT.ru : SCENE_TEXT.en;
+}
+
+/** Сущность, которой на самом деле нет: её удалили из Home Assistant или
+ *  устройство не отвечает. Это НЕ «выключено» — и выглядеть так не должно. */
+export function isEntityOffline(ent?: HassEntity): boolean {
+  return !ent || ent.state === 'unavailable';
 }
 
 function domainOf(entityId: string): string {
@@ -160,6 +194,9 @@ export class BindingManager {
 
   private setupVisual(ab: ActiveBinding, floor: BuiltFloor): void {
     const { behavior, worldPos } = ab;
+    // Этаж владеет подписями: положив сюда лениво созданную «Нет связи», она
+    // будет освобождена вместе с остальными при разборе этажа.
+    ab.labelSink = floor.labels;
 
     if (behavior === 'light') {
       // Cap real point lights (each one makes every material's shader loop once
@@ -293,6 +330,19 @@ export class BindingManager {
     const friendly =
       ab.def.label ?? ent?.attributes?.friendly_name ?? ab.def.entity_id;
 
+    // Пропавшее (или недоступное) устройство обязано выглядеть ПРОПАВШИМ.
+    // Раньше оно просто не светилось — и человек делал вывод, что врёт
+    // система, а не устройство. Гасим и пишем об этом прямо на плане.
+    if (isEntityOffline(ent)) {
+      if (ab.pointLight) ab.pointLight.intensity = 0;
+      this.setEmissive(ab, 0x000000, 0);
+      ab.spin = undefined;
+      this.showOffline(ab);
+      ab.lastState = sig;
+      return true;
+    }
+    this.hideOffline(ab);
+
     switch (ab.behavior) {
       case 'light': {
         const on = state === 'on';
@@ -323,19 +373,22 @@ export class BindingManager {
       case 'sensor':
       case 'label': {
         const unit = ent?.attributes?.unit_of_measurement ?? '';
-        ab.label?.setText(`${friendlyShort(friendly)}: ${state}${unit}`, '#ffe7a0');
+        // «unknown» — это не показание. Пишем словами, а не сырым состоянием.
+        const val = state === 'unknown' ? T().unknown : `${state}${unit}`;
+        ab.label?.setText(`${friendlyShort(friendly)}: ${val}`, '#ffe7a0');
         break;
       }
       case 'binary_sensor': {
         const on = state === 'on';
-        ab.label?.setText(`${friendlyShort(friendly)}: ${on ? 'ON' : 'off'}`,
+        ab.label?.setText(`${friendlyShort(friendly)}: ${on ? T().on : T().off}`,
           on ? '#ff8080' : '#bbbbbb');
         this.setEmissive(ab, on ? 0xff5555 : 0x000000, on ? 0.5 : 0);
         break;
       }
       case 'lock': {
         const locked = state === 'locked';
-        ab.label?.setText(locked ? '🔒 locked' : '🔓 unlocked',
+        // Без эмодзи: 🔒/🔓 на части планшетов рисуются квадратом-«тофу».
+        ab.label?.setText(locked ? T().locked : T().unlocked,
           locked ? '#7CFC8A' : '#ff8080');
         this.setEmissive(ab, locked ? 0x4fd06a : 0xff5555, 0.5);
         break;
@@ -377,6 +430,44 @@ export class BindingManager {
     }
     ab.lastState = sig;
     return true;
+  }
+
+  /** Написать «Нет связи» над привязкой. У датчика/замка подпись уже есть —
+   *  занимаем её; остальным заводим свою, но только в момент обрыва. */
+  private showOffline(ab: ActiveBinding): void {
+    ab.offlineShown = true;
+    if (ab.label) {
+      ab.label.setText(T().offline, '#ff9a9a');
+      return;
+    }
+    if (!ab.offlineLabel) {
+      const lbl = new TextLabel(1.1);
+      const lift = ab.anchor ? 0.6 : 0;
+      lbl.setPosition(ab.worldPos.x, ab.worldPos.y + lift + 0.4, ab.worldPos.z);
+      this.root.add(lbl.sprite);
+      ab.labelSink?.push(lbl); // этаж освободит её вместе с остальными
+      ab.offlineLabel = lbl;
+    }
+    ab.offlineLabel.setText(T().offline, '#ff9a9a');
+    ab.offlineLabel.sprite.visible = true;
+  }
+
+  /** Связь вернулась — убрать надпись (сам спрайт остаётся, чтобы следующий
+   *  обрыв не создавал холст заново). */
+  private hideOffline(ab: ActiveBinding): void {
+    ab.offlineShown = false;
+    if (ab.offlineLabel) ab.offlineLabel.sprite.visible = false;
+  }
+
+  /** Есть ли сейчас над этой сущностью надпись «Нет связи». Нужна проверкам:
+   *  «пропало» обязано быть видно, а не выглядеть выключенным. */
+  isOffline(entityId: string): boolean {
+    const list = this.byEntity.get(entityId);
+    if (!list) return false;
+    // Только по факту отрисовки. Через состояние сущности было бы «удобнее» —
+    // и абсолютно бесполезно: такая проверка не краснеет, даже если подпись
+    // перестать рисовать вовсе (проверено, см. отчёт).
+    return list.some((ab) => ab.offlineShown === true);
   }
 
   private setEmissive(ab: ActiveBinding, color: number, intensity: number): void {
@@ -563,6 +654,11 @@ export class BindingManager {
       ab.anchor = null;
       ab.spin = ab.spinTarget = undefined;
       ab.label = undefined;
+      // Сами подписи освобождает этаж (BuiltFloor.labels) — здесь только
+      // отпускаем ссылки, чтобы переживший этаж менеджер не держал сцену.
+      ab.offlineLabel = undefined;
+      ab.offlineShown = false;
+      ab.labelSink = undefined;
     }
     this.bindings = [];
     this.byEntity.clear();

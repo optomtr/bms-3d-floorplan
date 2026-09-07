@@ -5,8 +5,8 @@
 import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { climateModeIconName } from '../../scene/icons';
-import { climateStep } from '../format';
-import { climateModeLabel } from '../i18n';
+import { climateStep, isUnknownState } from '../format';
+import { climateModeLabel, presetLabel } from '../i18n';
 import { effTarget, effVol, intercomOpenDoor, lightSupportsBrightness, lightSupportsCT, lockAction, mediaVolStep, onSliderDown, setLightCT, sliderValue, stepTemp } from '../state';
 import type { IntercomGroup } from '../types';
 
@@ -30,10 +30,12 @@ export function renderIntercomCard(host: BmsFloorplanCard, g: IntercomGroup) {
     </div>
     <div class="qbtns intercom-btns">
       <button type="button" class="qb ${viewing ? 'on' : ''}"
+        aria-label=${viewing ? host.tx('Выключить просмотр', 'Stop viewing') : host.tx('Включить просмотр', 'Start viewing')}
         @click=${() => host.svc('switch', viewing ? 'turn_off' : 'turn_on', {}, g.prosmotr, viewing ? 'off' : 'on')}>
         <span class="qb-ic">${host.ic('eye')}</span><span>${host.t('View')}</span></button>
       ${g.open
         ? html`<button type="button" class="qb primary"
+            aria-label=${host.tx('Открыть дверь', 'Open the door')}
             @click=${() => intercomOpenDoor(host, g.open!)}>
             <span class="qb-ic">${host.ic('doorOpen')}</span><span>${host.t('Open door')}</span></button>`
         : nothing}
@@ -74,7 +76,9 @@ export function renderLightCard(host: BmsFloorplanCard, ids: string[]) {
         <div class="clabel">${host.t('Light')}</div>
         <div class="csub">${onCount} / ${ids.length}${anyOn && dimmable ? ` · ${bri}%` : ''}</div>
       </div>
-      <button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle all"
+      <button type="button" class="sw ${anyOn ? 'on' : ''}"
+        title=${host.tx('Включить или выключить весь свет', 'Toggle all lights')}
+        aria-label=${host.tx('Включить или выключить весь свет', 'Toggle all lights')}
         @click=${() => host.onToggleAll(ids.map((id) => ({ entity_id: id, behavior: 'light' })))}><span class="sw-k"></span></button>
     </div>
     ${ids.length > 1
@@ -82,6 +86,7 @@ export function renderLightCard(host: BmsFloorplanCard, ids: string[]) {
           ${ids.map((id) => {
             const lon = host.effState(id) === 'on';
             return html`<button type="button" class="ltile ${lon ? 'on' : ''}" title=${host.cardName(id)}
+              aria-label=${`${host.cardName(id)} — ${lon ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
               @click=${() => host.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on')}>
               <span class="lti ${lon ? 'lit' : ''}">${host.ic('bulb')}</span>
               <span class="ltn">${host.cardName(id)}</span>
@@ -116,7 +121,9 @@ export function renderToggleCard(host: BmsFloorplanCard, id: string, icon: strin
         <div class="clabel">${host.cardName(id)}</div>
         <div class="csub">${on ? host.t('On') : host.t('Off')}</div>
       </div>
-      <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+      <button type="button" class="sw ${on ? 'on' : ''}"
+        title=${host.tx('Включить или выключить', 'Toggle')}
+        aria-label=${`${host.cardName(id)} — ${on ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
         @click=${() => host.svc(domain, 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
     </div>
   </div>`;
@@ -135,7 +142,9 @@ export function renderFanCard(host: BmsFloorplanCard, id: string) {
   const pcts = count > 1 && count <= 8
     ? Array.from({ length: count }, (_, i) => Math.round(((i + 1) / count) * 100))
     : [];
-  const sub = !on ? host.t('Off') : (curPreset ?? (pct != null ? `${pct}%` : host.t('On')));
+  // Режим приходит от самого устройства («auto», «sleep») — показываем его
+  // по-русски, иначе на русском экране висит английское слово.
+  const sub = !on ? host.t('Off') : (curPreset ? presetLabel(host, curPreset) : (pct != null ? `${pct}%` : host.t('On')));
   return html`<div class="card ${on ? 'on' : ''}">
     <div class="crow">
       <div class="cicon ${on ? 'lit' : ''}">${host.ic('fan')}</div>
@@ -143,17 +152,21 @@ export function renderFanCard(host: BmsFloorplanCard, id: string) {
         <div class="clabel">${host.cardName(id)}</div>
         <div class="csub">${sub}</div>
       </div>
-      <button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+      <button type="button" class="sw ${on ? 'on' : ''}"
+        title=${host.tx('Включить или выключить', 'Toggle')}
+        aria-label=${`${host.cardName(id)} — ${on ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
         @click=${() => host.svc('fan', 'toggle', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>
     </div>
     ${presets.length
       ? html`<div class="seg fan">
           ${presets.map((p) => html`<button type="button" class="segb ${curPreset === p ? 'on' : ''}"
-            @click=${() => host.svc('fan', 'set_preset_mode', { preset_mode: p }, id)}>${p}</button>`)}
+            aria-label=${`${host.tx('Режим', 'Mode')}: ${presetLabel(host, p)}`}
+            @click=${() => host.svc('fan', 'set_preset_mode', { preset_mode: p }, id)}>${presetLabel(host, p)}</button>`)}
         </div>`
       : pcts.length
         ? html`<div class="seg fan">
             ${pcts.map((p) => html`<button type="button" class="segb ${pct === p ? 'on' : ''}"
+              aria-label=${`${host.tx('Скорость', 'Speed')} ${p}%`}
               @click=${() => host.svc('fan', 'set_percentage', { percentage: p }, id)}>${p}%</button>`)}
           </div>`
         : nothing}
@@ -188,27 +201,25 @@ export function renderClimateCard(host: BmsFloorplanCard, id: string) {
   const toggleIcon = climateModeIconName(on ? mode : onMode) ?? 'power';
   const fanModes = (ent?.attributes?.fan_modes as string[] | undefined) ?? [];
   const fanMode = ent?.attributes?.fan_mode as string | undefined;
-  const fanLabel = (f: string) =>
-    // `middle` is what the Tuya ACs report; without it the raw English word
-    // showed up untranslated between Низкое and Высокое.
-    host.t(
-      ({ low: 'Low', mid: 'Medium', medium: 'Medium', middle: 'Medium', high: 'High', auto: 'Auto' } as Record<
-        string,
-        string
-      >)[f.toLowerCase()] ?? f,
-    );
+  // Скорость вентилятора приходит от самого устройства («middle» у Tuya) —
+  // общий словарь режимов переводит и её (см. presetLabel).
+  const fanLabel = (f: string) => presetLabel(host, f);
   return html`<div class="card ${on ? 'on cool' : ''}">
     <div class="crow">
-      <button type="button" class="cicon ${on ? 'lit' : ''}" title="Toggle"
+      <button type="button" class="cicon ${on ? 'lit' : ''}"
+        title=${host.tx('Включить или выключить', 'Toggle')}
+        aria-label=${`${host.cardName(id)} — ${on ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
         @click=${() => host.svc('climate', 'set_hvac_mode', { hvac_mode: on ? 'off' : onMode }, id, on ? 'off' : onMode)}>${host.ic(toggleIcon)}</button>
       <div class="cgrow">
         <div class="clabel">${host.cardName(id)}</div>
         <div class="csub">${sub}</div>
       </div>
       <div class="stepper">
-        <button type="button" class="stbtn" title="Cooler" @click=${() => setTemp(-step)}>${host.ic('minus')}</button>
+        <button type="button" class="stbtn" title=${host.tx('Холоднее', 'Cooler')}
+          aria-label=${host.tx('Понизить уставку', 'Lower the setpoint')} @click=${() => setTemp(-step)}>${host.ic('minus')}</button>
         <div class="tval">${target != null ? `${target}°` : '—'}</div>
-        <button type="button" class="stbtn" title="Warmer" @click=${() => setTemp(step)}>${host.ic('plus')}</button>
+        <button type="button" class="stbtn" title=${host.tx('Теплее', 'Warmer')}
+          aria-label=${host.tx('Поднять уставку', 'Raise the setpoint')} @click=${() => setTemp(step)}>${host.ic('plus')}</button>
       </div>
     </div>
     <div class="seg">
@@ -220,7 +231,9 @@ export function renderClimateCard(host: BmsFloorplanCard, id: string) {
     ${fanModes.length && on
       ? html`<div class="seg fan">
           ${fanModes.map(
-            (f) => html`<button type="button" class="segb ${fanMode === f ? 'on' : ''}" title=${'Fan: ' + f}
+            (f) => html`<button type="button" class="segb ${fanMode === f ? 'on' : ''}"
+              title=${host.tx('Скорость вентилятора: ', 'Fan speed: ') + fanLabel(f)}
+              aria-label=${host.tx('Скорость вентилятора: ', 'Fan speed: ') + fanLabel(f)}
               @click=${() => host.svc('climate', 'set_fan_mode', { fan_mode: f }, id)}>${fanLabel(f)}</button>`,
           )}
         </div>`
@@ -259,6 +272,7 @@ export function renderCoverCard(host: BmsFloorplanCard, id: string) {
       ${head}
       <div class="qbtns">
         <button type="button" class="qb gate icon-only" title=${title}
+          aria-label=${`${host.cardName(id)} — ${title}`}
           @click=${() => host.svc('cover', svcName, {}, id, opt)}>${host.ic('power')}</button>
       </div>
     </div>`;
@@ -313,7 +327,9 @@ export function renderMediaCard(host: BmsFloorplanCard, id: string, title?: stri
         <div class="csub">${playing ? host.t('Playing now') : on ? host.t('On') : host.t('Off')}</div>
       </div>
       ${powerable
-        ? html`<button type="button" class="sw ${on ? 'on' : ''}" title="Toggle"
+        ? html`<button type="button" class="sw ${on ? 'on' : ''}"
+            title=${host.tx('Включить или выключить', 'Toggle')}
+            aria-label=${`${host.cardName(id, title)} — ${on ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
             @click=${() => host.svc('media_player', on ? 'turn_off' : 'turn_on', {}, id, on ? 'off' : 'on')}><span class="sw-k"></span></button>`
         : nothing}
     </div>
@@ -325,12 +341,16 @@ export function renderMediaCard(host: BmsFloorplanCard, id: string, title?: stri
       : nothing}
     ${volSet || volStep || volMute
       ? html`<div class="seg vol">
-          ${volMute ? html`<button type="button" class="segb ${muted ? 'on' : ''}" title="Mute"
+          ${volMute ? html`<button type="button" class="segb ${muted ? 'on' : ''}"
+            title=${muted ? host.tx('Включить звук', 'Unmute') : host.tx('Без звука', 'Mute')}
+            aria-label=${muted ? host.tx('Включить звук', 'Unmute') : host.tx('Выключить звук', 'Mute')}
             @click=${() => host.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${host.ic('mute')}</button>` : nothing}
-          <button type="button" class="segb" title="Volume down"
+          <button type="button" class="segb" title=${host.tx('Тише', 'Volume down')}
+            aria-label=${host.tx('Убавить громкость', 'Volume down')}
             @click=${() => mediaVolStep(host, id, ent, volStep, -1)}>${host.ic('volDown')}</button>
           <div class="volind">${volReal}%</div>
-          <button type="button" class="segb" title="Volume up"
+          <button type="button" class="segb" title=${host.tx('Громче', 'Volume up')}
+            aria-label=${host.tx('Прибавить громкость', 'Volume up')}
             @click=${() => mediaVolStep(host, id, ent, volStep, 1)}>${host.ic('volUp')}</button>
         </div>`
       : nothing}
@@ -340,6 +360,7 @@ export function renderMediaCard(host: BmsFloorplanCard, id: string, title?: stri
 export function renderLockCard(host: BmsFloorplanCard, id: string) {
   const locked = host.effState(id) === 'locked';
   return html`<button type="button" class="lockbtn ${locked ? 'locked' : 'unlocked'}"
+    aria-label=${`${host.cardName(id)} — ${locked ? host.tx('открыть замок', 'unlock') : host.tx('запереть замок', 'lock')}`}
     @click=${() => lockAction(host, id, locked ? 'unlock' : 'lock')}>
     ${host.ic(locked ? 'lockClosed' : 'lockOpen')}
     <div class="cgrow"><div class="lktxt">${locked ? host.t('Locked') : host.t('Unlocked')}</div>
@@ -355,7 +376,33 @@ export function renderInfoCard(host: BmsFloorplanCard, id: string) {
     <div class="crow">
       <div class="cicon">${host.ic('gauge')}</div>
       <div class="cgrow"><div class="clabel">${host.cardName(id)}</div></div>
-      <div class="info-val">${host.effState(id)}${unit}</div>
+      <div class="info-val">${isUnknownState(host.effState(id))
+        ? host.tx('нет данных', 'no data')
+        : html`${host.effState(id)}${unit}`}</div>
     </div>
+  </div>`;
+}
+
+/** Устройство, которого нет: Home Assistant его потерял или сущность удалили.
+ *
+ *  Раньше такое устройство либо ИСЧЕЗАЛО из списка комнаты без следа, либо
+ *  показывалось как «Выключен» — и человек делал вывод, что врёт панель, а не
+ *  железо. Карточка остаётся на месте, честно называет причину и НЕ предлагает
+ *  ни одного органа управления: нажимать нечего, команда никуда не уйдёт. */
+export function renderUnavailableCard(host: BmsFloorplanCard, id: string) {
+  const known = !!host.hass?.states[id];
+  return html`<div class="card unavailable" data-entity=${id}>
+    <div class="crow">
+      <div class="cicon">${host.ic('wifiOff')}</div>
+      <div class="cgrow">
+        <div class="clabel">${host.cardName(id)}</div>
+        <div class="csub">${host.tx('Нет связи', 'No connection')}</div>
+      </div>
+    </div>
+    <div class="na-note">${known
+      ? host.tx('Устройство не отвечает. Проверьте питание и связь.',
+                'The device is not responding. Check its power and connection.')
+      : host.tx('Устройства нет в Home Assistant — возможно, его удалили или переименовали.',
+                'This device is gone from Home Assistant — it may have been removed or renamed.')}</div>
   </div>`;
 }

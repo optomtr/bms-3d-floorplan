@@ -5,10 +5,11 @@
 import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { climateModeIconName } from '../../scene/icons';
+import { climateModeLabel } from '../i18n';
 import { DEVICE_CATEGORIES } from '../constants';
-import { climateStep } from '../format';
+import { climateStep, isUnknownState } from '../format';
 import { closeControl } from '../scene';
-import { effTarget, lockAction, stepTemp } from '../state';
+import { effTarget, isEntityOffline, lockAction, stepTemp } from '../state';
 
 /** View-mode control popup: a list of the tapped (+ nearby) entities, each
  *  with domain-appropriate controls / a mini remote. */
@@ -24,7 +25,9 @@ export function renderControlPopup(host: BmsFloorplanCard) {
       @click=${(e: Event) => e.stopPropagation()}>
       <div class="control-head">
         <span>${ids.length > 1 ? `${ids.length} ${host.t('devices')}` : ''}</span>
-        <button type="button" class="ctl close" @click=${() => closeControl(host)}>✕</button>
+        <button type="button" class="ctl close" title=${host.tx('Закрыть', 'Close')}
+          aria-label=${host.tx('Закрыть окно управления', 'Close the control popup')}
+          @click=${() => closeControl(host)}>${host.ic('close')}</button>
       </div>
       ${ids.map((id) => renderEntityControl(host, id))}
     </div>
@@ -54,10 +57,13 @@ export function renderRoomPopup(host: BmsFloorplanCard) {
       @click=${(e: Event) => e.stopPropagation()}>
       <div class="control-head">
         <span>${active
-          ? html`<button type="button" class="ctl back" title="Back"
+          ? html`<button type="button" class="ctl back" title=${host.tx('Назад', 'Back')}
+              aria-label=${host.tx('Назад, к списку разделов', 'Back to the category list')}
               @click=${() => (host.controlCategory = null)}>${host.ic('chevUp')}</button> ${host.t(active.label)}`
           : room.name || host.t('Room')}</span>
-        <button type="button" class="ctl close" @click=${() => closeControl(host)}>✕</button>
+        <button type="button" class="ctl close" title=${host.tx('Закрыть', 'Close')}
+          aria-label=${host.tx('Закрыть окно управления', 'Close the control popup')}
+          @click=${() => closeControl(host)}>${host.ic('close')}</button>
       </div>
       ${active
         ? html`${active.key === 'lights'
@@ -66,7 +72,9 @@ export function renderRoomPopup(host: BmsFloorplanCard) {
                   return html`<div class="control-row">
                     <span class="control-name">${host.t(anyOn ? 'All off' : 'All on')}</span>
                     <div class="control-ctls">
-                      <button type="button" class="ctl big ${anyOn ? 'on' : ''}" title="Toggle all"
+                      <button type="button" class="ctl big ${anyOn ? 'on' : ''}"
+                        title=${host.tx('Включить или выключить всё', 'Toggle all')}
+                        aria-label=${anyOn ? host.tx('Выключить весь свет', 'All lights off') : host.tx('Включить весь свет', 'All lights on')}
                         @click=${() => host.onToggleAll(active.ents)}>${host.ic('power')}</button>
                     </div>
                   </div>`;
@@ -76,7 +84,9 @@ export function renderRoomPopup(host: BmsFloorplanCard) {
         : cats.length
           ? html`<div class="cat-grid">
               ${cats.map(
-                (c) => html`<button type="button" class="cat-btn" @click=${() => (host.controlCategory = c.key)}>
+                (c) => html`<button type="button" class="cat-btn"
+                  aria-label=${`${host.t(c.label)} — ${c.ents.length}`}
+                  @click=${() => (host.controlCategory = c.key)}>
                   ${host.ic(c.icon)}<span>${host.t(c.label)}</span><small>${c.ents.length}</small>
                 </button>`,
               )}
@@ -94,16 +104,37 @@ export function renderEntityControl(host: BmsFloorplanCard, id: string) {
   const name = ent?.attributes?.friendly_name ?? id;
   const on = state === 'on' || state === 'open' || state === 'playing' || state === 'home' || state === 'unlocked';
   let controls;
+  // Устройства нет — управлять нечем. Показываем причину вместо кнопок,
+  // которые всё равно ничего не сделают.
+  if (isEntityOffline(host, id)) {
+    return html`<div class="control-row unavailable" data-entity=${id}>
+      <span class="control-name" title=${id}>${name}</span>
+      <div class="control-ctls">
+        <span class="ctl-state na">${host.ic('wifiOff')} ${host.tx('Нет связи', 'No connection')}</span>
+      </div>
+    </div>`;
+  }
   if (domain === 'light' || domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
-    controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" title="Toggle"
+    // ВНИМАНИЕ: `title` здесь — не подпись для человека, а ЗАЦЕПКА проверок
+    // (tests/06, tests/08 ищут кнопку по `[title="Toggle" | "Open" | "Close" |
+    // "Unlock"]`). Человеку адресован `aria-label`: на сенсорном экране
+    // всплывающая подсказка не показывается никогда, наведения там нет.
+    // Для будущего переезда проверок рядом лежит `data-act`.
+    controls = html`<button type="button" class="ctl big ${on ? 'on' : ''}" title="Toggle" data-act="toggle"
+      aria-label=${`${name} — ${on ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
       @click=${() => host.svc(domain, 'toggle', {}, id, on ? 'off' : 'on')}>${host.ic('power')}</button>`;
   } else if (domain === 'cover') {
     controls = html`
-      <button type="button" class="ctl" title="Open" @click=${() => host.svc('cover', 'open_cover', {}, id, 'open')}>${host.ic('chevUp')}</button>
-      <button type="button" class="ctl" title="Stop" @click=${() => host.svc('cover', 'stop_cover', {}, id)}>${host.ic('stop')}</button>
-      <button type="button" class="ctl" title="Close" @click=${() => host.svc('cover', 'close_cover', {}, id, 'closed')}>${host.ic('chevDown')}</button>`;
+      <button type="button" class="ctl" title="Open" data-act="open" aria-label=${host.tx('Открыть', 'Open')}
+        @click=${() => host.svc('cover', 'open_cover', {}, id, 'open')}>${host.ic('chevUp')}</button>
+      <button type="button" class="ctl" title="Stop" data-act="stop" aria-label=${host.tx('Остановить', 'Stop')}
+        @click=${() => host.svc('cover', 'stop_cover', {}, id)}>${host.ic('stop')}</button>
+      <button type="button" class="ctl" title="Close" data-act="close" aria-label=${host.tx('Закрыть', 'Close')}
+        @click=${() => host.svc('cover', 'close_cover', {}, id, 'closed')}>${host.ic('chevDown')}</button>`;
   } else if (domain === 'lock') {
     controls = html`<button type="button" class="ctl ${on ? '' : 'on'}" title=${on ? 'Lock' : 'Unlock'}
+      data-act=${on ? 'lock' : 'unlock'}
+      aria-label=${`${name} — ${on ? host.tx('запереть замок', 'lock') : host.tx('открыть замок', 'unlock')}`}
       @click=${() => lockAction(host, id, on ? 'lock' : 'unlock')}>${host.ic(on ? 'lockOpen' : 'lockClosed')}</button>`;
   } else if (domain === 'climate') {
     // Compact AC remote: temperature ± and the HVAC mode chips, inline.
@@ -116,16 +147,22 @@ export function renderEntityControl(host: BmsFloorplanCard, id: string) {
     };
     controls = html`<div class="ctl-col">
       <div class="ctl-row">
-        <button type="button" class="ctl" title="Cooler" @click=${() => setTemp(-step)}>${host.ic('minus')}</button>
+        <button type="button" class="ctl" title=${host.tx('Холоднее', 'Cooler')}
+          aria-label=${host.tx('Понизить уставку', 'Lower the setpoint')} @click=${() => setTemp(-step)}>${host.ic('minus')}</button>
         <span class="ctl-temp">${target != null ? `${target}°` : '—'}${cur != null
           ? html`<small> · ${cur}°</small>`
           : nothing}</span>
-        <button type="button" class="ctl" title="Warmer" @click=${() => setTemp(step)}>${host.ic('plus')}</button>
+        <button type="button" class="ctl" title=${host.tx('Теплее', 'Warmer')}
+          aria-label=${host.tx('Поднять уставку', 'Raise the setpoint')} @click=${() => setTemp(step)}>${host.ic('plus')}</button>
       </div>
       <div class="ctl-row wrap">
         ${modes.map((m) => {
           const icon = climateModeIconName(m);
-          return html`<button type="button" class="ctl ${state === m ? 'on' : ''}" title=${m}
+          // climateModeLabel не знает 'off' и вернул бы «Отопление» — режим
+          // «Выключено» подписываем отдельно.
+          const mLabel = m === 'off' ? host.t('Off mode') : climateModeLabel(host, m);
+          return html`<button type="button" class="ctl ${state === m ? 'on' : ''}"
+            title=${mLabel} aria-label=${mLabel}
             @click=${() => host.svc('climate', 'set_hvac_mode', { hvac_mode: m }, id, m)}>${icon
             ? host.ic(icon)
             : m}</button>`;
@@ -139,13 +176,23 @@ export function renderEntityControl(host: BmsFloorplanCard, id: string) {
     // (playing, paused, idle and buffering all mean the device is powered).
     const mpOn = !['off', 'standby', 'unavailable', 'unknown'].includes(state);
     controls = html`<div class="ctl-row">
-      <button type="button" class="ctl ${mpOn ? 'on' : ''}" title="Power" @click=${() => host.svc('media_player', 'toggle', {}, id, mpOn ? 'off' : 'playing')}>${host.ic('power')}</button>
-      <button type="button" class="ctl" title="Volume down" @click=${() => host.svc('media_player', 'volume_down', {}, id)}>${host.ic('volDown')}</button>
-      <button type="button" class="ctl ${muted ? 'on' : ''}" title="Mute" @click=${() => host.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${host.ic('mute')}</button>
-      <button type="button" class="ctl" title="Volume up" @click=${() => host.svc('media_player', 'volume_up', {}, id)}>${host.ic('volUp')}</button>
+      <button type="button" class="ctl ${mpOn ? 'on' : ''}" title=${host.tx('Питание', 'Power')}
+        aria-label=${`${name} — ${mpOn ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
+        @click=${() => host.svc('media_player', 'toggle', {}, id, mpOn ? 'off' : 'playing')}>${host.ic('power')}</button>
+      <button type="button" class="ctl" title=${host.tx('Тише', 'Volume down')}
+        aria-label=${host.tx('Убавить громкость', 'Volume down')}
+        @click=${() => host.svc('media_player', 'volume_down', {}, id)}>${host.ic('volDown')}</button>
+      <button type="button" class="ctl ${muted ? 'on' : ''}" title=${muted ? host.tx('Включить звук', 'Unmute') : host.tx('Без звука', 'Mute')}
+        aria-label=${muted ? host.tx('Включить звук', 'Unmute') : host.tx('Выключить звук', 'Mute')}
+        @click=${() => host.svc('media_player', 'volume_mute', { is_volume_muted: !muted }, id)}>${host.ic('mute')}</button>
+      <button type="button" class="ctl" title=${host.tx('Громче', 'Volume up')}
+        aria-label=${host.tx('Прибавить громкость', 'Volume up')}
+        @click=${() => host.svc('media_player', 'volume_up', {}, id)}>${host.ic('volUp')}</button>
     </div>`;
   } else {
-    controls = html`<span class="ctl-state">${state}${ent?.attributes?.unit_of_measurement ?? ''}</span>`;
+    controls = html`<span class="ctl-state">${isUnknownState(state)
+      ? host.tx('нет данных', 'no data')
+      : html`${state}${ent?.attributes?.unit_of_measurement ?? ''}`}</span>`;
   }
   return html`<div class="control-row">
     <span class="control-name" title=${id}>${name}</span>

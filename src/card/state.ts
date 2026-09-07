@@ -8,9 +8,31 @@ import type { RoomInfo } from '../scene/scene-manager';
 import type { HassEntity, HomeAssistant } from '../types';
 import { CONTROL_DOMAINS } from './constants';
 import { askConfirm } from './dialogs';
+import { isOfflineState } from './format';
+import { setSceneLanguage } from '../scene/bindings';
+
+/** Устройства нет: Home Assistant его потерял или сущность удалили. Проверяем
+ *  по СЫРОМУ hass, а не по effState — тот подставляет 'unknown' и для
+ *  удалённой сущности, и для «показания ещё нет». */
+export function isEntityOffline(host: BmsFloorplanCard, id: string): boolean {
+  if (!host.hass) return false; // hass ещё не пришёл — ничего не утверждаем
+  const st = host.hass.states[id];
+  if (!st) return true; // сущность удалили из Home Assistant
+  return isOfflineState(st.state);
+}
+
+/** Написано ли сейчас «Нет связи» прямо на плане (3D). Лезет в приватное поле
+ *  менеджера сцены сознательно: снаружи это единственный способ доказать, что
+ *  пропавшее устройство ВИДНО, а не просто не светится. */
+export function offlineShownInScene(host: BmsFloorplanCard, id: string): boolean {
+  const slots = (host.sceneManager as unknown as { slots?: { bindings?: { isOffline?(i: string): boolean } }[] } | undefined)?.slots;
+  return (slots ?? []).some((s) => s.bindings?.isOffline?.(id) === true);
+}
 
 export function applyHass(host: BmsFloorplanCard, hass: HomeAssistant): void {
   if (!host.sceneManager) return;
+  // Язык подписей внутри сцены («Нет связи», «Заперто») — тот же, что у карточки.
+  setSceneLanguage(host.isRu);
   // Keep the scene's asset origin current so `/local/...` room photos resolve
   // against Home Assistant (needed on the file:// kiosk).
   host.sceneManager.setImageBase(assetBase(hass));
@@ -223,6 +245,17 @@ export function callService(host: BmsFloorplanCard, domain: string, service: str
     );
     return;
   }
+  // Устройства нет — команду отправлять некому. Молча «выполнить» её значило бы
+  // показать человеку выключенный свет и уверенность, что всё в порядке.
+  if (entityId && isEntityOffline(host, entityId)) {
+    host.showToast(
+      host.tx(
+        `Устройство недоступно: ${host.cardName(entityId)}. Проверьте питание и связь.`,
+        `Device unavailable: ${host.cardName(entityId)}. Check its power and connection.`,
+      ),
+    );
+    return;
+  }
   const gen = entityId && optimisticState !== undefined ? setOptimistic(host, entityId, optimisticState) : -1;
   // Revert only if OUR override is still the current one (a newer re-tap wins).
   const revertIfCurrent = () => {
@@ -254,6 +287,15 @@ export async function lockAction(host: BmsFloorplanCard, id: string, service: 'l
     host.showToast(host.tx(`Только просмотр: ${id}`, `Read-only: ${id}`));
     return;
   }
+  // Спрашивать «Открыть замок?» у замка, которого нет в сети, — обман: ответа
+  // «да» он всё равно не услышит.
+  if (isEntityOffline(host, id)) {
+    host.showToast(host.tx(
+      `Замок недоступен: ${host.cardName(id)}. Проверьте питание и связь.`,
+      `Lock unavailable: ${host.cardName(id)}. Check its power and connection.`,
+    ));
+    return;
+  }
   if (service === 'unlock') {
     const ok = await askConfirm(host, 
       host.tx('Открыть замок?', 'Unlock?'),
@@ -272,6 +314,13 @@ export async function lockAction(host: BmsFloorplanCard, id: string, service: 'l
 export async function intercomOpenDoor(host: BmsFloorplanCard, id: string): Promise<void> {
   if (!host.canControl(id)) {
     host.showToast(host.tx(`Только просмотр: ${id}`, `Read-only: ${id}`));
+    return;
+  }
+  if (isEntityOffline(host, id)) {
+    host.showToast(host.tx(
+      `Домофон недоступен: ${host.cardName(id)}. Проверьте питание и связь.`,
+      `Intercom unavailable: ${host.cardName(id)}. Check its power and connection.`,
+    ));
     return;
   }
   const ok = await askConfirm(host, 
@@ -296,7 +345,9 @@ export function toggleAll(host: BmsFloorplanCard, ents0: { entity_id: string; be
   // `homeassistant.turn_on` takes an arbitrary entity list and would happily
   // start a script or an automation, so the list is filtered down to the
   // domains this card controls before it is sent (see CONTROL_DOMAINS).
-  const ents = ents0.filter((e) => host.canControl(e.entity_id));
+  // Недоступное устройство из списка тоже убираем: команда до него не дойдёт,
+  // а «включили всё» человек прочитает как «всё включилось».
+  const ents = ents0.filter((e) => host.canControl(e.entity_id) && !isEntityOffline(host, e.entity_id));
   if (!host.hass || !ents.length) return;
   const anyOn = ents.some((e) => host.effState(e.entity_id) === 'on');
   const service = anyOn ? 'turn_off' : 'turn_on';
@@ -451,6 +502,7 @@ export function allOffHouse(host: BmsFloorplanCard): void {
       // Same reasoning as onRoomAllOff: never sweep an entity this card is
       // not allowed to control into `homeassistant.turn_off`.
       if (!host.canControl(e.entity_id)) continue;
+      if (isEntityOffline(host, e.entity_id)) continue; // до пропавшего не дозвониться
       const attrs = host.hass.states[e.entity_id]?.attributes ?? {};
       if (['light', 'switch', 'input_boolean', 'fan'].includes(e.behavior)) {
         if (host.effState(e.entity_id) === 'on') offIds.push(e.entity_id);

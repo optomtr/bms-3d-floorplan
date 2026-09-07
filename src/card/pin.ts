@@ -23,7 +23,7 @@ export function submitPin(host: BmsFloorplanCard, e?: Event): void {
     host.pinError = '';
     host.doEnterEdit();
   } else {
-    host.pinError = 'Wrong PIN — try again';
+    host.pinError = host.tx('Неверный PIN — попробуйте ещё раз', 'Wrong PIN — try again');
     if (input) input.value = '';
   }
 }
@@ -37,7 +37,7 @@ export function cancelPin(host: BmsFloorplanCard): void {
 export async function onSetEditPin(host: BmsFloorplanCard): Promise<void> {
   const v = host.editPinInput.trim();
   if (v.length < 3) {
-    host.showToast('PIN must be at least 3 characters');
+    host.showToast(host.tx('PIN — не меньше трёх знаков', 'The PIN must be at least 3 characters'));
     return;
   }
   // Re-read the shared set first so we don't clobber projects (or a PIN) saved
@@ -54,7 +54,7 @@ export async function onSetEditPin(host: BmsFloorplanCard): Promise<void> {
   host.editPinInput = '';
   host.editUnlocked = true; // we're already editing
   await saveProjects(host.storedProjects, host.hass);
-  host.showToast('Edit PIN set');
+  host.showToast(host.tx('PIN редактора задан', 'Edit PIN set'));
   host.requestUpdate();
 }
 
@@ -69,6 +69,6 @@ export async function onRemoveEditPin(host: BmsFloorplanCard): Promise<void> {
   host.storedProjects = loaded.data;
   delete host.storedProjects.editPin;
   await saveProjects(host.storedProjects, host.hass);
-  host.showToast('Edit PIN removed');
+  host.showToast(host.tx('PIN редактора снят', 'Edit PIN removed'));
   host.requestUpdate();
 }

@@ -37,6 +37,7 @@ import { currentLeak, roomOfEntity, renderLeakAlert } from './card/leak';
 import { renderEditor } from './card/views/editor-panel';
 import { renderControlPopup } from './card/views/control-popup';
 import { renderRoomPanel, renderStageChrome, renderScreensaver, renderReport } from './card/views/room-panel';
+import { renderPlanState } from './card/views/plan-state';
 import { renderOverview, renderDetail } from './card/views/overview';
 
 import { baseStyles } from './card/styles/base';
@@ -62,6 +63,16 @@ export class BmsFloorplanCard extends LitElement {
   @state() public config?: CardConfig;
   @state() public activeProjectId?: string;
   @state() public loadError?: string;
+  /** Техническая строка сбоя (статус, текст исключения). Человеку показывается
+   *  ОТДЕЛЬНО от объяснения — монтажнику она нужна, клиенту нет. */
+  @state() public loadErrorDetail?: string;
+  /** План сейчас грузится. Без этого признака карточка показывала пустой
+   *  тёмный прямоугольник и человек читал его как поломку. */
+  @state() public planLoading = false;
+  /** Показан ВСТРОЕННЫЙ ПРИМЕР, а не план этого дома. */
+  @state() public isDemoPlan = false;
+  /** Подпись примера убрана вручную (на этот сеанс). */
+  @state() public demoNoticeHidden = false;
   /** Set when the plan drew, but parts of it were unusable. A dropped wall must
    *  never disappear in silence — the installer has to know what to fix. */
   @state() public planWarning?: string;
@@ -206,8 +217,9 @@ export class BmsFloorplanCard extends LitElement {
   public optVol = new Map<string, { vol: number; base?: number; timer: ReturnType<typeof setTimeout> }>();
   /** Recent history for a room's bound degree sensors, for the compact sparkline
    *  in the room panel. Keyed by entity_id → sampled [timeMs, value] points +
-   *  fetch time. Fetched on demand from HA's history API, refreshed every ~5min. */
-  public histCache = new Map<string, { pts: [number, number][]; ts: number }>();
+   *  fetch time. Fetched on demand from HA's history API, refreshed every ~5min.
+   *  `ok: false` — архив НЕ ответил (это не то же самое, что «данных нет»). */
+  public histCache = new Map<string, { pts: [number, number][]; ts: number; ok?: boolean }>();
   public histInFlight = new Set<string>();
   /** Pending scene teardown after the card leaves the DOM (see disconnectedCallback). */
   public disposeTimer?: number;
@@ -492,16 +504,10 @@ export class BmsFloorplanCard extends LitElement {
           : nothing}
         <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
 
-        ${this.loadError
-          ? html`<div class="error">⚠ ${this.loadError}</div>`
-          : nothing}
-
-        ${this.planWarning && !this.loadError
-          ? html`<div class="plan-warning">
-              <span>⚠ ${this.planWarning}</span>
-              <button class="pw-close" @click=${() => (this.planWarning = undefined)} title="Скрыть">✕</button>
-            </div>`
-          : nothing}
+        <!-- Загрузка / сбой с кнопкой «Повторить» / «это пример» / брак в плане.
+             Раньше здесь были два молчаливых блока: сырая английская строка
+             исключения и предупреждение. См. card/views/plan-state.ts. -->
+        ${renderPlanState(this)}
 
         ${this.editing ? nothing : renderLeakAlert(this)}
 
@@ -517,11 +523,16 @@ export class BmsFloorplanCard extends LitElement {
 
         ${this.editing
           ? html`<div class="overlay top-right">
-              <button class="btn" title="Reset view" @click=${() => onResetView(this)}>⌂ ${this.t('Reset')}</button>
+              <button class="btn ic-btn" title=${this.tx('Показать план целиком', 'Reset the view')}
+                aria-label=${this.tx('Показать план целиком', 'Reset the view')}
+                @click=${() => onResetView(this)}>${this.ic('room')}<span class="ic-btn-lab">${this.t('Reset')}</span></button>
               <div class="quality-wrap">
-                <button class="btn" title="Render quality (lower it if the view stutters on a tablet)"
+                <button class="btn ic-btn"
+                  title=${this.tx('Качество отрисовки (снизьте, если на планшете дёргается)',
+                                  'Render quality (lower it if the view stutters on a tablet)')}
+                  aria-label=${this.tx('Качество отрисовки', 'Render quality')}
                   @click=${() => (this.qualityMenuOpen = !this.qualityMenuOpen)}>
-                  ⚙ ${qualityLabel(this, this.qualityChoice)}
+                  ${this.ic('gear')}<span class="ic-btn-lab">${qualityLabel(this, this.qualityChoice)}</span>
                 </button>
                 ${this.qualityMenuOpen
                   ? html`<div class="quality-menu">
@@ -533,8 +544,10 @@ export class BmsFloorplanCard extends LitElement {
                     </div>`
                   : nothing}
               </div>
-              <button class="btn primary" title="Save & exit editor" @click=${() => exitEdit(this)}>
-                ✓ ${this.t('Done & Save')}
+              <button class="btn primary ic-btn" title=${this.tx('Сохранить и выйти из редактора', 'Save & exit the editor')}
+                aria-label=${this.tx('Сохранить и выйти из редактора', 'Save & exit the editor')}
+                @click=${() => exitEdit(this)}>
+                ${this.ic('check')}<span class="ic-btn-lab">${this.t('Done & Save')}</span>
               </button>
             </div>`
           : nothing}
@@ -563,17 +576,21 @@ export class BmsFloorplanCard extends LitElement {
         ${this.importOpen
           ? html`<div class="import-modal">
               <div class="import-box">
-                <div class="import-title">Import / Export plan JSON</div>
+                <div class="import-title">${this.tx('Импорт и экспорт плана (JSON)', 'Import / Export plan JSON')}</div>
                 <textarea
                   class="import-text"
                   spellcheck="false"
-                  placeholder="Paste a floor-plan JSON here, then press Load…"
+                  aria-label=${this.tx('Текст плана в формате JSON', 'Plan JSON text')}
+                  placeholder=${this.tx('Вставьте сюда план в формате JSON и нажмите «Загрузить»…',
+                                        'Paste a floor-plan JSON here, then press Load…')}
                   .value=${this.importText}
                   @input=${(e: Event) => onImportText(this, e)}
                 ></textarea>
                 <div class="toolrow">
-                  <button class="btn primary" @click=${() => onImportLoad(this)}>📥 Load</button>
-                  <button class="btn" @click=${() => (this.importOpen = false)}>Cancel</button>
+                  <button class="btn primary ic-btn"
+                    aria-label=${this.tx('Загрузить этот план', 'Load this plan')}
+                    @click=${() => onImportLoad(this)}>${this.ic('download')}<span class="ic-btn-lab">${this.tx('Загрузить', 'Load')}</span></button>
+                  <button class="btn" @click=${() => (this.importOpen = false)}>${this.tx('Отмена', 'Cancel')}</button>
                 </div>
               </div>
             </div>`
@@ -582,13 +599,14 @@ export class BmsFloorplanCard extends LitElement {
         ${this.pinPromptOpen
           ? html`<div class="import-modal" @click=${() => cancelPin(this)}>
               <form class="pin-box" @click=${(e: Event) => e.stopPropagation()} @submit=${(e?: Event) => submitPin(this, e)}>
-                <div class="import-title">🔒 Enter edit PIN</div>
+                <div class="import-title">${this.ic('lockClosed')}<span>${this.tx('Введите PIN редактора', 'Enter the edit PIN')}</span></div>
                 <input class="pin-input name-input" type="password" inputmode="numeric"
-                  autocomplete="off" placeholder="PIN" />
+                  autocomplete="off" placeholder="PIN"
+                  aria-label=${this.tx('PIN редактора', 'Edit PIN')} />
                 ${this.pinError ? html`<div class="pin-error">${this.pinError}</div>` : nothing}
                 <div class="toolrow">
-                  <button type="submit" class="btn primary">Unlock</button>
-                  <button type="button" class="btn" @click=${() => cancelPin(this)}>Cancel</button>
+                  <button type="submit" class="btn primary">${this.tx('Открыть', 'Unlock')}</button>
+                  <button type="button" class="btn" @click=${() => cancelPin(this)}>${this.tx('Отмена', 'Cancel')}</button>
                 </div>
               </form>
             </div>`
@@ -605,7 +623,8 @@ export class BmsFloorplanCard extends LitElement {
         ${projects.length > 1
           ? html`
               <div class="overlay top-left">
-                <select class="select" @change=${(e: Event) => onSelectProject(this, e)}>
+                <select class="select" aria-label=${this.tx('Объект', 'Project')}
+                  @change=${(e: Event) => onSelectProject(this, e)}>
                   ${projects.map(
                     (p) => html`<option value=${p.id} ?selected=${p.id === this.activeProjectId}>
                       ${p.name || p.id}
