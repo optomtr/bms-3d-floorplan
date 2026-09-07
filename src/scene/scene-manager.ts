@@ -5,286 +5,56 @@
 //     never hijacks pinch into page zoom.
 //   - OrbitControls with damping, min/max distance clamps, target clamped to
 //     the floor bounding box, and a reset-view that recenters instantly.
+//
+// What lives elsewhere (same folder): device quality policy in quality.ts, the
+// frame loop in render-loop.ts, pointer→object in picking.ts, the backdrop and
+// room photos in backdrop.ts, the view-mode geometry collapse in
+// static-merge.ts, and the one room-grouping rule in room-grouping.ts.
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { FloorPlan, Underlay, ZoneDef } from '../types';
-import { buildFloorGroup, BuiltFloor } from './builder';
+import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import type { ClickResult, FloorPlan, RoomInfo, Underlay } from '../types';
+import { buildFloorGroup } from './builder';
 import { BindingManager } from './bindings';
-import { drawMarkerCanvas, markerIconName } from './icons';
 import { isShapeRoom, roomPolygon } from './room-shapes';
-import { disposeObject3D, releaseGl } from './dispose';
-import { finitePolygon, isFiniteBox, num } from './sanitize';
+import { disposeObject3D } from './dispose';
+import { finitePolygon } from './sanitize';
+import {
+  AdaptiveQuality,
+  QUALITY_PRESETS,
+  type QualityChoice,
+  type QualityTier,
+  detectTier,
+  readStoredQuality,
+  storeQuality,
+} from './quality';
+import { RoomPhoto, makeBackdropTexture } from './backdrop';
+import { Picker, SelectionBox, applyDrawMode, applyLeftReserved } from './picking';
+import { RenderLoop, type RenderLoopHost } from './render-loop';
+import { mergeStaticGeometry, simplifyMaterials } from './static-merge';
+import { ROOM_MARKER_Y, groupRooms } from './room-grouping';
+import { MarkerLayer } from './markers';
+import { clampTarget, createControls, frameBox } from './camera-rig';
+import { setUnderlay } from './underlay';
+import type { FloorSlot } from './floor-slot';
 
-// ---------------------------------------------------------------------------
-// Scene backdrop: instead of a flat clear colour, paint a soft radial
-// "spotlight" gradient behind the model — a touch lighter (and faintly cool)
-// where the building sits, deepening to near-black at the edges. Derived from
-// the configured background colour so a custom `background:` still tints it.
-// ---------------------------------------------------------------------------
-function makeBackdropTexture(base: string): THREE.Texture {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const b = new THREE.Color(base);
-  const hex = (c: THREE.Color) => '#' + c.getHexString();
-  if (!ctx) {
-    // No 2D context (headless/edge case) — fall back to a flat fill.
-    return new THREE.Color(base) as unknown as THREE.Texture;
-  }
+// Re-exported so the card keeps one import for everything it needs from the
+// scene. The types themselves live in ../types (both ends of the app need them).
+export type { ClickResult, RoomInfo } from '../types';
+export type { QualityChoice } from './quality';
+export { QUALITY_CHOICES } from './quality';
 
-  // 1) Base spotlight: lifted, faintly cool centre behind the model, deepening
-  //    to a near-black vignette at the rim.
-  const inner = hex(b.clone().lerp(new THREE.Color('#4a5468'), 0.34));
-  const mid = hex(b.clone().lerp(new THREE.Color('#000000'), 0.12));
-  const outer = hex(b.clone().lerp(new THREE.Color('#000000'), 0.66));
-  const base_g = ctx.createRadialGradient(size * 0.5, size * 0.4, 0, size * 0.5, size * 0.42, size * 0.82);
-  base_g.addColorStop(0, inner);
-  base_g.addColorStop(0.55, mid);
-  base_g.addColorStop(1, outer);
-  ctx.fillStyle = base_g;
-  ctx.fillRect(0, 0, size, size);
-
-  // 2) Brand glows, added softly so the backdrop has a little life without
-  //    fighting the model: a cool wash top-right, a warm one low-centre.
-  const glow = (x: number, y: number, r: number, rgb: string, a: number) => {
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = a;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(${rgb}, 1)`);
-    g.addColorStop(1, `rgba(${rgb}, 0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-  };
-  glow(size * 0.82, size * 0.08, size * 0.7, '91, 184, 232', 0.1); // cool  (#5bb8e8)
-  glow(size * 0.5, size * 0.72, size * 0.62, '243, 168, 60', 0.08); // warm (#f3a83c)
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 1;
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-// A matte Lambert twin of a Standard (PBR) material. Standard runs a full PBR
-// BRDF per pixel per light — the dominant fill-rate cost on a weak GPU — while
-// Lambert is a cheap diffuse. For a stylised floor plan the two look nearly
-// identical (no metal/gloss to lose), so swapping lets us keep a SHARP pixel
-// ratio and still stay smooth. Copies every property that affects the look.
-function toLambert(std: THREE.MeshStandardMaterial): THREE.MeshLambertMaterial {
-  const lam = new THREE.MeshLambertMaterial({
-    color: std.color,
-    map: std.map,
-    emissive: std.emissive,
-    emissiveIntensity: std.emissiveIntensity,
-    emissiveMap: std.emissiveMap,
-    transparent: std.transparent,
-    opacity: std.opacity,
-    alphaTest: std.alphaTest,
-    side: std.side,
-    depthWrite: std.depthWrite,
-    vertexColors: std.vertexColors,
-    flatShading: std.flatShading,
-    toneMapped: std.toneMapped,
-  });
-  lam.name = std.name;
-  lam.userData = std.userData;
-  return lam;
-}
-
-// ---------------------------------------------------------------------------
-// Render quality tiers. Weak mobile GPUs (e.g. Adreno 610 in a Redmi Pad SE)
-// choke on the per-frame shadow pass and 2x pixel ratio when a large plan has
-// hundreds of meshes. We auto-detect the device tier and let the user override
-// it at runtime; the choice is saved per-device (localStorage), so a kiosk
-// tablet keeps "low" while a desktop dashboard keeps "high".
-// ---------------------------------------------------------------------------
-
-/** Frames that exist ONLY to advance an animation (a spinning fan, a sliding
- *  curtain) are limited to this rate. Camera movement is never limited. 20 Hz
- *  keeps a blade visibly turning while cutting an always-on fan's cost by two
- *  thirds — the difference between a warm panel and a hot one over a night. */
-const ANIM_HZ = 20;
-const ANIM_STEP = 1 / ANIM_HZ;
-
-export type QualityChoice = 'auto' | 'high' | 'medium' | 'low';
-export const QUALITY_CHOICES: QualityChoice[] = ['auto', 'high', 'medium', 'low'];
-type QualityTier = 'high' | 'medium' | 'low';
-
-interface QualityPreset {
-  shadows: boolean;
-  shadowType: THREE.ShadowMapType;
-  shadowMap: number;
-  pixelRatio: number;
-  aa: boolean;
-  /** Max real point lights. Each one makes EVERY material's fragment shader loop
-   *  once more per pixel, so this is the dominant cost of a light-heavy plan on a
-   *  weak GPU. Past the cap, lights still glow via their emissive material. */
-  maxLights: number;
-}
-
-const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
-  // "high" is intentionally identical to the original hard-coded settings, so
-  // capable devices see zero change.
-  high: { shadows: true, shadowType: THREE.PCFSoftShadowMap, shadowMap: 1024, pixelRatio: 2, aa: true, maxLights: 16 },
-  medium: { shadows: true, shadowType: THREE.PCFShadowMap, shadowMap: 1024, pixelRatio: 1.5, aa: true, maxLights: 8 },
-  // Weak GPUs: drop the shadow pass, keep only a few real point lights (the rest
-  // glow emissively for free), and swap to matte Lambert materials (see
-  // simplifyMaterials). Those cut the per-pixel cost enough to keep a SHARP 1.5×
-  // pixel ratio — so a big plan stays smooth without looking soft.
-  low: { shadows: false, shadowType: THREE.BasicShadowMap, shadowMap: 512, pixelRatio: 1.5, aa: false, maxLights: 3 },
-};
-
-const QUALITY_KEY = 'bms-floorplan-quality';
-/** The previous version's key. READ ONLY: that card is still installed on
- *  customer systems, and writing its keys would change its behaviour. */
-const OLD_QUALITY_KEY = 'ha3dFloorplanQuality';
-
-function readStoredQuality(): QualityChoice {
-  for (const key of [QUALITY_KEY, OLD_QUALITY_KEY]) {
-    try {
-      const v = localStorage.getItem(key);
-      if (v === 'high' || v === 'medium' || v === 'low' || v === 'auto') return v;
-    } catch {
-      /* ignore */
-    }
-  }
-  return 'auto';
-}
-
-/** The GPU never changes under a running page, so the probe below runs ONCE.
- *  It used to run in the constructor AND on every "Quality" pick, each time
- *  creating a throw-away WebGL context and dropping it on the floor: switch
- *  quality a few times and the browser starts killing older contexts to stay
- *  under its 8-16 limit — including the one drawing the live scene. */
-let tierProbe: QualityTier | null = null;
-
-/** Best-effort device tier from the GPU string + CPU/memory hints. */
-function detectTier(): QualityTier {
-  if (tierProbe) return tierProbe;
-  tierProbe = probeTier();
-  return tierProbe;
-}
-
-function probeTier(): QualityTier {
-  let probeGl: WebGLRenderingContext | null = null;
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
-    probeGl = gl;
-    let renderer = '';
-    if (gl) {
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      if (ext) renderer = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
-    }
-    // Known weak / low-end mobile GPUs → low.
-    if (/adreno \(tm\) (?:[1-5]\d\d|6[0-4]\d)\b|adreno (?:[1-5]\d\d|6[0-4]\d)\b|mali-g5|mali-g3|mali-4|mali-t|powervr|videocore|apple a[789]\b/.test(renderer)) {
-      return 'low';
-    }
-    const mem = (navigator as any).deviceMemory ?? 4;
-    const cores = navigator.hardwareConcurrency ?? 4;
-    const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    // A touch device whose GPU string is hidden (privacy) is conservatively
-    // treated as a tablet: never auto-select "high" (the user can still opt in).
-    if (touch) return mem <= 3 || cores <= 4 ? 'low' : 'medium';
-    if (mem <= 4 || cores <= 4) return 'medium';
-    return 'high';
-  } catch {
-    return 'medium';
-  } finally {
-    // Hand the probe context straight back — see the note above tierProbe.
-    releaseGl(probeGl);
-  }
-}
-
-export interface ClickResult {
-  entity_id: string;
-  behavior: string;
-  /** World-space hit point, for finding other entities near the tap. */
-  point?: [number, number, number];
-  /** Screen position (px, relative to the canvas) of the tap, for popup anchoring. */
-  screen?: [number, number];
-  /** Set when a ROOM marker was tapped: all bound devices in that room. */
-  roomEntities?: { entity_id: string; behavior: string }[];
-  roomName?: string;
-  /** Stable key of the tapped room (matches getRooms()), for panel selection. */
-  roomKey?: string;
-}
-
-/**
- * Clean up an image reference before it's stored or loaded.
- *
- * The obvious way to get a URL for a picture dropped in `config/www` is to copy
- * it out of the File editor add-on — but that hands you an ingress link:
- *
- *   /api/hassio_ingress/<session-token>/api/file?filename=/homeassistant/config/www/x.jpg
- *
- * That's the add-on's private read-a-file API, authorised by the ingress session
- * of the browser that copied it. It renders perfectly for that person and 404s
- * on every other device — a wall tablet just shows nothing, and no error
- * surfaces anywhere. HA already serves `config/www` at `/local`, so rewrite it
- * to the path that works for every device. Applied when saving AND when loading,
- * so plans that already hold a raw link start working without re-entering it.
- * Anything else (data URL, /local path, plain absolute URL) is left alone.
- */
-export function normalizeAssetRef(value: string): string {
-  const s = String(value).trim();
-  const q = /[?&]filename=([^&]+)/.exec(s);
-  if (q) {
-    const www = /(?:^|\/)(?:config\/)?www\/(.+)$/.exec(decodeURIComponent(q[1]));
-    if (www) return '/local/' + www[1];
-  }
-  return s;
-}
-
-/** A room surfaced to the card for the pills + right-side control panel. */
-export interface RoomInfo {
-  key: string;
-  /** Manual-zone id (absent for auto-grouped rooms). */
-  id?: string;
-  /** Parent zone id, when this room is a sub-room (Обзор nests it). */
-  parentId?: string;
-  name?: string;
-  entities: { entity_id: string; behavior: string; model?: string }[];
-  /** World-space centre of the room's marker (metres). */
-  center: [number, number, number];
-  /** Optional per-room design photo (URL/`/local/` path) used as the 3D
-   *  backdrop while this room is focused in view mode. */
-  bgImage?: string;
-  /** Explicitly bound sensors (from the zone editor). When present the room
-   *  readout uses exactly these; when absent it's blank (no auto-detect). */
-  tempSensor?: string;
-  floorSensor?: string;
-  humiditySensor?: string;
-}
-
-export class SceneManager {
+export class SceneManager implements RenderLoopHost {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
   readonly controls: OrbitControls;
 
   private container: HTMLElement;
-  private clock = new THREE.Clock();
-  private running = false;
-  private rafId = 0;
-  // Render-on-demand: only draw when something changed (camera moving, an
-  // animation is running, a state update, or while editing). A static kiosk view
-  // then costs ~zero GPU — the key to staying smooth at high quality on weak
-  // tablets. `invalidate()` requests one more frame. (Edit mode uses the existing
-  // `editing` flag to force continuous rendering.)
-  private needsRender = true;
+  /** Render-on-demand frame loop — the only owner of "draw one more frame". */
+  private loop = new RenderLoop(this);
   private resizeObserver?: ResizeObserver;
-  /** Animation time not yet handed to animate() — see the render loop. */
-  private animAccum = 0;
-  /** False while the panel can't be seen (hidden tab / card off screen): the
-   *  whole loop stands still, so a running fan costs nothing behind a
-   *  screensaver or on a dashboard tab nobody is looking at. */
-  private visible = true;
   private inViewport = true;
   private viewObserver?: IntersectionObserver;
   /** Everything hung off `window`/`document`, kept so dispose() can take it all
@@ -294,14 +64,21 @@ export class SceneManager {
   private lastW = -1;
   private lastH = -1;
 
-  // Adaptive quality: if sustained interaction (orbit/pan) runs slow, step the
-  // renderer down — drop the shadow pass, then the pixel ratio — so the view
-  // stays smooth no matter how many devices/furniture the plan grows to. Only
-  // ever degrades (never auto-upgrades) to avoid oscillation; a manual quality
-  // pick or a plan reload resets it.
-  private frameMs = 16;
-  private slowStreak = 0;
-  private autoDegrade = 0; // 0 = none, 1 = shadows off, 2 = Lambert, 3 = pixelRatio
+  /** Steps the renderer down when interaction runs slow (see quality.ts). */
+  private adaptive = new AdaptiveQuality({
+    dropShadows: () => {
+      this.renderer.shadowMap.enabled = false;
+      if (this.sun) this.sun.castShadow = false;
+      this.recompileMaterials();
+      this.loop.invalidate();
+    },
+    useMatteMaterials: () => this.simplify(),
+    lowerDragResolution: () => {
+      // The still image stays crisp via idlePR() — it's on-demand, so it isn't
+      // the cost that hurts.
+      this.staticPR = Math.max(0.75, Math.min(1, this.staticPR));
+    },
+  });
   private materialsSimplified = false;
 
   // Dynamic resolution: render COARSE only WHILE a finger is actively dragging
@@ -313,11 +90,10 @@ export class SceneManager {
   private viewDragging = false;
   private heavyPlan = false; // big plan → fewer real lights (quality-neutral)
 
-  private floors: BuiltFloor[] = [];
+  /** Every floor of the loaded plan, one record each (see floor-slot.ts). */
+  private slots: FloorSlot[] = [];
   /** Plan elements the last loadPlan() had to drop (see BuiltFloor.skipped). */
   private skippedParts: string[] = [];
-  private floorGroups: THREE.Group[] = [];
-  private bindingManagers: BindingManager[] = [];
   private activeFloor = 0;
   private fullBBox = new THREE.Box3();
   /** Framing-distance multiplier for resetView (config: cameraDistance). */
@@ -328,8 +104,7 @@ export class SceneManager {
   private qualityTier: QualityTier = 'high';
   private sun?: THREE.DirectionalLight;
 
-  private raycaster = new THREE.Raycaster();
-  private pointer = new THREE.Vector2();
+  private picker: Picker;
   private onPick?: (r: ClickResult | null) => void;
 
   // pointerdown bookkeeping to distinguish a tap from a drag.
@@ -343,17 +118,11 @@ export class SceneManager {
   readonly gizmoGroup = new THREE.Group();
   /** Reference-image underlay (tracing guide) lives here. */
   readonly underlayGroup = new THREE.Group();
-  /** Floating, always-on-top device icons (Zircon-style tap targets). */
-  readonly markerGroup = new THREE.Group();
-  /** One texture per icon, SHARED across markers — so a plan with 150 bound
-   *  entities uses ~6 marker textures, not 150. */
-  private markerTexCache = new Map<string, THREE.Texture>();
-  /** entity_id -> its marker sprite, for O(1) on/off recolor. */
-  private markerByEntity = new Map<string, THREE.Sprite>();
-  /** Room keys currently flashing for a water leak — see setAlarmRooms(). */
-  private alarmRooms = new Set<string>();
-  private alarmTimer: number | null = null;
-  private alarmOn = true;
+  /** Floating, always-on-top device icons + the edit-mode zone dots. */
+  private markers = new MarkerLayer({
+    hass: () => this.lastHass,
+    invalidate: () => this.loop.invalidate(),
+  });
   /** Last hass seen, so markers can colour themselves right after a rebuild. */
   private lastHass?: any;
   /** Every entity the 3D actually reacts to (bindings + zone membership).
@@ -366,12 +135,6 @@ export class SceneManager {
    *  entity appears or disappears; NOT on every value change, because the
    *  grouping doesn't depend on values. */
   private roomsCache: RoomInfo[][] | null = null;
-  /** Per-floor room outlines (world XZ) + name + elevation, for grouping the
-   *  floating markers by room ("one icon per room"). */
-  private floorRooms: { name?: string; poly: [number, number][]; elev: number; bgImage?: string }[][] = [];
-  /** Per-floor manual zones (hand-placed room icons + explicit membership). */
-  private floorZones: ZoneDef[][] = [];
-  private floorElev: number[] = [];
   /** Rooms on the active floor, in marker-build order — the source for the
    *  card's room pills + right-side panel. Rebuilt with the markers. */
   private activeRooms: (RoomInfo & { sprite: THREE.Sprite })[] = [];
@@ -380,28 +143,23 @@ export class SceneManager {
   /** The default gradient backdrop, kept so a per-room photo can be swapped in
    *  and then restored. Assigned in the constructor. */
   private defaultBackdrop!: THREE.Texture;
-  /** The focused room's design photo: `roomBgUrl` is what the plan asked for,
-   *  `roomPhoto` the URL that actually loaded (null = show the gradient). The
-   *  picture itself is painted by the card, not the scene — see setPhoto. */
-  private roomBgUrl: string | null = null;
-  private roomPhoto: string | null = null;
+  /** The focused room's design photo. The picture itself is painted by the
+   *  card, not the scene — the canvas stops at the side panel. */
+  private photo: RoomPhoto;
   private onBackdrop?: (url: string | null) => void;
-  /** Origin used to resolve root-relative asset paths (e.g. `/local/photo.jpg`).
-   *  Empty in the same-origin HA frontend; set to the HA URL in the file://
-   *  kiosk, where a bare `/local/...` would otherwise hit the APK's assets. */
-  private imageBase = '';
   /** Fired after markers rebuild so the card can refresh its room list. */
   private onRoomsChanged?: (rooms: RoomInfo[]) => void;
-  /** Edit-mode dots showing where each zone's icon sits. */
-  readonly zoneGroup = new THREE.Group();
   private editing = false;
   private gridHelper?: THREE.GridHelper;
-  private selectionHelper?: THREE.BoxHelper;
+  private selection: SelectionBox;
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private onGround?: {
     click?: (p: THREE.Vector3, e: PointerEvent) => void;
     move?: (p: THREE.Vector3, e: PointerEvent) => void;
   };
+  /** True while a grabbed object/handle is being dragged. The ONE owner of
+   *  "the camera is suspended": every place that used to write
+   *  `controls.enabled` now goes through applyCameraGate(). */
   private dragging = false;
   private onDrag?: {
     start: (e: PointerEvent) => boolean;
@@ -447,30 +205,23 @@ export class SceneManager {
     this.scene.add(this.previewGroup);
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
-    this.scene.add(this.markerGroup);
-    this.scene.add(this.zoneGroup);
+    this.scene.add(this.markers.group);
+    this.scene.add(this.markers.zoneGroup);
+    this.selection = new SelectionBox(this.scene);
+    this.photo = new RoomPhoto((url) => {
+      this.onBackdrop?.(url);
+      this.applyBackdrop();
+    });
 
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
     this.camera.position.set(8, 8, 8);
+    this.picker = new Picker(this.camera, this.renderer.domElement);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.12;
-    this.controls.screenSpacePanning = false;
-    // Zoom toward the cursor / two-finger pinch midpoint, not a fixed point.
-    this.controls.zoomToCursor = true;
-    this.controls.minDistance = 2;
-    this.controls.maxDistance = 40;
-    // Keep the camera above the floor so you can't flip under the building.
-    this.controls.maxPolarAngle = Math.PI * 0.49;
-    this.controls.touches = {
-      ONE: THREE.TOUCH.ROTATE,
-      TWO: THREE.TOUCH.DOLLY_PAN,
-    };
+    this.controls = createControls(this.camera, this.renderer.domElement);
     // Clamp panning to the floor bbox after every change + request a redraw.
     this.controls.addEventListener('change', () => {
-      this.clampTarget();
-      this.needsRender = true;
+      clampTarget(this.camera, this.controls, this.slots[this.activeFloor]?.built.bbox ?? this.fullBBox);
+      this.loop.invalidate();
     });
 
     // Dynamic resolution: coarse while a finger is dragging the view, sharp the
@@ -498,7 +249,7 @@ export class SceneManager {
    *  reasons to stand still: the tab/app is hidden, or the card is scrolled off
    *  screen (or on a dashboard tab that isn't showing). */
   private setupVisibility(): void {
-    const onChange = () => this.setVisible(!document.hidden && this.inViewport);
+    const onChange = () => this.loop.setVisible(!document.hidden && this.inViewport);
     document.addEventListener('visibilitychange', onChange);
     this.teardown.push(() => document.removeEventListener('visibilitychange', onChange));
     if (typeof IntersectionObserver !== 'undefined') {
@@ -510,19 +261,37 @@ export class SceneManager {
     }
   }
 
-  private setVisible(v: boolean): void {
-    if (this.visible === v) return;
-    this.visible = v;
-    if (!v) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = 0;
-      return;
-    }
-    // Coming back: throw away the elapsed time so nothing jumps a week forward.
-    this.clock.getDelta();
-    this.animAccum = 0;
-    this.needsRender = true;
-    this.pump();
+  // -- RenderLoopHost ---------------------------------------------------------
+
+  /** Ease the orbit damping; true while the camera is still moving. */
+  updateCamera(): boolean {
+    return this.controls.update();
+  }
+
+  /** Advance bound animations on the visible floor (a fan, a curtain). */
+  animate(dt: number): boolean {
+    return this.slots[this.activeFloor]?.bindings.animate(dt) ?? false;
+  }
+
+  drawFrame(): void {
+    this.markers.updateScales(this.camera.position);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  onInteractiveFrame(seconds: number): void {
+    // Only auto-tune when the user hasn't pinned a quality — an explicit pick
+    // is respected as-is.
+    if (this.qualityChoice === 'auto') this.adaptive.track(seconds);
+  }
+
+  /** The floating markers' scene node (диагностика / внешний осмотр). */
+  get markerGroup(): THREE.Group {
+    return this.markers.group;
+  }
+
+  /** The edit-mode zone dots' scene node. */
+  get zoneGroup(): THREE.Group {
+    return this.markers.zoneGroup;
   }
 
   /** Re-render the (static) shadow map once on the next frame. Call after any
@@ -532,122 +301,36 @@ export class SceneManager {
     this.renderer.shadowMap.needsUpdate = true;
   }
 
-  /** Request one more rendered frame (render-on-demand). Call after anything
-   *  that changes what's on screen but isn't a camera move or animation. */
-  invalidate(): void {
-    this.needsRender = true;
-  }
-
   /** Collapse each floor's STATIC architecture (walls, floors, opening frames —
-   *  everything EXCEPT furniture, which stays live for bindings/markers) into a
-   *  handful of merged meshes, one per material look. This cuts a heavy plan
-   *  from hundreds of draw calls to a few — the main win for weak tablet GPUs.
-   *  View mode ONLY; the editor always rebuilds the scene unmerged (loadPlan) so
-   *  per-wall/room selection keeps working. Safe to call after each view load. */
+   *  everything EXCEPT bound furniture, which stays live for bindings/markers)
+   *  into a handful of merged meshes. View mode ONLY — see static-merge.ts for
+   *  why the editor must never run this. Safe to call after each view load. */
   optimizeForView(): void {
     if (this.editing) return;
-    for (let i = 0; i < this.floors.length; i++) {
+    for (const slot of this.slots) {
       // Keep BOUND furniture live (glow/spin/curtain + markers); everything else
       // — architecture AND unbound furniture — is fair game to merge.
-      const keep = new Set<THREE.Object3D>(this.bindingManagers[i]?.anchorObjects() ?? []);
-      this.mergeStatic(this.floors[i], keep);
+      mergeStaticGeometry(slot.built, new Set<THREE.Object3D>(slot.bindings.anchorObjects() ?? []));
     }
     // Weak tier, a big plan, or a device the adaptive pass proved slow → swap to
     // cheap matte materials. Shadows are KEPT (they carry most of the depth/
     // "quality" look) — if the device then can't keep up, the adaptive pass drops
     // them first anyway.
-    if (this.qualityTier === 'low' || this.heavyPlan || this.autoDegrade >= 2) {
-      this.simplifyMaterials();
+    if (this.qualityTier === 'low' || this.heavyPlan || this.adaptive.level >= 2) {
+      this.simplify();
     }
     // Crisp, super-sampled still image now the scene is built.
     if (!this.viewDragging) this.applyPR(this.idlePR(), true);
     this.requestShadowUpdate();
-    this.invalidate();
+    this.loop.invalidate();
   }
 
-  /** Swap every Standard (PBR) material in the scene for a matte Lambert twin —
-   *  a big per-pixel win with almost no visual change on a stylised plan. A cache
-   *  maps each source material to ONE Lambert, preserving the draw-call batching
-   *  the merge just created. Idempotent; reset on the next loadPlan. */
-  private simplifyMaterials(): void {
+  /** Matte materials, once per plan load (idempotent; reset by loadPlan). */
+  private simplify(): void {
     if (this.materialsSimplified) return;
-    const cache = new Map<THREE.Material, THREE.MeshLambertMaterial>();
-    const conv = (mat: THREE.Material): THREE.Material => {
-      if (!(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) return mat;
-      let lam = cache.get(mat);
-      if (!lam) {
-        lam = toLambert(mat as THREE.MeshStandardMaterial);
-        cache.set(mat, lam);
-      }
-      return lam;
-    };
-    this.scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material);
-    });
-    // Free the PBR originals now that nothing draws with them. Each one holds a
-    // compiled shader program on the GPU; on a panel that reloads its plan for
-    // weeks those add up to a renderer that never gives memory back. Their maps
-    // are shared/cached elsewhere and are deliberately NOT disposed here (the
-    // Lambert twin copied the same texture references).
-    for (const src of cache.keys()) src.dispose();
+    simplifyMaterials(this.scene);
     this.materialsSimplified = true;
-    this.needsRender = true;
-  }
-
-  private mergeStatic(floor: BuiltFloor, keepRoots: Set<THREE.Object3D>): void {
-    const inKept = (o: THREE.Object3D): boolean => {
-      for (let cur: THREE.Object3D | null = o; cur; cur = cur.parent) {
-        if (keepRoots.has(cur)) return true;
-      }
-      return false;
-    };
-    floor.group.updateMatrixWorld(true);
-    const invFloor = floor.group.matrixWorld.clone().invert();
-
-    // Bucket mergeable meshes by a material "signature" (same look → one mesh).
-    const groups = new Map<string, { mat: THREE.Material; meshes: THREE.Mesh[] }>();
-    floor.group.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh || m.userData.merged || inKept(m)) return;
-      if (Array.isArray(m.material) || !m.geometry) return;
-      const mat = m.material as THREE.MeshStandardMaterial;
-      const sig = [
-        mat.type,
-        mat.color?.getHexString?.() ?? '',
-        mat.emissive?.getHexString?.() ?? '', mat.emissiveIntensity ?? '',
-        (mat.map as { uuid?: string } | null)?.uuid ?? '',
-        mat.transparent, mat.opacity, mat.roughness, mat.metalness, mat.side, mat.depthWrite,
-      ].join('|');
-      let g = groups.get(sig);
-      if (!g) { g = { mat, meshes: [] }; groups.set(sig, g); }
-      g.meshes.push(m);
-    });
-
-    for (const { mat, meshes } of groups.values()) {
-      if (meshes.length < 2) continue; // nothing to gain from a lone mesh
-      const geos: THREE.BufferGeometry[] = [];
-      for (const m of meshes) {
-        m.updateMatrixWorld(true);
-        const g = m.geometry.clone();
-        g.applyMatrix4(invFloor.clone().multiply(m.matrixWorld)); // bake into floor space
-        geos.push(g);
-      }
-      const merged = mergeGeometries(geos, false);
-      geos.forEach((g) => g.dispose());
-      if (!merged) continue; // incompatible attributes — leave those meshes as-is
-      const mesh = new THREE.Mesh(merged, mat.clone());
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData.merged = true;
-      floor.group.add(mesh);
-      for (const m of meshes) {
-        m.removeFromParent();
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
-      }
-    }
+    this.loop.invalidate();
   }
 
   private setupLights(): void {
@@ -697,19 +380,14 @@ export class SceneManager {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.needsRender = true;
+    this.loop.invalidate();
     // setSize() clears the WebGL buffer, so with render-on-demand the canvas
     // would flash black for a frame until the next rAF. This matters when the
     // viewport animates its width (opening/closing the room panel) — the
     // observer fires every frame. Draw synchronously so it never blanks.
-    if (this.running && this.floors.length) {
-      this.renderer.render(this.scene, this.camera);
-      this.needsRender = false;
-    }
+    if (this.loop.isRunning && this.slots.length) this.loop.drawNow();
   }
 
-  /** Switch render resolution (device-pixel ratio) and re-fit the buffer — used
-   *  by dynamic resolution (motion vs idle) and the adaptive floor. */
   /** Set the render resolution. Normally capped at the device pixel ratio; with
    *  `allowSupersample` it may exceed it (up to 3x) — rendering ABOVE native then
    *  down-sampling anti-aliases the still image, so it looks crisp even when a
@@ -745,9 +423,6 @@ export class SceneManager {
 
     this.clearPlan();
     this.fullBBox.makeEmpty();
-    this.floorRooms = [];
-    this.floorZones = [];
-    this.floorElev = [];
     // Fresh meshes are rebuilt with Standard materials; let optimizeForView (or
     // the adaptive pass) re-simplify them if this tier warrants it.
     this.materialsSimplified = false;
@@ -775,34 +450,34 @@ export class SceneManager {
     plan.floors.forEach((floorDef) => {
       const built = buildFloorGroup(floorDef, plan.wallHeight);
       if (built.skipped.length) this.skippedParts.push(...built.skipped);
-      const bm = new BindingManager(built.group, maxLights);
-      bm.register(built, floorDef.bindings ?? []);
+      const bindings = new BindingManager(built.group, maxLights);
+      bindings.register(built, floorDef.bindings ?? []);
       this.scene.add(built.group);
-      this.floors.push(built);
-      this.floorGroups.push(built.group);
-      this.bindingManagers.push(bm);
       this.fullBBox.union(built.bbox);
-      // Room outlines (world XZ) for grouping markers by room.
-      const elev = floorDef.elevation ?? 0;
-      this.floorElev.push(elev);
-      this.floorZones.push(floorDef.zones ?? []);
-      this.floorRooms.push(
-        (floorDef.rooms ?? [])
+      const elevation = floorDef.elevation ?? 0;
+      this.slots.push({
+        built,
+        group: built.group,
+        bindings,
+        elevation,
+        zones: floorDef.zones ?? [],
+        // Room outlines (world XZ) for grouping markers by room.
+        rooms: (floorDef.rooms ?? [])
           .map((room) => {
             // finitePolygon: a NaN corner would make every point-in-polygon test
             // and every centroid NaN, i.e. a room marker at nowhere.
             const poly = finitePolygon(isShapeRoom(room) ? roomPolygon(room) : room.polygon);
-            return { name: room.name, poly: poly as [number, number][], elev, bgImage: room.bgImage };
+            return { name: room.name, poly: poly as [number, number][], elev: elevation, bgImage: room.bgImage };
           })
           .filter((r) => r.poly.length >= 3),
-      );
+      });
     });
 
     if (plan.cameraDistance) this.cameraDistance = plan.cameraDistance;
 
-    const floor = keepView ? Math.min(prevFloor, this.floors.length - 1) : 0;
+    const floor = keepView ? Math.min(prevFloor, this.slots.length - 1) : 0;
     this.activeFloor = Math.max(0, floor);
-    this.floorGroups.forEach((g, i) => (g.visible = i === this.activeFloor));
+    this.slots.forEach((s, i) => (s.group.visible = i === this.activeFloor));
 
     if (keepView) {
       this.controls.target.copy(prevTarget);
@@ -820,88 +495,53 @@ export class SceneManager {
     return this.skippedParts;
   }
 
+  /** The built floors, for outside inspection (diagnostics / автопроверки).
+   *  Read-only by convention: the scene owns these objects. */
+  get floors(): FloorSlot['built'][] {
+    return this.slots.map((s) => s.built);
+  }
+
   private clearPlan(): void {
     this.trackedCache = null;
     this.roomsCache = null;
     this.presentTracked.clear();
-    for (const bm of this.bindingManagers) bm.dispose();
-    for (const f of this.floors) {
+    for (const slot of this.slots) {
+      slot.bindings.dispose();
       // Label sprites are OWNED by TextLabel (canvas texture + material) and
       // freed here; the group walk below deliberately leaves every sprite alone
       // so this can't turn into a double dispose. See scene/dispose.ts.
-      for (const label of f.labels) label.dispose();
+      for (const label of slot.built.labels) label.dispose();
+      this.scene.remove(slot.group);
+      disposeObject3D(slot.group);
     }
-    for (const g of this.floorGroups) {
-      this.scene.remove(g);
-      disposeObject3D(g);
-    }
-    for (const child of [...this.markerGroup.children]) {
-      // Textures are cached/shared — free only the per-sprite material.
-      (child as THREE.Sprite).material.dispose();
-    }
-    this.markerGroup.clear();
-    this.markerByEntity.clear();
-    for (const child of [...this.zoneGroup.children]) (child as THREE.Sprite).material.dispose();
-    this.zoneGroup.clear();
-    this.floors = [];
-    this.floorGroups = [];
-    this.bindingManagers = [];
+    this.markers.clear();
+    this.markers.clearZoneDots();
+    this.slots = [];
     this.activeFloor = 0;
   }
 
-  get floorCount(): number {
-    return this.floors.length;
-  }
-
   setActiveFloor(index: number): void {
-    if (index < 0 || index >= this.floors.length) return;
+    if (index < 0 || index >= this.slots.length) return;
     this.activeFloor = index;
-    this.floorGroups.forEach((g, i) => {
-      g.visible = i === index;
+    this.slots.forEach((s, i) => {
+      s.group.visible = i === index;
     });
     // Show curtains at their real open/closed state immediately (an inactive
     // floor never animated), instead of sliding on entry.
-    this.bindingManagers[index]?.settleCovers();
+    this.slots[index]?.bindings.settleCovers();
     this.resetView();
     this.buildMarkers();
     this.requestShadowUpdate();
   }
 
-  get currentFloor(): number {
-    return this.activeFloor;
-  }
-
   // -- Camera / touch hardening ----------------------------------------------
 
-  /** Recenter on the visible floor's bounding box. The kiosk safety net. */
-  /** Frame the active floor. `distMul` < 1 dollies closer (e.g. the short,
-   *  wide Обзор banner, where the fit-to-view distance leaves the model tiny). */
+  /** Frame the active floor — the kiosk safety net. `distMul` < 1 dollies
+   *  closer (e.g. the short, wide Обзор banner, where the fit-to-view distance
+   *  leaves the model tiny). */
   resetView(distMul = 1): void {
-    let box = this.floors[this.activeFloor]?.bbox ?? this.fullBBox;
-    // isEmpty() answers FALSE for a NaN box (every NaN comparison is false), so
-    // a poisoned box would be framed as if it were real and park the camera at
-    // NaN — a black screen with nothing in the console. Check finiteness too.
-    if (!box || box.isEmpty() || !isFiniteBox(box)) {
-      // Blank/empty plan: frame a default area around the origin so the camera
-      // isn't left parked far away with nothing in view.
-      box = new THREE.Box3(
-        new THREE.Vector3(-4, 0, -4),
-        new THREE.Vector3(4, 2.6, 4),
-      );
-    }
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(num(size.x, 0), num(size.z, 0), 2);
-
-    this.controls.target.copy(center);
-    // Pull back enough to frame the floor. `cameraDistance` (config) scales it —
-    // <1 = closer, >1 = further. Default sits noticeably closer than before.
-    const dist = Math.max(0.5, (maxDim * 0.95 + 3) * num(this.cameraDistance, 1) * num(distMul, 1));
-    this.camera.position.set(center.x + dist * 0.7, center.y + dist * 0.8, center.z + dist * 0.7);
-    this.controls.maxDistance = dist * 3;
-    this.controls.minDistance = Math.max(1.2, maxDim * 0.1);
-    this.camera.lookAt(center);
-    this.controls.update();
+    const box = this.slots[this.activeFloor]?.built.bbox ?? this.fullBBox;
+    frameBox(this.camera, this.controls, box, this.cameraDistance, distMul);
   }
 
   /** Multiplier on the reset-view framing distance (from card config). */
@@ -928,11 +568,7 @@ export class SceneManager {
   setQuality(choice: QualityChoice): boolean {
     const prevAA = QUALITY_PRESETS[this.qualityTier].aa;
     this.qualityChoice = choice;
-    try {
-      localStorage.setItem(QUALITY_KEY, choice);
-    } catch {
-      /* ignore */
-    }
+    storeQuality(choice);
     this.qualityTier = choice === 'auto' ? detectTier() : choice;
     const p = QUALITY_PRESETS[this.qualityTier];
 
@@ -947,35 +583,20 @@ export class SceneManager {
       this.sun.shadow.map?.dispose();
       (this.sun.shadow as any).map = null;
     }
-    // Force every material to recompile so shadow support is added/removed.
-    this.scene.traverse((o) => {
-      const m = (o as THREE.Mesh).material;
-      if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
-    });
+    this.recompileMaterials();
     // A deliberate quality pick clears any adaptive degrade and re-arms it.
-    this.autoDegrade = 0;
-    this.slowStreak = 0;
-    this.frameMs = 16;
+    this.adaptive.reset();
     this.requestShadowUpdate();
     this.resize(true);
     return prevAA !== p.aa;
   }
 
-  /** Keep the orbit target from drifting outside the floor bbox + margin. */
-  private clampTarget(): void {
-    const box = this.floors[this.activeFloor]?.bbox ?? this.fullBBox;
-    if (box.isEmpty()) return;
-    const margin = 3;
-    const t = this.controls.target;
-    const nx = THREE.MathUtils.clamp(t.x, box.min.x - margin, box.max.x + margin);
-    const ny = THREE.MathUtils.clamp(t.y, box.min.y, box.max.y + 1);
-    const nz = THREE.MathUtils.clamp(t.z, box.min.z - margin, box.max.z + margin);
-    // Apply the same correction to the camera so zoom-to-cursor (which moves
-    // both camera and target) doesn't jump/stick when the target hits the clamp.
-    this.camera.position.x += nx - t.x;
-    this.camera.position.y += ny - t.y;
-    this.camera.position.z += nz - t.z;
-    t.set(nx, ny, nz);
+  /** Force every material to recompile, so shadow support is added/removed. */
+  private recompileMaterials(): void {
+    this.scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material;
+      if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
+    });
   }
 
   // -- Picking ----------------------------------------------------------------
@@ -992,7 +613,7 @@ export class SceneManager {
       // Editing: a single-pointer press may grab a draggable object.
       if (this.editing && e.isPrimary && this.onDrag && this.onDrag.start(e)) {
         this.dragging = true;
-        this.controls.enabled = false; // suspend camera while dragging
+        this.applyCameraGate(); // suspend the camera while dragging
         try {
           el.setPointerCapture(e.pointerId);
         } catch {
@@ -1003,7 +624,7 @@ export class SceneManager {
     el.addEventListener('pointerup', (e) => {
       if (this.dragging) {
         this.dragging = false;
-        this.controls.enabled = true; // mappings (LEFT/ONE) are unchanged
+        this.applyCameraGate(); // mappings (LEFT/ONE) are unchanged
         this.onDrag?.end();
         try {
           el.releasePointerCapture(e.pointerId);
@@ -1034,10 +655,10 @@ export class SceneManager {
       if (this.dragging && this.onDrag) {
         const p = this.groundIntersect(e);
         if (p) this.onDrag.move(p, e);
-        // A move handler may rebuild the scene, which re-applies edit state and
-        // can flip the camera controls back on. Re-assert that the camera stays
-        // suspended for the whole drag (invariant: no orbit while dragging).
-        this.controls.enabled = false;
+        // A move handler may rebuild the scene, which re-applies edit state.
+        // Re-assert the gate for the whole drag (invariant: no orbit while
+        // dragging) — it is cheap and self-documenting.
+        this.applyCameraGate();
         return;
       }
       if (this.editing && this.onGround?.move) {
@@ -1045,6 +666,13 @@ export class SceneManager {
         if (p) this.onGround.move(p, e);
       }
     });
+  }
+
+  /** The single writer of `controls.enabled`: the camera is live unless a
+   *  grabbed object is being dragged. Before this, three places set the flag
+   *  independently and the last one to run won. */
+  private applyCameraGate(): void {
+    this.controls.enabled = !this.dragging;
   }
 
   setDragHandler(h?: {
@@ -1057,13 +685,16 @@ export class SceneManager {
 
   /** Keep the selection box aligned after moving an object live (during drag). */
   refreshSelection(): void {
-    this.selectionHelper?.update();
+    this.selection.refresh();
   }
 
   // -- Editor API -------------------------------------------------------------
 
   setEditMode(on: boolean, elevation = 0): void {
     this.editing = on;
+    // The editor draws every frame: previews follow the pointer, so there is
+    // nothing to invalidate on.
+    this.loop.setContinuous(on);
     this.groundPlane.constant = -elevation;
     // A per-room design photo must never show while editing; restore it on exit.
     this.applyBackdrop();
@@ -1088,174 +719,31 @@ export class SceneManager {
 
   /** (Re)build the floating device markers for the active floor. Cleared while
    *  editing or when there are no bindings. */
-  /** A shared (cached) marker texture for a behavior's icon. */
-  private markerTexture(behavior: string): THREE.Texture {
-    const key = markerIconName(behavior);
-    let tex = this.markerTexCache.get(key);
-    if (!tex) {
-      tex = new THREE.CanvasTexture(drawMarkerCanvas(behavior));
-      tex.colorSpace = THREE.SRGBColorSpace;
-      this.markerTexCache.set(key, tex);
-    }
-    return tex;
-  }
-
-  private makeMarkerSprite(iconBehavior: string, x: number, y: number, z: number): THREE.Sprite {
-    const mat = new THREE.SpriteMaterial({
-      map: this.markerTexture(iconBehavior),
-      depthTest: false, // always visible, even through walls (Zircon-style)
-      depthWrite: false,
-      transparent: true,
-    });
-    const sp = new THREE.Sprite(mat);
-    sp.position.set(x, y, z);
-    sp.renderOrder = 999;
-    this.markerGroup.add(sp);
-    return sp;
-  }
-
   private buildMarkers(): void {
     // The room grouping is being rebuilt — the cached whole-home view of it
     // (roomsByFloor) is stale by definition.
     this.roomsCache = null;
-    // Sprites share cached textures, so only dispose the materials here.
-    for (const child of [...this.markerGroup.children]) {
-      (child as THREE.Sprite).material.dispose();
-    }
-    this.markerGroup.clear();
-    this.markerByEntity.clear();
     this.activeRooms = [];
-    if (this.editing) {
+    const slot = this.slots[this.activeFloor];
+    if (this.editing || !slot) {
+      this.markers.clear();
       this.onRoomsChanged?.([]);
       return;
     }
-    const bm = this.bindingManagers[this.activeFloor];
-    if (!bm) {
-      this.onRoomsChanged?.([]);
-      return;
-    }
-    const allDevices = bm.markerData();
-    const rooms = this.floorRooms[this.activeFloor] ?? [];
-    const zones = this.floorZones[this.activeFloor] ?? [];
-    const elev = this.floorElev[this.activeFloor] ?? 0;
 
-    // 1) Manual zones (hand-placed icons) come first and OWN their listed
-    //    entities, overriding the automatic grouping for those devices.
-    const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
-    const modelOf = new Map(allDevices.map((d) => [d.entity_id, d.model]));
-    const claimed = new Set<string>();
-    for (const z of zones) {
-      // First zone to list an entity wins it (no duplicate markers). A zone is an
-      // EXPLICIT device list, so keep every entity the user checked — not only the
-      // ones that happen to be bound to a 3D furniture object (behaviorOf). For an
-      // unbound entity the behaviour is taken from its domain; the panel filters
-      // out any that no longer exist in hass at render time.
-      const ents = (z.entities ?? []).filter(
-        (id) => !claimed.has(id) && (behaviorOf.has(id) || !this.lastHass || !!this.lastHass.states?.[id]),
-      );
-      if (!ents.length) continue;
-      for (const id of ents) claimed.add(id);
-      const sp = this.makeMarkerSprite('room', z.x, elev + 1.6, z.z);
-      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0], model: modelOf.get(id) }));
-      const key = `${z.id ?? z.name ?? 'zone'}#${this.activeRooms.length}`;
-      sp.userData = {
-        roomMarker: true,
-        roomKey: key,
-        roomName: z.name,
-        roomEntities,
-        wx: z.x,
-        wy: elev + 1.6,
-        wz: z.z,
-      };
-      // A zone's OWN photo always wins. With none set it borrows the photo of
-      // the geometric room it sits in, but ONLY where that room holds exactly
-      // one zone. Rooms often share a floor polygon, and borrowing there is what
-      // put one room's picture behind all its neighbours; a one-zone room is
-      // unambiguous, so plans whose photo was set on the room shape keep working.
-      let zoneBg: string | undefined = z.bgImage;
-      if (!zoneBg) {
-        let host: (typeof rooms)[number] | null = null;
-        let hostArea = Infinity;
-        for (const r of rooms) {
-          if (!r.bgImage || !pointInPoly(z.x, z.z, r.poly)) continue;
-          const a = polyArea(r.poly); // smallest containing room = most specific
-          if (a < hostArea) {
-            hostArea = a;
-            host = r;
-          }
-        }
-        if (host && zones.filter((o) => pointInPoly(o.x, o.z, host!.poly)).length === 1) {
-          zoneBg = host.bgImage;
-        }
-      }
-      this.activeRooms.push({ key, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, tempSensor: z.tempSensor, floorSensor: z.floorSensor, humiditySensor: z.humiditySensor, sprite: sp });
-      for (const id of ents) this.markerByEntity.set(id, sp);
-    }
-    // 2) Auto-group the remaining (unclaimed) devices by their room polygon.
-    //    Skip a binding whose entity no longer exists in HA (renamed/deleted):
-    //    an anchored-but-dead entity would otherwise spawn a phantom "empty room"
-    //    marker next to the real one. Only filter once hass is loaded so the
-    //    scene isn't blanked during the first render (an *unavailable* entity is
-    //    still present in states — only a truly removed id is dropped).
-    const devices = allDevices.filter(
-      (d) => !claimed.has(d.entity_id) && (!this.lastHass || !!this.lastHass.states?.[d.entity_id]),
-    );
-    const perRoom = new Map<number, typeof devices>();
-    const loose: typeof devices = [];
-    const roomAreas = rooms.map((r) => polyArea(r.poly)); // constant across devices
-    for (const d of devices) {
-      // If several room polygons contain the device (overlapping/auto-floor
-      // rooms), pick the SMALLEST — the most specific room it belongs to.
-      let ri = -1;
-      let bestArea = Infinity;
-      for (let i = 0; i < rooms.length; i++) {
-        if (pointInPoly(d.pos[0], d.pos[2], rooms[i].poly) && roomAreas[i] < bestArea) {
-          bestArea = roomAreas[i];
-          ri = i;
-        }
-      }
-      if (ri >= 0) {
-        (perRoom.get(ri) ?? perRoom.set(ri, []).get(ri)!).push(d);
-      } else {
-        loose.push(d);
-      }
-    }
-
-    for (const [ri, ds] of perRoom) {
-      const room = rooms[ri];
-      const [cx, cz] = polyCentroid(room.poly);
-      const sp = this.makeMarkerSprite('room', cx, room.elev + 1.6, cz);
-      const roomEntities = ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior, model: d.model }));
-      const key = `${room.name ?? 'room'}#${this.activeRooms.length}`;
-      sp.userData = {
-        roomMarker: true,
-        roomKey: key,
-        roomName: room.name,
-        roomEntities,
-        wx: cx,
-        wy: room.elev + 1.6,
-        wz: cz,
-      };
-      this.activeRooms.push({ key, name: room.name, entities: roomEntities, center: [cx, room.elev + 1.6, cz], bgImage: room.bgImage, sprite: sp });
-      for (const d of ds) this.markerByEntity.set(d.entity_id, sp);
-    }
-    for (const d of loose) {
-      const sp = this.makeMarkerSprite(d.behavior, d.pos[0], d.pos[1] + 0.35, d.pos[2]);
-      sp.userData = {
-        markerEntity: d.entity_id,
-        markerBehavior: d.behavior,
-        wx: d.pos[0],
-        wy: d.pos[1],
-        wz: d.pos[2],
-      };
-      this.markerByEntity.set(d.entity_id, sp);
-    }
-    // Colour freshly-built markers from the last known state (on = blue).
-    if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
-    this.needsRender = true;
+    const { rooms, loose } = groupRooms({
+      devices: slot.bindings.markerData(),
+      outlines: slot.rooms,
+      zones: slot.zones,
+      elevation: slot.elevation,
+      hass: this.lastHass,
+    });
+    const sprites = this.markers.build(rooms, loose);
+    rooms.forEach((room, i) => this.activeRooms.push({ ...room, sprite: sprites[i] }));
     // Drop a stale selection that no longer maps to a room on this floor.
     if (this.selectedRoomKey && !this.activeRooms.some((r) => r.key === this.selectedRoomKey)) {
       this.selectedRoomKey = null;
+      this.markers.setSelected(null);
     }
     // Re-apply the focused room's backdrop — its photo may have changed (a live
     // edit / plan sync) or the selection may have just been dropped.
@@ -1271,75 +759,11 @@ export class SceneManager {
     this.onRoomsChanged = fn;
   }
 
-  /** Rooms on the active floor, in build order (zones first, then auto-grouped). */
+  /** Rooms on the active floor, in build order (zones first, then auto-grouped).
+   *  Deliberately a narrowed copy: the pills and the side panel take exactly
+   *  these fields, and the sprite must never leave the scene. */
   getRooms(): RoomInfo[] {
     return this.activeRooms.map((r) => ({ key: r.key, name: r.name, entities: r.entities, center: r.center, bgImage: r.bgImage, tempSensor: r.tempSensor, floorSensor: r.floorSensor, humiditySensor: r.humiditySensor }));
-  }
-
-  /** Room grouping for ANY floor, WITHOUT touching the active-floor markers —
-   *  the whole-home Обзор needs every floor's rooms at once. Mirrors the zone +
-   *  auto-group logic buildMarkers() runs for the active floor; keep the two in
-   *  sync. Returns pure data (no sprites), so it's cheap to call per render. */
-  private computeFloorRooms(floor: number): RoomInfo[] {
-    const bm = this.bindingManagers[floor];
-    if (!bm) return [];
-    const allDevices = bm.markerData();
-    const rooms = this.floorRooms[floor] ?? [];
-    const zones = this.floorZones[floor] ?? [];
-    const elev = this.floorElev[floor] ?? 0;
-    const out: RoomInfo[] = [];
-    const keyOf = (base: string) => `f${floor}::${base}#${out.length}`;
-
-    const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
-    const modelOf = new Map(allDevices.map((d) => [d.entity_id, d.model]));
-    const claimed = new Set<string>();
-    for (const z of zones) {
-      const ents = (z.entities ?? []).filter(
-        (id) => !claimed.has(id) && (behaviorOf.has(id) || !this.lastHass || !!this.lastHass.states?.[id]),
-      );
-      if (!ents.length) continue;
-      for (const id of ents) claimed.add(id);
-      const roomEntities = ents.map((id) => ({ entity_id: id, behavior: behaviorOf.get(id) ?? id.split('.')[0], model: modelOf.get(id) }));
-      let zoneBg: string | undefined = z.bgImage;
-      if (!zoneBg) {
-        let host: (typeof rooms)[number] | null = null;
-        let hostArea = Infinity;
-        for (const r of rooms) {
-          if (!r.bgImage || !pointInPoly(z.x, z.z, r.poly)) continue;
-          const a = polyArea(r.poly);
-          if (a < hostArea) {
-            hostArea = a;
-            host = r;
-          }
-        }
-        if (host && zones.filter((o) => pointInPoly(o.x, o.z, host!.poly)).length === 1) zoneBg = host.bgImage;
-      }
-      out.push({ key: keyOf(z.id ?? z.name ?? 'zone'), id: z.id, parentId: z.parentId, name: z.name, entities: roomEntities, center: [z.x, elev + 1.6, z.z], bgImage: zoneBg, tempSensor: z.tempSensor, floorSensor: z.floorSensor, humiditySensor: z.humiditySensor });
-    }
-    // Same guard as buildActiveRooms: a binding to a renamed/deleted entity must
-    // not create a phantom auto-room. Filter dead entities once hass is loaded.
-    const devices = allDevices.filter(
-      (d) => !claimed.has(d.entity_id) && (!this.lastHass || !!this.lastHass.states?.[d.entity_id]),
-    );
-    const perRoom = new Map<number, typeof devices>();
-    const roomAreas = rooms.map((r) => polyArea(r.poly));
-    for (const d of devices) {
-      let ri = -1;
-      let bestArea = Infinity;
-      for (let i = 0; i < rooms.length; i++) {
-        if (pointInPoly(d.pos[0], d.pos[2], rooms[i].poly) && roomAreas[i] < bestArea) {
-          bestArea = roomAreas[i];
-          ri = i;
-        }
-      }
-      if (ri >= 0) (perRoom.get(ri) ?? perRoom.set(ri, []).get(ri)!).push(d);
-    }
-    for (const [ri, ds] of perRoom) {
-      const room = rooms[ri];
-      const [cx, cz] = polyCentroid(room.poly);
-      out.push({ key: keyOf(room.name ?? 'room'), name: room.name, entities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior, model: d.model })), center: [cx, room.elev + 1.6, cz], bgImage: room.bgImage });
-    }
-    return out;
   }
 
   /** Every floor's rooms (index = floor), for the whole-home Обзор dashboard.
@@ -1352,7 +776,16 @@ export class SceneManager {
    *  when the plan changes or a tracked entity appears/disappears. */
   roomsByFloor(): RoomInfo[][] {
     if (!this.roomsCache) {
-      this.roomsCache = this.floors.map((_, fi) => this.computeFloorRooms(fi));
+      this.roomsCache = this.slots.map((slot, fi) =>
+        groupRooms({
+          devices: slot.bindings.markerData(),
+          outlines: slot.rooms,
+          zones: slot.zones,
+          elevation: slot.elevation,
+          hass: this.lastHass,
+          keyPrefix: `f${fi}::`,
+        }).rooms,
+      );
     }
     return this.roomsCache;
   }
@@ -1363,8 +796,10 @@ export class SceneManager {
   trackedEntities(): ReadonlySet<string> {
     if (!this.trackedCache) {
       const s = new Set<string>();
-      for (const bm of this.bindingManagers) for (const id of bm.entityIds()) s.add(id);
-      for (const zs of this.floorZones) for (const z of zs) for (const id of z.entities ?? []) s.add(id);
+      for (const slot of this.slots) {
+        for (const id of slot.bindings.entityIds()) s.add(id);
+        for (const z of slot.zones) for (const id of z.entities ?? []) s.add(id);
+      }
       this.trackedCache = s;
     }
     return this.trackedCache;
@@ -1389,324 +824,105 @@ export class SceneManager {
     return flipped;
   }
 
-  /** Rooms with a live water-leak alarm: their pins flash red. This is the one
-   *  thing allowed to override the selection colour — a leak has to be visible
-   *  from across the room, whatever else the panel is showing.
-   *
-   *  The scene renders on demand (see invalidate()), so a flash needs something
-   *  to drive frames; the timer below does that, and only exists while an alarm
-   *  is up. Passing an empty list stops it. */
+  /** Rooms with a live water-leak alarm: their pins flash red (see markers.ts). */
   setAlarmRooms(keys: string[]): void {
-    const next = new Set(keys);
-    const same = next.size === this.alarmRooms.size && [...next].every((k) => this.alarmRooms.has(k));
-    if (same) return;
-    this.alarmRooms = next;
-    if (next.size && this.alarmTimer == null) {
-      this.alarmTimer = window.setInterval(() => {
-        this.alarmOn = !this.alarmOn;
-        this.repaintMarkers();
-      }, 480);
-    } else if (!next.size && this.alarmTimer != null) {
-      clearInterval(this.alarmTimer);
-      this.alarmTimer = null;
-      this.alarmOn = true;
-    }
-    this.repaintMarkers();
-  }
-
-  private repaintMarkers(): void {
-    if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
-    else for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, this.lastHass);
-    this.needsRender = true;
-    this.invalidate();
+    this.markers.setAlarmRooms(keys);
   }
 
   /** Highlight one room's pin (accent) and neutralise the rest. */
   selectRoom(key: string | null): void {
     this.selectedRoomKey = key;
+    this.markers.setSelected(key);
     // Show the focused room's design photo behind the 3D (view mode only).
     const room = key ? this.activeRooms.find((r) => r.key === key) : null;
     this.setRoomBackdrop(room?.bgImage ?? null);
-    if (this.lastHass) this.refreshAllMarkerColors(this.lastHass);
-    else for (const c of this.markerGroup.children) this.colorMarker(c as THREE.Sprite, this.lastHass);
-    this.needsRender = true;
-    this.invalidate();
+    this.markers.repaint();
   }
 
   /** Set the focused room's design photo as the 3D backdrop. Pass null to want
    *  no photo. The photo is only actually shown in view mode — applyBackdrop()
    *  falls back to the gradient while editing so it never disturbs the editor. */
   setRoomBackdrop(url: string | null): void {
-    if (url === this.roomBgUrl) {
-      this.applyBackdrop();
-      return;
-    }
-    this.roomBgUrl = url;
-
-    // No photo for this room: drop straight to the gradient.
-    if (!url) {
-      this.setPhoto(null);
-      return;
-    }
-
-    // Decode the picture BEFORE handing it over, so what's on screen stays put
-    // until the replacement is ready rather than flashing. Candidates are tried
-    // in order, so a photo that isn't where its link implies still shows up.
-    const tries = this.assetCandidates(url);
-    const attempt = (i: number): void => {
-      if (this.roomBgUrl !== url) return; // room changed while we were loading
-      if (i >= tries.length) {
-        console.warn('[3d-floorplan] could not load room photo:', tries.join(' | '));
-        this.roomBgUrl = null;
-        this.setPhoto(null); // gradient, rather than a blank backdrop
-        return;
-      }
-      const img = new Image();
-      img.onload = () => {
-        if (this.roomBgUrl !== url) return; // superseded mid-decode
-        this.setPhoto(tries[i]);
-      };
-      img.onerror = () => attempt(i + 1);
-      img.src = tries[i];
-    };
-    attempt(0);
-  }
-
-  /** Hand the resolved photo to the card, which paints it as one CSS layer
-   *  across the whole card — the canvas stops at the side panel, so a backdrop
-   *  drawn inside the scene could never reach behind it. */
-  private setPhoto(url: string | null): void {
-    if (this.roomPhoto === url) return;
-    this.roomPhoto = url;
-    this.onBackdrop?.(url);
-    this.applyBackdrop();
+    // `true` means "already the current request" — nothing will load, but the
+    // backdrop may still need re-applying (e.g. leaving edit mode).
+    if (this.photo.request(url)) this.applyBackdrop();
   }
 
   /** Register the card's photo-layer setter. */
   setBackdropHandler(fn: (url: string | null) => void): void {
     this.onBackdrop = fn;
-    fn(this.roomPhoto);
+    fn(this.photo.url);
   }
 
-
-  /** Origin for resolving root-relative asset paths (see `imageBase`). */
+  /** Origin for resolving root-relative asset paths (see RoomPhoto). */
   setImageBase(base: string): void {
-    this.imageBase = base || '';
-  }
-
-  /** Turn a room-photo reference into a loadable URL: data/blob/absolute URLs
-   *  pass through; a root-relative `/local/...` path is prefixed with the HA
-   *  origin so it resolves off the file:// kiosk too. */
-  private resolveAsset(u: string): string {
-    if (/^(data:|blob:|https?:)/i.test(u)) return u;
-    if (u.startsWith('/') && this.imageBase) return this.imageBase + u;
-    return u;
-  }
-
-  /** URLs to try for a room photo, best first.
-   *
-   *  A File-editor ingress link only renders for the session that copied it, so
-   *  the /local path HA serves the same file from is tried first — that's the one
-   *  a tablet can load. But `www` isn't always where the link implies (add-on
-   *  mounts differ), and guessing wrong took away a photo that had been working,
-   *  so the original link stays as a fallback rather than a replacement. */
-  private assetCandidates(u: string): string[] {
-    const raw = String(u).trim();
-    const out: string[] = [];
-    const local = normalizeAssetRef(raw);
-    if (local !== raw) out.push(this.resolveAsset(local));
-    out.push(this.resolveAsset(raw));
-    return out;
+    this.photo.setImageBase(base);
   }
 
   /** Choose what's behind the 3D: with a room photo up the scene goes
    *  transparent so the card's photo layer shows through (and reaches behind the
    *  side panel); otherwise the default gradient fills the canvas as before. */
   private applyBackdrop(): void {
-    const photo = !this.editing && this.roomPhoto;
+    const photo = !this.editing && this.photo.url;
     const next = photo ? null : this.defaultBackdrop;
     if (this.scene.background !== next) {
       this.scene.background = next;
       this.renderer.setClearAlpha(photo ? 0 : 1);
-      this.needsRender = true;
-      this.invalidate();
-    }
-  }
-
-  /** Whether a toggle device counts as "on" (drives the blue marker tint). */
-  /** Whether a device counts as "active" for a marker to glow — ANY controllable
-   *  device that is on / running, not only lights. Covers (open/closed) and locks
-   *  have no on/off "running" state, so they don't drive the glow. */
-  private isDeviceActive(behavior?: string, state?: string): boolean {
-    if (!state || state === 'unavailable' || state === 'unknown') return false;
-    switch (behavior) {
-      case 'light':
-      case 'switch':
-      case 'input_boolean':
-      case 'fan':
-        return state === 'on';
-      case 'climate':
-        return state !== 'off';
-      case 'media_player':
-        return state === 'playing' || state === 'on';
-      default:
-        return false;
-    }
-  }
-
-  /** Tint a marker: the selected room's pin is accent-orange; other room pins
-   *  glow soft-amber when any of their lights are on; loose device markers turn
-   *  blue when on. Returns true when the colour actually MOVED — the caller uses
-   *  that to decide whether a new frame is worth drawing at all. */
-  private colorMarker(sp: THREE.Sprite, hass: any): boolean {
-    const ud = sp.userData;
-    const mat = sp.material as THREE.SpriteMaterial;
-    const paint = (hex: number): boolean => {
-      if (mat.color.getHex() === hex) return false;
-      mat.color.setHex(hex);
-      return true;
-    };
-    if (ud.roomMarker) {
-      if (ud.roomKey && this.alarmRooms.has(ud.roomKey)) {
-        // Red ↔ pale red, so the pin reads as flashing rather than just tinted.
-        return paint(this.alarmOn ? 0xff3b30 : 0xffd8d5);
-      }
-      if (ud.roomKey && ud.roomKey === this.selectedRoomKey) return paint(0xf3a83c);
-      const anyOn = (ud.roomEntities || []).some((e: any) => this.isDeviceActive(e.behavior, hass?.states?.[e.entity_id]?.state));
-      return paint(anyOn ? 0xf6c98a : 0xffffff);
-    }
-    const on = this.isDeviceActive(ud.markerBehavior, hass?.states?.[ud.markerEntity]?.state);
-    return paint(on ? 0x4da3ff : 0xffffff);
-  }
-
-  private refreshAllMarkerColors(hass: any): boolean {
-    if (!hass?.states) return false;
-    let changed = false;
-    for (const c of this.markerGroup.children) {
-      if (this.colorMarker(c as THREE.Sprite, hass)) changed = true;
-    }
-    return changed;
-  }
-
-  private updateMarkerColor(entityId: string, hass: any): boolean {
-    const sp = this.markerByEntity.get(entityId);
-    return sp ? this.colorMarker(sp, hass) : false;
-  }
-
-  /** Keep markers a roughly constant on-screen size as the camera dollies. */
-  private updateMarkerScales(): void {
-    const cam = this.camera.position;
-    for (const grp of [this.markerGroup, this.zoneGroup]) {
-      for (const c of grp.children) {
-        const d = cam.distanceTo(c.position);
-        c.scale.set(THREE.MathUtils.clamp(d * 0.05, 0.3, 1.2), THREE.MathUtils.clamp(d * 0.05, 0.3, 1.2), 1);
-      }
+      this.loop.invalidate();
     }
   }
 
   /** Show hand-placed zone icons while editing (so they can be positioned). */
   drawZoneDots(zones: { id: string; x: number; z: number; name?: string }[], elev: number, selId?: string | null): void {
-    for (const c of [...this.zoneGroup.children]) (c as THREE.Sprite).material.dispose();
-    this.zoneGroup.clear();
-    for (const z of zones) {
-      const mat = new THREE.SpriteMaterial({
-        map: this.markerTexture('room'),
-        depthTest: false,
-        depthWrite: false,
-        transparent: true,
-      });
-      mat.color.setHex(z.id === selId ? 0x4da3ff : 0xffffff);
-      const sp = new THREE.Sprite(mat);
-      sp.position.set(z.x, elev + 1.6, z.z);
-      sp.renderOrder = 1000;
-      this.zoneGroup.add(sp);
-    }
+    this.markers.drawZoneDots(zones, elev + ROOM_MARKER_Y, selId);
+  }
+
+  /** The scene node of the floor currently on screen (null before a plan). */
+  private get activeGroup(): THREE.Group | null {
+    return this.slots[this.activeFloor]?.group ?? null;
   }
 
   /** Raycast a pointer event against the active floor; return the furniture
    *  placement it hits (by id), walking up to the placement group. */
   pickFurniture(e: PointerEvent): { id: string; object: THREE.Object3D } | null {
-    const group = this.floorGroups[this.activeFloor];
-    if (!group) return null;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObject(group, true);
-    for (const h of hits) {
-      let cur: THREE.Object3D | null = h.object;
-      while (cur) {
-        const id = cur.userData?.furnitureId as string | undefined;
-        if (id) return { id, object: cur };
-        cur = cur.parent;
-      }
-    }
-    return null;
+    const group = this.activeGroup;
+    return group ? this.picker.furniture(e, group) : null;
   }
 
   getFurnitureObject(id: string): THREE.Object3D | undefined {
-    return this.floors[this.activeFloor]?.furnitureById.get(id);
+    return this.slots[this.activeFloor]?.built.furnitureById.get(id);
   }
 
   getWallObject(index: number): THREE.Object3D | undefined {
-    return this.floors[this.activeFloor]?.wallById.get(index);
+    return this.slots[this.activeFloor]?.built.wallById.get(index);
   }
 
   getRoomObject(index: number): THREE.Object3D | undefined {
-    return this.floors[this.activeFloor]?.roomById.get(index);
+    return this.slots[this.activeFloor]?.built.roomById.get(index);
   }
 
   /** Raycast for a wall sub-group (returns its wall array-index). */
   pickWall(e: PointerEvent): { index: number; object: THREE.Object3D } | null {
-    return this.pickByUserData(e, 'wallIndex');
+    const group = this.activeGroup;
+    return group ? this.picker.byTag(e, group, 'wallIndex') : null;
+  }
+
+  /** Raycast for a room floor mesh (returns its room array-index). */
+  pickRoom(e: PointerEvent): { index: number; object: THREE.Object3D } | null {
+    const group = this.activeGroup;
+    return group ? this.picker.byTag(e, group, 'roomIndex') : null;
   }
 
   /** Raycast for a door/window leaf — returns the wall + opening index so the
    *  opening can be selected directly (without selecting the wall first). */
   pickOpening(e: PointerEvent): { wallIndex: number; openingIndex: number; object: THREE.Object3D } | null {
-    const group = this.floorGroups[this.activeFloor];
-    if (!group) return null;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObject(group, true);
-    for (const h of hits) {
-      let cur: THREE.Object3D | null = h.object;
-      while (cur) {
-        const wi = cur.userData?.openingWall;
-        const oi = cur.userData?.openingIndex;
-        if (wi !== undefined && oi !== undefined) {
-          return { wallIndex: wi as number, openingIndex: oi as number, object: cur };
-        }
-        cur = cur.parent;
-      }
-    }
-    return null;
-  }
-
-  /** Raycast for a room floor mesh (returns its room array-index). */
-  pickRoom(e: PointerEvent): { index: number; object: THREE.Object3D } | null {
-    return this.pickByUserData(e, 'roomIndex');
+    const group = this.activeGroup;
+    return group ? this.picker.opening(e, group) : null;
   }
 
   /** Raycast the gizmo handles; returns the handle id (userData.gizmoHandle). */
   pickGizmo(e: PointerEvent): string | null {
-    if (!this.gizmoGroup.children.length) return null;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects(this.gizmoGroup.children, true);
-    for (const h of hits) {
-      let cur: THREE.Object3D | null = h.object;
-      while (cur) {
-        const g = cur.userData?.gizmoHandle as string | undefined;
-        if (g) return g;
-        cur = cur.parent;
-      }
-    }
-    return null;
+    return this.picker.gizmo(e, this.gizmoGroup);
   }
 
   clearGizmo(): void {
@@ -1721,104 +937,32 @@ export class SceneManager {
     this.gizmoGroup.clear();
   }
 
-  private pickByUserData(
-    e: PointerEvent,
-    key: 'wallIndex' | 'roomIndex',
-  ): { index: number; object: THREE.Object3D } | null {
-    const group = this.floorGroups[this.activeFloor];
-    if (!group) return null;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObject(group, true);
-    for (const h of hits) {
-      let cur: THREE.Object3D | null = h.object;
-      while (cur) {
-        const v = cur.userData?.[key];
-        if (typeof v === 'number') return { index: v, object: cur };
-        cur = cur.parent;
-      }
-    }
-    return null;
-  }
-
   /** Highlight a selected object with a bounding box, or clear it. */
   setSelection(obj: THREE.Object3D | null): void {
-    if (this.selectionHelper) {
-      this.scene.remove(this.selectionHelper);
-      this.selectionHelper.geometry.dispose();
-      this.selectionHelper = undefined;
-    }
-    if (obj) {
-      this.selectionHelper = new THREE.BoxHelper(obj, 0x4fd06a);
-      this.scene.add(this.selectionHelper);
-    }
+    this.selection.set(obj);
   }
 
   setGroundHandler(h?: { click?: (p: THREE.Vector3, e: PointerEvent) => void; move?: (p: THREE.Vector3, e: PointerEvent) => void }): void {
     this.onGround = h;
   }
 
-  /** Enable/disable camera orbit + pan (zoom stays on so you never get stuck). */
-  setControlsEnabled(on: boolean): void {
-    this.controls.enableRotate = on;
-    this.controls.enablePan = on;
-  }
-
-  /**
-   * In draw mode, the LEFT mouse / single finger performs the editor action
-   * (draw, place, select) while RIGHT mouse / two fingers always orbit + zoom —
-   * so you never have to switch to a "View" tool to move the camera. In view
-   * mode, the usual controls apply.
-   */
-  /**
-   * Camera is ALWAYS fully controllable while editing (left-drag orbit, right
-   * pan, wheel zoom, one-finger orbit, two-finger pan/zoom). The editor distin-
-   * guishes a TAP (tool action) from a DRAG (camera), and suspends the camera
-   * only while actually dragging a grabbed object/handle (see setupPointer).
-   * The `drawing` arg is kept for call-site compatibility but no longer
-   * restricts the camera.
-   */
+  /** Restore the normal camera mappings (left orbit, right pan, wheel zoom).
+   *  The `drawing` argument is kept for call-site compatibility: the camera is
+   *  always fully controllable while editing, and only a real drag suspends it. */
   setDrawMode(_drawing: boolean): void {
-    this.controls.enabled = true;
-    this.controls.enableRotate = true;
-    this.controls.enableZoom = true;
-    this.controls.enablePan = true;
-    this.controls.mouseButtons = {
-      LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
-    };
-    this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    this.applyCameraGate();
+    applyDrawMode(this.controls);
   }
 
-  /**
-   * When a movable object is selected, reserve LEFT mouse / one-finger for
-   * dragging that object (so it moves instead of orbiting the camera). Camera
-   * is still available via right-drag / two fingers.
-   */
+  /** Reserve LEFT mouse / one finger for dragging the selected object. */
   setLeftReserved(reserved: boolean): void {
-    if (reserved) {
-      this.controls.mouseButtons = {
-        LEFT: null as any,
-        MIDDLE: THREE.MOUSE.DOLLY,
-        RIGHT: THREE.MOUSE.ROTATE,
-      };
-      this.controls.touches = { ONE: null as any, TWO: THREE.TOUCH.DOLLY_PAN };
-    } else {
-      this.setDrawMode(true);
-    }
+    if (reserved) applyLeftReserved(this.controls);
+    else this.setDrawMode(true);
   }
 
   /** Raycast a pointer event onto the current ground plane. */
   groundIntersect(e: PointerEvent): THREE.Vector3 | null {
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const out = new THREE.Vector3();
-    return this.raycaster.ray.intersectPlane(this.groundPlane, out) ? out : null;
+    return this.picker.ground(e, this.groundPlane);
   }
 
   clearPreview(): void {
@@ -1836,92 +980,51 @@ export class SceneManager {
   /** Show (or clear, when null) a flat reference image on the floor plane that
    *  walls can be traced over. Editor-only; not part of the rendered plan. */
   setUnderlay(u: Underlay | null, elevation = 0): void {
-    // Dispose any previous underlay.
-    for (const g of [...this.underlayGroup.children]) {
-      g.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (m.geometry) m.geometry.dispose();
-        const mat = m.material as THREE.MeshBasicMaterial | undefined;
-        if (mat) {
-          mat.map?.dispose();
-          mat.dispose();
-        }
-      });
-    }
-    this.underlayGroup.clear();
-    if (!u || !u.image) return;
-
-    const aspect = u.aspect > 0 ? u.aspect : 1;
-    const w = Math.max(0.1, u.widthM || 10);
-    const d = w * aspect;
-    const tex = new THREE.TextureLoader().load(u.image);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshBasicMaterial({
-      map: tex,
-      transparent: true,
-      opacity: u.opacity ?? 0.6,
-      depthWrite: false, // walls/floor draw over it cleanly
-      side: THREE.DoubleSide,
-    });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
-    mesh.rotation.x = -Math.PI / 2; // lie flat on the floor (XZ plane)
-    mesh.renderOrder = -1;
-
-    const wrap = new THREE.Group();
-    wrap.add(mesh);
-    wrap.position.set(u.x ?? 0, elevation + 0.012, u.z ?? 0);
-    wrap.rotation.y = (u.rotation ?? 0) * (Math.PI / 180);
-    this.underlayGroup.add(wrap);
+    setUnderlay(this.underlayGroup, u, elevation);
   }
 
   private handlePick(e: PointerEvent): void {
     if (!this.onPick) return;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
 
     // Floating markers are larger, always-on-top tap targets — check them first
     // so they're the easy way to hit a bound device.
-    if (this.markerGroup.children.length) {
-      const mHits = this.raycaster.intersectObjects(this.markerGroup.children, false);
-      if (mHits.length) {
-        const ud = mHits[0].object.userData;
-        const screen: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
-        const point: [number, number, number] = [ud.wx, ud.wy, ud.wz];
-        if (ud.roomMarker) {
-          this.onPick({ entity_id: '', behavior: 'room', roomEntities: ud.roomEntities, roomName: ud.roomName, roomKey: ud.roomKey, point, screen });
-        } else {
-          this.onPick({ entity_id: ud.markerEntity as string, behavior: ud.markerBehavior as string, point, screen });
-        }
-        return;
+    const marker = this.picker.marker(e, this.markers.group);
+    if (marker) {
+      const ud = marker.userData;
+      const screen = this.picker.screenPos(e);
+      const point: [number, number, number] = [ud.wx, ud.wy, ud.wz];
+      if (ud.roomMarker) {
+        this.onPick({ entity_id: '', behavior: 'room', roomEntities: ud.roomEntities, roomName: ud.roomName, roomKey: ud.roomKey, point, screen });
+      } else {
+        this.onPick({ entity_id: ud.markerEntity as string, behavior: ud.markerBehavior as string, point, screen });
       }
+      return;
     }
 
-    const bm = this.bindingManagers[this.activeFloor];
-    if (!bm) {
+    const slot = this.slots[this.activeFloor];
+    if (!slot) {
       this.onPick(null);
       return;
     }
-    const hits = this.raycaster.intersectObjects(bm.anchors, true);
-    if (hits.length === 0) {
+    const hit = this.picker.anchors(e, slot.bindings.anchors);
+    if (!hit) {
       this.onPick(null);
       return;
     }
-    const result = bm.resolveClick(hits[0].object) as ClickResult | null;
+    const result = slot.bindings.resolveClick(hit.object);
     if (result) {
-      const p = hits[0].point;
+      const p = hit.point;
       result.point = [p.x, p.y, p.z];
-      result.screen = [e.clientX - rect.left, e.clientY - rect.top];
+      result.screen = this.picker.screenPos(e);
     }
     this.onPick(result);
   }
 
   /** Bound entities near a world point (for the control popup). */
   entitiesNear(point: [number, number, number], radius: number): { entity_id: string; behavior: string }[] {
-    const bm = this.bindingManagers[this.activeFloor];
-    if (!bm) return [];
-    return bm.near(new THREE.Vector3(point[0], point[1], point[2]), radius);
+    const slot = this.slots[this.activeFloor];
+    if (!slot) return [];
+    return slot.bindings.near(new THREE.Vector3(point[0], point[1], point[2]), radius);
   }
 
   /**
@@ -1937,120 +1040,32 @@ export class SceneManager {
     let changed = false;
     // Every floor: another floor may bind the same entity (cheap — the manager
     // answers from a map and returns immediately when it doesn't hold it).
-    for (const m of this.bindingManagers) {
-      if (m.updateEntity(entityId, hass)) changed = true;
+    for (const slot of this.slots) {
+      if (slot.bindings.updateEntity(entityId, hass)) changed = true;
     }
-    if (this.updateMarkerColor(entityId, hass)) changed = true;
+    if (this.markers.refreshOne(entityId, hass)) changed = true;
     if (this.notePresence(entityId, hass)) changed = true;
-    if (changed) this.needsRender = true;
+    if (changed) this.loop.invalidate();
   }
 
   /** Full state sync (called on each hass update from the card). */
   syncAll(hass: any): void {
     this.lastHass = hass;
     let changed = false;
-    for (const bm of this.bindingManagers) if (bm.update(hass)) changed = true;
-    if (this.refreshAllMarkerColors(hass)) changed = true;
+    for (const slot of this.slots) if (slot.bindings.update(hass)) changed = true;
+    if (this.markers.refreshAll(hass)) changed = true;
     if (this.notePresenceAll(hass)) changed = true;
-    if (changed) this.needsRender = true;
+    if (changed) this.loop.invalidate();
   }
 
   // -- Render loop ------------------------------------------------------------
 
   start(): void {
-    if (this.running) return;
-    this.running = true;
-    this.clock.getDelta(); // discard time spent stopped
-    this.pump();
+    this.loop.start();
   }
-
-  /** Schedule the next frame, unless one is already scheduled or the panel is
-   *  stopped / can't be seen. */
-  private pump(): void {
-    if (!this.running || !this.visible || this.rafId) return;
-    this.rafId = requestAnimationFrame(this.loop);
-  }
-
-  private loop = (): void => {
-    this.rafId = 0;
-    if (!this.running || !this.visible) return;
-    this.pump();
-    const delta = this.clock.getDelta();
-    // update() eases damping and returns true while the camera is still moving;
-    // animate() returns true while a fan spins / curtain slides. Render only
-    // when the view actually changes (or while editing) — a static kiosk then
-    // idles the GPU, which is what keeps high quality smooth on weak tablets.
-    const moved = this.controls.update();
-    // Camera motion is NEVER rate-limited (that's where lag is felt). Frames
-    // that exist only for an animation ARE: a fan that is switched on has no
-    // end state, so before this it pinned the panel at 60 fps for as long as it
-    // ran — all night, at full GPU. ANIM_HZ still reads as a spinning blade.
-    this.animAccum += delta;
-    let anim = false;
-    // The epsilon keeps the step landing on a fixed frame boundary (every 3rd
-    // frame at 60 Hz) instead of alternating 3/4 frames on float jitter, which
-    // would show up as an unevenly turning blade.
-    if (this.animAccum >= ANIM_STEP - 1e-3) {
-      anim = this.bindingManagers[this.activeFloor]?.animate(this.animAccum) ?? false;
-      this.animAccum = 0;
-    }
-    const interacting = moved || anim; // continuous frames — where lag is felt
-    if (this.needsRender || interacting || this.editing) {
-      this.updateMarkerScales();
-      this.renderer.render(this.scene, this.camera);
-      this.needsRender = false;
-      if (interacting) this.trackFrame(delta);
-    }
-  };
 
   stop(): void {
-    this.running = false;
-    cancelAnimationFrame(this.rafId);
-    this.rafId = 0;
-  }
-
-  /** Smooth the interaction frame time; step quality down if it stays slow, so a
-   *  plan can grow without the tablet ever bogging down. */
-  private trackFrame(delta: number): void {
-    // Only auto-tune when the user hasn't pinned a quality — an explicit pick is
-    // respected as-is.
-    if (this.qualityChoice !== 'auto') return;
-    const ms = Math.min(delta * 1000, 200); // ignore huge gaps (tab was hidden)
-    this.frameMs = this.frameMs * 0.9 + ms * 0.1;
-    if (this.frameMs > 42) {
-      // ~sustained < 24 fps: after ~0.7s of it, drop a rung.
-      if (++this.slowStreak > 40 && this.autoDegrade < 3) {
-        this.stepDownQuality();
-        this.slowStreak = 0;
-      }
-    } else if (this.slowStreak > 0) {
-      this.slowStreak--;
-    }
-  }
-
-  /** One rung down the adaptive-quality ladder. Sharpness (pixel ratio) is given
-   *  up LAST — the cheaper, near-invisible cuts (shadows, matte materials) go
-   *  first, so it stays smooth AND sharp. Applied live; never auto-upgrades. */
-  private stepDownQuality(): void {
-    this.autoDegrade++;
-    if (this.autoDegrade === 1) {
-      // 1) Drop the shadow pass — cheap, barely noticeable.
-      this.renderer.shadowMap.enabled = false;
-      if (this.sun) this.sun.castShadow = false;
-      this.scene.traverse((o) => {
-        const m = (o as THREE.Mesh).material;
-        if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
-      });
-      this.needsRender = true;
-    } else if (this.autoDegrade === 2) {
-      // 2) Matte Lambert materials — big per-pixel win, keeps the pixel ratio.
-      this.simplifyMaterials();
-    } else {
-      // 3) Last resort: lower the DRAG resolution target (the still image stays
-      //    crisp via idlePR() — it's on-demand, so it isn't the cost that hurts).
-      this.staticPR = Math.max(0.75, Math.min(1, this.staticPR));
-    }
-    this.frameMs = 16; // reset the average so the next rung waits for real slowness
+    this.loop.stop();
   }
 
   /**
@@ -2077,11 +1092,7 @@ export class SceneManager {
       }
     }
     this.teardown = [];
-    if (this.alarmTimer != null) {
-      clearInterval(this.alarmTimer);
-      this.alarmTimer = null;
-    }
-    this.alarmRooms.clear();
+    this.markers.dispose();
 
     this.clearPlan();
     this.clearPreview();
@@ -2093,8 +1104,6 @@ export class SceneManager {
       disposeObject3D(this.gridHelper);
       this.gridHelper = undefined;
     }
-    for (const t of this.markerTexCache.values()) t.dispose();
-    this.markerTexCache.clear();
     // The gradient backdrop is a 512x512 CanvasTexture built per scene.
     this.defaultBackdrop?.dispose();
     this.scene.background = null;
@@ -2118,34 +1127,4 @@ export class SceneManager {
     this.renderer.domElement.height = 0;
     this.renderer.domElement.remove();
   }
-}
-
-/** Ray-casting point-in-polygon test (polygon points are world [x, z]). */
-function pointInPoly(x: number, z: number, poly: [number, number][]): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i][0], zi = poly[i][1];
-    const xj = poly[j][0], zj = poly[j][1];
-    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
-  }
-  return inside;
-}
-
-function polyCentroid(poly: [number, number][]): [number, number] {
-  let x = 0;
-  let z = 0;
-  for (const p of poly) {
-    x += p[0];
-    z += p[1];
-  }
-  return [x / poly.length, z / poly.length];
-}
-
-/** Absolute polygon area (shoelace), for picking the most specific room. */
-function polyArea(poly: [number, number][]): number {
-  let a = 0;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    a += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]);
-  }
-  return Math.abs(a) / 2;
 }

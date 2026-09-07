@@ -308,3 +308,48 @@ export interface HomeAssistant {
   themes?: any;
   connection?: any;
 }
+
+// ---------------------------------------------------------------------------
+// What the 3D scene hands back to the card. These live here, next to the plan
+// schema, because BOTH ends need them: scene/bindings.ts builds a ClickResult
+// and scene-manager passes it on. While the type was declared inside
+// scene-manager, bindings could only return an anonymous look-alike that the
+// manager re-labelled with `as ClickResult` — a cast that would have kept
+// compiling after the two shapes drifted apart.
+// ---------------------------------------------------------------------------
+
+/** One tap resolved against the scene: a bound device, or a whole room. */
+export interface ClickResult {
+  entity_id: string;
+  behavior: string;
+  /** World-space hit point, for finding other entities near the tap. */
+  point?: [number, number, number];
+  /** Screen position (px, relative to the canvas) of the tap, for popup anchoring. */
+  screen?: [number, number];
+  /** Set when a ROOM marker was tapped: all bound devices in that room. */
+  roomEntities?: { entity_id: string; behavior: string }[];
+  roomName?: string;
+  /** Stable key of the tapped room (matches getRooms()), for panel selection. */
+  roomKey?: string;
+}
+
+/** A room surfaced to the card for the pills + right-side control panel. */
+export interface RoomInfo {
+  key: string;
+  /** Manual-zone id (absent for auto-grouped rooms). */
+  id?: string;
+  /** Parent zone id, when this room is a sub-room (Обзор nests it). */
+  parentId?: string;
+  name?: string;
+  entities: { entity_id: string; behavior: string; model?: string }[];
+  /** World-space centre of the room's marker (metres). */
+  center: [number, number, number];
+  /** Optional per-room design photo (URL/`/local/` path) used as the 3D
+   *  backdrop while this room is focused in view mode. */
+  bgImage?: string;
+  /** Explicitly bound sensors (from the zone editor). When present the room
+   *  readout uses exactly these; when absent it's blank (no auto-detect). */
+  tempSensor?: string;
+  floorSensor?: string;
+  humiditySensor?: string;
+}
