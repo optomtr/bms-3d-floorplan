@@ -74,7 +74,8 @@ export function renderLeakAlert(host: BmsFloorplanCard) {
   const open = valve ? !valveShut(host, valve) : true;
   return html`<div class="leak-alert">
     <button type="button" class="leak-x" title=${host.t('Close')}
-      @click=${() => (host.leakAck = true)}>✕</button>
+      aria-label=${host.tx('Закрыть предупреждение о протечке', 'Dismiss the leak alarm')}
+      @click=${() => (host.leakAck = true)}>${host.ic('close')}</button>
     <div class="leak-ic">${host.ic('drop')}</div>
     <div class="leak-title">${leak.wet ? host.t('Water leak!') : host.t('Water is shut off')}</div>
     <div class="leak-sub">
@@ -87,7 +88,9 @@ export function renderLeakAlert(host: BmsFloorplanCard) {
       : nothing}
     <div class="leak-btns">
       ${room
-        ? html`<button type="button" class="leak-b" @click=${() => selectRoom(host, room.key)}>
+        ? html`<button type="button" class="leak-b"
+            aria-label=${host.tx('Показать комнату с протечкой', 'Show the room with the leak')}
+            @click=${() => selectRoom(host, room.key)}>
             ${host.t('Show')}</button>`
         : nothing}
       ${valve

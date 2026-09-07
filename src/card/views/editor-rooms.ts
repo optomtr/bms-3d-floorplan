@@ -7,20 +7,26 @@ import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import { onAddZone, onClearZoneBg, onDeleteZone, onMoveZone, onMoveZoneEntity, onSelectZone, onSetZoneBg, onSetZoneName, onSetZoneParent, onSetZoneSensor, onToggleZoneDevice, onUploadZoneBg, onZonePlace } from '../editor-commands';
 import { boundElsewhere, candidateEntities, entityOptionText, entityShort, sensorCandidates } from '../entities';
+import { edBtn } from './editor-panel';
 
-/** Раздел «Rooms — manual icon & devices» панели редактора. */
+/** Раздел «Комнаты — свой значок и устройства» панели редактора. */
 export function renderEditorRooms(host: BmsFloorplanCard) {
+  const T = (ru: string, en: string) => host.tx(ru, en);
   return html`
-      <div class="panel-group">Rooms — manual icon &amp; devices</div>
+      <div class="panel-group">${T('Комнаты — свой значок и устройства', 'Rooms — manual icon & devices')}</div>
       <div class="toolrow">
-        <button class="btn" title="Add a room control icon you place by hand"
-          @click=${() => onAddZone(host)}>➕ Add room</button>
+        ${edBtn(host, {
+          icon: 'plus', label: T('Добавить комнату', 'Add room'),
+          hint: T('Добавить значок комнаты и поставить его вручную', 'Add a room control icon you place by hand'),
+          onClick: () => onAddZone(host),
+        })}
         ${host.editZones.length
-          ? html`<select class="select" @change=${(e: Event) =>
+          ? html`<select class="select" aria-label=${T('Выбрать комнату', 'Select a room')}
+              @change=${(e: Event) =>
               onSelectZone(host, (e.target as HTMLSelectElement).value || null)}>
-              <option value="">— select —</option>
+              <option value="">${T('— выберите —', '— select —')}</option>
               ${host.editZones.map(
-                (z) => html`<option value=${z.id} ?selected=${z.id === host.editSelectedZoneId}>${z.name || 'Room'}</option>`,
+                (z) => html`<option value=${z.id} ?selected=${z.id === host.editSelectedZoneId}>${z.name || T('Комната', 'Room')}</option>`,
               )}
             </select>`
           : nothing}
@@ -29,89 +35,125 @@ export function renderEditorRooms(host: BmsFloorplanCard) {
         ? (() => {
             const i = host.editZones.findIndex((z) => z.id === host.editSelectedZoneId);
             return html`<div class="toolrow">
-              <span class="hint">Room order:</span>
-              <button class="btn" title="Move room up" ?disabled=${i <= 0}
-                @click=${() => onMoveZone(host, host.editSelectedZoneId!, -1)}>▲ Up</button>
-              <button class="btn" title="Move room down" ?disabled=${i < 0 || i >= host.editZones.length - 1}
-                @click=${() => onMoveZone(host, host.editSelectedZoneId!, 1)}>▼ Down</button>
+              <span class="hint">${T('Порядок комнат:', 'Room order:')}</span>
+              ${edBtn(host, {
+                icon: 'arrowUp', label: T('Выше', 'Up'), hint: T('Поднять комнату в списке', 'Move the room up'),
+                disabled: i <= 0, onClick: () => onMoveZone(host, host.editSelectedZoneId!, -1),
+              })}
+              ${edBtn(host, {
+                icon: 'arrowDown', label: T('Ниже', 'Down'), hint: T('Опустить комнату в списке', 'Move the room down'),
+                disabled: i < 0 || i >= host.editZones.length - 1,
+                onClick: () => onMoveZone(host, host.editSelectedZoneId!, 1),
+              })}
             </div>`;
           })()
         : nothing}
       ${(() => {
         const z = host.editZones.find((x) => x.id === host.editSelectedZoneId);
         if (!z) return host.editZones.length
-          ? html`<span class="hint">select a room to place its icon &amp; pick devices</span>`
-          : html`<span class="hint">auto-groups devices by room; add a manual room to override a mis-detected one</span>`;
+          ? html`<span class="hint">${T(
+              'выберите комнату, чтобы поставить её значок и отметить устройства',
+              'select a room to place its icon & pick devices',
+            )}</span>`
+          : html`<span class="hint">${T(
+              'устройства группируются по комнатам сами; добавьте комнату вручную, если группировка ошиблась',
+              'auto-groups devices by room; add a manual room to override a mis-detected one',
+            )}</span>`;
         const tOpts = sensorCandidates(host, 'temp', z.tempSensor);
         const fOpts = sensorCandidates(host, 'temp', z.floorSensor);
         const hOpts = sensorCandidates(host, 'humidity', z.humiditySensor);
         return html`<div class="toolrow">
-            <input class="name-input" type="text" placeholder="Room name"
+            <input class="name-input" type="text" placeholder=${T('Название комнаты', 'Room name')}
+              aria-label=${T('Название комнаты', 'Room name')}
               .value=${z.name ?? ''} @input=${(e: Event) => onSetZoneName(host, z.id, e)} />
           </div>
           <div class="toolrow">
-            <label class="hint">Внутри комнаты (подкомната):</label>
-            <select class="select" @change=${(e: Event) => onSetZoneParent(host, z.id, e)}>
-              <option value="" ?selected=${!z.parentId}>— (отдельная комната)</option>
+            <label class="hint">${T('Внутри комнаты (подкомната):', 'Inside a room (sub-room):')}</label>
+            <select class="select" aria-label=${T('Родительская комната', 'Parent room')}
+              @change=${(e: Event) => onSetZoneParent(host, z.id, e)}>
+              <option value="" ?selected=${!z.parentId}>${T('— (отдельная комната)', '— (a room of its own)')}</option>
               ${host.editZones
                 .filter((o) => o.id !== z.id && !o.parentId)
-                .map((o) => html`<option value=${o.id} ?selected=${z.parentId === o.id}>${o.name || 'Room'}</option>`)}
+                .map((o) => html`<option value=${o.id} ?selected=${z.parentId === o.id}>${o.name || T('Комната', 'Room')}</option>`)}
             </select>
           </div>
-          <div class="panel-group">Датчики комнаты (нет = пусто, без догадок)</div>
+          <div class="panel-group">${T('Датчики комнаты (нет = пусто, без догадок)', 'Room sensors (none = blank, never guessed)')}</div>
           <div class="toolrow">
-            <label class="hint">Температура:</label>
-            <select class="select" @change=${(e: Event) => onSetZoneSensor(host, z.id, 'temp', e)}>
-              <option value="" ?selected=${!z.tempSensor}>— (нет)</option>
+            <label class="hint">${T('Температура:', 'Temperature:')}</label>
+            <select class="select" aria-label=${T('Датчик температуры воздуха', 'Air temperature sensor')}
+              @change=${(e: Event) => onSetZoneSensor(host, z.id, 'temp', e)}>
+              <option value="" ?selected=${!z.tempSensor}>${T('— (нет)', '— (none)')}</option>
               ${tOpts.map((o) => html`<option value=${o.id} ?selected=${z.tempSensor === o.id}>${o.label}</option>`)}
             </select>
           </div>
           <div class="toolrow">
-            <label class="hint">Температура пола:</label>
-            <select class="select" @change=${(e: Event) => onSetZoneSensor(host, z.id, 'floor', e)}>
-              <option value="" ?selected=${!z.floorSensor}>— (нет)</option>
+            <label class="hint">${T('Температура пола:', 'Floor temperature:')}</label>
+            <select class="select" aria-label=${T('Датчик температуры пола', 'Floor temperature sensor')}
+              @change=${(e: Event) => onSetZoneSensor(host, z.id, 'floor', e)}>
+              <option value="" ?selected=${!z.floorSensor}>${T('— (нет)', '— (none)')}</option>
               ${fOpts.map((o) => html`<option value=${o.id} ?selected=${z.floorSensor === o.id}>${o.label}</option>`)}
             </select>
           </div>
           <div class="toolrow">
-            <label class="hint">Влажность:</label>
-            <select class="select" @change=${(e: Event) => onSetZoneSensor(host, z.id, 'humidity', e)}>
-              <option value="" ?selected=${!z.humiditySensor}>— (нет)</option>
+            <label class="hint">${T('Влажность:', 'Humidity:')}</label>
+            <select class="select" aria-label=${T('Датчик влажности', 'Humidity sensor')}
+              @change=${(e: Event) => onSetZoneSensor(host, z.id, 'humidity', e)}>
+              <option value="" ?selected=${!z.humiditySensor}>${T('— (нет)', '— (none)')}</option>
               ${hOpts.map((o) => html`<option value=${o.id} ?selected=${z.humiditySensor === o.id}>${o.label}</option>`)}
             </select>
           </div>
           <div class="toolrow">
-            <button class="btn ${host.editZonePlacing ? 'active' : ''}" title="Then tap the floor"
-              @click=${() => onZonePlace(host)}>📍 ${host.editZonePlacing ? 'Tap the floor…' : 'Place icon'}</button>
-            <button class="btn" title="Delete this room" @click=${() => onDeleteZone(host, z.id)}>🗑 Delete</button>
+            ${edBtn(host, {
+              icon: 'pin',
+              label: host.editZonePlacing ? T('Коснитесь пола…', 'Tap the floor…') : T('Поставить значок', 'Place the icon'),
+              hint: T('Затем коснитесь пола в нужном месте', 'Then tap the floor where it should sit'),
+              cls: host.editZonePlacing ? 'active' : '',
+              onClick: () => onZonePlace(host),
+            })}
+            ${edBtn(host, {
+              icon: 'trash', label: T('Удалить', 'Delete'), hint: T('Удалить эту комнату', 'Delete this room'),
+              onClick: () => onDeleteZone(host, z.id),
+            })}
           </div>
-          <div class="panel-group">Фон комнаты (виден на планшете при выборе)</div>
+          <div class="panel-group">${T('Фон комнаты (виден на планшете при выборе)', 'Room photo (shown on the tablet when selected)')}</div>
           <div class="toolrow">
-            <input class="name-input" type="text" placeholder="URL или /local/room.jpg"
+            <input class="name-input" type="text" placeholder=${T('URL или /local/room.jpg', 'A URL or /local/room.jpg')}
+              aria-label=${T('Адрес фонового снимка комнаты', 'Room photo address')}
               .value=${z.bgImage && !z.bgImage.startsWith('data:') ? z.bgImage : ''}
               @change=${(e: Event) => onSetZoneBg(host, z.id, e)} />
           </div>
           <div class="toolrow">
-            <label class="btn" title="Загрузить фото с устройства">📷 Загрузить<input
+            <label class="btn ic-btn" title=${T('Загрузить фото с устройства', 'Upload a photo from this device')}
+              >${host.ic('camera')}<span class="ic-btn-lab">${T('Загрузить фото', 'Upload a photo')}</span><input
               type="file" accept="image/*" style="display:none"
+              aria-label=${T('Загрузить фото комнаты', 'Upload a room photo')}
               @change=${(e: Event) => onUploadZoneBg(host, z.id, e)} /></label>
             ${z.bgImage
-              ? html`<button class="btn" title="Убрать фон" @click=${() => onClearZoneBg(host, z.id)}>🗑</button>
-                  <span class="hint">${z.bgImage.startsWith('data:') ? 'фото загружено' : 'задан URL'}</span>`
-              : html`<span class="hint">не задан</span>`}
+              ? html`${edBtn(host, {
+                    icon: 'trash', label: T('Убрать фон', 'Remove the photo'),
+                    hint: T('Убрать фон комнаты', 'Remove the room photo'),
+                    onClick: () => onClearZoneBg(host, z.id),
+                  })}
+                  <span class="hint">${z.bgImage.startsWith('data:') ? T('фото загружено', 'photo uploaded') : T('задан URL', 'URL set')}</span>`
+              : html`<span class="hint">${T('не задан', 'not set')}</span>`}
           </div>
           ${z.entities.length
-            ? html`<span class="hint">In this room — order (▲▼), ✕ removes:</span>
+            ? html`<span class="hint">${T('В этой комнате — порядок и удаление:', 'In this room — order and removal:')}</span>
                 <div class="zone-order">
                   ${z.entities.map(
                     (eid, i) => html`<div class="zrow">
                       <span class="zname" title=${eid}>${entityShort(host, eid)}</span>
-                      <button class="zbtn" title="Move up" ?disabled=${i === 0}
-                        @click=${() => onMoveZoneEntity(host, z.id, eid, -1)}>▲</button>
-                      <button class="zbtn" title="Move down" ?disabled=${i === z.entities.length - 1}
-                        @click=${() => onMoveZoneEntity(host, z.id, eid, 1)}>▼</button>
-                      <button class="zbtn del" title="Remove from room"
-                        @click=${() => onToggleZoneDevice(host, z.id, eid)}>✕</button>
+                      <button class="zbtn" title=${T('Поднять', 'Move up')}
+                        aria-label=${`${entityShort(host, eid)} — ${T('поднять в списке', 'move up')}`}
+                        ?disabled=${i === 0}
+                        @click=${() => onMoveZoneEntity(host, z.id, eid, -1)}>${host.ic('arrowUp')}</button>
+                      <button class="zbtn" title=${T('Опустить', 'Move down')}
+                        aria-label=${`${entityShort(host, eid)} — ${T('опустить в списке', 'move down')}`}
+                        ?disabled=${i === z.entities.length - 1}
+                        @click=${() => onMoveZoneEntity(host, z.id, eid, 1)}>${host.ic('arrowDown')}</button>
+                      <button class="zbtn del" title=${T('Убрать из комнаты', 'Remove from the room')}
+                        aria-label=${`${entityShort(host, eid)} — ${T('убрать из комнаты', 'remove from the room')}`}
+                        @click=${() => onToggleZoneDevice(host, z.id, eid)}>${host.ic('close')}</button>
                     </div>`,
                   )}
                 </div>`
@@ -127,10 +169,12 @@ export function renderEditorRooms(host: BmsFloorplanCard) {
             const hits = q ? pool.filter((id) => entityOptionText(host, id).toLowerCase().includes(q)) : pool;
             const LIMIT = 60; // a whole house is thousands of entities — keep the DOM sane
             const shown = hits.slice(0, LIMIT);
-            return html`<div class="panel-group">Добавить устройство в комнату</div>
-              <div class="toolrow">
+            return html`<div class="panel-group">${T('Добавить устройство в комнату', 'Add a device to the room')}</div>
+              <div class="toolrow search-row">
+                <span class="search-ic">${host.ic('search')}</span>
                 <input class="select wide" type="search"
-                  placeholder="🔍 имя, комната или entity_id…"
+                  placeholder=${T('имя, комната или entity_id…', 'name, room or entity_id…')}
+                  aria-label=${T('Поиск устройства', 'Search for a device')}
                   .value=${host.editZoneSearch}
                   @input=${(e: Event) => (host.editZoneSearch = (e.target as HTMLInputElement).value)} />
               </div>
@@ -140,15 +184,19 @@ export function renderEditorRooms(host: BmsFloorplanCard) {
                         const taken = boundElsewhere(host, id, z.id);
                         return html`<label class="zone-dev ${taken ? 'taken' : ''}"
                           title=${entityOptionText(host, id)}>
-                          <input type="checkbox" @change=${() => onToggleZoneDevice(host, z.id, id)} />
+                          <input type="checkbox" aria-label=${entityOptionText(host, id)}
+                            @change=${() => onToggleZoneDevice(host, z.id, id)} />
                           <span>${entityShort(host, id)}${taken ? html`<em class="taken-tag"> · ${taken}</em>` : nothing}</span>
                         </label>`;
                       })}
                     </div>
                     ${hits.length > LIMIT
-                      ? html`<span class="hint">показано ${LIMIT} из ${hits.length} — уточните поиск</span>`
+                      ? html`<span class="hint">${T(
+                          `показано ${LIMIT} из ${hits.length} — уточните поиск`,
+                          `showing ${LIMIT} of ${hits.length} — narrow the search`,
+                        )}</span>`
                       : nothing}`
-                : html`<span class="hint">ничего не найдено</span>`}`;
+                : html`<span class="hint">${T('ничего не найдено', 'nothing found')}</span>`}`;
           })()}`;
       })()}
   `;

@@ -15,12 +15,25 @@ export function historyPts(host: BmsFloorplanCard, entityId?: string): [number, 
   return c ? c.pts : null;
 }
 
+/** Что именно происходит с суточной историей датчика. Раньше все три исхода
+ *  выглядели ОДИНАКОВО — пустым местом на месте графика, — и «датчик не
+ *  привязан» было не отличить от «архив не отвечает». */
+export type HistoryStatus = 'loading' | 'failed' | 'empty' | 'ok';
+
+export function historyStatus(host: BmsFloorplanCard, entityId?: string): HistoryStatus {
+  if (!entityId) return 'empty';
+  const c = host.histCache.get(entityId);
+  if (!c) return 'loading'; // первый запрос ещё не вернулся
+  if (c.ok === false) return 'failed'; // архив не ответил
+  return c.pts.length >= 2 ? 'ok' : 'empty'; // ответил, но данных нет
+}
+
 /** Store a fetched series, keeping the cache BOUNDED. A panel that runs for
  *  weeks visits many rooms; without a cap this map grew a 120-point series
  *  per sensor ever looked at and never gave any of it back. Oldest fetch
  *  first — it will simply be re-fetched if that room is opened again. */
-export function putHistory(host: BmsFloorplanCard, entityId: string, pts: [number, number][]): void {
-  host.histCache.set(entityId, { pts, ts: Date.now() });
+export function putHistory(host: BmsFloorplanCard, entityId: string, pts: [number, number][], ok = true): void {
+  host.histCache.set(entityId, { pts, ts: Date.now(), ok });
   while (host.histCache.size > HIST_CACHE_MAX) {
     let oldestKey: string | null = null;
     let oldestTs = Infinity;
@@ -55,6 +68,9 @@ export async function fetchHistory(host: BmsFloorplanCard, entityId: string): Pr
   };
   try {
     let pts: [number, number][] = [];
+    // Ответил ли ХОТЬ ОДИН транспорт. Без этого «recorder молчит» и «за сутки
+    // нечего показывать» сливаются в один пустой прямоугольник.
+    let reached = false;
     if (hass.callWS) {
       try {
         const res = await hass.callWS({
@@ -67,20 +83,26 @@ export async function fetchHistory(host: BmsFloorplanCard, entityId: string): Pr
           significant_changes_only: false,
         });
         pts = toPts(res?.[entityId] ?? []);
+        reached = true;
       } catch { /* fall through to REST */ }
     }
     if (!pts.length && hass.callApi) {
-      const path =
-        `history/period/${start.toISOString()}?filter_entity_id=${entityId}` +
-        `&end_time=${encodeURIComponent(end.toISOString())}&minimal_response&no_attributes`;
-      const rest = await hass.callApi('GET', path);
-      pts = toPts(Array.isArray(rest) ? (rest[0] ?? []) : []);
+      try {
+        const path =
+          `history/period/${start.toISOString()}?filter_entity_id=${entityId}` +
+          `&end_time=${encodeURIComponent(end.toISOString())}&minimal_response&no_attributes`;
+        const rest = await hass.callApi('GET', path);
+        pts = toPts(Array.isArray(rest) ? (rest[0] ?? []) : []);
+        reached = true;
+      } catch { /* обе двери закрыты — это и есть «архив не отвечает» */ }
     }
     // Down-sample a long series so the SVG stays light (≤120 points).
     const step = Math.ceil(pts.length / 120) || 1;
-    putHistory(host, entityId, step > 1 ? pts.filter((_, i) => i % step === 0) : pts);
+    putHistory(host, entityId, step > 1 ? pts.filter((_, i) => i % step === 0) : pts, reached);
   } catch {
-    putHistory(host, entityId, []);
+    // Архив не ответил. Запоминаем ИМЕННО это, иначе «сломался recorder» и
+    // «за сутки нечего показывать» на экране неразличимы.
+    putHistory(host, entityId, [], false);
   } finally {
     host.histInFlight.delete(entityId);
     host.requestUpdate();

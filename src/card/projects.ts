@@ -13,8 +13,14 @@ import { applyHass } from './state';
 export async function loadActiveProject(host: BmsFloorplanCard): Promise<void> {
   if (!host.config || !host.sceneManager) return;
   host.loadError = undefined;
+  host.loadErrorDetail = undefined;
   host.planWarning = undefined;
   host.planLoaded = false;
+  // Пока плана нет, карточка показывала пустой тёмный прямоугольник — человек
+  // читает его как поломку, а не как «идёт загрузка».
+  host.planLoading = true;
+  host.isDemoPlan = false;
+  host.requestUpdate();
   try {
     const plan = await resolvePlan(host);
     host.currentPlan = plan;
@@ -39,8 +45,15 @@ export async function loadActiveProject(host: BmsFloorplanCard): Promise<void> {
       applyHass(host, host.hass);
     }
   } catch (err: any) {
-    host.loadError = err?.message ?? String(err);
+    // Техническую строку сохраняем отдельно: объяснение человеку и «Failed to
+    // fetch …: 404» — разные вещи. Разбор и кнопка «Повторить» —
+    // в card/views/plan-state.ts.
+    host.loadErrorDetail = err?.message ?? String(err);
+    host.loadError = host.loadErrorDetail;
     console.error('[3d-floorplan] load failed:', err);
+  } finally {
+    host.planLoading = false;
+    host.requestUpdate();
   }
 }
 
@@ -68,7 +81,11 @@ export async function resolvePlan(host: BmsFloorplanCard): Promise<FloorPlan> {
     host.currentProjectId = id;
     return host.storedProjects.projects[id];
   }
+  // Ничего не настроено — показываем ВСТРОЕННЫЙ ПРИМЕР. Он обязан быть
+  // подписан как пример: иначе клиент видит чужую квартиру и не понимает, чей
+  // это дом и почему в нём чужие комнаты (см. renderDemoBanner).
   host.currentProjectId = null;
+  host.isDemoPlan = true;
   return DEMO_PLAN;
 }
 
@@ -83,7 +100,7 @@ export async function loadProjectRef(host: BmsFloorplanCard, proj: ProjectRef): 
 
 export async function fetchPlan(url: string): Promise<FloorPlan> {
   const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  if (!res.ok) throw new Error(`${url} — HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`);
   return (await res.json()) as FloorPlan;
 }
 
@@ -106,13 +123,16 @@ export async function onNewPlan(host: BmsFloorplanCard): Promise<void> {
   );
   if (!ok) return;
   if (!host.editor) return;
-  const name = `Plan ${host.projectList.length + 1}`;
+  const name = host.tx(`План ${host.projectList.length + 1}`, `Plan ${host.projectList.length + 1}`);
   // New is an unsaved project — don't touch currentProjectId (the view plan).
   // It gets a fresh id only on Save, so it never overwrites another project.
   host.editingProjectId = null;
   host.editor.loadPlan(blankPlan(name));
   host.editPlanName = name;
-  host.showToast('New project — draw it, then Save to keep it');
+  host.showToast(host.tx(
+    'Новый проект — начертите его и нажмите «Сохранить»',
+    'New project — draw it, then Save to keep it',
+  ));
 }
 
 export function onRenamePlan(host: BmsFloorplanCard, e: Event): void {
@@ -162,7 +182,7 @@ export async function onSelectStorageProject(host: BmsFloorplanCard, e: Event): 
       applyHass(host, host.hass);
     }
   }
-  host.showToast(`Loaded "${plan.name || id}"`);
+  host.showToast(host.tx(`Открыт «${plan.name || id}»`, `Loaded "${plan.name || id}"`));
 }
 
 export async function onDeleteProject(host: BmsFloorplanCard): Promise<void> {
@@ -181,7 +201,7 @@ export async function onDeleteProject(host: BmsFloorplanCard): Promise<void> {
   }
   host.storedProjects = loaded.data;
   if (!id || !host.storedProjects.projects[id]) {
-    host.showToast('This project is not saved yet');
+    host.showToast(host.tx('Этот проект ещё не сохранён', 'This project is not saved yet'));
     return;
   }
   const name = host.storedProjects.projects[id].name || id;
@@ -208,7 +228,7 @@ export async function onDeleteProject(host: BmsFloorplanCard): Promise<void> {
     host.editor.loadPlan(JSON.parse(JSON.stringify(next)));
     host.editPlanName = next.name ?? '';
   }
-  host.showToast('Project deleted');
+  host.showToast(host.tx('Проект удалён', 'Project deleted'));
 }
 
 export function onOpenImport(host: BmsFloorplanCard): void {
@@ -233,26 +253,35 @@ export async function onImportLoad(host: BmsFloorplanCard): Promise<void> {
     // Accept native Zircon3D `spacePlan` exports by converting them on the fly.
     plan = isZirconPlan(raw) ? convertZircon(raw) : (raw as FloorPlan);
     if (!plan || !Array.isArray(plan.floors) || plan.floors.length === 0) {
-      throw new Error('Plan must have a non-empty "floors" array');
+      throw new Error(host.tx(
+        'в плане нет ни одного этажа (поле "floors" пустое)',
+        'plan must have a non-empty "floors" array',
+      ));
     }
   } catch (err: any) {
-    host.showToast(`Import failed: ${err?.message ?? 'invalid JSON'}`);
+    host.showToast(host.tx(
+      `Не удалось загрузить план: ${err?.message ?? 'это не JSON'}`,
+      `Import failed: ${err?.message ?? 'invalid JSON'}`,
+    ));
     return;
   }
   if (!host.editor) host.doEnterEdit();
   if (!host.editor) return;
   host.editor.loadPlan(plan);
   host.editingProjectId = null; // imported = a new project until saved
-  host.editPlanName = plan.name ?? 'Imported';
+  host.editPlanName = plan.name ?? host.tx('Загруженный план', 'Imported');
   host.importOpen = false;
   await onSavePlan(host);
-  host.showToast(`Imported "${plan.name ?? 'plan'}" and saved`);
+  host.showToast(host.tx(
+    `«${plan.name ?? 'план'}» загружен и сохранён`,
+    `Imported "${plan.name ?? 'plan'}" and saved`,
+  ));
 }
 
 export async function onSavePlan(host: BmsFloorplanCard): Promise<void> {
   if (!host.editor) return;
   const plan = host.editor.plan;
-  if (!plan.name) plan.name = host.editPlanName || 'Plan';
+  if (!plan.name) plan.name = host.editPlanName || host.tx('План', 'Plan');
   // Re-read the shared set first, then apply only THIS project, so we never
   // clobber projects saved meanwhile on another device/tab. A FAILED read
   // looks exactly like an empty store, so saving on top of one would delete

@@ -14,7 +14,7 @@ import { shortLightName } from '../entities';
 import { fmtClockDate, fmtClockTime, roomIcon, ruPlural } from '../i18n';
 import { closeDetail, detailRoom, openDetail } from '../scene';
 import { onSleep } from '../session';
-import { allOffHouse, lockAction } from '../state';
+import { allOffHouse, isEntityOffline, lockAction } from '../state';
 import { renderRoomSpark, renderTempChips, renderViewToggle, roomCards } from './room-panel';
 
 export function renderOverview(host: BmsFloorplanCard) {
@@ -33,8 +33,12 @@ export function renderOverview(host: BmsFloorplanCard) {
       <div class="ov-actions">
         <div class="sumcard act"><div class="sumn">${stats.onCount}</div><div class="suml">${host.t('lights on')}</div></div>
         <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${host.t('on average')}</div></div>
-        <button type="button" class="ov-master" @click=${() => allOffHouse(host)}>${host.ic('power')}<span>${host.t('All off short')}</span></button>
-        <button type="button" class="bsleep" title="Screensaver" @click=${(e: Event) => onSleep(host, e)}>${host.ic('moon')}</button>
+        <button type="button" class="ov-master"
+          aria-label=${host.tx('Выключить всё в доме', 'Turn everything off')}
+          @click=${() => allOffHouse(host)}>${host.ic('power')}<span>${host.t('All off short')}</span></button>
+        <button type="button" class="bsleep" title=${host.tx('Заставка', 'Screensaver')}
+          aria-label=${host.tx('Включить заставку', 'Turn on the screensaver')}
+          @click=${(e: Event) => onSleep(host, e)}>${host.ic('moon')}</button>
         ${renderViewToggle(host)}
       </div>
     </div>
@@ -59,7 +63,17 @@ export function renderOverviewRooms(host: BmsFloorplanCard, num: (v: any, d: num
   for (const rs of floors) for (const r of rs) host.overviewRoomByKey.set(r.key, r);
   const multi = host.floorNames.length > 1;
   const anyRoom = floors.some((rs) => rs.length);
-  if (!anyRoom) return html`<div class="rp-empty">${host.t('No devices in this room')}</div>`;
+  // Это ЭКРАН ДОМА, а не комната: раньше здесь стояло «В этой комнате нет
+  // устройств» — фраза не про этот экран и без единой подсказки, что делать.
+  if (!anyRoom) {
+    return html`<div class="rp-empty ov-empty">
+      <div class="ov-empty-title">${host.tx('Комнаты ещё не заданы', 'No rooms set up yet')}</div>
+      <div class="ov-empty-note">${host.tx(
+        'Откройте редактор (удерживайте нижний левый угол 5 секунд), раздел «Комнаты» — добавьте комнату и отметьте её устройства.',
+        'Open the editor (hold the bottom-left corner for 5 seconds), section "Rooms" — add a room and tick its devices.',
+      )}</div>
+    </div>`;
+  }
   return floors.map((rs, fi) => {
     if (!rs.length) return nothing;
     // Nest sub-rooms (zones whose parentId resolves to a sibling zone) inside
@@ -78,8 +92,18 @@ export function renderOverviewRooms(host: BmsFloorplanCard, num: (v: any, d: num
 export function renderLightChip(host: BmsFloorplanCard, id: string, roomName?: string) {
   const lon = host.effState(id) === 'on';
   const nm = host.hass?.states[id]?.attributes?.friendly_name ?? id;
-  return html`<button type="button" class="lightseg ${lon ? 'on' : ''}" title=${nm}
-    @click=${(e: Event) => { e.stopPropagation(); host.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}><span>${shortLightName(host, id, roomName)}</span></button>`;
+  // Светильник, до которого нет связи, не «выключен»: кнопка гасится и прямо
+  // говорит почему, вместо того чтобы молча ничего не делать при нажатии.
+  const off = isEntityOffline(host, id);
+  const label = shortLightName(host, id, roomName);
+  return html`<button type="button" class="lightseg ${lon ? 'on' : ''} ${off ? 'na' : ''}"
+    title=${off ? `${nm} — ${host.tx('нет связи', 'no connection')}` : nm}
+    aria-label=${off
+      ? `${nm} — ${host.tx('нет связи, управление недоступно', 'no connection, control unavailable')}`
+      : `${nm} — ${lon ? host.tx('выключить', 'turn off') : host.tx('включить', 'turn on')}`}
+    ?disabled=${off}
+    @click=${(e: Event) => { e.stopPropagation(); host.svc(id.split('.')[0], 'toggle', {}, id, lon ? 'off' : 'on'); }}
+  ><span>${label}</span>${off ? html`<span class="lightseg-na">${host.ic('wifiOff')}</span>` : nothing}</button>`;
 }
 
 export function renderOverviewCard(host: BmsFloorplanCard, room: RoomInfo, num: (v: any, d: number) => string, children: RoomInfo[] = []) {
@@ -104,6 +128,7 @@ export function renderOverviewCard(host: BmsFloorplanCard, room: RoomInfo, num: 
   if (lock) {
     const locked = host.effState(lock.entity_id) === 'locked';
     extraChip = html`<button type="button" class="qstat lockq ${locked ? 'locked' : 'unlocked'}"
+      aria-label=${`${host.cardName(lock.entity_id)} — ${locked ? host.tx('открыть замок', 'unlock') : host.tx('запереть замок', 'lock')}`}
       @click=${(e: Event) => { e.stopPropagation(); lockAction(host, lock.entity_id, locked ? 'unlock' : 'lock'); }}>
       ${host.ic(locked ? 'lockClosed' : 'lockOpen')}${locked ? host.t('Locked') : host.t('Unlocked')}</button>`;
   } else if (climate) {
@@ -122,7 +147,9 @@ export function renderOverviewCard(host: BmsFloorplanCard, room: RoomInfo, num: 
         <div class="rctemp">${[tempStr, humStr].filter(Boolean).join(' · ')}${floorStr ? html`<span class="rcfloor"> · ${host.t('Floor')} ${floorStr}</span>` : nothing}</div>
       </div>
       ${allIds.length
-        ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}" title="Toggle"
+        ? html`<button type="button" class="sw ${anyOn ? 'on' : ''}"
+            title=${host.tx('Включить или выключить', 'Toggle')}
+            aria-label=${`${room.name || host.t('Room')} — ${anyOn ? host.tx('выключить свет', 'lights off') : host.tx('включить свет', 'lights on')}`}
             @click=${(e: Event) => { e.stopPropagation(); host.onToggleAll(toggleEnts); }}><span class="sw-k"></span></button>`
         : nothing}
     </div>
@@ -170,7 +197,9 @@ export function renderDetail(host: BmsFloorplanCard) {
     <div class="detail-back" @click=${() => closeDetail(host)}></div>
     <div class="detail" @click=${(e: Event) => e.stopPropagation()}>
       <div class="dhead">
-        <button type="button" class="dback" title="Back" @click=${() => closeDetail(host)}>${host.ic('arrowLeft')}</button>
+        <button type="button" class="dback" title=${host.tx('Назад', 'Back')}
+          aria-label=${host.tx('Назад, к списку комнат', 'Back to the room list')}
+          @click=${() => closeDetail(host)}>${host.ic('arrowLeft')}</button>
         <div class="cgrow">
           <div class="dtitle">${room.name || host.t('Room')}</div>
           <div class="dsub">${n} ${ruPlural(n, 'устройство', 'устройства', 'устройств')}</div>
