@@ -464,4 +464,50 @@ test.describe('Новый конструктор: оболочка', () => {
     // Снимок без содержимого ничего не показывает — убеждаемся, что было что снимать.
     expect(await has(page, '.e2-shell')).toBe(true);
   });
+
+  test('3D можно крутить во время черчения: касание доходит до холста, а не до заглушки', async ({ page }) => {
+    // Жалоба владельца словами: «почему 3D нельзя двигать во время
+    // редактирования?». Причина была не в камере — она включена, — а в том, что
+    // место под холст (.e2-3d-slot) позиционировано и нарисовано ПОСЛЕ холста,
+    // лежит поверх него и забирает касания себе: видно, но не повернуть.
+    // Ширина под окно проверки (1100): при 1440 правая колонка уходит за край
+    // окна, и elementFromPoint честно возвращает null — мерить было бы нечего.
+    await openShell(page, '1000px', '760px');
+
+    const moved = await page.evaluate(async () => {
+      const c = window.BMS.card;
+      const R = window.BMS.root();
+      const slot = R.querySelector('.e2-3d-slot') as HTMLElement;
+      const sm = c.sceneManager;
+      const r = slot.getBoundingClientRect();
+      const cx = Math.round(r.x + r.width / 2);
+      const cy = Math.round(r.y + r.height / 2);
+      const before = sm.camera.position.clone();
+      // Целимся в ЗАГЛУШКУ — именно туда попадает палец человека.
+      const target = R.elementFromPoint(cx, cy) as HTMLElement | null;
+      (window as any).__probe = {
+        slot: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
+        win: [innerWidth, innerHeight],
+        target: target ? target.tagName : null,
+      };
+      const send = (type: string, x: number, y: number) =>
+        target?.dispatchEvent(new PointerEvent(type, {
+          clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1,
+          pointerId: 1, pointerType: 'mouse', bubbles: true, composed: true, cancelable: true,
+        }));
+      send('pointerdown', cx, cy);
+      for (let i = 1; i <= 10; i++) send('pointermove', cx + i * 6, cy);
+      send('pointerup', cx + 60, cy);
+      await new Promise((res) => setTimeout(res, 400));
+      return {
+        подЗаглушкой: target ? target.tagName.toLowerCase() : null,
+        сдвиг: +before.distanceTo(sm.camera.position).toFixed(3),
+        камераВключена: sm.controls.enabled,
+      };
+    });
+
+    expect(moved.подЗаглушкой, 'под пальцем в области 3D обязан быть холст, а не заглушка').toBe('canvas');
+    expect(moved.камераВключена, 'камера в новом конструкторе не выключается').toBe(true);
+    expect(moved.сдвиг, 'протяжка по 3D обязана повернуть камеру').toBeGreaterThan(0.5);
+  });
 });

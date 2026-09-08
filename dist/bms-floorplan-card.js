@@ -26042,7 +26042,7 @@ class SA {
     this.teardown = [], this.markers.dispose(), this.clearPlan(), this.clearPreview(), this.clearGizmo(), this.setUnderlay(null), this.setSelection(null), this.gridHelper && (this.scene.remove(this.gridHelper), bs(this.gridHelper), this.gridHelper = void 0), this.defaultBackdrop?.dispose(), this.scene.background = null, this.sun?.shadow?.map?.dispose(), this.scene.clear(), this.onPick = void 0, this.onRoomsChanged = void 0, this.onBackdrop = void 0, this.onGround = void 0, this.onDrag = void 0, this.lastHass = void 0, this.controls.dispose(), this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.width = 0, this.renderer.domElement.height = 0, this.renderer.domElement.remove();
   }
 }
-const EA = "0.177.6", Kp = [
+const EA = "0.177.7", Kp = [
   { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "input_boolean"] },
   { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate", "fan"] },
   { key: "curtains", label: "Curtains", icon: "curtain", behaviors: ["cover"] },
@@ -38560,6 +38560,12 @@ const Nk = Qt`
     /* ---- Холст 3D ставится ровно на место-заглушку ---------------------- */
     ha-card.e2 .viewport {
       position: absolute;
+      /* Явный слой, а не «как получится по порядку разметки». Контейнер панелей
+         позиционирован и нарисован ПОСЛЕ холста, поэтому без этой строки он
+         накрывает 3D и забирает касания себе: видно, но не повернуть. Холст
+         обязан быть выше контейнера, но ниже хрома (--z-chrome): план,
+         инспектор и верхняя полоса по-прежнему перекрывают его. */
+      z-index: var(--z-over);
       left: var(--e2-vp-x, 0px);
       top: var(--e2-vp-y, 0px);
       width: var(--e2-vp-w, 1px);
@@ -38712,13 +38718,18 @@ const Nk = Qt`
     .e2-grip:focus-visible {
       background: linear-gradient(90deg, transparent 4px, var(--pri) 4px, var(--pri) 10px, transparent 10px);
     }
-    /* Дыра: сюда смотрит общий холст сцены, своего фона быть не должно. */
+    /* Дыра: сюда смотрит общий холст сцены, своего фона быть не должно.
+       И дырой она обязана быть НЕ ТОЛЬКО ДЛЯ ГЛАЗ. Заглушка позиционирована и
+       нарисована после холста, поэтому лежит поверх него и без этой строки
+       забирает себе все касания: 3D видно, а повернуть его нельзя — ровно на
+       это и пожаловался владелец. Касания обязаны проходить насквозь, к холсту. */
     .e2-3d-slot {
       position: absolute;
       top: 0;
       right: 0;
       width: var(--e2-side);
       height: var(--e2-3d-h);
+      pointer-events: none;
     }
     .e2-inspect-wrap {
       position: absolute;
