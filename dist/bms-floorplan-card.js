@@ -26042,7 +26042,7 @@ class fA {
     this.teardown = [], this.markers.dispose(), this.clearPlan(), this.clearPreview(), this.clearGizmo(), this.setUnderlay(null), this.setSelection(null), this.gridHelper && (this.scene.remove(this.gridHelper), ms(this.gridHelper), this.gridHelper = void 0), this.defaultBackdrop?.dispose(), this.scene.background = null, this.sun?.shadow?.map?.dispose(), this.scene.clear(), this.onPick = void 0, this.onRoomsChanged = void 0, this.onBackdrop = void 0, this.onGround = void 0, this.onDrag = void 0, this.lastHass = void 0, this.controls.dispose(), this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.width = 0, this.renderer.domElement.height = 0, this.renderer.domElement.remove();
   }
 }
-const pA = "0.177.0", Vp = [
+const pA = "0.177.2", Vp = [
   { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "input_boolean"] },
   { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate", "fan"] },
   { key: "curtains", label: "Curtains", icon: "curtain", behaviors: ["cover"] },
@@ -29763,11 +29763,13 @@ function rR(n, e, t) {
   }, r.onerror = () => n.showToast("Не удалось прочитать файл"), r.readAsDataURL(s), i.value = "";
 }
 function oR(n, e) {
-  if (n.editor && (n.editor.shiftHeld = e.shiftKey), n.editing && n.editor && e.type === "keydown" && (e.ctrlKey || e.metaKey)) {
-    const t = e.key.toLowerCase();
-    t === "z" && !e.shiftKey ? (e.preventDefault(), n.editor.undo()) : (t === "y" || t === "z" && e.shiftKey) && (e.preventDefault(), n.editor.redo());
+  if (!n.editing2) {
+    if (n.editor && (n.editor.shiftHeld = e.shiftKey), n.editing && n.editor && e.type === "keydown" && (e.ctrlKey || e.metaKey)) {
+      const t = e.key.toLowerCase();
+      t === "z" && !e.shiftKey ? (e.preventDefault(), n.editor.undo()) : (t === "y" || t === "z" && e.shiftKey) && (e.preventDefault(), n.editor.redo());
+    }
+    n.editing && n.editor && e.type === "keydown" && (e.key === "Enter" ? (e.preventDefault(), n.editor.finishChain()) : e.key === "Escape" && (e.preventDefault(), n.editor.cancelChain()));
   }
-  n.editing && n.editor && e.type === "keydown" && (e.key === "Enter" ? (e.preventDefault(), n.editor.finishChain()) : e.key === "Escape" && (e.preventDefault(), n.editor.cancelChain()));
 }
 async function aR(n) {
   await Ms(
@@ -38398,6 +38400,22 @@ const ak = nn`
       .e2-tool {
         min-height: 60px;
       }
+    }
+
+    /* ---- Стык с движком: убираем дубли ------------------------------------
+       Движок самодостаточен и рисует собственные экранные кнопки и строку
+       состояния — он обязан работать и без оболочки. Когда оболочка есть,
+       часть этого дублируется: две кнопки «Привязка», две «Вписать» и две
+       одинаковые подсказки друг поверх друга (видно на живом Home Assistant
+       сразу после слияния). Оставляем движку то, чего у оболочки нет —
+       кнопки масштаба, — остальное прячем здесь, а не вырезаем из движка:
+       вырезать значит сломать его самостоятельность и собственные проверки. */
+    .e2-hud .e2-controls button[data-role='snap'],
+    .e2-hud .e2-controls button[data-role='fit'] {
+      display: none;
+    }
+    .e2-hud .e2-status {
+      display: none;
     }
 `, wk = nn`
     /* ---- Overview detail slide-over (1B) ---- */

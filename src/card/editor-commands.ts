@@ -407,6 +407,11 @@ export function pickDesignPhoto(host: BmsFloorplanCard, e: Event, apply: (data: 
 }
 
 export function trackShift(host: BmsFloorplanCard, e: KeyboardEvent) {
+  // Новый конструктор сам слушает клавиатуру: Enter фиксирует набранный размер,
+  // Escape отменяет начатое. Старый обработчик тут ЛИШНИЙ и, что хуже, съедал
+  // Enter через preventDefault — набранные «4,2 × 3,6» просто не применялись
+  // (поймано на живом Home Assistant, а не в проверках).
+  if (host.editing2) return;
   if (host.editor) host.editor.shiftHeld = e.shiftKey;
   // Undo/redo shortcuts while editing.
   if (host.editing && host.editor && e.type === 'keydown' && (e.ctrlKey || e.metaKey)) {
