@@ -106,7 +106,7 @@ export const ENGINE_CSS = `
 .e2-modes { position: absolute; left: 30px; top: 30px; display: flex; gap: 8px; flex-wrap: wrap; }
 
 .e2-btn {
-  min-width: 44px; min-height: 44px; padding: 0 14px;
+  min-width: 48px; min-height: 48px; padding: 0 14px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   border-radius: 10px; border: 1px solid var(--e2-panel-line);
   background: var(--e2-panel); color: var(--e2-text);
@@ -116,15 +116,23 @@ export const ENGINE_CSS = `
 .e2-btn[aria-pressed="true"], .e2-btn.e2-on { background: var(--e2-accent); color: #06222e; border-color: var(--e2-accent); }
 
 .e2-fields {
+  /* Сквозная для касаний: перехватывают только сами поля и кнопки (ниже).
+     Иначе фон и отступы коробки съедают касание, которым человек ставит
+     следующую точку — а от высоты коробки это зависеть не должно. */
+  pointer-events: none;
   position: absolute; display: none; gap: 8px; align-items: flex-end;
   padding: 8px 10px; border-radius: 12px; background: var(--e2-panel);
   border: 1px solid var(--e2-accent); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
 }
 .e2-fields[data-open="1"] { display: flex; }
+.e2-fields input, .e2-fields button { pointer-events: auto; }
 .e2-field { display: flex; flex-direction: column; gap: 3px; }
 .e2-field label { font-size: 10px; color: var(--e2-muted); }
 .e2-field input {
-  width: 78px; min-height: 40px; padding: 0 8px; border-radius: 8px;
+  /* Поле длины/угла — это ГЛАВНЫЙ ввод нового конструктора: сюда набирают
+     «5,2» вместо подгонки мышью. 40 px мимо порога под палец (44, на сенсорном
+     48) — сторож 21-shell поймал это при слиянии движка с оболочкой. */
+  width: 82px; min-height: 48px; padding: 0 10px; border-radius: 8px;
   border: 1px solid var(--e2-panel-line); background: #0f1218; color: var(--e2-text);
   font: inherit; font-weight: 600; text-align: right;
 }

@@ -1,6 +1,6 @@
 {
   "name": "bms-floorplan-card",
-  "version": "0.176.0",
+  "version": "0.177.0",
   "description": "BMS Планировка — интерактивная 3D-планировка объекта для Home Assistant: живые привязки сущностей, редактор прямо в сцене и киоск-режим для настенного планшета.",
   "type": "module",
   "main": "dist/bms-floorplan-card.js",

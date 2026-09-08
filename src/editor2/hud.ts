@@ -218,7 +218,12 @@ export class Hud {
     const bh = this.fieldsBox.offsetHeight || 84;
     const bottomY = Math.max(86, rh - bh - 62);
     const topY = 86;
-    const cursorLow = at ? at[1] >= bottomY - 24 : false;
+    // Полосу выбираем по РАССТОЯНИЮ до курсора, а не по одному порогу: иначе
+    // любое изменение высоты коробки (например поля подросли до пальцевого
+    // размера) молча сдвигает её на путь следующего касания.
+    const cy = at ? at[1] : rh / 2;
+    const distTo = (top: number) => (cy < top ? top - cy : cy > top + bh ? cy - (top + bh) : 0);
+    const cursorLow = distTo(topY) > distTo(bottomY);
     // В нижней полосе справа стоят кнопки камеры — коробка не должна под них
     // залезать, иначе «Вписать» и «Привязка» оказываются под полем ввода.
     const rightGuard = cursorLow ? 8 : 150;
