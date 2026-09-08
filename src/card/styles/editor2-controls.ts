@@ -171,14 +171,18 @@ export const editor2ControlsStyles = css`
     }
     /* Только что поставленный светильник ещё ничем не управляет: раздел
        «Устройство» выделен тёплым — тем же цветом, которым во всей карточке
-       обозначен свет. Гаснет, как только устройство выбрано. */
-    .e2-field.e2-ask {
+       обозначен свет. Гаснет, как только устройство выбрано.
+
+       Имя класса НЕ «e2-ask»: так называется всплывающая плашка САМОГО движка
+       (position: absolute; left: 50%), а его стили лежат в том же теневом
+       корне — раздел инспектора улетал из колонки и накрывал соседние поля. */
+    .e2-field.e2-bind-ask {
       padding: var(--sp-2);
       border-radius: var(--r-2);
       background: var(--accent-soft);
       border: 1px solid var(--accent-line);
     }
-    .e2-ask-note {
+    .e2-bind-note {
       color: var(--accent);
       font-size: var(--fs-2);
       line-height: 1.35;

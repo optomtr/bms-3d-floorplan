@@ -3,7 +3,8 @@
 // ---------------------------------------------------------------------------
 
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
-import type { HassEntity } from '../types';
+import type { FloorPlan, HassEntity } from '../types';
+import { modelLabel } from '../furniture/names';
 import type { IntercomGroup } from './types';
 
 /** Entities that make sense to bind as a room's temperature (also floor) or
@@ -69,15 +70,47 @@ export function entityLabel(host: BmsFloorplanCard, id: string): string {
   return host.hass?.states[id]?.attributes?.friendly_name || id;
 }
 
-/** The HA area (room) an entity belongs to: its own area, else its device's. */
-export function entityArea(host: BmsFloorplanCard, id: string): string {
+/** Ключ комнаты (области HA) сущности: своя area_id, иначе — у её устройства.
+ *  Пусто — комната неизвестна (или реестра в hass нет вовсе). */
+export function entityAreaId(host: BmsFloorplanCard, id: string): string {
   const h = host.hass as any;
   const ent = h?.entities?.[id];
-  let areaId: string | undefined = ent?.area_id ?? undefined;
-  if (!areaId && ent?.device_id) areaId = h?.devices?.[ent.device_id]?.area_id;
+  const own: string | undefined = ent?.area_id ?? undefined;
+  const byDevice: string | undefined = ent?.device_id ? h?.devices?.[ent.device_id]?.area_id : undefined;
+  return (own || byDevice || '') as string;
+}
+
+/** The HA area (room) an entity belongs to: its own area, else its device's. */
+export function entityArea(host: BmsFloorplanCard, id: string): string {
+  const areaId = entityAreaId(host, id);
   if (!areaId) return '';
-  const a = h?.areas?.[areaId];
+  const a = (host.hass as any)?.areas?.[areaId];
   return (a?.name as string) || '';
+}
+
+/** Имя УСТРОЙСТВА, к которому приписана сущность («Гостиная свет»).
+ *
+ *  Это ключ ко всему списку. У реле каналы в Home Assistant так и называются —
+ *  «Канал 1», «Канал 2», — и в трёх разных комнатах имена совпадают буква в
+ *  букву. Различает их только имя устройства. */
+export function entityDeviceName(host: BmsFloorplanCard, id: string): string {
+  const h = host.hass as any;
+  const did = h?.entities?.[id]?.device_id;
+  const d = did ? h?.devices?.[did] : undefined;
+  return String((d?.name_by_user as string) || (d?.name as string) || '').trim();
+}
+
+/** Крупная строка списка: «Гостиная свет · Канал 1».
+ *  Если имя сущности и так осмысленное (уже содержит имя устройства) — второй
+ *  раз его не приписываем. */
+export function entityTitle(host: BmsFloorplanCard, id: string): string {
+  const name = entityLabel(host, id).trim();
+  const dev = entityDeviceName(host, id);
+  if (!dev) return name;
+  const n = name.toLowerCase();
+  const d = dev.toLowerCase();
+  if (!n || n === d || n.includes(d)) return name;
+  return `${dev} · ${name}`;
 }
 
 /** Rich option text: "Friendly name · Room · entity.id" so same-named
@@ -89,6 +122,96 @@ export function entityOptionText(host: BmsFloorplanCard, id: string): string {
   if (area) parts.push(area);
   if (id !== name) parts.push(id);
   return parts.join('  ·  ');
+}
+
+// ---------------------------------------------------------------------------
+// СПИСОК УСТРОЙСТВ ПО КОМНАТАМ.
+//
+// Плоский список идентификаторов не выбирается руками: в доме их десятки, а
+// имена повторяются («Канал 1» есть и в гостиной, и на кухне, и в спальне).
+// Здесь тот же набор кандидатов раскладывается по комнатам и обогащается тем,
+// что человек обязан видеть: чьё это устройство и не занято ли оно уже.
+// ---------------------------------------------------------------------------
+
+/** Раздел для тех, у кого комната неизвестна. Всегда последний. */
+export const NO_ROOM = 'Без комнаты';
+
+/** Единственный раздел, когда комнат в Home Assistant нет вовсе: называть его
+ *  «Без комнаты» было бы враньём — комнат просто нет. */
+export const ALL_ROOM = 'Все устройства';
+
+export interface PickRow {
+  id: string;
+  /** Крупная строка: устройство и канал. */
+  title: string;
+  /** Мелкая строка: идентификатор. Пусто — если он уже в крупной. */
+  sub: string;
+  /** Чем сущность занята на плане, если занята. */
+  taken: string | null;
+}
+
+export interface PickGroup {
+  /** Ключ комнаты (для запоминания «свёрнут/развёрнут»). */
+  key: string;
+  /** Заголовок раздела. */
+  area: string;
+  rows: PickRow[];
+}
+
+/** Что на плане УЖЕ занято: сущность → чем именно («Люстра», «Люстра · Второй
+ *  этаж»). Одну лампу нельзя повесить дважды, и человек обязан видеть это
+ *  ДО нажатия, а не после.
+ *
+ *  `except` — предмет, который сейчас правят: его собственная привязка не
+ *  «занята», она выбрана. */
+export function planTakenBy(plan: FloorPlan | undefined, except?: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const floors = plan?.floors ?? [];
+  const many = floors.length > 1;
+  floors.forEach((fl, i) => {
+    const where = many ? ` · ${fl.name || `этаж ${i + 1}`}` : '';
+    for (const b of fl.bindings ?? []) {
+      const eid = b?.entity_id;
+      if (!eid || out.has(eid)) continue;
+      if (except && b.anchor_object === except) continue;
+      const f = (fl.furniture ?? []).find((x) => !!x.id && x.id === b.anchor_object);
+      out.set(eid, `${f ? modelLabel(f.model) : 'план'}${where}`);
+    }
+    for (const z of fl.zones ?? []) {
+      for (const eid of z.entities ?? []) {
+        if (eid && !out.has(eid)) out.set(eid, `комната ${z.name || 'без названия'}${where}`);
+      }
+    }
+  });
+  return out;
+}
+
+/** Кандидаты, разложенные по комнатам. Комнаты — по алфавиту, «Без комнаты» —
+ *  всегда последним разделом, а не вперемешку. */
+export function pickerGroups(
+  host: BmsFloorplanCard,
+  domains: string[],
+  taken?: Map<string, string>,
+): { groups: PickGroup[]; fellBack: boolean; total: number } {
+  const { ids, fellBack } = candidateEntities(host, domains);
+  const by = new Map<string, PickGroup>();
+  for (const id of ids) {
+    const area = entityArea(host, id);
+    // Комната без названия — это та же «неизвестная»: иначе получилось бы два
+    // раздела с одинаковым заголовком.
+    const key = area ? entityAreaId(host, id) : '';
+    let g = by.get(key);
+    if (!g) by.set(key, (g = { key, area: area || NO_ROOM, rows: [] }));
+    const title = entityTitle(host, id);
+    g.rows.push({ id, title, sub: title.includes(id) ? '' : id, taken: taken?.get(id) ?? null });
+  }
+  const groups = [...by.values()].sort((a, b) => {
+    if (!a.key !== !b.key) return a.key ? -1 : 1; // «Без комнаты» — в конец
+    return a.area.localeCompare(b.area, 'ru');
+  });
+  for (const g of groups) g.rows.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+  if (groups.length === 1 && !groups[0].key) groups[0].area = ALL_ROOM;
+  return { groups, fellBack, total: ids.length };
 }
 
 export function entityCardName(host: BmsFloorplanCard, id: string, fallback?: string): string {

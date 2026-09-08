@@ -10,17 +10,12 @@ import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../../ha-3d-floorplan-card';
 import { DOOR_VARIANTS, WINDOW_VARIANTS, openingVariantLabel } from '../../../scene/builder';
 import { FLOOR_MATERIALS, WALL_MATERIALS, materialLabel } from '../../../scene/materials';
-import { entityDomainsFor } from '../../../furniture/library';
 import { modelLabel } from '../../../furniture/names';
 import { getThumbnail } from '../../../furniture/thumbnails';
-import { candidateEntities, entityOptionText } from '../../entities';
 import { deleteSelected2, patchSelected } from '../../editor2-commands';
 import { currentFloor, renameFloor2 } from '../../editor2-project';
+import { entityPicker } from './entity-picker';
 import { chips, colorField, e2Btn, numField, textField } from './parts';
-
-/** Сколько сущностей показываем списком. Их бывают тысячи — остальное
- *  отсекается поиском, и об этом сказано прямо, а не молча. */
-const ENTITY_LIMIT = 40;
 
 const matOptions = (list: readonly string[]) =>
   list.map((m) => ({ id: m, label: materialLabel(m) }));
@@ -131,7 +126,10 @@ function body(host: BmsFloorplanCard) {
       ${numField({ field: 'furn-scale', label: 'Размер', suffix: '×', value: sel.scale,
         onSet: (v) => v > 0 && patchSelected(host, { scale: v }) })}
       ${sel.isSet ? lightSetFields(host, sel.spread, sel.count) : nothing}
-      ${entityPicker(host, sel.model, sel.entityId, st.bindPrompt === sel.id)}
+      ${entityPicker(host, {
+        model: sel.model, itemId: sel.id, current: sel.entityId,
+        prompt: st.bindPrompt === sel.id,
+      })}
     `;
   }
   return html`${textField({ field: 'zone-name', label: 'Название комнаты', value: sel.name ?? '',
@@ -169,62 +167,5 @@ function lightSetFields(host: BmsFloorplanCard, spread?: number, count?: number)
       столько, сколько заложено в модели; у сплошных наборов (лента, рейка) оно
       не применяется.
     </span>
-  `;
-}
-
-/** Привязка сущности Home Assistant: поиск по ВСЕМ сущностям, список —
- *  кнопками, а не выпадающим окошком браузера.
- *
- *  `prompt` — светильник только что поставлен и ещё ничем не управляет: об этом
- *  говорим прямо здесь, а не оставляем человеку догадываться. */
-function entityPicker(host: BmsFloorplanCard, model: string, current?: string, prompt = false) {
-  const st = host.e2!;
-  const { ids, fellBack } = candidateEntities(host, entityDomainsFor(model));
-  const q = st.entityQuery.trim().toLowerCase();
-  const found = q ? ids.filter((id) => entityOptionText(host, id).toLowerCase().includes(q)) : ids;
-  const shown = found.slice(0, ENTITY_LIMIT);
-  return html`
-    <div class="e2-field ${prompt ? 'e2-ask' : ''}" ?data-bind-prompt=${prompt}>
-      <span class="e2-lab">Устройство Home Assistant</span>
-      ${prompt
-        ? html`<span class="e2-ask-note" role="status">
-            Светильник поставлен. Выберите устройство — без него он не включится,
-            это просто украшение на плане.
-          </span>`
-        : nothing}
-      ${current
-        ? html`<div class="e2-bound" data-bound=${current}>
-            ${host.ic('link')}<span>${entityOptionText(host, current)}</span>
-            <button class="e2-mini" data-act="unbind" aria-label="Снять привязку"
-              title="Снять привязку" @click=${() => patchSelected(host, { entityId: '' })}>
-              ${host.ic('close')}
-            </button>
-          </div>`
-        : nothing}
-      <input class="e2-input" data-field="entity-search" type="search" autocomplete="off"
-        placeholder="поиск по устройствам…" aria-label="Поиск устройства Home Assistant"
-        .value=${st.entityQuery}
-        @input=${(e: Event) => { st.entityQuery = (e.target as HTMLInputElement).value; host.requestUpdate(); }} />
-      ${fellBack
-        ? html`<span class="e2-hint">Для этой модели подходящих доменов не нашлось — показаны все устройства.</span>`
-        : nothing}
-      <div class="e2-entities" role="listbox" aria-label="Устройства">
-        ${shown.map(
-          (id) => html`<button class="e2-entity ${id === current ? 'on' : ''}" data-entity=${id}
-            role="option" aria-selected=${id === current ? 'true' : 'false'}
-            @click=${() => patchSelected(host, { entityId: id })}>
-            ${entityOptionText(host, id)}
-          </button>`,
-        )}
-        ${!shown.length
-          ? html`<span class="e2-hint">${ids.length
-              ? `По запросу «${st.entityQuery}» ничего не найдено`
-              : 'Home Assistant пока не отдал ни одного устройства'}</span>`
-          : nothing}
-      </div>
-      ${found.length > ENTITY_LIMIT
-        ? html`<span class="e2-hint">Показаны первые ${ENTITY_LIMIT} из ${found.length} — уточните поиск.</span>`
-        : nothing}
-    </div>
   `;
 }

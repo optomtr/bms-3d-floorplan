@@ -14,6 +14,14 @@ import { NARROW_PX, SIDE_MAX_FRAC, SIDE_MIN, makeEditor2State, type Editor2State
 import { makeProjectBridge } from './editor2-project';
 import { enterEditNow, exitEdit } from './editor-commands';
 
+/** Список устройств «с чистого листа»: поиск пуст, показаны подходящие домены,
+ *  разделы-комнаты — как по умолчанию (открыт тот, где стоит предмет). */
+function resetPicker(st: Editor2State): void {
+  st.entityQuery = '';
+  st.entityAll = false;
+  st.entityOpen = {};
+}
+
 /** Вход в новый конструктор. Правим КОПИЮ плана — ровно как старый редактор,
  *  чтобы просмотр держал последний сохранённый до «Готово». */
 export function enterEditor2(host: BmsFloorplanCard): void {
@@ -32,6 +40,9 @@ export function enterEditor2(host: BmsFloorplanCard): void {
     host.requestUpdate();
   });
   st.editor.onSelect((sel: Selection | null) => {
+    // Выбрали ДРУГОЙ предмет — список устройств начинается заново: чужой поиск
+    // и свёрнутые под тот предмет разделы к этому отношения не имеют.
+    if (sel?.id !== st.selection?.id) resetPicker(st);
     st.selection = sel;
     // Ушли с того светильника — ожидание привязки снимается вместе с ним.
     if (st.bindPrompt && sel?.id !== st.bindPrompt) st.bindPrompt = undefined;
@@ -44,7 +55,7 @@ export function enterEditor2(host: BmsFloorplanCard): void {
   // Светильник поставлен — инспектор открывается СРАЗУ на выборе устройства.
   st.editor.onBindRequest((req: BindRequest) => {
     st.bindPrompt = req.id;
-    st.entityQuery = '';
+    resetPicker(st);
     st.paletteOpen = false;
     st.projectOpen = false;
     // Планшет книжный: раздел свойств живёт на вкладке «План» нижней шторкой,

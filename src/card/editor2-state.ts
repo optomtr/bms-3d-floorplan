@@ -50,6 +50,13 @@ export interface Editor2State {
   projectOpen: boolean;
   /** Поиск по сущностям Home Assistant в инспекторе мебели. */
   entityQuery: string;
+  /** Показывать ВСЕ домены, а не только подходящие модели (для светильника —
+   *  свет и выключатели). Переключается кнопкой «Показать все устройства». */
+  entityAll: boolean;
+  /** Какие разделы-комнаты человек развернул или свернул РУКАМИ (ключ — область
+   *  Home Assistant). Чего здесь нет — открыто по умолчанию само: раздел
+   *  комнаты, в которой стоит предмет. Сбрасывается при смене выбора. */
+  entityOpen: Record<string, boolean>;
   /** id только что поставленного светильника, которому ЖДЁМ привязку. Пока он
    *  здесь, инспектор поднимает раздел «Устройство» и говорит об этом вслух:
    *  светильник без привязки — украшение, а не свет. */
@@ -89,6 +96,8 @@ export function makeEditor2State(editor: PlanEditor, plan: FloorPlan, floorIndex
     paletteFor: 'place',
     projectOpen: false,
     entityQuery: '',
+    entityAll: false,
+    entityOpen: {},
     tab: 'plan',
     sideW: 420,
     showThree: true,

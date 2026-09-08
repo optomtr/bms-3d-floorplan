@@ -5,7 +5,8 @@
 // Кусок общей таблицы стилей карточки, подключается ПЕРЕД detailStyles: три
 // блока @media в конце detailStyles обязаны оставаться последними правилами.
 //
-// Первым внутрь вложены кнопки и поля (./editor2-controls): правила раскладки
+// Первым внутрь вложены кнопки и поля (./editor2-controls), следом список
+// устройств (./editor2-picker, он уточняет .e2-entity): правила раскладки
 // уточняют их (.e2-tool крупнее .e2-btn), а при равной силе селектора
 // побеждает последний — значит база обязана идти раньше.
 //
@@ -20,9 +21,11 @@
 
 import { css } from 'lit';
 import { editor2ControlsStyles } from './editor2-controls';
+import { editor2PickerStyles } from './editor2-picker';
 
 export const editor2Styles = css`
     ${editor2ControlsStyles}
+    ${editor2PickerStyles}
 
     .e2-shell {
       --e2-tap: 44px;
@@ -312,5 +315,15 @@ export const editor2Styles = css`
     }
     .e2-hud .e2-status {
       display: none;
+    }
+    /* Движок кладёт свой <style> в ТОТ ЖЕ теневой корень, и его правила ложатся
+       поверх наших при равной силе селектора. Правило «.e2-field input» (поле
+       длины у движка — 82 px, текст вправо) сжимало КАЖДОЕ поле инспектора,
+       включая поиск по устройствам, до узкой коробки в 82 px. Лечим силой
+       селектора здесь: движок обязан работать и без оболочки, а его правило
+       стережёт его же проверка. */
+    .e2-field .e2-input {
+      width: 100%;
+      text-align: left;
     }
 `;
