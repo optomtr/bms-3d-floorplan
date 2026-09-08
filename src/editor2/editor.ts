@@ -15,7 +15,7 @@ import type { FloorDef, FloorPlan, Vec2 } from '../types';
 import { snapPoint } from '../editor/snapping';
 import { ensurePlanIds, syncAttachments } from '../editor/ids';
 import { PlanHistory, type PlanSnapshot } from '../editor/history';
-import type { PlanEditor, Selection, Tool } from './api';
+import type { BindRequest, PlanEditor, Selection, Tool } from './api';
 import { buildChrome } from './chrome';
 import { bboxOfFloor } from './geom';
 import { PICK_PX } from './hit';
@@ -24,6 +24,7 @@ import type { AreaMode, SnapHit, ToolHost } from './host';
 import { emptyDrag } from './host';
 import { InputController } from './input';
 import { OPENING_PRESETS, floorAt } from './model';
+import { wallHeightOf } from './place';
 import { RULER, renderScene } from './render';
 import { applyPatch, buildSelection, deleteSel, selectionAlive } from './selection';
 import { emptyDraft, type SelRef } from './state';
@@ -73,6 +74,7 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
   private readonly changeCbs: Array<(p: FloorPlan) => void> = [];
   private readonly selectCbs: Array<(s: Selection | null) => void> = [];
   private readonly statusCbs: Array<(t: string) => void> = [];
+  private readonly bindCbs: Array<(r: BindRequest) => void> = [];
 
   // --- жизненный цикл -----------------------------------------------------
 
@@ -191,7 +193,7 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
     const sel = this.sel;
     if (!floor || !sel) return;
     this.edit(() => {
-      applyPatch(floor, sel, patch);
+      applyPatch(floor, sel, patch, this.wallHeight());
     });
     this.emitSelect();
   }
@@ -244,6 +246,10 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
     this.statusCbs.push(cb);
   }
 
+  onBindRequest(cb: (req: BindRequest) => void): void {
+    this.bindCbs.push(cb);
+  }
+
   // --- дополнения сверх договора (нужны стенду и проверкам) ---------------
 
   getPlan(): FloorPlan | null {
@@ -269,6 +275,10 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
 
   floor(): FloorDef | null {
     return floorAt(this.plan, this.floorIndex);
+  }
+
+  wallHeight(): number {
+    return wallHeightOf(this.plan, this.floor());
   }
 
   edit(fn: () => void): void {
@@ -338,6 +348,10 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
   askRoom(ring: Vec2[] | null): void {
     this.draft.pendingRing = ring && ring.length >= 3 ? ring : null;
     this.schedule();
+  }
+
+  requestBinding(id: string, model: string): void {
+    for (const cb of this.bindCbs) cb({ id, model });
   }
 
   // --- ввод ---------------------------------------------------------------

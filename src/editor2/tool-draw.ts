@@ -27,6 +27,7 @@ import {
   wallLength,
 } from './model';
 import { nearestWallProbe } from './hit';
+import { isLight, isWallMount, resolveSpot } from './place';
 
 const KIND_RU = { door: 'Дверь', window: 'Окно', opening: 'Проём' } as const;
 
@@ -177,10 +178,28 @@ export function drawTap(h: ToolHost, p: Vec2): void {
     }
     const model = h.pendingModel;
     const s = h.snapWorld(p, []);
+    // Настенное посреди комнаты — это бра, висящее в воздухе. Лучше сказать
+    // человеку, куда целиться, чем молча поставить не туда.
+    const spot = resolveSpot(floor, model, s.pt[0], s.pt[1], d.rotation, h.wallHeight());
+    if (spot.wallMount && !spot.onWall) {
+      h.setStatus(`${modelName(model)} вешается НА стену, а рядом стены нет. Поднесите указатель ближе к стене.`);
+      return;
+    }
+    let placed = '';
     h.edit(() => {
-      const f = addFurniture(floor, model, s.pt[0], s.pt[1], d.rotation);
-      if (f.id) h.select({ kind: 'furniture', id: f.id });
+      const f = addFurniture(floor, model, s.pt[0], s.pt[1], d.rotation, h.wallHeight());
+      if (f.id) {
+        placed = f.id;
+        h.select({ kind: 'furniture', id: f.id });
+      }
     });
+    if (!placed) return;
+    if (isLight(model)) {
+      // Смысл светильника в плане — управлять им. Привязку предлагаем сразу,
+      // а не оставляем на «потом», из которого никто не возвращается.
+      h.setStatus(`${modelName(model)} поставлен. Выберите устройство Home Assistant — без него это просто украшение.`);
+      h.requestBinding(placed, model);
+    }
   }
 }
 
@@ -363,9 +382,10 @@ export function drawStatus(h: ToolHost): string {
         ? `${KIND_RU[h.tool]}: ведите вдоль стены, касание — поставить. Ширину и отступ от угла можно набрать.`
         : `${KIND_RU[h.tool]} ставится НА стену — подведите указатель к стене.`;
     case 'furniture':
-      return h.pendingModel
-        ? `${modelName(h.pendingModel)}: коснитесь плана. Поворот — ручкой на предмете, шаг 15°.`
-        : 'Выберите модель в палитре, затем коснитесь плана.';
+      if (!h.pendingModel) return 'Выберите модель в палитре, затем коснитесь плана.';
+      if (isWallMount(h.pendingModel))
+        return `${modelName(h.pendingModel)}: вешается на стену — коснитесь рядом со стеной, он сам прижмётся и повернётся лицом в комнату.`;
+      return `${modelName(h.pendingModel)}: коснитесь плана. Поворот — ручкой на предмете, шаг 15°.`;
     case 'measure':
       return d.pts.length && d.cursor
         ? `Линейка: ${fmtNum(dist(d.pts[0], d.cursor), 2)} м, ${fmtNum(angleDeg(d.pts[0], d.cursor), 0)}°.`

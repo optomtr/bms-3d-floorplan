@@ -169,6 +169,20 @@ export const editor2ControlsStyles = css`
       white-space: nowrap;
       font-size: var(--fs-2);
     }
+    /* Только что поставленный светильник ещё ничем не управляет: раздел
+       «Устройство» выделен тёплым — тем же цветом, которым во всей карточке
+       обозначен свет. Гаснет, как только устройство выбрано. */
+    .e2-field.e2-ask {
+      padding: var(--sp-2);
+      border-radius: var(--r-2);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-line);
+    }
+    .e2-ask-note {
+      color: var(--accent);
+      font-size: var(--fs-2);
+      line-height: 1.35;
+    }
     .e2-entities,
     .e2-list {
       display: flex;

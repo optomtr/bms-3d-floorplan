@@ -27,8 +27,30 @@ export type Selection =
   | { kind: 'wall'; id: string; lengthM: number; thicknessM: number; angleDeg: number; material?: string; color?: string }
   | { kind: 'room'; id: string; name?: string; areaM2: number; material?: string; color?: string }
   | { kind: 'opening'; id: string; wallId: string; kind2: 'door' | 'window' | 'opening'; widthM: number; offsetM: number; variant?: string }
-  | { kind: 'furniture'; id: string; model: string; rotationDeg: number; scale: number; entityId?: string }
+  | {
+      kind: 'furniture';
+      id: string;
+      model: string;
+      rotationDeg: number;
+      scale: number;
+      entityId?: string;
+      /** Светильник: без привязки к light или switch он остаётся украшением. */
+      isLight?: boolean;
+      /** Вешается на стену (бра, телевизор, картина). */
+      wallMount?: boolean;
+      /** Набор (несколько точечных в ряд): доступны «Разброс» и «Количество». */
+      isSet?: boolean;
+      spread?: number;
+      count?: number;
+    }
   | { kind: 'zone'; id: string; name?: string };
+
+/** Поставленный светильник ждёт устройства Home Assistant. */
+export interface BindRequest {
+  /** id предмета (FurnitureDef.id) — он уже выбран в редакторе. */
+  id: string;
+  model: string;
+}
 
 export interface PlanEditor {
   /** Смонтировать редактор в узел. План правится НА МЕСТЕ: тот же объект
@@ -63,6 +85,9 @@ export interface PlanEditor {
   onSelect(cb: (sel: Selection | null) => void): void;
   /** «поставьте вторую точку», «контур замкнут» — уже по-русски. */
   onStatus(cb: (text: string) => void): void;
+  /** Сразу после постановки светильника: оболочка обязана предложить выбрать
+   *  устройство. Иначе привязку делают «когда-нибудь потом» — то есть никогда. */
+  onBindRequest(cb: (req: BindRequest) => void): void;
 }
 
 /**

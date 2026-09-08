@@ -22,6 +22,7 @@ import type {
 import { newOpeningId, newRoomId, newWallId, syncAttachments } from '../editor/ids';
 import { closedFaces, mergeCollinearWalls } from '../editor/topology';
 import { dist, pointInPoly, polyArea } from './geom';
+import { isWallMount, resolveSpot } from './place';
 
 export const DEFAULT_THICKNESS = 0.12;
 export const DEFAULT_HEIGHT = 2.6;
@@ -251,16 +252,44 @@ export function setOpeningWidth(floor: FloorDef, openingId: string, width: numbe
 
 let furnSeq = 0;
 
-export function addFurniture(floor: FloorDef, model: string, x: number, y: number, rotationDeg = 0): FurnitureDef {
+/**
+ * Поставить предмет. Плоскость даёт две координаты из трёх; третью — высоту —
+ * и посадку на стену считает resolveSpot по справочнику моделей.
+ *
+ * Высота стен обязательна к передаче осознанно: этаж знает свою (FloorDef.
+ * wallHeight), но запасное значение лежит у плана, а плана здесь нет. Молчаливое
+ * «2,6» на этаже 3,2 повесило бы люстру на полметра ниже потолка.
+ */
+export function addFurniture(
+  floor: FloorDef,
+  model: string,
+  x: number,
+  y: number,
+  rotationDeg = 0,
+  wallHeight = DEFAULT_HEIGHT,
+): FurnitureDef {
   // План: x вправо, y вниз. В 3D это X и Z — единственное место пересчёта.
+  const spot = resolveSpot(floor, model, x, y, rotationDeg, wallHeight);
   const f: FurnitureDef = {
     id: `f${(furnSeq += 1).toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     model,
-    position: [x, 0, y],
-    rotation: rotationDeg,
+    position: [spot.x, spot.y, spot.z],
+    rotation: spot.rotation,
   };
   (floor.furniture ??= []).push(f);
   return f;
+}
+
+/** Пересадить уже стоящий настенный предмет на ближайшую стену (после тяги).
+ *  Высоту не трогаем: её задал справочник при постановке. */
+export function remountFurniture(floor: FloorDef, id: string): boolean {
+  const f = findFurniture(floor, id);
+  if (!f || !isWallMount(f.model)) return false;
+  const spot = resolveSpot(floor, f.model, f.position[0], f.position[2], f.rotation ?? 0, f.position[1]);
+  if (!spot.onWall) return false;
+  f.position = [spot.x, f.position[1], spot.z];
+  f.rotation = spot.rotation;
+  return true;
 }
 
 /**

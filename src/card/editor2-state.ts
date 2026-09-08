@@ -40,10 +40,20 @@ export interface Editor2State {
   paletteOpen: boolean;
   paletteQuery: string;
   paletteCat: string;
+  /** Зачем открыта палитра. 'place' — выбрать модель для СЛЕДУЮЩЕЙ постановки
+   *  (инструмент «Мебель»); 'model' — заменить модель у ВЫБРАННОГО предмета
+   *  (плитка «Модель» в инспекторе). Без этого различия второй светильник
+   *  подряд не ставился: только что поставленный оставался выбранным, и выбор
+   *  модели молча переделывал его вместо того, чтобы зарядить новый. */
+  paletteFor: 'place' | 'model';
   /** Выдвижной ящик «Проект»: проекты, этажи, подложка, перенос, PIN. */
   projectOpen: boolean;
   /** Поиск по сущностям Home Assistant в инспекторе мебели. */
   entityQuery: string;
+  /** id только что поставленного светильника, которому ЖДЁМ привязку. Пока он
+   *  здесь, инспектор поднимает раздел «Устройство» и говорит об этом вслух:
+   *  светильник без привязки — украшение, а не свет. */
+  bindPrompt?: string;
   /** Планшет книжный: какая вкладка на экране. Обе панели остаются в DOM —
    *  состояние черчения при переключении не теряется. */
   tab: 'plan' | '3d';
@@ -76,6 +86,7 @@ export function makeEditor2State(editor: PlanEditor, plan: FloorPlan, floorIndex
     paletteOpen: false,
     paletteQuery: '',
     paletteCat: 'seating',
+    paletteFor: 'place',
     projectOpen: false,
     entityQuery: '',
     tab: 'plan',

@@ -30,6 +30,7 @@ import {
   setOpeningWidth,
   wallLength,
 } from './model';
+import { DEFAULT_WALL_HEIGHT, isLight, isLightSet, isWallMount, resolveSpot } from './place';
 import type { SelRef } from './state';
 
 export function buildSelection(floor: FloorDef | null, sel: SelRef | null): Selection | null {
@@ -69,6 +70,7 @@ export function buildSelection(floor: FloorDef | null, sel: SelRef | null): Sele
     const f = findFurniture(floor, sel.id);
     if (!f) return null;
     const scale = typeof f.scale === 'number' ? f.scale : 1;
+    const set = isLightSet(f.model);
     return {
       kind: 'furniture',
       id: sel.id,
@@ -76,6 +78,15 @@ export function buildSelection(floor: FloorDef | null, sel: SelRef | null): Sele
       rotationDeg: f.rotation ?? 0,
       scale,
       entityId: bindingOf(floor, sel.id)?.entity_id,
+      isLight: isLight(f.model),
+      wallMount: isWallMount(f.model),
+      isSet: set,
+      // «Разброс» 1 — общий множитель по умолчанию у всех наборов, его можно
+      // показать смело. «Количество» у каждой модели своё (у пары — два, у
+      // набора точечных — шесть), и второй копии этих чисел здесь быть не
+      // должно: пока человек его не задал, отдаём undefined, а инспектор
+      // честно говорит «как заложено в модели».
+      ...(set ? { spread: f.spread ?? 1, count: f.count } : {}),
     };
   }
   const z = findZone(floor, sel.id);
@@ -92,8 +103,14 @@ const numOf = (patch: Record<string, unknown>, key: string): number | null => {
 const strOf = (patch: Record<string, unknown>, key: string): string | null =>
   key in patch ? String(patch[key] ?? '') : null;
 
-/** Применить правку к выделенному. Возвращает false, если менять было нечего. */
-export function applyPatch(floor: FloorDef | null, sel: SelRef | null, patch: Record<string, unknown>): boolean {
+/** Применить правку к выделенному. Возвращает false, если менять было нечего.
+ *  `wallHeight` нужна замене модели: новая высота считается от потолка этажа. */
+export function applyPatch(
+  floor: FloorDef | null,
+  sel: SelRef | null,
+  patch: Record<string, unknown>,
+  wallHeight = DEFAULT_WALL_HEIGHT,
+): boolean {
   if (!floor || !sel || !patch) return false;
 
   if (sel.kind === 'wall') {
@@ -157,7 +174,18 @@ export function applyPatch(floor: FloorDef | null, sel: SelRef | null, patch: Re
     const sc = numOf(patch, 'scale');
     if (sc !== null && sc > 0) f.scale = sc;
     const model = strOf(patch, 'model');
-    if (model) f.model = model;
+    if (model && model !== f.model) {
+      // Замена модели меняет и правила посадки: люстра вместо торшера обязана
+      // уехать под потолок, бра вместо люстры — на стену.
+      f.model = model;
+      const spot = resolveSpot(floor, model, f.position[0], f.position[2], f.rotation ?? 0, wallHeight);
+      f.position = [spot.x, spot.y, spot.z];
+      f.rotation = spot.rotation;
+    }
+    const spread = numOf(patch, 'spread');
+    if (spread !== null && spread > 0) f.spread = Math.max(0.4, Math.min(12, Math.round(spread * 100) / 100));
+    const count = numOf(patch, 'count');
+    if (count !== null && count > 0) f.count = Math.max(1, Math.min(12, Math.round(count)));
     const ent = strOf(patch, 'entityId');
     if (ent !== null) setFurnitureEntity(floor, sel.id, ent);
     const col = strOf(patch, 'color');

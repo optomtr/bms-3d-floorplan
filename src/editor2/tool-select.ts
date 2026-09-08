@@ -25,9 +25,11 @@ import {
   findZone,
   moveVertex,
   moveWall,
+  remountFurniture,
   setOpeningOffset,
   wallLength,
 } from './model';
+import { isWallMount } from './place';
 import { polyArea } from './geom';
 import { rotationHandlePx } from './render-items';
 
@@ -158,6 +160,16 @@ export function selectDragMove(h: ToolHost, p: Vec2): void {
 
 export function selectDragEnd(h: ToolHost): void {
   if (h.drag.kind === 'none') return;
+  // Бра, дотянутое до середины комнаты, обязано вернуться на стену — иначе
+  // тягой воспроизводится ровно та беда, от которой лечили постановку.
+  if (h.drag.kind === 'furniture') {
+    const floor = h.floor();
+    const f = floor ? findFurniture(floor, h.drag.id) : null;
+    if (floor && f && isWallMount(f.model)) {
+      if (remountFurniture(floor, h.drag.id)) h.refresh();
+      else h.setStatus(`${modelName(f.model)} вешается НА стену, а рядом стены нет. Придвиньте его к стене.`);
+    }
+  }
   h.endDrag();
   h.drag.kind = 'none';
   h.drag.vertex = null;

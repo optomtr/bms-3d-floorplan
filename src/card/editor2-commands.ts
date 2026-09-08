@@ -9,7 +9,7 @@
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
 import type { EditorController } from '../editor/editor-controller';
 import type { FloorPlan } from '../types';
-import { createPlanEditor, type Selection, type Tool } from './editor2-api';
+import { createPlanEditor, type BindRequest, type Selection, type Tool } from './editor2-api';
 import { NARROW_PX, SIDE_MAX_FRAC, SIDE_MIN, makeEditor2State, type Editor2State } from './editor2-state';
 import { makeProjectBridge } from './editor2-project';
 import { enterEditNow, exitEdit } from './editor-commands';
@@ -33,11 +33,28 @@ export function enterEditor2(host: BmsFloorplanCard): void {
   });
   st.editor.onSelect((sel: Selection | null) => {
     st.selection = sel;
+    // Ушли с того светильника — ожидание привязки снимается вместе с ним.
+    if (st.bindPrompt && sel?.id !== st.bindPrompt) st.bindPrompt = undefined;
     host.requestUpdate();
   });
   st.editor.onStatus((text: string) => {
     st.status = text;
     host.requestUpdate();
+  });
+  // Светильник поставлен — инспектор открывается СРАЗУ на выборе устройства.
+  st.editor.onBindRequest((req: BindRequest) => {
+    st.bindPrompt = req.id;
+    st.entityQuery = '';
+    st.paletteOpen = false;
+    st.projectOpen = false;
+    // Планшет книжный: раздел свойств живёт на вкладке «План» нижней шторкой,
+    // и она поднимается сама, потому что светильник уже выбран.
+    st.tab = 'plan';
+    host.requestUpdate();
+    void host.updateComplete.then(() => {
+      const el = host.renderRoot?.querySelector('[data-bind-prompt]') as HTMLElement | null;
+      el?.scrollIntoView({ block: 'nearest' });
+    });
   });
 
   // Проекты (сохранить, новый, импорт, перенос) написаны против старого
@@ -181,7 +198,10 @@ export function setTool2(host: BmsFloorplanCard, tool: Tool): void {
   // Модель нужна ТОЛЬКО инструменту «мебель»: иначе движок держал бы висящую
   // модель и первое же касание другим инструментом поставило бы диван.
   st.editor.setPendingModel(tool === 'furniture' ? st.model : null);
-  if (tool === 'furniture') st.paletteOpen = true;
+  if (tool === 'furniture') {
+    st.paletteFor = 'place';
+    st.paletteOpen = true;
+  }
   host.requestUpdate();
 }
 
@@ -222,6 +242,8 @@ export function fit2(host: BmsFloorplanCard): void {
 export function patchSelected(host: BmsFloorplanCard, patch: Record<string, unknown>): void {
   const st = host.e2;
   if (!st || !st.selection) return;
+  // Устройство выбрано — просьба выполнена, подсказку убираем.
+  if ('entityId' in patch && String(patch.entityId ?? '')) st.bindPrompt = undefined;
   st.editor.updateSelected(patch);
   st.selection = st.editor.getSelection();
   st.canUndo = st.editor.canUndo();
@@ -244,9 +266,12 @@ export function pickModel2(host: BmsFloorplanCard, model: string): void {
   const st = host.e2;
   if (!st) return;
   st.model = model;
-  // Выбранной мебели меняем модель на месте; иначе модель ждёт следующей
-  // постановки.
-  if (st.selection?.kind === 'furniture') patchSelected(host, { model });
+  // Решает НАМЕРЕНИЕ, а не то, что случайно осталось выбранным. Палитру открыли
+  // плиткой «Модель» в инспекторе — меняем выбранный предмет; открыли
+  // инструментом «Мебель» — заряжаем следующую постановку. Раньше выбор
+  // побеждал всегда, и второй светильник подряд поставить было нельзя: он
+  // переделывал первый.
+  if (st.paletteFor === 'model' && st.selection?.kind === 'furniture') patchSelected(host, { model });
   else if (st.tool === 'furniture') st.editor.setPendingModel(model);
   st.paletteOpen = false;
   host.requestUpdate();

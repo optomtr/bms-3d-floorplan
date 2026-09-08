@@ -114,7 +114,7 @@ function body(host: BmsFloorplanCard) {
       <div class="e2-field">
         <span class="e2-lab">Модель</span>
         <button class="e2-model" data-act="open-palette" aria-label=${`Модель: ${modelLabel(sel.model)}. Выбрать другую`}
-          @click=${() => { host.e2!.paletteOpen = true; host.requestUpdate(); }}>
+          @click=${() => { st.paletteFor = 'model'; st.paletteOpen = true; host.requestUpdate(); }}>
           <img src=${getThumbnail(sel.model)} alt="" />
           <span>${modelLabel(sel.model)}</span>
           ${host.ic('chevRight')}
@@ -130,7 +130,8 @@ function body(host: BmsFloorplanCard) {
       </div>
       ${numField({ field: 'furn-scale', label: 'Размер', suffix: '×', value: sel.scale,
         onSet: (v) => v > 0 && patchSelected(host, { scale: v }) })}
-      ${entityPicker(host, sel.model, sel.entityId)}
+      ${sel.isSet ? lightSetFields(host, sel.spread, sel.count) : nothing}
+      ${entityPicker(host, sel.model, sel.entityId, st.bindPrompt === sel.id)}
     `;
   }
   return html`${textField({ field: 'zone-name', label: 'Название комнаты', value: sel.name ?? '',
@@ -154,17 +155,43 @@ function floorBody(host: BmsFloorplanCard) {
   `;
 }
 
+/** Набор светильников: элементы РАССТАВЛЯЮТСЯ шире, а не растягиваются.
+ *  «Количество» у каждой модели своё, поэтому пустое поле значит «как заложено
+ *  в модели», а не «ноль штук». */
+function lightSetFields(host: BmsFloorplanCard, spread?: number, count?: number) {
+  return html`
+    ${numField({ field: 'furn-spread', label: 'Разброс', suffix: '×', value: spread ?? 1,
+      onSet: (v) => v > 0 && patchSelected(host, { spread: v }) })}
+    ${numField({ field: 'furn-count', label: 'Количество', digits: 0, value: count,
+      onSet: (v) => v >= 1 && patchSelected(host, { count: v }) })}
+    <span class="e2-hint">
+      Разброс раздвигает элементы, не меняя их размера. Пустое количество —
+      столько, сколько заложено в модели; у сплошных наборов (лента, рейка) оно
+      не применяется.
+    </span>
+  `;
+}
+
 /** Привязка сущности Home Assistant: поиск по ВСЕМ сущностям, список —
- *  кнопками, а не выпадающим окошком браузера. */
-function entityPicker(host: BmsFloorplanCard, model: string, current?: string) {
+ *  кнопками, а не выпадающим окошком браузера.
+ *
+ *  `prompt` — светильник только что поставлен и ещё ничем не управляет: об этом
+ *  говорим прямо здесь, а не оставляем человеку догадываться. */
+function entityPicker(host: BmsFloorplanCard, model: string, current?: string, prompt = false) {
   const st = host.e2!;
   const { ids, fellBack } = candidateEntities(host, entityDomainsFor(model));
   const q = st.entityQuery.trim().toLowerCase();
   const found = q ? ids.filter((id) => entityOptionText(host, id).toLowerCase().includes(q)) : ids;
   const shown = found.slice(0, ENTITY_LIMIT);
   return html`
-    <div class="e2-field">
+    <div class="e2-field ${prompt ? 'e2-ask' : ''}" ?data-bind-prompt=${prompt}>
       <span class="e2-lab">Устройство Home Assistant</span>
+      ${prompt
+        ? html`<span class="e2-ask-note" role="status">
+            Светильник поставлен. Выберите устройство — без него он не включится,
+            это просто украшение на плане.
+          </span>`
+        : nothing}
       ${current
         ? html`<div class="e2-bound" data-bound=${current}>
             ${host.ic('link')}<span>${entityOptionText(host, current)}</span>
