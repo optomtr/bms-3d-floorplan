@@ -39,6 +39,10 @@ import { renderControlPopup } from './card/views/control-popup';
 import { renderRoomPanel, renderStageChrome, renderScreensaver, renderReport } from './card/views/room-panel';
 import { renderPlanState } from './card/views/plan-state';
 import { renderOverview, renderDetail } from './card/views/overview';
+// Новый конструктор (ставится РЯДОМ со старым; старый пока не удаляем).
+import type { Editor2State } from './card/editor2-state';
+import { enterEditor2, mountEditor2, openNewEditor } from './card/editor2-commands';
+import { renderEditor2 } from './card/views/editor2/shell';
 
 import { baseStyles } from './card/styles/base';
 import { editorPanelStyles } from './card/styles/editor-panel';
@@ -51,6 +55,7 @@ import { deviceCardStyles } from './card/styles/device-cards';
 import { viewToggleStyles } from './card/styles/view-toggle';
 import { overviewStyles } from './card/styles/overview';
 import { stateStyles } from './card/styles/states';
+import { editor2Styles } from './card/styles/editor2';
 import { detailStyles } from './card/styles/detail';
 
 // Теги — часть договора с интеграцией: их спрашивают и снаружи модуля.
@@ -80,6 +85,18 @@ export class BmsFloorplanCard extends LitElement {
   @state() public floorNames: string[] = [];
   @state() public activeFloorIndex = 0;
   @state() public editing = false;
+  /** Открыт НОВЫЙ конструктор (план сверху + 3D рядом). Идёт ВМЕСТЕ с
+   *  `editing`: на том признаке висит вся логика «в режиме правки не трогать
+   *  сцену живыми состояниями, не гасить экран, не показывать хром просмотра»,
+   *  а `editing2` отличает новую оболочку от старой панели. */
+  @state() public editing2 = false;
+  /** Состояние оболочки нового конструктора (раскладка, выбранное, ящики).
+   *  Меняется на месте, перерисовка запрашивается вручную. */
+  public e2?: Editor2State;
+  /** Куда ведёт вход в правку. Скрытое удержание угла открывает НОВЫЙ
+   *  конструктор; `legacy` остаётся для прямого doEnterEdit() (и старый
+   *  редактор пока никуда не делся). */
+  public editEntry: 'legacy' | 'e2' = 'legacy';
   @state() public editTool: EditTool = 'wall';
   @state() public editSelectedModel = 'sofa';
   @state() public editSelectedObjModel: string | null = null;
@@ -301,6 +318,10 @@ export class BmsFloorplanCard extends LitElement {
     if (!this.sceneManager && this.viewport && this.isConnected) {
       initScene(this);
     }
+    // Движок нового конструктора монтируется в место под план — оно появляется
+    // только после первой отрисовки его разметки. Здесь же холст 3D ставится
+    // на своё место-заглушку (см. syncViewport).
+    if (this.editing2) mountEditor2(this);
     // While editing, don't apply live entity updates — they'd churn the
     // edit-copy scene and fight the editor's rebuilds. exitEdit re-syncs.
     if (this.pendingHass && this.sceneManager && this.planLoaded && !this.editing) {
@@ -436,8 +457,12 @@ export class BmsFloorplanCard extends LitElement {
     toggleAll(this, ents);
   }
 
+  /** Вход в правку. Оба конструктора живут рядом: удержание угла ведёт в
+   *  новый (editEntry = 'e2'), прямой вызов — в старый. PIN-замок общий: он
+   *  зовёт этот же метод после верного кода. */
   public doEnterEdit(): void {
-    enterEditNow(this);
+    if (this.editEntry === 'e2') enterEditor2(this);
+    else enterEditNow(this);
   }
 
   public onSetWallThickness(e: Event): void {
@@ -493,7 +518,7 @@ export class BmsFloorplanCard extends LitElement {
     return html`
       <ha-card
         class=${this.editing
-          ? 'editing'
+          ? this.editing2 ? 'editing e2' : 'editing'
           : `view ${this.viewMode}${this.viewMode === 'room' && activeRoom(this) ? ' has-room' : ''}${this.viewMode === 'room' && this.roomPhoto ? ' has-photo' : ''}${this.idle ? ' idle' : ''}`}
         style=${this.editing ? '' : `height:${height}`}
       >
@@ -503,7 +528,10 @@ export class BmsFloorplanCard extends LitElement {
               style=${`background-image:url("${(this.roomPhotoBaked ?? this.roomPhoto).replace(/"/g, '%22')}")`}
             ></div>`
           : nothing}
-        <div class="viewport" style=${this.editing ? `height:${height}` : ''}></div>
+        <!-- В новом конструкторе размер холста задают правила ha-card.e2:
+             он встаёт на место-заглушку рядом с планом, а не занимает всю
+             карточку, поэтому высота отсюда не навязывается. -->
+        <div class="viewport" style=${this.editing && !this.editing2 ? `height:${height}` : ''}></div>
 
         <!-- Загрузка / сбой с кнопкой «Повторить» / «это пример» / брак в плане.
              Раньше здесь были два молчаливых блока: сырая английская строка
@@ -522,8 +550,11 @@ export class BmsFloorplanCard extends LitElement {
 
         ${!this.editing && this.idle ? renderScreensaver(this) : nothing}
 
-        ${this.editing
+        ${this.editing && !this.editing2
           ? html`<div class="overlay top-right">
+              <button class="btn ic-btn" title=${this.tx('Открыть новый конструктор — план сверху, 3D рядом', 'Open the new editor — top-down plan, 3D beside it')}
+                aria-label=${this.tx('Открыть новый конструктор', 'Open the new editor')}
+                @click=${() => void openNewEditor(this)}>${this.ic('layers')}<span class="ic-btn-lab">${this.tx('Новый конструктор', 'New editor')}</span></button>
               <button class="btn ic-btn" title=${this.tx('Показать план целиком', 'Reset the view')}
                 aria-label=${this.tx('Показать план целиком', 'Reset the view')}
                 @click=${() => onResetView(this)}>${this.ic('room')}<span class="ic-btn-lab">${this.t('Reset')}</span></button>
@@ -561,7 +592,13 @@ export class BmsFloorplanCard extends LitElement {
           ? nothing
           : html`<div
               class="edit-hotspot"
-              @pointerdown=${(e: PointerEvent) => onHotspotDown(this, e)}
+              @pointerdown=${(e: PointerEvent) => {
+                // По умолчанию удержание открывает НОВЫЙ конструктор. Признак
+                // ставится до таймера, потому что PIN-замок уводит вход в
+                // сторону и возвращается сюда же через doEnterEdit().
+                this.editEntry = 'e2';
+                onHotspotDown(this, e);
+              }}
               @pointermove=${(e: PointerEvent) => onHotspotMove(this, e)}
               @pointerup=${() => onHotspotUp(this)}
               @pointercancel=${() => onHotspotUp(this)}
@@ -572,7 +609,9 @@ export class BmsFloorplanCard extends LitElement {
           ? html`<div class="menu-backdrop" @click=${() => (this.qualityMenuOpen = false)}></div>`
           : nothing}
 
-        ${this.editing ? renderEditor(this) : nothing}
+        ${this.editing && !this.editing2 ? renderEditor(this) : nothing}
+
+        ${this.editing2 ? renderEditor2(this) : nothing}
 
         ${this.importOpen
           ? html`<div class="import-modal">
@@ -636,7 +675,7 @@ export class BmsFloorplanCard extends LitElement {
             `
           : nothing}
 
-        ${this.floorNames.length > 1 && this.editing
+        ${this.floorNames.length > 1 && this.editing && !this.editing2
           ? html`
               <div class="overlay bottom">
                 ${this.floorNames.map(
@@ -672,6 +711,7 @@ export class BmsFloorplanCard extends LitElement {
     viewToggleStyles,
     overviewStyles,
     stateStyles,
+    editor2Styles,
     detailStyles,
   ];
 }
