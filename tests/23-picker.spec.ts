@@ -57,6 +57,21 @@ const REGISTRY = {
   },
 };
 
+/** Тот же дом, но комнаты устройствам НЕ назначены.
+ *
+ *  Это не выдумка «на всякий случай»: на живом Home Assistant владельца комнаты
+ *  заведены (Гостиная, Кухня, Спальня), а из пятнадцати светильников к комнате
+ *  не привязан НИ ОДИН — ни сущность, ни её устройство. Группировать по комнате
+ *  тогда не по чему, и список обязан опереться на имя устройства, а не сваливать
+ *  всё в одну кучу «Все устройства», ради ухода от которой всё и делалось. */
+const REGISTRY_NO_AREAS = {
+  areas: REGISTRY.areas,
+  devices: Object.fromEntries(
+    Object.entries(REGISTRY.devices).map(([k, d]) => [k, { ...d, area_id: undefined }]),
+  ),
+  entities: REGISTRY.entities,
+};
+
 /** Состояния к ним. Имена — ровно те, что видно в его Home Assistant. */
 function homeStates(): Record<string, any> {
   const st: Record<string, any> = {};
@@ -103,14 +118,14 @@ function homePlan() {
 /** Открыть карточку с ЖИВЫМ реестром HA и войти в новый конструктор.
  *  Реестр подмешивается в hass до монтажа: стенд его сам не отдаёт, а весь
  *  список без него — одна безымянная куча. */
-async function openHome(page: Page): Promise<void> {
+async function openHome(page: Page, reg: unknown = REGISTRY): Promise<void> {
   await openHarness(page);
   await page.evaluate((reg) => {
     (document.getElementById('host') as HTMLElement).style.width = '1440px';
     const api = window.BMS as any;
     const orig = api.makeHass.bind(api);
     api.makeHass = () => Object.assign(orig(), reg);
-  }, REGISTRY);
+  }, reg);
   await mountCard(page, { config: { plan: homePlan() }, states: homeStates(), height: '820px' });
   await settleScene(page);
   await page.evaluate(async () => {
@@ -207,10 +222,15 @@ test.describe('Список устройств: комнаты, каналы, з
     await placeLight(page, 3, 2.5); // светильник в ГОСТИНОЙ
 
     const gs = await groups(page);
+    // Щит комнаты не имеет, но ИМЯ УСТРОЙСТВА у него есть — и раздел называется
+    // им, а не безликим «Без комнаты». Ожидание изменено осознанно: так список
+    // ведёт себя на живом доме владельца, где комнаты устройствам не назначены
+    // вовсе (см. проверку «комнаты в HA не назначены…» ниже). «Без комнаты»
+    // остаётся только для сущностей, у которых нет и устройства.
     expect(
       gs.map((g) => g.name),
-      'разделы: комнаты по алфавиту, «Без комнаты» — в конце, а не вперемешку',
-    ).toEqual(['Гостиная', 'Кухня', 'Спальня', 'Без комнаты']);
+      'разделы: комнаты по алфавиту, устройство без комнаты — своим именем, а не вперемешку',
+    ).toEqual(['Гостиная', 'Кухня', 'Спальня', 'Щит освещения']);
     expect(
       gs.map((g) => g.count),
       'в заголовке — сколько подходящих устройств в комнате',
@@ -306,7 +326,7 @@ test.describe('Список устройств: комнаты, каналы, з
     expect(
       gs.map((g) => g.name),
       'разделы остались разделами — «Канал 1» есть в каждой комнате',
-    ).toEqual(['Гостиная', 'Кухня', 'Спальня', 'Без комнаты']);
+    ).toEqual(['Гостиная', 'Кухня', 'Спальня', 'Щит освещения']);
     expect(gs.every((g) => g.open), 'раздел с находкой открыт сам — иначе видно одни заголовки').toBe(true);
     expect(gs.map((g) => g.rows.length), 'внутри каждого — только найденное').toEqual([1, 1, 1, 1]);
     expect(
@@ -421,4 +441,32 @@ test.describe('Список устройств: комнаты, каналы, з
     await shot('picker-search');
   });
 
+
+  test('комнаты в HA не назначены — разделами становятся устройства, а не одна куча', async ({ page }) => {
+    // Живой случай владельца: комнаты в Home Assistant есть, но НИ ОДИН
+    // светильник к ним не привязан. Раньше это давало единственный раздел
+    // «Все устройства» — ту самую свалку, из-за которой всё и затевалось.
+    await openHome(page, REGISTRY_NO_AREAS);
+    await placeLight(page, 3, 2.5);
+
+    const gs = await groups(page);
+    expect(
+      gs.map((g) => g.name),
+      'разделами обязаны стать устройства: «Гостиная свет», «Кухня свет», «Спальня свет», «Щит освещения»',
+    ).toEqual(['Гостиная свет', 'Кухня свет', 'Спальня свет', 'Щит освещения']);
+    expect(gs.map((g) => g.count), 'и каналы разложены по своим устройствам').toEqual([3, 2, 2, 2]);
+    expect(
+      gs.some((g) => g.name === 'Все устройства' || g.name === 'Без комнаты'),
+      'ни «Все устройства», ни «Без комнаты» здесь быть не должно — имя устройства известно',
+    ).toBe(false);
+
+    // Внутри раздела-устройства его имя в каждой строке уже лишнее: остаётся канал.
+    await clickHead(page, 'dev:Кухня свет');
+    const now = await groups(page);
+    const kitchen = now.find((g) => g.name === 'Кухня свет')!;
+    expect(kitchen.rows.map((r) => r.title), 'в строке — канал, имя устройства уже в заголовке').toEqual([
+      'Канал 1',
+      'Канал 2',
+    ]);
+  });
 });

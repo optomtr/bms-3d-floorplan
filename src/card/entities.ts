@@ -197,12 +197,20 @@ export function pickerGroups(
   const by = new Map<string, PickGroup>();
   for (const id of ids) {
     const area = entityArea(host, id);
-    // Комната без названия — это та же «неизвестная»: иначе получилось бы два
-    // раздела с одинаковым заголовком.
-    const key = area ? entityAreaId(host, id) : '';
+    // Комната в Home Assistant заполнена далеко не всегда. На живом доме
+    // владельца комнаты заведены, но НИ ОДИН из 15 светильников к ним не
+    // привязан — ни сама сущность, ни её устройство. Тогда группировать
+    // по комнате не по чему, и список снова становится свалкой, ради ухода от
+    // которой всё и делалось.
+    // Запасная опора — имя устройства: «Гостиная свет · Канал 1», «Кухня свет ·
+    // Канал 2». Монтажник мыслит именно устройствами (щит, реле, канал), и
+    // такое имя обычно уже несёт комнату.
+    const dev = area ? '' : entityDeviceName(host, id);
+    const key = area ? entityAreaId(host, id) : dev ? `dev:${dev}` : '';
     let g = by.get(key);
-    if (!g) by.set(key, (g = { key, area: area || NO_ROOM, rows: [] }));
-    const title = entityTitle(host, id);
+    if (!g) by.set(key, (g = { key, area: area || dev || NO_ROOM, rows: [] }));
+    // В разделе-устройстве его имя уже в заголовке — в строке оставляем канал.
+    const title = dev ? entityLabel(host, id).trim() || id : entityTitle(host, id);
     g.rows.push({ id, title, sub: title.includes(id) ? '' : id, taken: taken?.get(id) ?? null });
   }
   const groups = [...by.values()].sort((a, b) => {
