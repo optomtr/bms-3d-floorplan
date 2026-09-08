@@ -1,7 +1,7 @@
 {
   "domain": "bms_floorplan",
   "name": "BMS Планировка",
-  "version": "0.177.5",
+  "version": "0.177.6",
   "documentation": "https://github.com/optomtr/bms-3d-floorplan",
   "issue_tracker": "https://github.com/optomtr/bms-3d-floorplan/issues",
   "codeowners": [

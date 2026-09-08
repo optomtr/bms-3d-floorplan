@@ -188,6 +188,22 @@ export function planTakenBy(plan: FloorPlan | undefined, except?: string): Map<s
 
 /** Кандидаты, разложенные по комнатам. Комнаты — по алфавиту, «Без комнаты» —
  *  всегда последним разделом, а не вперемешку. */
+/** Срезает у имени сущности приставку с именем устройства: «Гостиная свет
+ *  Канал 1» → «Канал 1», потому что имя устройства уже стоит в заголовке
+ *  раздела и повторять его в каждой строке незачем.
+ *
+ *  Срезаем ТОЛЬКО если остаток читается сам по себе — с заглавной буквы или с
+ *  цифры. Иначе «Щит освещения розетки» превратилось бы в «розетки»: обрывок,
+ *  который в списке ничего не значит. (Поймано проверкой «без дублей».) */
+function stripPrefix(name: string, dev: string): string {
+  if (!name || !dev) return name;
+  if (!name.toLowerCase().startsWith(dev.toLowerCase())) return name;
+  const rest = name.slice(dev.length).replace(/^[\s·\-–—.:]+/, '').trim();
+  if (rest.length < 2) return name;
+  const head = rest[0];
+  return head === head.toUpperCase() && head !== head.toLowerCase() ? rest : /^\d/.test(rest) ? rest : name;
+}
+
 export function pickerGroups(
   host: BmsFloorplanCard,
   domains: string[],
@@ -210,7 +226,10 @@ export function pickerGroups(
     let g = by.get(key);
     if (!g) by.set(key, (g = { key, area: area || dev || NO_ROOM, rows: [] }));
     // В разделе-устройстве его имя уже в заголовке — в строке оставляем канал.
-    const title = dev ? entityLabel(host, id).trim() || id : entityTitle(host, id);
+    // Home Assistant обычно сам склеивает имя сущности из имени устройства
+    // («Гостиная свет Канал 1»), поэтому приставку срезаем, иначе заголовок и
+    // строка повторяют друг друга.
+    const title = dev ? stripPrefix(entityLabel(host, id).trim(), dev) || id : entityTitle(host, id);
     g.rows.push({ id, title, sub: title.includes(id) ? '' : id, taken: taken?.get(id) ?? null });
   }
   const groups = [...by.values()].sort((a, b) => {

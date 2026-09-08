@@ -26042,7 +26042,7 @@ class SA {
     this.teardown = [], this.markers.dispose(), this.clearPlan(), this.clearPreview(), this.clearGizmo(), this.setUnderlay(null), this.setSelection(null), this.gridHelper && (this.scene.remove(this.gridHelper), bs(this.gridHelper), this.gridHelper = void 0), this.defaultBackdrop?.dispose(), this.scene.background = null, this.sun?.shadow?.map?.dispose(), this.scene.clear(), this.onPick = void 0, this.onRoomsChanged = void 0, this.onBackdrop = void 0, this.onGround = void 0, this.onDrag = void 0, this.lastHass = void 0, this.controls.dispose(), this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.width = 0, this.renderer.domElement.height = 0, this.renderer.domElement.remove();
   }
 }
-const EA = "0.177.5", Kp = [
+const EA = "0.177.6", Kp = [
   { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "input_boolean"] },
   { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate", "fan"] },
   { key: "curtains", label: "Curtains", icon: "curtain", behaviors: ["cover"] },
@@ -27663,23 +27663,30 @@ function t3(n, e) {
         c && !t.has(c) && t.set(c, `комната ${l.name || "без названия"}${a}`);
   }), t;
 }
-function n3(n, e, t) {
+function n3(n, e) {
+  if (!n || !e || !n.toLowerCase().startsWith(e.toLowerCase())) return n;
+  const t = n.slice(e.length).replace(/^[\s·\-–—.:]+/, "").trim();
+  if (t.length < 2) return n;
+  const i = t[0];
+  return i === i.toUpperCase() && i !== i.toLowerCase() || /^\d/.test(t) ? t : n;
+}
+function i3(n, e, t) {
   const { ids: i, fellBack: s } = bh(n, e), r = /* @__PURE__ */ new Map();
   for (const a of i) {
     const l = Oo(n, a), c = l ? "" : Kg(n, a), d = l ? Xg(n, a) : c ? `dev:${c}` : "";
     let u = r.get(d);
     u || r.set(d, u = { key: d, area: l || c || QT, rows: [] });
-    const h = c ? Uo(n, a).trim() || a : Yg(n, a);
+    const h = c ? n3(Uo(n, a).trim(), c) || a : Yg(n, a);
     u.rows.push({ id: a, title: h, sub: h.includes(a) ? "" : a, taken: t?.get(a) ?? null });
   }
   const o = [...r.values()].sort((a, l) => !a.key != !l.key ? a.key ? -1 : 1 : a.area.localeCompare(l.area, "ru"));
   for (const a of o) a.rows.sort((l, c) => l.title.localeCompare(c.title, "ru"));
   return o.length === 1 && !o[0].key && (o[0].area = e3), { groups: o, fellBack: s, total: i.length };
 }
-function i3(n, e, t) {
+function s3(n, e, t) {
   return t ?? n.hass?.states[e]?.attributes?.friendly_name ?? e;
 }
-function s3(n, e) {
+function r3(n, e) {
   const t = n.hass?.states ?? {}, i = {
     camera: "_video",
     switch: "_prosmotr",
@@ -27705,7 +27712,7 @@ function s3(n, e) {
   }
   return null;
 }
-function r3(n, e, t) {
+function o3(n, e, t) {
   const i = n.hass?.states[e];
   let s = i?.attributes?.friendly_name ?? e.split(".").pop() ?? e;
   if (t) {
@@ -27741,13 +27748,13 @@ function Jg(n, e) {
     rotation: Math.atan2(e.nx, e.nz) * 180 / Math.PI
   };
 }
-const o3 = 0.3, u0 = Math.PI / 12, a3 = 0.12, h0 = 0.25;
+const a3 = 0.3, u0 = Math.PI / 12, l3 = 0.12, h0 = 0.25;
 function xu(n) {
   const e = [];
   for (const t of n) e.push([t.start[0], t.start[1]], [t.end[0], t.end[1]]);
   return e;
 }
-function l3(n, e, t, i) {
+function c3(n, e, t, i) {
   let s = null, r = i;
   for (const o of n)
     for (const a of [o.start, o.end]) {
@@ -27756,7 +27763,7 @@ function l3(n, e, t, i) {
     }
   return s;
 }
-function c3(n, e) {
+function d3(n, e) {
   return xu(n).some((t) => Math.hypot(t[0] - e[0], t[1] - e[1]) < 1e-3);
 }
 function Qg(n, e, t) {
@@ -27769,7 +27776,7 @@ function Qg(n, e, t) {
     angleDeg: o ? a(o, A) : 0,
     ...S
   });
-  let c = null, d = o3;
+  let c = null, d = a3;
   for (const A of [...xu(i), ...s]) {
     const S = Math.hypot(n - A[0], e - A[1]);
     S < d && (d = S, c = A);
@@ -27785,7 +27792,7 @@ function Qg(n, e, t) {
   const u = n - o[0], h = e - o[1], f = Math.hypot(u, h);
   if (f < 1e-4) return l([o[0], o[1]]);
   const g = Math.round(Math.atan2(h, u) / u0) * u0;
-  let b = Math.round(f / Rl) * Rl, p = !1, m = a3;
+  let b = Math.round(f / Rl) * Rl, p = !1, m = l3;
   for (const A of i) {
     const S = Math.hypot(A.end[0] - A.start[0], A.end[1] - A.start[1]);
     Math.abs(S - f) < m && (m = Math.abs(S - f), b = S, p = !0);
@@ -27840,13 +27847,13 @@ function tv(n, e, t, i = 1.2) {
   }
   return r;
 }
-const d3 = Math.random().toString(36).slice(2, 7);
+const u3 = Math.random().toString(36).slice(2, 7);
 let f0 = 0;
 function Fo(n) {
-  return f0 += 1, `${n}${f0.toString(36)}${d3}`;
+  return f0 += 1, `${n}${f0.toString(36)}${u3}`;
 }
 const vs = () => Fo("w"), Bi = () => Fo("o"), nr = () => Fo("r");
-function u3(n) {
+function h3(n) {
   const e = [], t = /* @__PURE__ */ new Set(), i = (s) => {
     for (const r of s ?? [])
       r && !t.has(r) && (t.add(r), e.push(r));
@@ -27866,7 +27873,7 @@ function dl(n) {
     for (; e.has(o); ) o = Fo(r);
     return e.add(o), t += 1, o;
   };
-  for (const s of u3(n)) {
+  for (const s of h3(n)) {
     for (const r of s.walls ?? [])
       if (r) {
         r.id = i(r.id, "w");
@@ -27914,17 +27921,17 @@ function nv(n, e) {
   }
   return null;
 }
-function h3(n, e) {
+function f3(n, e) {
   n.kind = e.kind, n.targetId = e.ownerId, n.openingId = e.opening.id, n.index = e.ownerIndex, n.opening = e.openingIndex, e.kind === "room" ? n.edge = e.opening.edge : delete n.edge;
 }
 function Ki(n) {
   for (const e of n?.furniture ?? []) {
     if (!e?.attach) continue;
     const t = nv(n, e.attach);
-    t && h3(e.attach, t);
+    t && f3(e.attach, t);
   }
 }
-function f3(n) {
+function p3(n) {
   let e = 0;
   for (let t = 0; t < n.length; t++) {
     const i = n[t], s = n[(t + 1) % n.length];
@@ -28013,7 +28020,7 @@ function sv(n) {
   }
   return { walls: s, idMap: r };
 }
-const p3 = /* @__PURE__ */ new Set(["image", "bgImage"]), m3 = 512, rd = "\0img:";
+const m3 = /* @__PURE__ */ new Set(["image", "bgImage"]), g3 = 512, rd = "\0img:";
 function Ks(n) {
   return n.json.length;
 }
@@ -28027,7 +28034,7 @@ class rv {
   /** Снимок плана, каким он был. */
   snapshot(e) {
     const t = [];
-    return { json: JSON.stringify(e, (s, r) => typeof r == "string" && r.length >= m3 && p3.has(s) ? (t.push(r), `${rd}${t.length - 1}`) : r), images: t };
+    return { json: JSON.stringify(e, (s, r) => typeof r == "string" && r.length >= g3 && m3.has(s) ? (t.push(r), `${rd}${t.length - 1}`) : r), images: t };
   }
   /** Снимок обратно в план: метки заменяются теми же строками. */
   restore(e) {
@@ -28101,7 +28108,7 @@ class rv {
     return this.undoStack.push(i), this.undoBytes += Ks(i), this.trim(), this.restore(t);
   }
 }
-function g3(n) {
+function v3(n) {
   return {
     x: n.x ?? 0,
     z: n.z ?? 0,
@@ -28110,7 +28117,7 @@ function g3(n) {
     rotation: n.rotation ?? 0
   };
 }
-function v3(n, e, t) {
+function b3(n, e, t) {
   const i = e.x ?? 0, s = e.z ?? 0, r = e.rotation ?? 0, o = (l, c, d, u, h = !0) => {
     const f = new Fe(l, new Mn({ color: c, depthTest: !1 }));
     h && (f.rotation.x = -Math.PI / 2), f.position.set(d[0], t, d[1]), f.renderOrder = 1e3, f.userData.gizmoHandle = u, n.add(f);
@@ -28125,9 +28132,9 @@ function v3(n, e, t) {
     d.position.set(l[0], t, l[1]), d.renderOrder = 1e3, d.userData.gizmoHandle = `corner${c}`, n.add(d);
   });
 }
-function b3(n, e, t, i, s, r, o) {
+function x3(n, e, t, i, s, r, o) {
   if (e === "move") {
-    n.x = Ct(s.x + (t.x - i[0])), n.z = Ct(s.z + (t.z - i[1])), r || x3(n, o);
+    n.x = Ct(s.x + (t.x - i[0])), n.z = Ct(s.z + (t.z - i[1])), r || y3(n, o);
     return;
   }
   if (e === "rotate") {
@@ -28145,7 +28152,7 @@ function b3(n, e, t, i, s, r, o) {
     n.width = p, n.depth = m, n.x = Ct(f + _[0] / 2), n.z = Ct(g + _[1] / 2);
   }
 }
-function x3(n, e) {
+function y3(n, e) {
   if (Math.abs((n.rotation ?? 0) % 360) > 1) return;
   const t = 0.35, i = n.width ?? 3, s = n.depth ?? 3, r = (n.x ?? 0) - i / 2, o = (n.z ?? 0) - s / 2, a = e.filter((h) => h !== n && Math.abs((h.rotation ?? 0) % 360) <= 1);
   let l = 0, c = t, d = 0, u = t;
@@ -28164,8 +28171,8 @@ function x3(n, e) {
   }
   n.x = (n.x ?? 0) + l, n.z = (n.z ?? 0) + d;
 }
-const y3 = 0.4;
-function w3(n, e) {
+const w3 = 0.4;
+function _3(n, e) {
   const { chain: t, cursor: i, snapInfo: s, walls: r, elevation: o, wallHeight: a, label: l } = e, c = (h, f, g) => {
     const b = new Fe(
       new Mi(f, 12, 12),
@@ -28195,7 +28202,7 @@ function w3(n, e) {
   }
   const u = i ? [...t, i] : [...t];
   for (const h of u) {
-    const f = c3(r, h);
+    const f = d3(r, h);
     c(h, f ? 0.12 : 0.07, f ? 5230698 : 4500223);
   }
   for (let h = 0; h < u.length - 1; h++) {
@@ -28213,7 +28220,7 @@ function w3(n, e) {
       l.sprite.visible = !1;
   if (t.length >= 2 && i) {
     const h = t[0];
-    if (Math.hypot(i[0] - h[0], i[1] - h[1]) < y3) {
+    if (Math.hypot(i[0] - h[0], i[1] - h[1]) < w3) {
       const f = new Fe(
         new pn(0.22, 0.04, 8, 24),
         new Mn({ color: 5230698 })
@@ -28222,7 +28229,7 @@ function w3(n, e) {
     }
   }
 }
-function _3(n, e, t) {
+function M3(n, e, t) {
   return {
     id: `z${n.length}_${Math.floor(performance.now() % 1e5)}`,
     name: `Room ${n.length + 1}`,
@@ -28231,28 +28238,28 @@ function _3(n, e, t) {
     entities: []
   };
 }
-function M3(n, e) {
+function S3(n, e) {
   const t = String(e).trim();
   t ? n.bgImage = t : delete n.bgImage;
 }
-function S3(n, e, t) {
+function E3(n, e, t) {
   if (t) {
     e.parentId = t;
     for (const i of n) i.parentId === e.id && delete i.parentId;
   } else
     delete e.parentId;
 }
-function E3(n, e, t) {
+function A3(n, e, t) {
   const i = e === "temp" ? "tempSensor" : e === "floor" ? "floorSensor" : "humiditySensor", s = String(t).trim();
   s ? n[i] = s : delete n[i];
 }
-function A3(n, e) {
+function T3(n, e) {
   n.entities = n.entities.includes(e) ? n.entities.filter((t) => t !== e) : [...n.entities, e];
 }
 function m0(n, e, t) {
   [n[e], n[t]] = [n[t], n[e]];
 }
-function T3(n, e, t, i, s) {
+function R3(n, e, t, i, s) {
   return {
     image: e,
     widthM: n?.widthM ?? 10,
@@ -28263,13 +28270,13 @@ function T3(n, e, t, i, s) {
     opacity: n?.opacity ?? 0.6
   };
 }
-function R3(n, e, t) {
+function C3(n, e, t) {
   e === "widthM" ? n.widthM = Math.max(0.2, t) : e === "opacity" ? n.opacity = Math.max(0.05, Math.min(1, t)) : n[e] = t;
 }
-function C3(n, e, t) {
+function P3(n, e, t) {
   n.x = Math.round(((n.x ?? 0) + e) * 100) / 100, n.z = Math.round(((n.z ?? 0) + t) * 100) / 100;
 }
-function P3(n, e, t) {
+function k3(n, e, t) {
   n.widthM = Math.max(0.2, n.widthM * (t / e));
 }
 const g0 = {
@@ -28285,20 +28292,20 @@ const g0 = {
   door: { kind: "door", width: 0.9, variant: "single" },
   double_door: { kind: "door", width: 1.6, variant: "double" },
   sliding_door: { kind: "door", width: 1.7, variant: "sliding" }
-}, k3 = {
+}, I3 = {
   garage_door: { width: 2.6, top: 2.2 }
 };
 function ov(n, e, t) {
   const i = Math.min(t, Math.max(0.4, n - 0.1));
   return { width: i, position: Math.max(0, Math.min(n - i, e - i / 2)) };
 }
-function I3(n, e, t) {
+function L3(n, e, t) {
   const i = ev(n, e.x, e.z, 0.9);
   if (!i) return null;
   const { width: s, position: r } = ov(i.len, i.along, t.width);
   return { wallIndex: i.index, width: s, position: r };
 }
-function L3(n, e, t) {
+function D3(n, e, t) {
   const i = n[e.wallIndex], s = {
     id: Bi(),
     kind: t.kind,
@@ -28310,7 +28317,7 @@ function L3(n, e, t) {
   };
   return (i.openings ??= []).push(s), { index: i.openings.length - 1, opening: s };
 }
-function D3(n, e, t) {
+function N3(n, e, t) {
   const i = ev(n, e.x, e.z, 1);
   if (!i) return null;
   const s = n[i.index], r = i.len, { width: o, position: a } = ov(r, i.along, t.width), l = { id: Bi(), kind: "door", position: a, width: o, sill: 0, top: t.top, bare: !0 };
@@ -28326,7 +28333,7 @@ function D3(n, e, t) {
     rotation: -Math.atan2(s.end[1] - s.start[1], s.end[0] - s.start[0]) * 180 / Math.PI
   };
 }
-function N3(n, e, t) {
+function U3(n, e, t) {
   const i = t === "door" ? 0.9 : t === "opening" ? 1.4 : 1, s = t === "opening";
   let r = 0.6, o = null;
   const a = (A, S, R, k, B) => {
@@ -28398,7 +28405,7 @@ function N3(n, e, t) {
   }
   return !0;
 }
-class U3 {
+class O3 {
   constructor(e, t) {
     this.floorIndex = 0, this.tool = "wall", this.selectedModel = "sofa", this.selectedKind = null, this.selectedId = null, this.selWallId = null, this.selRoomId = null, this.selOpeningId = null, this.selectedZoneId = null, this.zonePlaceMode = !1, this.chain = [], this.cursor = null, this.calibrating = !1, this.calibPts = [], this.snapEnabled = !0, this.snapInfo = null, this.dragMode = null, this.dragVertex = null, this.wallDrag0 = null, this.wallDragDelta = null, this.furnDrag0 = [0, 0], this.history = new rv(), this.dragSnapshot = null, this.gizmoHandle = null, this.gizmoGrab = [0, 0], this.gizmoRoom0 = { x: 0, z: 0, width: 3, depth: 3, rotation: 0 }, this.shiftHeld = !1, this.toolTap = {
       wall: (i) => this.chainTap(i, !1),
@@ -28522,7 +28529,7 @@ class U3 {
       return this.selectRoom(s.index), this.beginGizmo("move", e);
     const r = this.sm.groundIntersect(e);
     if (r) {
-      const o = l3(this.floor().walls ?? [], r.x, r.z, 0.45);
+      const o = c3(this.floor().walls ?? [], r.x, r.z, 0.45);
       if (o) {
         this.dragMode = "endpoint", this.dragVertex = o;
         const c = (this.floor().walls ?? []).findIndex(
@@ -28722,10 +28729,10 @@ class U3 {
       this.placeGlazing(e, this.selectedModel) || this.onMessage?.("Tap on (or near) a wall to place this");
       return;
     }
-    const i = k3[this.selectedModel];
+    const i = I3[this.selectedModel];
     if (i) {
       this.pushUndo();
-      const c = D3(this.floor().walls ?? [], e, i);
+      const c = N3(this.floor().walls ?? [], e, i);
       if (!c) {
         this.history.dropLast(), this.onMessage?.("Tap on (or near) a wall to install the garage door");
         return;
@@ -28773,10 +28780,10 @@ class U3 {
   placeGlazing(e, t) {
     const i = g0[t];
     if (!i) return !1;
-    const s = this.floor().walls ?? [], r = I3(s, e, i);
+    const s = this.floor().walls ?? [], r = L3(s, e, i);
     if (!r) return !1;
     this.pushUndo();
-    const { opening: o } = L3(s, r, i);
+    const { opening: o } = D3(s, r, i);
     return this.rebuild(), this.selectOpeningById(o.id), this.onMessage?.(`${i.kind === "door" ? "Glass door" : "Window"} cut into wall`), !0;
   }
   /** Ближайшая точка стены (или грани комнаты-фигуры) для посадки навесного
@@ -28951,17 +28958,17 @@ class U3 {
   buildGizmo() {
     this.sm.clearGizmo();
     const e = this.currentRoom();
-    !e || !fn(e) || v3(this.sm.gizmoGroup, e, this.elevation() + 0.08);
+    !e || !fn(e) || b3(this.sm.gizmoGroup, e, this.elevation() + 0.08);
   }
   beginGizmo(e, t) {
     const i = this.currentRoom(), s = this.sm.groundIntersect(t);
-    return !i || !s ? !1 : (this.dragMode = "gizmo", this.gizmoHandle = e, this.gizmoGrab = [s.x, s.z], this.gizmoRoom0 = g3(i), !0);
+    return !i || !s ? !1 : (this.dragMode = "gizmo", this.gizmoHandle = e, this.gizmoGrab = [s.x, s.z], this.gizmoRoom0 = v3(i), !0);
   }
   gizmoMoveTo(e) {
     const t = this.currentRoom();
     if (!t || !this.gizmoHandle) return;
     const i = (this.floor().rooms ?? []).filter((r) => fn(r));
-    b3(t, this.gizmoHandle, e, this.gizmoGrab, this.gizmoRoom0, this.shiftHeld, i);
+    x3(t, this.gizmoHandle, e, this.gizmoGrab, this.gizmoRoom0, this.shiftHeld, i);
     const s = this.selectedRoom;
     s >= 0 && this.refreshParts({ rooms: [s] }), this.onChange?.();
   }
@@ -29061,7 +29068,7 @@ class U3 {
     e.zones || (e.zones = []);
     const t = e.zones;
     this.edit(() => {
-      const i = this.sm.controls.target, s = _3(t, i.x, i.z);
+      const i = this.sm.controls.target, s = M3(t, i.x, i.z);
       t.push(s), this.selectedZoneId = s.id;
     }, "zones");
   }
@@ -29074,7 +29081,7 @@ class U3 {
    *  photo is a view-mode backdrop, invisible in the editor. */
   setZoneBgImage(e, t) {
     const i = this.zones.find((s) => s.id === e);
-    i && this.edit(() => M3(i, t), "none");
+    i && this.edit(() => S3(i, t), "none");
   }
   setZoneName(e, t) {
     const i = this.zones.find((s) => s.id === e);
@@ -29084,14 +29091,14 @@ class U3 {
    *  must be a top-level zone (no grandparent) so nesting stays one level deep. */
   setZoneParent(e, t) {
     const i = this.zones.find((s) => s.id === e);
-    !i || t === e || this.edit(() => S3(this.zones, i, t), "none");
+    !i || t === e || this.edit(() => E3(this.zones, i, t), "none");
   }
   /** Bind (or clear, with an empty value) the sensor a room reads for one of its
    *  readouts — air temperature, floor probe or humidity. Empty → no reading is
    *  shown for that metric (blank), no auto-detect. */
   setZoneSensor(e, t, i) {
     const s = this.zones.find((r) => r.id === e);
-    s && this.edit(() => E3(s, t, i), "none");
+    s && this.edit(() => A3(s, t, i), "none");
   }
   deleteZone(e) {
     const t = this.floor(), i = t.zones;
@@ -29101,7 +29108,7 @@ class U3 {
   }
   toggleZoneDevice(e, t) {
     const i = this.zones.find((s) => s.id === e);
-    i && this.edit(() => A3(i, t), "none");
+    i && this.edit(() => T3(i, t), "none");
   }
   /** Reorder rooms: move a zone up/down in the floor's zone list. That order
    *  drives the room pills + panel order (zones come before auto-grouped rooms). */
@@ -29368,7 +29375,7 @@ class U3 {
   }
   /** Поставить проём инструментом «дверь / окно / проём» (см. openings.ts). */
   addOpening(e, t) {
-    if (this.pushUndo(), !N3(this.floor(), e, t)) {
+    if (this.pushUndo(), !U3(this.floor(), e, t)) {
       this.onMessage?.("Tap closer to a wall (or room edge)");
       return;
     }
@@ -29412,15 +29419,15 @@ class U3 {
   setUnderlayImage(e, t, i) {
     this.pushUndo();
     const s = this.floor(), r = this.sm.controls.target;
-    s.underlay = T3(s.underlay, e, t, i, { x: r.x, z: r.z }), this.applyUnderlay(), this.onChange?.(), this.onMessage?.("Reference image added — set its width (m), then trace walls");
+    s.underlay = R3(s.underlay, e, t, i, { x: r.x, z: r.z }), this.applyUnderlay(), this.onChange?.(), this.onMessage?.("Reference image added — set its width (m), then trace walls");
   }
   setUnderlayField(e, t) {
     const i = this.floor().underlay;
-    !i || Number.isNaN(t) || this.edit(() => R3(i, e, t), "underlay");
+    !i || Number.isNaN(t) || this.edit(() => C3(i, e, t), "underlay");
   }
   nudgeUnderlay(e, t) {
     const i = this.floor().underlay;
-    i && this.edit(() => C3(i, e, t), "underlay");
+    i && this.edit(() => P3(i, e, t), "underlay");
   }
   /** Begin two-point scale calibration (the next two ground taps). */
   startUnderlayCalibration() {
@@ -29434,7 +29441,7 @@ class U3 {
    *  equals the `real` metres the user entered. */
   applyUnderlayScale(e, t) {
     const i = this.floor();
-    !i.underlay || !(e > 0) || !(t > 0) || (this.pushUndo(), P3(i.underlay, e, t), this.applyUnderlay(), this.onChange?.(), this.onMessage?.(`Scale set — ${t} m across those points`));
+    !i.underlay || !(e > 0) || !(t > 0) || (this.pushUndo(), k3(i.underlay, e, t), this.applyUnderlay(), this.onChange?.(), this.onMessage?.(`Scale set — ${t} m across those points`));
   }
   /** Saved reset-view distance multiplier for this project. */
   get cameraDistance() {
@@ -29514,7 +29521,7 @@ class U3 {
       this.onMessage?.("Draw or import some walls first");
       return;
     }
-    const i = iv(t), s = f3, r = i.filter((l) => s(l) > 0.5);
+    const i = iv(t), s = p3, r = i.filter((l) => s(l) > 0.5);
     if (!r.length) {
       this.onMessage?.("No closed rooms found — make sure walls connect at corners");
       return;
@@ -29560,7 +29567,7 @@ class U3 {
     this.clearSelection(), this.rebuild(), this.onChange?.(), this.onMessage?.(`Walls merged: ${t.length} → ${i.length}`);
   }
   renderPreview() {
-    this.sm.clearPreview(), w3(this.sm.previewGroup, {
+    this.sm.clearPreview(), _3(this.sm.previewGroup, {
       arc: this.tool === "arc",
       chain: this.chain,
       cursor: this.cursor,
@@ -29572,24 +29579,24 @@ class U3 {
     });
   }
 }
-function O3(n, e) {
+function F3(n, e) {
   n.editor?.setFloorName(n.editFloorIndex, e.target.value);
 }
 function av(n) {
   if (!n.sceneManager || !n.currentPlan) return;
   n.qualityMenuOpen = !1;
   const e = JSON.parse(JSON.stringify(n.currentPlan));
-  n.editor = new U3(n.sceneManager, e), n.editor.onChange = () => {
+  n.editor = new O3(n.sceneManager, e), n.editor.onChange = () => {
     const t = n.editor;
     n.editTool = t.tool, n.editSelectedModel = t.selectedModel, n.editSelectedObjModel = t.selectedObjectModel, n.editSelectedKind = t.selectedKind, n.editOpeningKind = t.selectedOpeningKind, n.editOpeningVariant = t.selectedOpeningVariant, n.editOpeningWidth = t.selectedOpeningWidth, n.editSelectedColor = t.selectedColor, n.editSelectedWallLength = t.selectedWallLength, n.editSelectedWallThickness = t.selectedWallThickness, n.editSelectedWallAngle = t.selectedWallAngle, n.editRoom = t.selectedRoomData, n.editFurnScale = t.selectedFurnitureScale, n.editMaterial = t.selectedMaterial, n.editFloorIndex = t.floorIndex, n.editPlanName = t.plan.name ?? "", n.editCanUndo = t.canUndo, n.editCanRedo = t.canRedo, n.editUnderlay = t.underlay, n.editCameraDistance = t.cameraDistance, n.editIsLight = t.selectedIsLight, n.editBrightness = t.selectedBrightness, n.editIsLightSet = t.selectedIsLightSet, n.editSpread = t.selectedSpread, n.editCount = t.selectedCount, n.editZones = [...t.zones], n.editSelectedZoneId = t.selectedZoneId, n.editZonePlacing = t.zonePlacing, n.requestUpdate();
-  }, n.editor.onMessage = (t) => n.showToast(AR(n, t)), n.editor.onCalibrate = (t) => {
-    F3(n, t);
+  }, n.editor.onMessage = (t) => n.showToast(TR(n, t)), n.editor.onCalibrate = (t) => {
+    z3(n, t);
   }, n.sceneManager.loadPlan(e, !0), n.editor.floorIndex = Math.min(n.activeFloorIndex, e.floors.length - 1), n.editFloorIndex = n.editor.floorIndex, n.editor.setSnap(n.editSnap), n.editShowAllEntities = !1, n.editingProjectId = n.currentProjectId, n.editPlanName = e.name ?? "Plan", n.editor.start(), n.editing = !0, n.editTool = n.editor.tool, n.showToast(n.tx(
     "Режим правки: выберите «Стена» и касайтесь пола, чтобы ставить точки",
     'Edit mode — pick "Wall", tap the floor to place points'
   ));
 }
-async function F3(n, e) {
+async function z3(n, e) {
   const t = await kg(n, {
     title: n.tx("Калибровка подложки", "Calibrate the reference image"),
     message: n.tx(
@@ -29607,58 +29614,58 @@ async function xh(n) {
 function Ni(n, e) {
   n.editor?.setTool(e);
 }
-function z3(n, e) {
+function B3(n, e) {
   const t = parseInt(e.target.value, 10);
   Number.isNaN(t) || !n.editor || t < 0 || t >= n.editor.plan.floors.length || (n.editor.setFloor(t), n.activeFloorIndex = t);
 }
-function B3(n) {
+function H3(n) {
   n.editor?.undoPoint();
 }
-function H3(n) {
+function W3(n) {
   n.editor?.undo();
 }
-function W3(n) {
+function V3(n) {
   n.editor?.redo();
 }
-function V3(n) {
+function G3(n) {
   n.editor?.mergeWalls();
 }
-function G3(n) {
+function $3(n) {
   n.editor?.autoFloors();
-}
-function $3(n, e) {
-  const t = ii(e.target.value);
-  Number.isNaN(t) || n.editor?.setCameraDistance(t);
 }
 function j3(n, e) {
   const t = ii(e.target.value);
-  Number.isNaN(t) || n.editor?.setBrightness(t);
+  Number.isNaN(t) || n.editor?.setCameraDistance(t);
 }
 function q3(n, e) {
   const t = ii(e.target.value);
-  Number.isNaN(t) || n.editor?.setSpread(t);
+  Number.isNaN(t) || n.editor?.setBrightness(t);
 }
 function X3(n, e) {
+  const t = ii(e.target.value);
+  Number.isNaN(t) || n.editor?.setSpread(t);
+}
+function K3(n, e) {
   const t = parseInt(e.target.value, 10);
   Number.isNaN(t) || n.editor?.setCount(t);
 }
-function K3(n) {
+function Y3(n) {
   n.editor?.addZone();
 }
-function Y3(n, e) {
+function Z3(n, e) {
   n.editor?.selectZone(e);
 }
-function Z3(n, e, t) {
+function J3(n, e, t) {
   n.editor?.setZoneName(e, t.target.value);
 }
-function J3(n, e, t) {
+function Q3(n, e, t) {
   const i = t.target.value;
   n.editor?.setZoneParent(e, i || null), n.editor && (n.editZones = [...n.editor.zones]);
 }
 function od(n, e, t, i) {
   n.editor?.setZoneSensor(e, t, i.target.value), n.editor && (n.editZones = [...n.editor.zones]);
 }
-function Q3(n) {
+function eR(n) {
   n.editor?.beginZonePlace();
 }
 function v0(n, e, t) {
@@ -29670,23 +29677,23 @@ function b0(n, e, t) {
 function x0(n, e, t, i) {
   n.editor?.moveZoneEntity(e, t, i);
 }
-function eR(n, e) {
+function tR(n, e) {
   n.editor?.deleteZone(e);
 }
-function tR(n, e) {
+function nR(n, e) {
   n.editor?.setOpeningVariant(e.target.value);
 }
-function nR(n, e) {
+function iR(n, e) {
   n.editor?.setOpeningKind(e.target.value);
 }
-function iR(n, e) {
+function sR(n, e) {
   const t = ii(e.target.value);
   !Number.isNaN(t) && t > 0 && n.editor?.setOpeningWidth(t);
 }
-function sR(n) {
+function rR(n) {
   n.editor && (n.editSnap = !n.editSnap, n.editor.setSnap(n.editSnap));
 }
-function rR(n, e) {
+function oR(n, e) {
   const t = e.target.value;
   n.editor?.setColor(t);
 }
@@ -29694,7 +29701,7 @@ function ad(n, e, t) {
   const i = ii(t.target.value);
   Number.isNaN(i) || n.editor?.setFurnitureScale(e, i);
 }
-function oR(n, e) {
+function aR(n, e) {
   n.editor?.setSurfaceMaterial(e.target.value);
 }
 function y0(n, e) {
@@ -29703,25 +29710,25 @@ function y0(n, e) {
 function w0(n, e) {
   n.editor?.nudgeOpeningPosition(e);
 }
-function aR(n, e) {
+function lR(n, e) {
   const t = ii(e.target.value);
   !Number.isNaN(t) && t > 0 && n.editor?.setWallLength(t);
 }
-function lR(n, e) {
+function cR(n, e) {
   const t = ii(e.target.value);
   !Number.isNaN(t) && t > 0 && n.editor?.setWallThickness(t);
 }
-function cR(n, e) {
+function dR(n, e) {
   const t = ii(e.target.value);
   Number.isNaN(t) || n.editor?.setWallAngle(t);
 }
-function dR(n, e) {
+function uR(n, e) {
   n.editor?.deleteWallOpening(e);
 }
-function uR(n, e) {
+function hR(n, e) {
   n.editor?.deleteRoomOpening(e);
 }
-function hR(n) {
+function fR(n) {
   n.editor?.addFloor();
 }
 function ld(n, e) {
@@ -29763,25 +29770,25 @@ function Hi(n, e, t) {
 function cv(n) {
   n.editor?.removeUnderlay();
 }
-function fR(n) {
+function pR(n) {
   n.editor?.startUnderlayCalibration();
 }
-function pR(n) {
+function mR(n) {
   n.editor?.finishChain();
 }
 function oo(n, e, t) {
   n.editor?.setRoomField(e, t.target.value);
 }
-function mR(n, e, t) {
+function gR(n, e, t) {
   n.editor?.setZoneBgImage(e, t.target.value);
 }
-function gR(n, e) {
+function vR(n, e) {
   n.editor?.setZoneBgImage(e, "");
 }
-function vR(n, e, t) {
-  bR(n, t, (i) => n.editor?.setZoneBgImage(e, i));
-}
 function bR(n, e, t) {
+  xR(n, t, (i) => n.editor?.setZoneBgImage(e, i));
+}
+function xR(n, e, t) {
   const i = e.target, s = i.files?.[0];
   if (!s || !n.editor) return;
   const r = new FileReader();
@@ -29804,7 +29811,7 @@ function bR(n, e, t) {
     }, a.onerror = () => n.showToast("Не удалось прочитать изображение"), a.src = o;
   }, r.onerror = () => n.showToast("Не удалось прочитать файл"), r.readAsDataURL(s), i.value = "";
 }
-function xR(n, e) {
+function yR(n, e) {
   if (!n.editing2) {
     if (n.editor && (n.editor.shiftHeld = e.shiftKey), n.editing && n.editor && e.type === "keydown" && (e.ctrlKey || e.metaKey)) {
       const t = e.key.toLowerCase();
@@ -29813,7 +29820,7 @@ function xR(n, e) {
     n.editing && n.editor && e.type === "keydown" && (e.key === "Enter" ? (e.preventDefault(), n.editor.finishChain()) : e.key === "Escape" && (e.preventDefault(), n.editor.cancelChain()));
   }
 }
-async function yR(n) {
+async function wR(n) {
   await As(
     n,
     n.tx("Удалить этаж?", "Delete this floor?"),
@@ -29821,23 +29828,23 @@ async function yR(n) {
     n.tx("Удалить", "Delete")
   ) && n.editor?.deleteFloor();
 }
-function wR(n, e) {
+function _R(n, e) {
   n.editor && (n.editor.selectedModel = e, n.editSelectedModel = e, n.paletteOpen = !1);
 }
-function _R(n) {
+function MR(n) {
   n.paletteOpen = !n.paletteOpen;
 }
-function MR(n) {
+function SR(n) {
   n.editor?.rotateSelected();
 }
-function SR(n) {
+function ER(n) {
   n.editor?.deleteSelected();
 }
-function ER(n, e, t) {
+function AR(n, e, t) {
   const i = e.target.value || null;
   n.editor?.bindEntity(i, t), n.requestUpdate(), n.showToast(i ? n.tx(`Привязано: ${i}`, `Bound ${i}`) : n.tx("Привязка снята", "Binding cleared"));
 }
-function AR(n, e) {
+function TR(n, e) {
   if (!n.isRu) return e;
   let t = /^(\d+) walls? added$/.exec(e);
   if (t) {
@@ -29877,23 +29884,23 @@ function AR(n, e) {
 }
 function dv(n) {
   if (n.leakCache && n.leakCache.hass === n.hass) return n.leakCache.leak;
-  const e = TR(n);
+  const e = RR(n);
   return n.leakCache = { hass: n.hass, leak: e }, e;
 }
-function TR(n) {
+function RR(n) {
   const e = n.hass?.states;
   if (!e) return null;
   const t = [];
   for (const r of Object.keys(e))
     r.startsWith("binary_sensor.") && e[r]?.attributes?.device_class === "moisture" && n.effState(r) === "on" && t.push(r);
-  const i = RR(n), s = !!i && uv(n, i);
+  const i = CR(n), s = !!i && uv(n, i);
   return !t.length && !s ? null : { sensors: t, valve: i, wet: t.length > 0 };
 }
 function uv(n, e) {
   const t = n.effState(e);
   return e.startsWith("valve.") ? t === "closed" : t === "off";
 }
-function RR(n) {
+function CR(n) {
   const e = n.hass?.states ?? {}, t = Object.keys(e).filter(
     (i) => /^(valve|switch)\./.test(i) && /(water[_a-z0-9]*valve|valve[_a-z0-9]*water)/i.test(i)
   );
@@ -29902,7 +29909,7 @@ function RR(n) {
 function hv(n, e) {
   return n.rooms.find((t) => t.entities.some((i) => i.entity_id === e));
 }
-function CR(n) {
+function PR(n) {
   const e = dv(n);
   if (!e || n.leakAck) return j;
   const t = e.wet ? hv(n, e.sensors[0]) : void 0, i = e.sensors.map((o) => n.cardName(o)).join(", "), s = e.valve, r = s ? !uv(n, s) : !0;
@@ -29927,7 +29934,7 @@ function CR(n) {
     </div>
   </div>`;
 }
-function PR(n) {
+function kR(n) {
   const e = (t, i) => n.tx(t, i);
   return D`
       <div class="panel-section">
@@ -30027,7 +30034,7 @@ function PR(n) {
       </div>
   `;
 }
-function kR(n) {
+function IR(n) {
   const e = (t, i) => n.tx(t, i);
   return D`
       <div class="panel-group">${e("Комнаты — свой значок и устройства", "Rooms — manual icon & devices")}</div>
@@ -30036,10 +30043,10 @@ function kR(n) {
     icon: "plus",
     label: e("Добавить комнату", "Add room"),
     hint: e("Добавить значок комнаты и поставить его вручную", "Add a room control icon you place by hand"),
-    onClick: () => K3(n)
+    onClick: () => Y3(n)
   })}
         ${n.editZones.length ? D`<select class="select" aria-label=${e("Выбрать комнату", "Select a room")}
-              @change=${(t) => Y3(n, t.target.value || null)}>
+              @change=${(t) => Z3(n, t.target.value || null)}>
               <option value="">${e("— выберите —", "— select —")}</option>
               ${n.editZones.map(
     (t) => D`<option value=${t.id} ?selected=${t.id === n.editSelectedZoneId}>${t.name || e("Комната", "Room")}</option>`
@@ -30079,12 +30086,12 @@ function kR(n) {
     return D`<div class="toolrow">
             <input class="name-input" type="text" placeholder=${e("Название комнаты", "Room name")}
               aria-label=${e("Название комнаты", "Room name")}
-              .value=${t.name ?? ""} @input=${(o) => Z3(n, t.id, o)} />
+              .value=${t.name ?? ""} @input=${(o) => J3(n, t.id, o)} />
           </div>
           <div class="toolrow">
             <label class="hint">${e("Внутри комнаты (подкомната):", "Inside a room (sub-room):")}</label>
             <select class="select" aria-label=${e("Родительская комната", "Parent room")}
-              @change=${(o) => J3(n, t.id, o)}>
+              @change=${(o) => Q3(n, t.id, o)}>
               <option value="" ?selected=${!t.parentId}>${e("— (отдельная комната)", "— (a room of its own)")}</option>
               ${n.editZones.filter((o) => o.id !== t.id && !o.parentId).map((o) => D`<option value=${o.id} ?selected=${t.parentId === o.id}>${o.name || e("Комната", "Room")}</option>`)}
             </select>
@@ -30120,13 +30127,13 @@ function kR(n) {
       label: n.editZonePlacing ? e("Коснитесь пола…", "Tap the floor…") : e("Поставить значок", "Place the icon"),
       hint: e("Затем коснитесь пола в нужном месте", "Then tap the floor where it should sit"),
       cls: n.editZonePlacing ? "active" : "",
-      onClick: () => Q3(n)
+      onClick: () => eR(n)
     })}
             ${je(n, {
       icon: "trash",
       label: e("Удалить", "Delete"),
       hint: e("Удалить эту комнату", "Delete this room"),
-      onClick: () => eR(n, t.id)
+      onClick: () => tR(n, t.id)
     })}
           </div>
           <div class="panel-group">${e("Фон комнаты (виден на планшете при выборе)", "Room photo (shown on the tablet when selected)")}</div>
@@ -30134,19 +30141,19 @@ function kR(n) {
             <input class="name-input" type="text" placeholder=${e("URL или /local/room.jpg", "A URL or /local/room.jpg")}
               aria-label=${e("Адрес фонового снимка комнаты", "Room photo address")}
               .value=${t.bgImage && !t.bgImage.startsWith("data:") ? t.bgImage : ""}
-              @change=${(o) => mR(n, t.id, o)} />
+              @change=${(o) => gR(n, t.id, o)} />
           </div>
           <div class="toolrow">
             <label class="btn ic-btn" title=${e("Загрузить фото с устройства", "Upload a photo from this device")}
               >${n.ic("camera")}<span class="ic-btn-lab">${e("Загрузить фото", "Upload a photo")}</span><input
               type="file" accept="image/*" style="display:none"
               aria-label=${e("Загрузить фото комнаты", "Upload a room photo")}
-              @change=${(o) => vR(n, t.id, o)} /></label>
+              @change=${(o) => bR(n, t.id, o)} /></label>
             ${t.bgImage ? D`${je(n, {
       icon: "trash",
       label: e("Убрать фон", "Remove the photo"),
       hint: e("Убрать фон комнаты", "Remove the room photo"),
-      onClick: () => gR(n, t.id)
+      onClick: () => vR(n, t.id)
     })}
                   <span class="hint">${t.bgImage.startsWith("data:") ? e("фото загружено", "photo uploaded") : e("задан URL", "URL set")}</span>` : D`<span class="hint">${e("не задан", "not set")}</span>`}
           </div>
@@ -30199,20 +30206,20 @@ function kR(n) {
   })()}
   `;
 }
-const IR = YS.filter((n) => !jo.includes(n));
+const LR = YS.filter((n) => !jo.includes(n));
 function _0(n, e, t) {
   return D`
     <button
       class="palette-cell ${e === n.editSelectedModel ? "active" : ""}"
       title=${t}
-      @click=${() => wR(n, e)}
+      @click=${() => _R(n, e)}
     >
       <img src=${Xl(e)} alt="" />
       <span>${t}</span>
     </button>
   `;
 }
-function LR(n) {
+function DR(n) {
   const e = (o, a) => n.tx(o, a), t = n.editTool, i = n.editSelectedKind, s = t === "select" && !!i, r = i === "furniture";
   return D`
       ${t === "wall" || t === "floor" ? D`<div class="toolrow">
@@ -30220,13 +30227,13 @@ function LR(n) {
     icon: "undo",
     label: e("Убрать точку", "Undo point"),
     hint: e("Убрать последнюю поставленную точку", "Remove the last point"),
-    onClick: () => B3(n)
+    onClick: () => H3(n)
   })}
             ${je(n, {
     icon: "check",
     label: e("Готово", "Finish"),
     hint: e("Завершить эту цепочку (Enter)", "Finish this run (Enter)"),
-    onClick: () => pR(n)
+    onClick: () => mR(n)
   })}
             ${je(n, {
     icon: "magnet",
@@ -30236,7 +30243,7 @@ function LR(n) {
       "Snap assist: parallel/perpendicular angles, equal lengths, alignment"
     ),
     cls: n.editSnap ? "active" : "",
-    onClick: () => sR(n)
+    onClick: () => rR(n)
   })}
             <span class="hint">${t === "floor" ? e(
     "обведите пол: касайтесь углов · замкните на начальной точке (или «Готово»)",
@@ -30250,14 +30257,14 @@ function LR(n) {
       ${t === "furniture" ? D`<div class="toolrow">
             <button class="btn palette-btn ic-btn" title=${e("Выбрать модель", "Choose a model")}
               aria-label=${`${e("Выбрать модель", "Choose a model")}: ${mn(n.editSelectedModel)}`}
-              @click=${() => _R(n)}>
+              @click=${() => MR(n)}>
               <img class="palette-thumb" src=${Xl(n.editSelectedModel)} alt="" />
               <span class="ic-btn-lab">${mn(n.editSelectedModel)}</span>${n.ic("chevDown")}
             </button>
             <span class="hint">${e("коснитесь пола, чтобы поставить", "tap the floor to place it")}</span>
           </div>
           ${n.paletteOpen ? (() => {
-    const o = n.editFurnSearch.trim().toLowerCase(), a = (d) => !o || mn(d).toLowerCase().includes(o) || d.includes(o), l = jo.filter(a), c = IR.filter(a);
+    const o = n.editFurnSearch.trim().toLowerCase(), a = (d) => !o || mn(d).toLowerCase().includes(o) || d.includes(o), l = jo.filter(a), c = LR.filter(a);
     return D`<div class="palette">
                   <div class="toolrow search-row">
                     <span class="search-ic">${n.ic("search")}</span>
@@ -30282,12 +30289,12 @@ function LR(n) {
   })() : j}` : j}
 
       ${s ? D`<div class="toolrow">
-            <span class="hint">${e("Выбрано: ", "Selected: ")}${DR(n, i)}</span>
+            <span class="hint">${e("Выбрано: ", "Selected: ")}${NR(n, i)}</span>
             ${r ? D`${je(n, {
     icon: "rotate",
     label: e("Повернуть", "Rotate"),
     hint: e("Повернуть на 45°", "Rotate 45°"),
-    onClick: () => MR(n)
+    onClick: () => SR(n)
   })}
                   ${je(n, {
     icon: "arrowDown",
@@ -30317,7 +30324,7 @@ function LR(n) {
     icon: "trash",
     label: e("Удалить", "Delete"),
     hint: e("Удалить выбранное", "Delete the selected item"),
-    onClick: () => SR(n)
+    onClick: () => ER(n)
   })}
           </div>
           ${r && n.editIsLight ? D`<div class="toolrow">
@@ -30329,7 +30336,7 @@ function LR(n) {
     "Manual glow level (bound light overrides)"
   )}
                   aria-label=${e("Яркость свечения модели", "Model glow brightness")}
-                  @input=${(o) => j3(n, o)} />
+                  @input=${(o) => q3(n, o)} />
               </div>` : j}
           ${r && n.editIsLightSet ? D`<div class="toolrow">
                   <span class="hint">${e("Разнос:", "Spread:")}</span>
@@ -30340,19 +30347,19 @@ function LR(n) {
     "Spacing between elements (each keeps its size)"
   )}
                     aria-label=${e("Расстояние между элементами", "Spacing between elements")}
-                    @input=${(o) => q3(n, o)} />
+                    @input=${(o) => X3(n, o)} />
                 </div>
                 ${n.editSelectedObjModel === "spotlight_bar" ? D`<div class="toolrow">
                       <span class="hint">${e("Светильников:", "Spots:")}</span>
                       <input class="num-input" type="text" inputmode="decimal" min="1" max="12" step="1"
                         aria-label=${e("Число светильников на планке", "Number of spots on the bar")}
                         .value=${String(n.editCount)}
-                        @change=${(o) => X3(n, o)} />
+                        @change=${(o) => K3(n, o)} />
                     </div>` : j}` : j}
           ${i === "opening" ? D`<div class="toolrow">
                   <span class="hint">${e("Тип:", "Type:")}</span>
                   <select class="select" aria-label=${e("Тип проёма", "Opening type")}
-                    @change=${(o) => nR(n, o)}>
+                    @change=${(o) => iR(n, o)}>
                     ${["door", "window", "opening"].map(
     (o) => D`<option value=${o} ?selected=${o === n.editOpeningKind}>${ja(n, o)}</option>`
   )}
@@ -30361,7 +30368,7 @@ function LR(n) {
                 ${n.editOpeningKind !== "opening" ? D`<div class="toolrow">
                       <span class="hint">${e("Вид:", "Style:")}</span>
                       <select class="select" aria-label=${e("Вид проёма", "Opening style")}
-                        @change=${(o) => tR(n, o)}>
+                        @change=${(o) => nR(n, o)}>
                         ${(n.editOpeningKind === "door" ? Qm : eg).map(
     (o) => D`<option value=${o} ?selected=${o === n.editOpeningVariant}>
                               ${tg(n.editOpeningKind ?? void 0, o)}
@@ -30374,7 +30381,7 @@ function LR(n) {
                   <input class="num-input" type="text" inputmode="decimal" min="0.3" step="0.1"
                     aria-label=${e("Ширина проёма в метрах", "Opening width in metres")}
                     .value=${n.editOpeningWidth != null ? n.editOpeningWidth.toFixed(2) : ""}
-                    @change=${(o) => iR(n, o)} />
+                    @change=${(o) => sR(n, o)} />
                 </div>` : j}
           ${i !== "opening" ? D`<div class="toolrow">
                 <span class="hint">${e("Цвет:", "Color:")}</span>
@@ -30383,11 +30390,11 @@ function LR(n) {
                   type="color"
                   aria-label=${e("Цвет выбранного", "Colour of the selected item")}
                   .value=${n.editSelectedColor ?? (i === "room" ? "#c6a87e" : i === "wall" ? "#dcc3a0" : "#ffffff")}
-                  @input=${(o) => rR(n, o)}
+                  @input=${(o) => oR(n, o)}
                 />
                 ${i === "wall" || i === "room" ? D`<span class="hint">${i === "room" ? e("Пол", "Floor") : e("Стена", "Wall")}:</span>
                       <select class="select" aria-label=${i === "room" ? e("Покрытие пола", "Floor material") : e("Покрытие стены", "Wall material")}
-                        @change=${(o) => oR(n, o)}>
+                        @change=${(o) => aR(n, o)}>
                         ${(i === "room" ? dh : ch).map(
     (o) => D`<option value=${o} ?selected=${o === n.editMaterial}>${El(o)}</option>`
   )}
@@ -30418,7 +30425,7 @@ function LR(n) {
                   step="0.1"
                   aria-label=${e("Длина стены в метрах", "Wall length in metres")}
                   .value=${n.editSelectedWallLength != null ? n.editSelectedWallLength.toFixed(2) : ""}
-                  @change=${(o) => aR(n, o)}
+                  @change=${(o) => lR(n, o)}
                 />
                 <span class="hint">${e("или потяните за конец стены", "or drag the wall's end point")}</span>
               </div>
@@ -30437,7 +30444,7 @@ function LR(n) {
   )}
                   aria-label=${e("Угол стены в градусах", "Wall heading in degrees")}
                   .value=${n.editSelectedWallAngle != null ? n.editSelectedWallAngle.toFixed(0) : ""}
-                  @change=${(o) => cR(n, o)} />
+                  @change=${(o) => dR(n, o)} />
               </div>
               ${n.editor && n.editor.selectedWallOpenings.length ? D`<div class="panel-group">${e("Проёмы в этой стене", "Openings in this wall")}</div>
                     ${n.editor.selectedWallOpenings.map(
@@ -30447,7 +30454,7 @@ function LR(n) {
       icon: "trash",
       label: e("Удалить", "Delete"),
       hint: e("Удалить этот проём", "Delete this opening"),
-      onClick: () => dR(n, a)
+      onClick: () => uR(n, a)
     })}
                       </div>`
   )}` : j}` : j}
@@ -30493,7 +30500,7 @@ function LR(n) {
       icon: "trash",
       label: e("Удалить", "Delete"),
       hint: e("Удалить этот проём", "Delete this opening"),
-      onClick: () => uR(n, a)
+      onClick: () => hR(n, a)
     })}
                         </div>`
   )}` : j}` : j}
@@ -30511,7 +30518,7 @@ function LR(n) {
                     <div class="toolrow">
                       <select class="select wide" size=${h >= 2 ? 4 : 6}
                         aria-label=${e("Привязать сущность Home Assistant", "Bind a Home Assistant entity")}
-                        @change=${(_) => ER(n, _, b)}>
+                        @change=${(_) => AR(n, _, b)}>
                         <option value="" ?selected=${!m}>${e("— привязать сущность —", "— bind entity —")}</option>
                         ${u.map(
         (_) => D`<option value=${_} ?selected=${_ === m} title=${_}>
@@ -30554,7 +30561,7 @@ function LR(n) {
   )}</span>` : j}
   `;
 }
-function DR(n, e) {
+function NR(n, e) {
   return e === "room" ? n.editRoom?.shape ? n.tx("комната", "room") : n.tx("пол", "floor") : {
     furniture: n.tx("предмет", "furniture"),
     wall: n.tx("стена", "wall"),
@@ -30568,13 +30575,13 @@ function ja(n, e) {
     opening: n.tx("проём", "opening")
   }[e ?? ""] ?? e ?? "";
 }
-function NR(n) {
+function UR(n) {
   return D`
     <div class="overlay top-left toolbar">
-      ${UR(n)}
+      ${OR(n)}
+      ${IR(n)}
+      ${DR(n)}
       ${kR(n)}
-      ${LR(n)}
-      ${PR(n)}
     </div>
   `;
 }
@@ -30587,7 +30594,7 @@ function je(n, e) {
     @click=${e.onClick}
   >${n.ic(e.icon)}<span class="ic-btn-lab">${e.label}</span></button>`;
 }
-function UR(n) {
+function OR(n) {
   const e = n.editTool, t = (i, s) => n.tx(i, s);
   return D`
       <div class="ed-head">${n.ic("pencil")}<span>${t("Редактор плана", "Plan editor")}</span></div>
@@ -30598,26 +30605,26 @@ function UR(n) {
     label: t("Отменить", "Undo"),
     hint: t("Отменить последнее действие (Ctrl+Z)", "Undo the last action (Ctrl+Z)"),
     disabled: !n.editCanUndo,
-    onClick: () => H3(n)
+    onClick: () => W3(n)
   })}
         ${je(n, {
     icon: "redo",
     label: t("Повторить", "Redo"),
     hint: t("Вернуть отменённое (Ctrl+Y)", "Redo (Ctrl+Y)"),
     disabled: !n.editCanRedo,
-    onClick: () => W3(n)
+    onClick: () => V3(n)
   })}
         ${je(n, {
     icon: "merge",
     label: t("Объединить", "Merge"),
     hint: t("Слить одинаковые и наложенные стены в одну", "Merge duplicate / overlapping walls into one"),
-    onClick: () => V3(n)
+    onClick: () => G3(n)
   })}
         ${je(n, {
     icon: "floorArea",
     label: t("Полы авто", "Auto floors"),
     hint: t("Залить полом каждый замкнутый контур стен", "Fill every closed wall loop with a floor"),
-    onClick: () => G3(n)
+    onClick: () => $3(n)
   })}
       </div>
 
@@ -30772,7 +30779,7 @@ function UR(n) {
     icon: "ruler",
     label: t("Задать масштаб", "Calibrate"),
     hint: t("Отметьте две точки, расстояние между которыми известно", "Set scale by tapping two points of known length"),
-    onClick: () => fR(n)
+    onClick: () => pR(n)
   })}
               ${je(n, {
     icon: "trash",
@@ -30840,7 +30847,7 @@ function UR(n) {
     return D`<div class="panel-group">${t("Этажи", "Floors")}</div>
         <div class="toolrow">
           ${i.length > 1 ? D`<select class="select" aria-label=${t("Этаж, который правим", "The floor being edited")}
-                @change=${(r) => z3(n, r)}>
+                @change=${(r) => B3(n, r)}>
                 ${i.map(
       (r, o) => D`<option value=${o} ?selected=${o === n.editFloorIndex}>
                     ${r.name || t(`Этаж ${o + 1}`, `Floor ${o + 1}`)}
@@ -30851,13 +30858,13 @@ function UR(n) {
       icon: "plus",
       label: t("Этаж", "Floor"),
       hint: t("Добавить этаж сверху", "Add a floor above"),
-      onClick: () => hR(n)
+      onClick: () => fR(n)
     })}
           ${i.length > 1 ? je(n, {
       icon: "trash",
       label: t("Удалить этаж", "Delete floor"),
       hint: t("Удалить этот этаж со всем, что на нём", "Delete this floor and everything on it"),
-      onClick: () => yR(n)
+      onClick: () => wR(n)
     }) : j}
         </div>
         <div class="toolrow">
@@ -30865,7 +30872,7 @@ function UR(n) {
             .value=${s}
             title=${t("Переименовать этаж", "Rename this floor")}
             aria-label=${t("Название этажа", "Floor name")}
-            @input=${(r) => O3(n, r)} />
+            @input=${(r) => F3(n, r)} />
         </div>
         <div class="toolrow">
           <span class="hint">${t("Дальность обзора:", "View distance:")}</span>
@@ -30876,13 +30883,13 @@ function UR(n) {
       "Default camera distance on Reset (saved with the project)"
     )}
             aria-label=${t("Дальность камеры по умолчанию", "Default camera distance")}
-            @input=${(r) => $3(n, r)} />
+            @input=${(r) => j3(n, r)} />
         </div>`;
   })()}
   `;
 }
-function OR(n) {
-  if (n.controlRoom) return FR(n);
+function FR(n) {
+  if (n.controlRoom) return zR(n);
   const e = n.hass, t = n.controlEntities.filter((s) => e?.states[s]);
   if (!e || !t.length) return j;
   const [i] = n.controlPos;
@@ -30900,7 +30907,7 @@ function OR(n) {
     </div>
   `;
 }
-function FR(n) {
+function zR(n) {
   const e = n.controlRoom, t = n.hass;
   if (!e || !t) return j;
   const i = e.entities.filter((c) => t.states[c.entity_id]), s = Kp.map((c) => ({
@@ -31085,7 +31092,7 @@ function vv(n) {
 function bv(n) {
   return wh(n).on;
 }
-function zR(n) {
+function BR(n) {
   let e = 0, t = 0;
   const i = [];
   for (const c of n.rooms) {
@@ -31107,7 +31114,7 @@ function zR(n) {
   const l = t ? e / t : vv(n);
   return { temp: l != null ? `${r(l)}°` : "—", hum: gv(n), on: String(s), secIcon: o, secLabel: a };
 }
-function BR(n) {
+function HR(n) {
   const e = (...t) => n.entities.some((i) => t.includes(i.behavior));
   return [
     e("light", "switch", "input_boolean"),
@@ -31126,7 +31133,7 @@ function S0(n, e) {
   }
   return { ids: t, lightId: s, anyOn: i, bri: r };
 }
-function HR(n) {
+function WR(n) {
   const e = bv(n);
   let t = 0, i = 0;
   for (const r of n.rooms) {
@@ -31141,7 +31148,7 @@ function HR(n) {
   const s = i ? t / i : vv(n);
   return { onCount: e, avgTemp: s != null ? `${Math.round(s)}°` : "—", roomCount: n.rooms.length };
 }
-function WR(n) {
+function VR(n) {
   let e = 0, t = 0, i = 0;
   const s = [];
   for (const a of n.rooms) {
@@ -31173,12 +31180,12 @@ function WR(n) {
     secLabel: o
   };
 }
-function VR(n, e) {
+function GR(n, e) {
   if (!e) return null;
   const t = n.histCache.get(e);
-  return (!t || Date.now() - t.ts > 5 * 60 * 1e3) && $R(n, e), t ? t.pts : null;
+  return (!t || Date.now() - t.ts > 5 * 60 * 1e3) && jR(n, e), t ? t.pts : null;
 }
-function GR(n, e) {
+function $R(n, e) {
   if (!e) return "empty";
   const t = n.histCache.get(e);
   return t ? t.ok === !1 ? "failed" : t.pts.length >= 2 ? "ok" : "empty" : "loading";
@@ -31192,7 +31199,7 @@ function E0(n, e, t, i = !0) {
     n.histCache.delete(s);
   }
 }
-async function $R(n, e) {
+async function jR(n, e) {
   const t = n.hass;
   if (!t?.callWS && !t?.callApi || n.histInFlight.has(e)) return;
   n.histInFlight.add(e);
@@ -31234,7 +31241,7 @@ async function $R(n, e) {
     n.histInFlight.delete(e), n.requestUpdate();
   }
 }
-function jR(n, e) {
+function qR(n, e) {
   const t = n.hass.states, i = n.effState(e.prosmotr) === "on", s = t[e.vyzov]?.attributes?.call_state, r = s === "ringing" || s == null && n.effState(e.vyzov) === "on", o = r ? n.t("Ringing") : i ? n.t("Viewing") : n.t("Idle");
   return D`<div class="card intercom ${r ? "ring" : ""}">
     <div class="crow">
@@ -31256,7 +31263,7 @@ function jR(n, e) {
     </div>
   </div>`;
 }
-function qR(n, e) {
+function XR(n, e) {
   const t = e.filter((S) => n.effState(S) === "on").length, i = t > 0, s = e.filter((S) => AT(n, S)), r = s.length > 0, o = s.find((S) => n.effState(S) === "on") ?? s[0], a = o ? n.hass?.states[o]?.attributes?.brightness : void 0, l = a != null ? Math.round(a / 255 * 100) : 100, c = e[0], d = i0(n, c, l), u = (S) => {
     for (const R of s) n.svc("light", "turn_on", { brightness_pct: S }, R, "on");
   }, h = e.filter((S) => ET(n, S)), f = h.find((S) => n.effState(S) === "on") ?? h[0], g = f ? n.hass?.states[f]?.attributes ?? {} : {}, b = Number(g.min_color_temp_kelvin) || 2200, p = Number(g.max_color_temp_kelvin) || 6500, m = Number(g.color_temp_kelvin), _ = Number.isFinite(m) ? Math.round((m - b) / (p - b) * 100) : 50, x = `${e[0]}#ct`, w = i0(n, x, Math.max(0, Math.min(100, _))), A = (S) => {
@@ -31297,7 +31304,7 @@ function qR(n, e) {
               </div>` : j}` : j}
   </div>`;
 }
-function XR(n, e, t) {
+function KR(n, e, t) {
   const i = n.effState(e) === "on", s = e.split(".")[0];
   return D`<div class="card ${i ? "on" : ""}">
     <div class="crow">
@@ -31313,7 +31320,7 @@ function XR(n, e, t) {
     </div>
   </div>`;
 }
-function KR(n, e) {
+function YR(n, e) {
   const t = n.effState(e) === "on", i = n.hass?.states[e]?.attributes ?? {}, s = i.preset_modes ?? [], r = i.preset_mode, o = i.percentage, a = i.percentage_step, l = a && a > 0 ? Math.round(100 / a) : 0, c = l > 1 && l <= 8 ? Array.from({ length: l }, (u, h) => Math.round((h + 1) / l * 100)) : [], d = t ? r ? ll(n, r) : o != null ? `${o}%` : n.t("On") : n.t("Off");
   return D`<div class="card ${t ? "on" : ""}">
     <div class="crow">
@@ -31338,7 +31345,7 @@ function KR(n, e) {
           </div>` : j}
   </div>`;
 }
-function YR(n, e) {
+function ZR(n, e) {
   const t = n.hass.states[e], i = n.effState(e), s = i !== "off" && i !== "unavailable" && i !== "unknown", r = Ng(n, e), o = Ig(t), a = (x) => {
     typeof r == "number" && Dg(n, e, t, r, o, x);
   }, l = t?.attributes?.current_temperature, c = l != null ? Number(l).toLocaleString(n.uiLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null, d = s ? c != null ? `${c}° ${n.t("now")}` : hu(n, i) : n.t("Off"), u = t?.attributes?.hvac_modes?.length ? t.attributes.hvac_modes : ["off"], h = u.filter((x) => x !== "off"), f = h[0] ?? "heat", g = [...h, ...u.includes("off") ? ["off"] : []], b = dg(s ? i : f) ?? "power", p = t?.attributes?.fan_modes ?? [], m = t?.attributes?.fan_mode, _ = (x) => ll(n, x);
@@ -31376,7 +31383,7 @@ function YR(n, e) {
         </div>` : j}
   </div>`;
 }
-function ZR(n, e) {
+function JR(n, e) {
   const t = n.hass.states[e], i = D`<div class="crow">
       <div class="cicon">${n.ic("curtain")}</div>
       <div class="cgrow">
@@ -31407,7 +31414,7 @@ function ZR(n, e) {
     </div>
   </div>`;
 }
-function JR(n, e, t) {
+function QR(n, e, t) {
   const i = n.hass.states[e], s = n.effState(e), r = s !== "off" && s !== "unavailable" && s !== "unknown" && s !== "standby", o = s === "playing", a = Number(i?.attributes?.supported_features) || 0, l = (_) => (a & _) === _, c = l(128) || l(256), d = l(4), u = l(1024), h = l(8), f = !!i?.attributes?.is_volume_muted, g = Math.round(Ug(n, e) * 100), b = i?.attributes?.media_title ?? n.cardName(e, t), p = i?.attributes?.media_artist ?? "", m = o;
   return D`<div class="card ${r ? "on" : ""}">
     <div class="crow">
@@ -31440,7 +31447,7 @@ function JR(n, e, t) {
         </div>` : j}
   </div>`;
 }
-function QR(n, e) {
+function eC(n, e) {
   const t = n.effState(e) === "locked";
   return D`<button type="button" class="lockbtn ${t ? "locked" : "unlocked"}"
     aria-label=${`${n.cardName(e)} — ${t ? n.tx("открыть замок", "unlock") : n.tx("запереть замок", "lock")}`}
@@ -31451,7 +31458,7 @@ function QR(n, e) {
     ${n.ic("chevUp")}
   </button>`;
 }
-function eC(n, e) {
+function tC(n, e) {
   const i = n.hass.states[e]?.attributes?.unit_of_measurement ?? "";
   return D`<div class="card">
     <div class="crow">
@@ -31461,7 +31468,7 @@ function eC(n, e) {
     </div>
   </div>`;
 }
-function tC(n, e) {
+function nC(n, e) {
   const t = !!n.hass?.states[e];
   return D`<div class="card unavailable" data-entity=${e}>
     <div class="crow">
@@ -31491,9 +31498,9 @@ function _h(n, e, t = "auto") {
       "Датчик не привязан — графика нет",
       "No sensor bound — no graph"
     )}</div>`;
-  const s = t === "auto" ? i.some((U) => U.unit === "°") ? i.filter((U) => U.unit === "°") : i.slice(0, 1) : i.filter((U) => U.key === t), r = s.length ? s : i, o = r.map((U) => ({ cls: U.cls, label: U.label, unit: U.unit, pts: VR(n, U.id) })).filter((U) => !!U.pts && U.pts.length >= 2);
+  const s = t === "auto" ? i.some((U) => U.unit === "°") ? i.filter((U) => U.unit === "°") : i.slice(0, 1) : i.filter((U) => U.key === t), r = s.length ? s : i, o = r.map((U) => ({ cls: U.cls, label: U.label, unit: U.unit, pts: GR(n, U.id) })).filter((U) => !!U.pts && U.pts.length >= 2);
   if (!o.length) {
-    const U = r.map((z) => GR(n, z.id)), O = U.includes("loading") ? n.tx("Загружаем историю за сутки…", "Loading 24 h of history…") : U.every((z) => z === "failed") ? n.tx("Архив истории не отвечает — график недоступен", "The history archive is not responding — no graph") : n.tx("За сутки данных нет", "No data for the last 24 h");
+    const U = r.map((z) => $R(n, z.id)), O = U.includes("loading") ? n.tx("Загружаем историю за сутки…", "Loading 24 h of history…") : U.every((z) => z === "failed") ? n.tx("Архив истории не отвечает — график недоступен", "The history archive is not responding — no graph") : n.tx("За сутки данных нет", "No data for the last 24 h");
     return D`<div class="rp-spark-note ${U.every((z) => z === "failed") ? "bad" : ""}">${O}</div>`;
   }
   const a = o[0].unit, c = o.flatMap((U) => U.pts).map((U) => U[1]), d = Date.now(), u = d - 24 * 3600 * 1e3, h = a === "%" ? 5 : 2;
@@ -31522,7 +31529,7 @@ function _h(n, e, t = "auto") {
     <svg class="rp-spark" viewBox="0 0 ${b} ${p}" preserveAspectRatio="xMidYMid meet">${k}${E}</svg>
   </div>`;
 }
-function nC(n) {
+function iC(n) {
   return n.rooms.length ? D`<div class="pills">
     ${n.rooms.map(
     (e) => D`<button
@@ -31535,7 +31542,7 @@ function nC(n) {
   )}
   </div>` : j;
 }
-function iC(n) {
+function sC(n) {
   return n.floorNames.length <= 1 ? j : D`<div class="ftabs">
     ${n.floorNames.map(
     (e, t) => D`<button type="button" class="ftab ${t === n.activeFloorIndex ? "on" : ""}"
@@ -31545,7 +31552,7 @@ function iC(n) {
   )}
   </div>`;
 }
-function sC(n) {
+function rC(n) {
   return D`
     <div class="clock">
       <div class="ctime">${fh(n)}</div>
@@ -31572,13 +31579,13 @@ function sC(n) {
       ${wv(n)}
     </div>
     <div class="stage-bottom">
+      ${sC(n)}
       ${iC(n)}
-      ${nC(n)}
     </div>
   `;
 }
-function rC(n) {
-  const e = zR(n);
+function oC(n) {
+  const e = BR(n);
   return D`<div class="saver" @pointerdown=${() => jg(n)}>
     <div class="saver-aurora"></div>
     <div class="saver-in">
@@ -31607,7 +31614,7 @@ function xv(n, e, t, i) {
     ${s(i, "humidity", "cool", "drop")}
   </div>`;
 }
-function oC(n) {
+function aC(n) {
   const e = (n.sceneManager?.roomsByFloor() ?? [n.rooms]).flat(), t = [
     { key: "temp", label: "Температура", has: (r) => !!r.tempSensor },
     { key: "floor", label: "Тёплый пол", has: (r) => !!r.floorSensor },
@@ -31646,7 +31653,7 @@ function oC(n) {
       </div>
     </div>`;
 }
-function aC(n) {
+function lC(n) {
   const e = zg(n);
   if (!e) return j;
   const t = e.humiditySensor ? n.hass?.states[e.humiditySensor] : void 0, i = mv(n, e);
@@ -31683,8 +31690,8 @@ function aC(n) {
 function yv(n, e, t) {
   const i = n.hass;
   if (!i) return [];
-  const s = e.entities.filter((w) => !t.has(w.entity_id)), r = s.filter((w) => Ei(n, w.entity_id)), o = s.filter((w) => i.states[w.entity_id] && !Ei(n, w.entity_id)), a = s3(n, o), l = a ? o.filter((w) => !a.ids.has(w.entity_id)) : o, c = (...w) => l.filter((A) => n.canControl(A.entity_id) && w.includes(A.behavior)), d = c("light"), u = c("switch", "input_boolean"), h = c("climate"), f = c("fan"), g = c("cover"), b = c("media_player"), p = c("lock"), m = /* @__PURE__ */ new Set(["light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "lock"]), _ = l.filter((w) => !m.has(w.behavior) || !n.canControl(w.entity_id)), x = [];
-  return a && x.push(jR(n, a)), d.length && x.push(qR(n, d.map((w) => w.entity_id))), u.forEach((w) => x.push(XR(n, w.entity_id, "power"))), h.forEach((w) => x.push(YR(n, w.entity_id))), f.forEach((w) => x.push(KR(n, w.entity_id))), g.forEach((w) => x.push(ZR(n, w.entity_id))), b.forEach((w) => x.push(JR(n, w.entity_id, b.length === 1 ? n.t("Media") : void 0))), p.forEach((w) => x.push(QR(n, w.entity_id))), _.forEach((w) => x.push(eC(n, w.entity_id))), r.filter((w) => !a?.ids.has(w.entity_id)).forEach((w) => x.push(tC(n, w.entity_id))), x;
+  const s = e.entities.filter((w) => !t.has(w.entity_id)), r = s.filter((w) => Ei(n, w.entity_id)), o = s.filter((w) => i.states[w.entity_id] && !Ei(n, w.entity_id)), a = r3(n, o), l = a ? o.filter((w) => !a.ids.has(w.entity_id)) : o, c = (...w) => l.filter((A) => n.canControl(A.entity_id) && w.includes(A.behavior)), d = c("light"), u = c("switch", "input_boolean"), h = c("climate"), f = c("fan"), g = c("cover"), b = c("media_player"), p = c("lock"), m = /* @__PURE__ */ new Set(["light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "lock"]), _ = l.filter((w) => !m.has(w.behavior) || !n.canControl(w.entity_id)), x = [];
+  return a && x.push(qR(n, a)), d.length && x.push(XR(n, d.map((w) => w.entity_id))), u.forEach((w) => x.push(KR(n, w.entity_id, "power"))), h.forEach((w) => x.push(ZR(n, w.entity_id))), f.forEach((w) => x.push(YR(n, w.entity_id))), g.forEach((w) => x.push(JR(n, w.entity_id))), b.forEach((w) => x.push(QR(n, w.entity_id, b.length === 1 ? n.t("Media") : void 0))), p.forEach((w) => x.push(eC(n, w.entity_id))), _.forEach((w) => x.push(tC(n, w.entity_id))), r.filter((w) => !a?.ids.has(w.entity_id)).forEach((w) => x.push(nC(n, w.entity_id))), x;
 }
 function wv(n) {
   const e = (t) => n.viewMode === t ? "on" : "";
@@ -31699,7 +31706,7 @@ function wv(n) {
     </button>
   </div>`;
 }
-function lC(n, e) {
+function cC(n, e) {
   const t = (e || "").toLowerCase();
   return t.includes("404") || t.includes("not found") ? {
     title: n.tx("Файл плана не найден", "The plan file was not found"),
@@ -31733,14 +31740,14 @@ function lC(n, e) {
     )
   };
 }
-function cC(n) {
+function dC(n) {
   return D`<div class="plan-loading" role="status" aria-live="polite">
     <span class="plan-loading-ic">${n.ic("loading")}</span>
     <span class="plan-loading-t">${n.tx("Загружаем планировку…", "Loading the floor plan…")}</span>
   </div>`;
 }
-function dC(n) {
-  const e = n.loadErrorDetail ?? n.loadError ?? "", { title: t, what: i } = lC(n, e);
+function uC(n) {
+  const e = n.loadErrorDetail ?? n.loadError ?? "", { title: t, what: i } = cC(n, e);
   return D`<div class="error" role="alert">
     <div class="error-head">${n.ic("warn")}<span class="error-title">${t}</span></div>
     <div class="error-what">${i}</div>
@@ -31753,7 +31760,7 @@ function dC(n) {
     </div>
   </div>`;
 }
-function uC(n) {
+function hC(n) {
   return D`<div class="demo-banner" role="note">
     <span class="demo-ic">${n.ic("warn")}</span>
     <span class="demo-text">
@@ -31776,7 +31783,7 @@ function uC(n) {
     >${n.ic("close")}</button>
   </div>`;
 }
-function hC(n) {
+function fC(n) {
   return D`<div class="plan-warning" role="alert">
     <span class="pw-ic">${n.ic("warn")}</span>
     <span>${n.planWarning}</span>
@@ -31785,14 +31792,14 @@ function hC(n) {
       @click=${() => n.planWarning = void 0}>${n.ic("close")}</button>
   </div>`;
 }
-function fC(n) {
-  return n.loadError ? dC(n) : n.planLoading ? cC(n) : D`
-    ${n.planWarning ? hC(n) : j}
-    ${n.isDemoPlan && !n.demoNoticeHidden && !n.editing ? uC(n) : j}
+function pC(n) {
+  return n.loadError ? uC(n) : n.planLoading ? dC(n) : D`
+    ${n.planWarning ? fC(n) : j}
+    ${n.isDemoPlan && !n.demoNoticeHidden && !n.editing ? hC(n) : j}
   `;
 }
-function pC(n) {
-  const e = HR(n), t = WR(n), i = (s, r) => {
+function mC(n) {
+  const e = WR(n), t = VR(n), i = (s, r) => {
     const o = Number(s);
     return Number.isFinite(o) ? o.toLocaleString(n.uiLocale, { minimumFractionDigits: r, maximumFractionDigits: r }) : "—";
   };
@@ -31821,11 +31828,11 @@ function pC(n) {
       <div class="bstat good"><div class="bstat-ic">${n.ic(t.secIcon)}</div><div><div class="bstat-v">${t.secLabel}</div><div class="bstat-l">${n.t("front door")}</div></div></div>
     </div>
     <div class="ov-grid">
-      ${mC(n, i)}
+      ${gC(n, i)}
     </div>
   `;
 }
-function mC(n, e) {
+function gC(n, e) {
   const t = n.sceneManager?.roomsByFloor() ?? [n.rooms];
   n.overviewRoomByKey.clear();
   for (const r of t) for (const o of r) n.overviewRoomByKey.set(o.key, o);
@@ -31836,7 +31843,7 @@ function mC(n, e) {
     for (const u of r) u.id && a.set(u.id, u);
     const l = (u) => !!(u.parentId && u.parentId !== u.id && a.has(u.parentId)), c = (u) => u ? r.filter((h) => l(h) && h.parentId === u) : [], d = r.filter((u) => !l(u));
     return D`${i ? D`<div class="ov-floor-h">${n.floorNames[o] ?? ""}</div>` : j}
-      ${d.map((u) => gC(n, u, e, c(u.id)))}`;
+      ${d.map((u) => vC(n, u, e, c(u.id)))}`;
   }) : D`<div class="rp-empty ov-empty">
       <div class="ov-empty-title">${n.tx("Комнаты ещё не заданы", "No rooms set up yet")}</div>
       <div class="ov-empty-note">${n.tx(
@@ -31846,7 +31853,7 @@ function mC(n, e) {
     </div>`;
 }
 function A0(n, e, t) {
-  const i = n.effState(e) === "on", s = n.hass?.states[e]?.attributes?.friendly_name ?? e, r = Ei(n, e), o = r3(n, e, t);
+  const i = n.effState(e) === "on", s = n.hass?.states[e]?.attributes?.friendly_name ?? e, r = Ei(n, e), o = o3(n, e, t);
   return D`<button type="button" class="lightseg ${i ? "on" : ""} ${r ? "na" : ""}"
     title=${r ? `${s} — ${n.tx("нет связи", "no connection")}` : s}
     aria-label=${r ? `${s} — ${n.tx("нет связи, управление недоступно", "no connection, control unavailable")}` : `${s} — ${i ? n.tx("выключить", "turn off") : n.tx("включить", "turn on")}`}
@@ -31856,7 +31863,7 @@ function A0(n, e, t) {
   }}
   ><span>${o}</span>${r ? D`<span class="lightseg-na">${n.ic("wifiOff")}</span>` : j}</button>`;
 }
-function gC(n, e, t, i = []) {
+function vC(n, e, t, i = []) {
   const r = S0(n, e).ids, o = i.map((w) => ({ room: w, ids: S0(n, w).ids })), a = [...r, ...o.flatMap((w) => w.ids)], l = a.some((w) => n.effState(w) === "on"), c = a.filter((w) => n.effState(w) === "on").length, d = a.length ? Math.round(c / a.length * 100) : 0, u = [e, ...i].flatMap((w) => w.entities.filter((A) => ["light", "switch", "input_boolean"].includes(A.behavior))), h = e.humiditySensor ? n.hass?.states[e.humiditySensor] : void 0, f = e.entities.find((w) => w.behavior === "climate"), g = e.entities.find((w) => w.behavior === "lock"), b = e.entities.find((w) => w.behavior === "cover"), { air: p, floor: m } = yh(n, e, t), _ = h && Number.isFinite(Number(h.state)) ? `${t(h.state, 0)}%` : null;
   let x = j;
   if (g) {
@@ -31905,7 +31912,7 @@ function gC(n, e, t, i = []) {
         </div>` : j}
   </div>`;
 }
-function vC(n) {
+function bC(n) {
   const e = $T(n);
   if (!e) return j;
   const t = e.humiditySensor ? n.hass?.states[e.humiditySensor] : void 0, i = mv(n, e);
@@ -31913,7 +31920,7 @@ function vC(n) {
   const s = (c, d) => {
     const u = Number(c);
     return Number.isFinite(u) ? u.toLocaleString(n.uiLocale, { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
-  }, { air: r, floor: o } = yh(n, e, s), a = t && Number.isFinite(Number(t.state)) ? `${s(t.state, 0)}%` : null, l = BR(e);
+  }, { air: r, floor: o } = yh(n, e, s), a = t && Number.isFinite(Number(t.state)) ? `${s(t.state, 0)}%` : null, l = HR(e);
   return D`
     <div class="detail-back" @click=${() => a0(n)}></div>
     <div class="detail" @click=${(c) => c.stopPropagation()}>
@@ -31932,11 +31939,11 @@ function vC(n) {
     </div>
   `;
 }
-const bC = /[\s   ']/g;
+const xC = /[\s   ']/g;
 function _v(n, e = NaN) {
   if (typeof n == "number") return Number.isFinite(n) ? n : e;
   if (n == null) return e;
-  let t = String(n).trim().replace(bC, "");
+  let t = String(n).trim().replace(xC, "");
   if (!t) return e;
   t = t.replace(/,/g, ".");
   const i = t.split(".");
@@ -31949,11 +31956,11 @@ function _t(n, e = 2) {
   let t = n.toFixed(e);
   return e > 0 && (t = t.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "")), t.replace(".", ",");
 }
-const xC = (n) => `${_t(n, 2)} м`, yC = (n) => `${_t(n * 100, 0)} см`, Ft = (n, e, t) => {
+const yC = (n) => `${_t(n, 2)} м`, wC = (n) => `${_t(n * 100, 0)} см`, Ft = (n, e, t) => {
   const i = document.createElement(n);
   return e && (i.className = e), t != null && (i.textContent = t), i;
 };
-class wC {
+class _C {
   constructor(e) {
     this.cb = e, this.inputs = /* @__PURE__ */ new Map(), this.dirty = /* @__PURE__ */ new Set(), this.fieldSig = "", this.modeSig = "", this.root = Ft("div", "e2-hud"), this.modesBox = Ft("div", "e2-modes"), this.root.appendChild(this.modesBox), this.askBox = Ft("div", "e2-ask"), this.askText = Ft("span", "e2-ask-tx"), this.askYes = Ft("button", "e2-btn e2-on", "Да"), this.askNo = Ft("button", "e2-btn", "Нет"), this.askYes.type = "button", this.askNo.type = "button", this.askYes.setAttribute("data-role", "ask-yes"), this.askNo.setAttribute("data-role", "ask-no"), this.askYes.addEventListener("click", () => this.cb.onAsk(!0)), this.askNo.addEventListener("click", () => this.cb.onAsk(!1)), this.askBox.append(this.askText, this.askYes, this.askNo), this.root.appendChild(this.askBox), this.fieldsBox = Ft("div", "e2-fields"), this.root.appendChild(this.fieldsBox), this.statusBox = Ft("div", "e2-status"), this.root.appendChild(this.statusBox);
     const t = Ft("div", "e2-controls");
@@ -32011,7 +32018,7 @@ class wC {
     for (const s of e) {
       const r = this.inputs.get(s.key);
       if (!r || document.activeElement === r || this.dirty.has(s.key)) continue;
-      const o = _C(s.value, s.digits ?? 2);
+      const o = MC(s.value, s.digits ?? 2);
       r.value !== o && (r.value = o);
     }
     this.fieldsBox.setAttribute("data-open", "1"), this.placeFields(t);
@@ -32046,10 +32053,10 @@ class wC {
     this.root.remove(), this.inputs.clear();
   }
 }
-function _C(n, e) {
+function MC(n, e) {
   return Number.isFinite(n) ? n.toFixed(e).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "").replace(".", ",") : "";
 }
-const MC = `
+const SC = `
 .e2-root {
   --e2-bg: #14161b;
   --e2-grid-1: #20232b;
@@ -32189,15 +32196,15 @@ const MC = `
 }
 .e2-ask[data-open="1"] { display: flex; }
 .e2-ask-tx { font-weight: 600; }
-`, SC = "http://www.w3.org/2000/svg";
-function EC(n, e, t) {
+`, EC = "http://www.w3.org/2000/svg";
+function AC(n, e, t) {
   const i = document.createElement("div");
   i.className = "e2-root", i.setAttribute("data-tool", e);
   const s = document.createElement("style");
-  s.textContent = MC, i.appendChild(s);
-  const r = document.createElementNS(SC, "svg");
+  s.textContent = SC, i.appendChild(s);
+  const r = document.createElementNS(EC, "svg");
   r.setAttribute("class", "e2-svg"), i.appendChild(r);
-  const o = new wC(t);
+  const o = new _C(t);
   return i.appendChild(o.root), n.appendChild(i), { root: i, svg: r, hud: o };
 }
 const Zt = (n, e) => Math.hypot(e[0] - n[0], e[1] - n[1]);
@@ -32262,13 +32269,13 @@ function Sh(n, e, t, i) {
   const s = i * Math.PI / 180, r = Math.sin(s), o = Math.cos(s), a = Math.cos(s), l = -Math.sin(s), c = e / 2, d = t / 2, u = (h, f) => [n[0] + a * c * h + r * d * f, n[1] + l * c * h + o * d * f];
   return [u(-1, -1), u(1, -1), u(1, 1), u(-1, 1)];
 }
-function AC(n, e) {
+function TC(n, e) {
   return Mv(Math.atan2(n, e) * 180 / Math.PI);
 }
 function ao(n, e, t) {
   return n ? (n.minX = Math.min(n.minX, e), n.minY = Math.min(n.minY, t), n.maxX = Math.max(n.maxX, e), n.maxY = Math.max(n.maxY, t), n) : { minX: e, minY: t, maxX: e, maxY: t };
 }
-function TC(n) {
+function RC(n) {
   if (!n) return null;
   let e = null;
   for (const t of n.walls ?? [])
@@ -32278,7 +32285,7 @@ function TC(n) {
   for (const t of n.zones ?? []) e = ao(e, t.x, t.z);
   return e;
 }
-const RC = {
+const CC = {
   sofa: [2, 0.9],
   sofa_l: [2.4, 1.6],
   sofa_u: [2.6, 2.2],
@@ -32338,7 +32345,7 @@ const RC = {
   socket: [0.09, 0.02],
   sensor: [0.1, 0.1],
   stairs: [1, 2.4]
-}, CC = {
+}, PC = {
   sofa: "Диван",
   sofa_l: "Диван угл.",
   sofa_u: "Диван П",
@@ -32400,16 +32407,16 @@ const RC = {
   stairs: "Лестница"
 };
 function Jo(n) {
-  return RC[n] ?? [0.6, 0.6];
+  return CC[n] ?? [0.6, 0.6];
 }
 function Yi(n) {
-  return CC[n] ?? mn(n);
+  return PC[n] ?? mn(n);
 }
-const yu = 2.6, PC = 1.5;
+const yu = 2.6, kC = 1.5;
 function Ev(n) {
   return jo.includes(n);
 }
-function kC(n, e) {
+function IC(n, e) {
   const t = e?.wallHeight ?? n?.wallHeight ?? yu;
   return Number.isFinite(t) && t > 0 ? t : yu;
 }
@@ -32418,18 +32425,18 @@ function Zl(n, e, t, i, s, r) {
   const o = hs(ru(e, r));
   if (!Ss(e))
     return { x: hs(t), y: o, z: hs(i), rotation: s, wallMount: !1, onWall: !1 };
-  const a = tv(n, t, i, PC);
+  const a = tv(n, t, i, kC);
   if (!a)
     return { x: hs(t), y: o, z: hs(i), rotation: s, wallMount: !0, onWall: !1 };
   const l = Jg(e, a);
   return { x: hs(l.x), y: o, z: hs(l.z), rotation: Math.round(l.rotation), wallMount: !0, onWall: !0 };
 }
-const Av = 0.12, IC = 2.6, T0 = 5e-3, kl = {
+const Av = 0.12, LC = 2.6, T0 = 5e-3, kl = {
   door: { width: 0.9, sill: 0, top: 2.05, variant: "single" },
   window: { width: 1.2, sill: 0.9, top: 2.1, variant: "single" },
   opening: { width: 1, sill: 0, top: 2.05 }
 };
-function LC(n) {
+function DC(n) {
   const e = [], t = /* @__PURE__ */ new Set(), i = (s) => {
     for (const r of s ?? []) r && !t.has(r) && (t.add(r), e.push(r));
   };
@@ -32437,8 +32444,8 @@ function LC(n) {
   for (const s of n?.buildings ?? []) i(s?.floors);
   return e;
 }
-function DC(n, e) {
-  const t = LC(n);
+function NC(n, e) {
+  const t = DC(n);
   return t.length ? t[Math.max(0, Math.min(t.length - 1, e))] ?? null : null;
 }
 const _o = (n, e) => Math.abs(n[0] - e[0]) <= T0 && Math.abs(n[1] - e[1]) <= T0;
@@ -32467,7 +32474,7 @@ function Il(n, e, t, i = Av) {
   const s = { id: vs(), start: [e[0], e[1]], end: [t[0], t[1]], thickness: i };
   return (n.walls ??= []).push(s), s;
 }
-function NC(n, e, t, i = Av) {
+function UC(n, e, t, i = Av) {
   const s = [];
   for (let r = 1; r < e.length; r++) {
     const o = Il(n, e[r - 1], e[r], i);
@@ -32488,7 +32495,7 @@ function Rv(n, e, t) {
   for (const i of n.rooms ?? [])
     i.polygon = (i.polygon ?? []).map((s) => _o(s, e) ? [t[0], t[1]] : s);
 }
-function UC(n, e, t, i) {
+function OC(n, e, t, i) {
   const s = si(n, e);
   if (!s) return;
   const r = [s.start[0], s.start[1]], o = [s.end[0], s.end[1]], a = (l) => _o(l, r) || _o(l, o) ? [l[0] + t, l[1] + i] : l;
@@ -32505,7 +32512,7 @@ function Cv(n, e, t) {
   };
   return i.push(s), s;
 }
-function OC(n, e) {
+function FC(n, e) {
   const t = iv(n.walls ?? []);
   let i = null, s = 1 / 0;
   for (const r of t) {
@@ -32515,7 +32522,7 @@ function OC(n, e) {
   }
   return i;
 }
-function FC(n, e, t) {
+function zC(n, e, t) {
   const i = Math.min(t, Math.max(0.2, n - 0.05));
   return { width: i, position: Math.max(0, Math.min(n - i, e - i / 2)) };
 }
@@ -32524,7 +32531,7 @@ function Pv(n, e, t, i, s) {
   if (!r) return null;
   const o = Sn(r);
   if (o < 0.3) return null;
-  const a = kl[t], { width: l, position: c } = FC(o, i, s || a.width), d = {
+  const a = kl[t], { width: l, position: c } = zC(o, i, s || a.width), d = {
     id: Bi(),
     kind: t,
     position: c,
@@ -32541,29 +32548,29 @@ function kv(n, e, t) {
   const s = Sn(i.wall);
   i.opening.position = Math.max(0, Math.min(s - i.opening.width, t));
 }
-function zC(n, e, t) {
+function BC(n, e, t) {
   const i = Ji(n, e);
   if (!i) return;
   const s = Sn(i.wall);
   i.opening.width = Math.max(0.2, Math.min(s - 0.02, t)), i.opening.position = Math.max(0, Math.min(s - i.opening.width, i.opening.position));
 }
-let BC = 0;
-function HC(n, e, t, i, s = 0, r = IC) {
+let HC = 0;
+function WC(n, e, t, i, s = 0, r = LC) {
   const o = Zl(n, e, t, i, s, r), a = {
-    id: `f${(BC += 1).toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    id: `f${(HC += 1).toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     model: e,
     position: [o.x, o.y, o.z],
     rotation: o.rotation
   };
   return (n.furniture ??= []).push(a), a;
 }
-function WC(n, e) {
+function VC(n, e) {
   const t = Ai(n, e);
   if (!t || !Ss(t.model)) return !1;
   const i = Zl(n, t.model, t.position[0], t.position[2], t.rotation ?? 0, t.position[1]);
   return i.onWall ? (t.position = [i.x, t.position[1], i.z], t.rotation = i.rotation, !0) : !1;
 }
-function VC(n, e, t, i) {
+function GC(n, e, t, i) {
   const s = n.zones ??= [], r = {
     id: `z${s.length}_${Math.floor(Math.random() * 1e5)}`,
     name: `Зона ${s.length + 1}`,
@@ -32573,10 +32580,10 @@ function VC(n, e, t, i) {
   };
   return s.push(r), r;
 }
-function GC(n, e) {
+function $C(n, e) {
   return (n.bindings ?? []).find((t) => t.anchor_object === e);
 }
-function $C(n, e, t) {
+function jC(n, e, t) {
   const i = n.bindings ??= [], s = String(t ?? "").trim(), r = i.findIndex((o) => o.anchor_object === e);
   if (!s) {
     r >= 0 && i.splice(r, 1);
@@ -32584,23 +32591,23 @@ function $C(n, e, t) {
   }
   r >= 0 ? i[r].entity_id = s : i.push({ entity_id: s, anchor_object: e });
 }
-function jC(n, e) {
+function qC(n, e) {
   const t = n.walls ?? [], i = t.findIndex((r) => r.id === e);
   if (i < 0) return !1;
   const s = new Set((t[i].openings ?? []).map((r) => r.id).filter(Boolean));
   return t.splice(i, 1), s.size && n.furniture?.length && (n.furniture = n.furniture.filter((r) => !(r.attach?.openingId && s.has(r.attach.openingId)))), Ki(n), !0;
 }
-function qC(n, e) {
+function XC(n, e) {
   const t = Ji(n, e);
   if (!t) return !1;
   const i = t.wall.openings ?? [], s = i.indexOf(t.opening);
   return s < 0 ? !1 : (i.splice(s, 1), n.furniture?.length && (n.furniture = n.furniture.filter((r) => r.attach?.openingId !== e)), Ki(n), !0);
 }
-function XC(n, e) {
+function KC(n, e) {
   const t = n.rooms ?? [], i = t.findIndex((s) => s.id === e);
   return i < 0 ? !1 : (t.splice(i, 1), !0);
 }
-function KC(n, e) {
+function YC(n, e) {
   const t = n.furniture ?? [], i = t.findIndex((r) => r.id === e);
   if (i < 0) return !1;
   const s = t[i].attach;
@@ -32614,14 +32621,14 @@ function KC(n, e) {
     }
   return n.bindings?.length && (n.bindings = n.bindings.filter((r) => r.anchor_object !== e)), Ki(n), !0;
 }
-function YC(n, e) {
+function ZC(n, e) {
   const t = n.zones ?? [], i = t.findIndex((s) => s.id === e);
   if (i < 0) return !1;
   t.splice(i, 1);
   for (const s of t) s.parentId === e && delete s.parentId;
   return !0;
 }
-const ZC = 14;
+const JC = 14;
 function Iv(n, e, t) {
   const i = n.walls ?? [];
   let s = null, r = t;
@@ -32661,7 +32668,7 @@ function Iv(n, e, t) {
   }
   return c;
 }
-function JC(n, e, t) {
+function QC(n, e, t) {
   let i = null, s = t;
   for (const r of n.walls ?? []) {
     if (!r.id) continue;
@@ -32674,11 +32681,11 @@ function JC(n, e, t) {
   }
   return i;
 }
-function QC() {
+function eP() {
   return { kind: "none", vertex: null, id: "", last: null };
 }
-const eP = 6, tP = 320, nP = 26;
-class iP {
+const tP = 6, nP = 320, iP = 26;
+class sP {
   constructor(e, t, i) {
     this.el = e, this.view = t, this.h = i, this.pointers = /* @__PURE__ */ new Map(), this.mode = "idle", this.toolId = -1, this.start = { x: 0, y: 0 }, this.dragging = !1, this.panPrev = { x: 0, y: 0 }, this.pinchDist = 0, this.pinchMid = { x: 0, y: 0 }, this.muted = !1, this.lastTap = { t: 0, x: 0, y: 0 }, this.off = [], this.down = (s) => {
       s.preventDefault();
@@ -32709,7 +32716,7 @@ class iP {
         return;
       }
       if (this.mode === "tool" && s.pointerId === this.toolId) {
-        !this.dragging && Math.hypot(r.x - this.start.x, r.y - this.start.y) > eP && (this.dragging = !0, this.h.onDragStart(this.world(this.start), [this.start.x, this.start.y])), this.dragging ? this.h.onDragMove(this.world(r), [r.x, r.y]) : this.h.onHover(this.world(r), [r.x, r.y]);
+        !this.dragging && Math.hypot(r.x - this.start.x, r.y - this.start.y) > tP && (this.dragging = !0, this.h.onDragStart(this.world(this.start), [this.start.x, this.start.y])), this.dragging ? this.h.onDragMove(this.world(r), [r.x, r.y]) : this.h.onHover(this.world(r), [r.x, r.y]);
         return;
       }
       this.mode === "idle" && this.h.onHover(this.world(r), [r.x, r.y]);
@@ -32733,7 +32740,7 @@ class iP {
           this.dragging = !1, this.h.onDragEnd(this.world(r), [r.x, r.y]);
           return;
         }
-        const o = Date.now(), a = o - this.lastTap.t < tP && Math.hypot(r.x - this.lastTap.x, r.y - this.lastTap.y) < nP;
+        const o = Date.now(), a = o - this.lastTap.t < nP && Math.hypot(r.x - this.lastTap.x, r.y - this.lastTap.y) < iP;
         this.lastTap = a ? { t: 0, x: 0, y: 0 } : { t: o, x: r.x, y: r.y }, this.h.onTap(this.world(r), [r.x, r.y]), a && this.h.onDoubleTap(this.world(r), [r.x, r.y]);
       }
       this.pointers.size === 0 && (this.muted = !1);
@@ -32768,7 +32775,7 @@ class iP {
     !e || !t || (this.pinchDist = Math.hypot(t.x - e.x, t.y - e.y) || 1, this.pinchMid = { x: (e.x + t.x) / 2, y: (e.y + t.y) / 2 });
   }
 }
-function sP(n) {
+function rP(n) {
   return String(n ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 function Yt(n) {
@@ -32784,7 +32791,7 @@ function Ll(n, e, t = "") {
   const i = n.map((s) => `${Yt(s[0])},${Yt(s[1])}`).join(" ");
   return `<polygon class="${e}" points="${i}"${t ? " " + t : ""}/>`;
 }
-function rP(n, e, t = "") {
+function oP(n, e, t = "") {
   const i = n.map((s) => `${Yt(s[0])},${Yt(s[1])}`).join(" ");
   return `<polyline class="${e}" points="${i}"${t ? " " + t : ""}/>`;
 }
@@ -32792,21 +32799,21 @@ function wu(n, e, t, i, s, r = "") {
   return `<rect class="${s}" x="${Yt(n)}" y="${Yt(e)}" width="${Yt(Math.max(0, t))}" height="${Yt(Math.max(0, i))}"${r ? " " + r : ""}/>`;
 }
 function xi(n, e, t, i, s = "") {
-  return `<text class="${i}" x="${Yt(n)}" y="${Yt(e)}"${s ? " " + s : ""}>${sP(t)}</text>`;
+  return `<text class="${i}" x="${Yt(n)}" y="${Yt(e)}"${s ? " " + s : ""}>${rP(t)}</text>`;
 }
 function hn(n, e, t, i = "e2-dim", s = "") {
   const r = Math.max(20, t.length * 6.6 + 10), o = 17;
   return `<g class="e2-badge ${i}"${s ? " " + s : ""}>` + wu(n - r / 2, e - o / 2, r, o, "e2-badge-bg", 'rx="4"') + xi(n, e + 4, t, "e2-badge-tx", 'text-anchor="middle"') + "</g>";
 }
-const oP = 26, Et = (n, e) => [n.sx(e[0]), n.sy(e[1])];
-function aP(n, e, t, i) {
-  return lP(n, e, t) + cP(n, e, t) + dP(n, e, t) + uP(n, e, i);
+const aP = 26, Et = (n, e) => [n.sx(e[0]), n.sy(e[1])];
+function lP(n, e, t, i) {
+  return cP(n, e, t) + dP(n, e, t) + uP(n, e, t) + hP(n, e, i);
 }
 function Lv(n, e, t, i) {
-  const s = i * Math.PI / 180, r = Et(n, e), o = t / 2 * n.scale + oP;
+  const s = i * Math.PI / 180, r = Et(n, e), o = t / 2 * n.scale + aP;
   return [r[0] + Math.sin(s) * o, r[1] + Math.cos(s) * o];
 }
-function lP(n, e, t) {
+function cP(n, e, t) {
   const i = ['<g class="e2-furniture">'];
   for (const s of n.furniture ?? []) {
     const [r, o] = Jo(s.model), a = [s.position[0], s.position[2]], l = t?.kind === "furniture" && t.id === s.id, c = Sh(a, r, o, s.rotation ?? 0).map((d) => Et(e, d));
@@ -32817,7 +32824,7 @@ function lP(n, e, t) {
   }
   return i.push("</g>"), i.join("");
 }
-function cP(n, e, t) {
+function dP(n, e, t) {
   const i = ['<g class="e2-zones">'];
   for (const s of n.zones ?? []) {
     const r = Et(e, [s.x, s.z]), o = t?.kind === "zone" && t.id === s.id;
@@ -32825,7 +32832,7 @@ function cP(n, e, t) {
   }
   return i.push("</g>"), i.join("");
 }
-function dP(n, e, t) {
+function uP(n, e, t) {
   if (!t) return "";
   const i = ['<g class="e2-selection">'];
   if (t.kind === "wall") {
@@ -32864,11 +32871,11 @@ function dP(n, e, t) {
   }
   return i.push("</g>"), i.join("");
 }
-function uP(n, e, t) {
+function hP(n, e, t) {
   const i = ['<g class="e2-draft">'];
   if (t.mode === "chain" || t.mode === "poly") {
     const s = t.pts.map((o) => Et(e, o));
-    s.length > 1 && i.push(rP(s, "e2-draft-line"));
+    s.length > 1 && i.push(oP(s, "e2-draft-line"));
     for (const o of s) i.push(Bn(o[0], o[1], 5, "e2-draft-node"));
     const r = t.pts[t.pts.length - 1];
     if (r && t.cursor) {
@@ -32903,11 +32910,11 @@ function uP(n, e, t) {
   return i.push("</g>"), i.join("");
 }
 const wn = 22;
-function hP(n) {
-  const e = [];
-  return e.push(fP(n.view)), n.floor && (e.push(mP(n.floor, n.view, n.sel)), e.push(gP(n.floor, n.view, n.sel)), e.push(vP(n.floor, n.view, n.sel)), e.push(aP(n.floor, n.view, n.sel, n.draft))), e.push(pP(n.view, n.cursorPx)), e.join("");
-}
 function fP(n) {
+  const e = [];
+  return e.push(pP(n.view)), n.floor && (e.push(gP(n.floor, n.view, n.sel)), e.push(vP(n.floor, n.view, n.sel)), e.push(bP(n.floor, n.view, n.sel)), e.push(lP(n.floor, n.view, n.sel, n.draft))), e.push(mP(n.view, n.cursorPx)), e.join("");
+}
+function pP(n) {
   const { minor: e, major: t } = n.gridStep(), i = n.toWorld(0, 0), s = n.toWorld(n.w, n.h), r = ['<g class="e2-grid">'], o = (a, l) => {
     const c = (s[0] - i[0]) / a + (s[1] - i[1]) / a;
     if (!(!Number.isFinite(c) || c > 1200)) {
@@ -32923,7 +32930,7 @@ function fP(n) {
   };
   return e < t && o(e, "e2-grid-minor"), o(t, "e2-grid-major"), r.push(qt(n.sx(0), 0, n.sx(0), n.h, "e2-axis")), r.push(qt(0, n.sy(0), n.w, n.sy(0), "e2-axis")), r.push("</g>"), r.join("");
 }
-function pP(n, e) {
+function mP(n, e) {
   const { major: t } = n.gridStep(), i = n.toWorld(0, 0), s = n.toWorld(n.w, n.h), r = ['<g class="e2-rulers">'];
   r.push(wu(0, 0, n.w, wn, "e2-ruler-bg")), r.push(wu(0, 0, wn, n.h, "e2-ruler-bg"));
   const o = (s[0] - i[0]) / t + (s[1] - i[1]) / t;
@@ -32938,10 +32945,10 @@ function pP(n, e) {
     }
   }
   return e && (r.push(qt(e[0], 0, e[0], wn, "e2-ruler-cursor")), r.push(qt(0, e[1], wn, e[1], "e2-ruler-cursor"))), r.push(
-    xi(n.w - 10, wn + 15, `в экране ${_t(n.spanM(), 1)} м · сетка ${xC(t)}`, "e2-scale-tx", 'text-anchor="end"')
+    xi(n.w - 10, wn + 15, `в экране ${_t(n.spanM(), 1)} м · сетка ${yC(t)}`, "e2-scale-tx", 'text-anchor="end"')
   ), r.push("</g>"), r.join("");
 }
-function mP(n, e, t) {
+function gP(n, e, t) {
   const i = ['<g class="e2-rooms">'];
   for (const s of n.rooms ?? []) {
     const r = s.polygon ?? [];
@@ -32953,7 +32960,7 @@ function mP(n, e, t) {
   }
   return i.push("</g>"), i.join("");
 }
-function gP(n, e, t) {
+function vP(n, e, t) {
   const i = ['<g class="e2-walls">'], s = [];
   for (const r of n.walls ?? []) {
     const o = [e.sx(r.start[0]), e.sy(r.start[1])], a = [e.sx(r.end[0]), e.sy(r.end[1])], l = t?.kind === "wall" && t.id === r.id, c = Math.max(2, (r.thickness ?? 0.12) * e.scale);
@@ -32966,7 +32973,7 @@ function gP(n, e, t) {
   }
   return i.push("</g>"), i.join("") + `<g class="e2-wall-dims">${s.join("")}</g>`;
 }
-function vP(n, e, t) {
+function bP(n, e, t) {
   const i = ['<g class="e2-openings">'];
   for (const s of n.walls ?? []) {
     const r = Math.max(2, (s.thickness ?? 0.12) * e.scale);
@@ -32986,7 +32993,7 @@ function vP(n, e, t) {
   }
   return i.push("</g>"), i.join("");
 }
-function bP(n, e) {
+function xP(n, e) {
   if (!n || !e) return null;
   if (e.kind === "wall") {
     const i = si(n, e.id);
@@ -33026,7 +33033,7 @@ function bP(n, e) {
       model: i.model,
       rotationDeg: i.rotation ?? 0,
       scale: s,
-      entityId: GC(n, e.id)?.entity_id,
+      entityId: $C(n, e.id)?.entity_id,
       isLight: Ev(i.model),
       wallMount: Ss(i.model),
       isSet: r,
@@ -33046,7 +33053,7 @@ const hi = (n, e) => {
   const t = _v(n[e]);
   return Number.isFinite(t) ? t : null;
 }, Fn = (n, e) => e in n ? String(n[e] ?? "") : null;
-function xP(n, e, t, i = yu) {
+function yP(n, e, t, i = yu) {
   if (!n || !e || !t) return !1;
   if (e.kind === "wall") {
     const o = si(n, e.id);
@@ -33080,7 +33087,7 @@ function xP(n, e, t, i = yu) {
     const a = Fn(t, "kind2");
     (a === "door" || a === "window" || a === "opening") && (o.opening.kind = a, o.opening.sill = kl[a].sill, o.opening.top = kl[a].top);
     const l = hi(t, "widthM");
-    l !== null && l > 0 && zC(n, e.id, l);
+    l !== null && l > 0 && BC(n, e.id, l);
     const c = hi(t, "offsetM");
     c !== null && kv(n, e.id, c);
     const d = Fn(t, "variant");
@@ -33104,7 +33111,7 @@ function xP(n, e, t, i = yu) {
     const u = hi(t, "count");
     u !== null && u > 0 && (o.count = Math.max(1, Math.min(12, Math.round(u))));
     const h = Fn(t, "entityId");
-    h !== null && $C(n, e.id, h);
+    h !== null && jC(n, e.id, h);
     const f = Fn(t, "color");
     return f !== null && (f ? o.color = f : delete o.color), !0;
   }
@@ -33113,22 +33120,22 @@ function xP(n, e, t, i = yu) {
   const r = Fn(t, "name");
   return r !== null && (s.name = r), !0;
 }
-function yP(n, e) {
+function wP(n, e) {
   if (!n || !e) return !1;
   switch (e.kind) {
     case "wall":
-      return jC(n, e.id);
-    case "room":
-      return XC(n, e.id);
-    case "opening":
       return qC(n, e.id);
-    case "furniture":
+    case "room":
       return KC(n, e.id);
-    default:
+    case "opening":
+      return XC(n, e.id);
+    case "furniture":
       return YC(n, e.id);
+    default:
+      return ZC(n, e.id);
   }
 }
-function wP(n, e) {
+function _P(n, e) {
   if (!n || !e) return !1;
   switch (e.kind) {
     case "wall":
@@ -33143,7 +33150,7 @@ function wP(n, e) {
       return !!Qo(n, e.id);
   }
 }
-function _P() {
+function MP() {
   return {
     mode: "none",
     pts: [],
@@ -33179,7 +33186,7 @@ function R0(n, e) {
   }
   if (Jl(n.tool)) {
     t.mode = "opening", t.kind = n.tool, t.cursor = e;
-    const s = i ? JC(i, e, Math.max(0.9, n.pickTol() * 3)) : null;
+    const s = i ? QC(i, e, Math.max(0.9, n.pickTol() * 3)) : null;
     t.wallId = s?.id ?? null, t.along = s?.along ?? 0;
     return;
   }
@@ -33218,7 +33225,7 @@ function C0(n, e) {
   if (n.tool === "room" || n.tool === "zone") {
     const s = Qi(n);
     if (s === "fill") {
-      const o = OC(t, e);
+      const o = FC(t, e);
       if (!o) {
         n.setStatus("Здесь нет замкнутого контура стен — обведите комнату стенами или начертите её рамкой.");
         return;
@@ -33267,16 +33274,16 @@ function C0(n, e) {
     }
     let a = "";
     if (n.edit(() => {
-      const l = HC(t, s, r.pt[0], r.pt[1], i.rotation, n.wallHeight());
+      const l = WC(t, s, r.pt[0], r.pt[1], i.rotation, n.wallHeight());
       l.id && (a = l.id, n.select({ kind: "furniture", id: l.id }));
     }), !a) return;
     Ev(s) && (n.setStatus(`${Yi(s)} поставлен. Выберите устройство Home Assistant — без него это просто украшение.`), n.requestBinding(a, s));
   }
 }
-function MP(n, e) {
+function SP(n, e) {
   return n.tool !== "room" && n.tool !== "zone" || Qi(n) !== "rect" ? !1 : (n.draft.a = n.snapWorld(e, []).pt, n.draft.mode = "rect", !0);
 }
-function SP(n, e) {
+function EP(n, e) {
   if (n.tool !== "room" && n.tool !== "zone" || Qi(n) !== "rect" || !n.draft.a) return !1;
   const t = n.draft.a, i = n.snapWorld(e, []).pt;
   return n.draft.a = null, Math.abs(i[0] - t[0]) < 0.05 || Math.abs(i[1] - t[1]) < 0.05 || gr(n, Yl(t, i), !0), !0;
@@ -33287,19 +33294,19 @@ function gr(n, e, t) {
     if (n.tool === "zone") {
       const s = Mh(e);
       n.edit(() => {
-        const r = VC(i, s[0], s[1]);
+        const r = GC(i, s[0], s[1]);
         n.select({ kind: "zone", id: r.id });
       });
       return;
     }
     n.edit(() => {
-      t && (NC(i, e), Th(i));
+      t && (UC(i, e), Th(i));
       const s = Cv(i, e);
       s?.id && n.select({ kind: "room", id: s.id });
     });
   }
 }
-function EP(n, e) {
+function AP(n, e) {
   const t = n.floor();
   if (!t) return;
   const i = n.draft;
@@ -33332,7 +33339,7 @@ function EP(n, e) {
   }
   n.tool === "furniture" && Number.isFinite(e.ang) && (i.rotation = e.ang, n.refresh());
 }
-function AP(n) {
+function TP(n) {
   const e = n.draft;
   if (n.tool === "wall" && e.pts.length) {
     const t = e.pts[e.pts.length - 1], i = e.cursor ?? t;
@@ -33357,7 +33364,7 @@ function AP(n) {
   }
   return n.tool === "furniture" && n.pendingModel ? [{ key: "ang", label: "Поворот, °", value: e.rotation, digits: 0 }] : null;
 }
-function TP(n) {
+function RP(n) {
   const e = n.draft;
   if (n.tool === "wall")
     return e.pts.length ? [{ id: "finish", label: "Завершить" }, { id: "cancel", label: "Отмена" }] : [];
@@ -33370,7 +33377,7 @@ function TP(n) {
   }
   return [];
 }
-function RP(n) {
+function CP(n) {
   const e = n.draft;
   switch (n.tool) {
     case "wall":
@@ -33403,7 +33410,7 @@ function P0(n) {
   }
   e.pts = [], e.a = null, n.refresh();
 }
-function CP(n, e) {
+function PP(n, e) {
   const t = n.draft.pendingRing;
   n.draft.pendingRing = null;
   const i = n.floor();
@@ -33412,8 +33419,8 @@ function CP(n, e) {
     s?.id && n.select({ kind: "room", id: s.id });
   }), n.refresh();
 }
-const PP = 22, k0 = 15, ul = (n, e) => n.snapOn ? [Ct(e[0]), Ct(e[1])] : e;
-function kP(n, e) {
+const kP = 22, k0 = 15, ul = (n, e) => n.snapOn ? [Ct(e[0]), Ct(e[1])] : e;
+function IP(n, e) {
   const t = n.floor();
   if (!t) return;
   const i = Iv(t, e, n.pickTol());
@@ -33423,7 +33430,7 @@ function kP(n, e) {
   }
   n.select({ kind: i.kind, id: i.id });
 }
-function IP(n, e, t) {
+function LP(n, e, t) {
   const i = n.floor();
   if (!i) return;
   const s = n.selection();
@@ -33431,7 +33438,7 @@ function IP(n, e, t) {
     const o = Ai(i, s.id);
     if (o) {
       const [, a] = Jo(o.model), l = Lv(n.view, [o.position[0], o.position[2]], a, o.rotation ?? 0);
-      if (Math.hypot(t[0] - l[0], t[1] - l[1]) < PP) {
+      if (Math.hypot(t[0] - l[0], t[1] - l[1]) < kP) {
         n.drag.kind = "rotate", n.drag.id = s.id, n.beginDrag();
         return;
       }
@@ -33450,7 +33457,7 @@ function IP(n, e, t) {
     n.select({ kind: r.kind, id: r.id }), n.drag.kind = r.kind, n.drag.id = r.id, n.drag.last = ul(n, e), n.beginDrag();
   }
 }
-function LP(n, e) {
+function DP(n, e) {
   const t = n.floor();
   if (!(!t || n.drag.kind === "none")) {
     if (n.drag.kind === "vertex" && n.drag.vertex) {
@@ -33463,7 +33470,7 @@ function LP(n, e) {
       const i = ul(n, e), s = i[0] - n.drag.last[0], r = i[1] - n.drag.last[1];
       if (!s && !r) return;
       const o = n.drag.id;
-      n.dragMutate(() => UC(t, o, s, r)), n.drag.last = i;
+      n.dragMutate(() => OC(t, o, s, r)), n.drag.last = i;
       return;
     }
     if (n.drag.kind === "opening") {
@@ -33494,7 +33501,7 @@ function LP(n, e) {
     if (n.drag.kind === "rotate") {
       const i = Ai(t, n.drag.id);
       if (!i) return;
-      const s = AC(e[0] - i.position[0], e[1] - i.position[2]), r = n.snapOn ? Math.round(s / k0) * k0 : Math.round(s);
+      const s = TC(e[0] - i.position[0], e[1] - i.position[2]), r = n.snapOn ? Math.round(s / k0) * k0 : Math.round(s);
       n.dragMutate(() => {
         i.rotation = r;
       });
@@ -33505,18 +33512,18 @@ function I0(n) {
   if (n.drag.kind !== "none") {
     if (n.drag.kind === "furniture") {
       const e = n.floor(), t = e ? Ai(e, n.drag.id) : null;
-      e && t && Ss(t.model) && (WC(e, n.drag.id) ? n.refresh() : n.setStatus(`${Yi(t.model)} вешается НА стену, а рядом стены нет. Придвиньте его к стене.`));
+      e && t && Ss(t.model) && (VC(e, n.drag.id) ? n.refresh() : n.setStatus(`${Yi(t.model)} вешается НА стену, а рядом стены нет. Придвиньте его к стене.`));
     }
     n.endDrag(), n.drag.kind = "none", n.drag.vertex = null, n.drag.last = null, n.drag.id = "";
   }
 }
-function DP(n) {
+function NP(n) {
   const e = n.floor(), t = n.selection();
   if (!e || !t)
     return "Выберите объект касанием. Два пальца — панорама и масштаб, двойное касание — вписать всё.";
   if (t.kind === "wall") {
     const i = si(e, t.id);
-    if (i) return `Стена ${_t(Sn(i), 2)} м, толщина ${yC(i.thickness ?? 0.12)}. Тяните за концы или за середину.`;
+    if (i) return `Стена ${_t(Sn(i), 2)} м, толщина ${wC(i.thickness ?? 0.12)}. Тяните за концы или за середину.`;
   }
   if (t.kind === "room") {
     const i = (e.rooms ?? []).find((s) => s.id === t.id);
@@ -33538,7 +33545,7 @@ function DP(n) {
   return "Выберите объект касанием.";
 }
 const Xa = 3, Ka = 800, Ys = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250];
-class NP {
+class UP {
   constructor() {
     this.w = 800, this.h = 600, this.scale = 60, this.cx = 0, this.cy = 0;
   }
@@ -33591,14 +33598,14 @@ class NP {
     return this.w / this.scale;
   }
 }
-class UP {
+class OP {
   constructor() {
-    this.view = new NP(), this.draft = _P(), this.drag = QC(), this.tool = "select", this.roomMode = "rect", this.zoneMode = "rect", this.snapOn = !0, this.pendingModel = null, this.root = null, this.svg = null, this.hud = null, this.input = null, this.ro = null, this.plan = null, this.floorIndex = 0, this.sel = null, this.history = new rv(), this.dragShot = null, this.rectByDrag = !1, this.cursorPx = null, this.override = null, this.lastStatus = "", this.raf = 0, this.changeCbs = [], this.selectCbs = [], this.statusCbs = [], this.bindCbs = [];
+    this.view = new UP(), this.draft = MP(), this.drag = eP(), this.tool = "select", this.roomMode = "rect", this.zoneMode = "rect", this.snapOn = !0, this.pendingModel = null, this.root = null, this.svg = null, this.hud = null, this.input = null, this.ro = null, this.plan = null, this.floorIndex = 0, this.sel = null, this.history = new rv(), this.dragShot = null, this.rectByDrag = !1, this.cursorPx = null, this.override = null, this.lastStatus = "", this.raf = 0, this.changeCbs = [], this.selectCbs = [], this.statusCbs = [], this.bindCbs = [];
   }
   // --- жизненный цикл -----------------------------------------------------
   mount(e, t, i) {
     this.destroy(), this.plan = t, this.floorIndex = Math.max(0, i | 0), dl(t);
-    const { root: s, svg: r, hud: o } = EC(e, this.tool, {
+    const { root: s, svg: r, hud: o } = AC(e, this.tool, {
       onMode: (a) => this.onMode(a),
       onSnapToggle: () => this.setSnap(!this.snapOn),
       onFit: () => this.zoomToFit(),
@@ -33606,11 +33613,11 @@ class UP {
         this.view.zoomAt(this.view.w / 2, this.view.h / 2, a > 0 ? 1.3 : 1 / 1.3), this.schedule();
       },
       onCommitFields: (a) => {
-        this.override = null, EP(this, a), o.blurFields(), this.schedule();
+        this.override = null, AP(this, a), o.blurFields(), this.schedule();
       },
-      onAsk: (a) => CP(this, a)
+      onAsk: (a) => PP(this, a)
     });
-    this.root = s, this.svg = r, this.hud = o, this.view.setSize(s.clientWidth || 800, s.clientHeight || 600), this.input = new iP(r, this.view, {
+    this.root = s, this.svg = r, this.hud = o, this.view.setSize(s.clientWidth || 800, s.clientHeight || 600), this.input = new sP(r, this.view, {
       onHover: (a, l) => this.onHover(a, l),
       onTap: (a, l) => this.onTap(a, l),
       onDoubleTap: () => this.onDoubleTap(),
@@ -33641,21 +33648,21 @@ class UP {
     this.floorIndex = Math.max(0, e | 0), this.select(null), qa(this), this.zoomToFit();
   }
   zoomToFit() {
-    this.syncSize(), this.view.fit(TC(this.floor()), Math.max(wn + 12, 44)), this.schedule();
+    this.syncSize(), this.view.fit(RC(this.floor()), Math.max(wn + 12, 44)), this.schedule();
   }
   getSelection() {
-    return bP(this.floor(), this.sel);
+    return xP(this.floor(), this.sel);
   }
   updateSelected(e) {
     const t = this.floor(), i = this.sel;
     !t || !i || (this.edit(() => {
-      xP(t, i, e, this.wallHeight());
+      yP(t, i, e, this.wallHeight());
     }), this.emitSelect());
   }
   deleteSelected() {
     const e = this.floor(), t = this.sel;
     !e || !t || (this.edit(() => {
-      yP(e, t);
+      wP(e, t);
     }), this.select(null));
   }
   undo() {
@@ -33706,10 +33713,10 @@ class UP {
   }
   // --- ToolHost -----------------------------------------------------------
   floor() {
-    return DC(this.plan, this.floorIndex);
+    return NC(this.plan, this.floorIndex);
   }
   wallHeight() {
-    return kC(this.plan, this.floor());
+    return IC(this.plan, this.floor());
   }
   edit(e) {
     const t = this.plan;
@@ -33750,7 +33757,7 @@ class UP {
     return { pt: s.pt, joined: s.joined };
   }
   pickTol() {
-    return ZC / this.view.scale;
+    return JC / this.view.scale;
   }
   askRoom(e) {
     this.draft.pendingRing = e && e.length >= 3 ? e : null, this.schedule();
@@ -33763,7 +33770,7 @@ class UP {
     this.cursorPx = t, this.tool !== "select" && R0(this, e), this.schedule();
   }
   onTap(e, t) {
-    this.cursorPx = t, this.override = null, this.tool === "select" ? kP(this, e) : C0(this, e), this.schedule();
+    this.cursorPx = t, this.override = null, this.tool === "select" ? IP(this, e) : C0(this, e), this.schedule();
   }
   onDoubleTap() {
     if (this.draft.pts.length) {
@@ -33773,13 +33780,13 @@ class UP {
     this.zoomToFit();
   }
   onDragStart(e, t) {
-    this.override = null, this.tool === "select" ? IP(this, e, t) : this.rectByDrag = MP(this, e), this.schedule();
+    this.override = null, this.tool === "select" ? LP(this, e, t) : this.rectByDrag = SP(this, e), this.schedule();
   }
   onDragMove(e, t) {
-    this.cursorPx = t, this.tool === "select" ? LP(this, e) : R0(this, e), this.schedule();
+    this.cursorPx = t, this.tool === "select" ? DP(this, e) : R0(this, e), this.schedule();
   }
   onDragEnd(e, t) {
-    this.cursorPx = t, this.tool === "select" ? I0(this) : SP(this, e) || C0(this, e), this.rectByDrag = !1, this.schedule();
+    this.cursorPx = t, this.tool === "select" ? I0(this) : EP(this, e) || C0(this, e), this.rectByDrag = !1, this.schedule();
   }
   onCancel() {
     this.drag.kind !== "none" && I0(this), this.rectByDrag && (this.draft.a = null, this.rectByDrag = !1), this.schedule();
@@ -33808,7 +33815,7 @@ class UP {
     }
   }
   afterChange() {
-    this.sel && !wP(this.floor(), this.sel) && this.select(null);
+    this.sel && !_P(this.floor(), this.sel) && this.select(null);
     for (const e of this.changeCbs) this.plan && e(this.plan);
     this.schedule();
   }
@@ -33828,7 +33835,7 @@ class UP {
     if (!this.svg || !this.root) return;
     this.syncSize();
     const { w: e, h: t } = this.view;
-    this.svg.setAttribute("viewBox", `0 0 ${e} ${t}`), this.svg.innerHTML = hP({
+    this.svg.setAttribute("viewBox", `0 0 ${e} ${t}`), this.svg.innerHTML = fP({
       floor: this.floor(),
       view: this.view,
       sel: this.sel,
@@ -33837,21 +33844,21 @@ class UP {
     });
     const i = this.hud;
     if (!i) return;
-    i.setModes(this.tool === "select" ? [] : TP(this));
-    const s = this.tool === "select" ? null : AP(this);
+    i.setModes(this.tool === "select" ? [] : RP(this));
+    const s = this.tool === "select" ? null : TP(this);
     i.setFields(s, this.cursorPx), i.ask(this.draft.pendingRing ? "Контур замкнут. Сделать из него комнату?" : null);
-    const r = this.override ?? (this.tool === "select" ? DP(this) : RP(this));
+    const r = this.override ?? (this.tool === "select" ? NP(this) : CP(this));
     if (i.setStatus(r), r !== this.lastStatus) {
       this.lastStatus = r;
       for (const o of this.statusCbs) o(r);
     }
   }
 }
-function OP() {
-  return new UP();
+function FP() {
+  return new OP();
 }
-const FP = 900, L0 = 220, zP = 0.55;
-function BP(n, e, t) {
+const zP = 900, L0 = 220, BP = 0.55;
+function HP(n, e, t) {
   return {
     editor: n,
     plan: e,
@@ -33877,7 +33884,7 @@ function BP(n, e, t) {
     narrow: !1
   };
 }
-function HP(n) {
+function WP(n) {
   return {
     get plan() {
       return n.e2.plan;
@@ -33931,7 +33938,7 @@ function Wi(n) {
   const e = n.e2;
   return e?.plan.floors[e.floorIndex];
 }
-function WP(n) {
+function VP(n) {
   return Wi(n)?.underlay;
 }
 function Dv(n) {
@@ -33944,11 +33951,11 @@ function Ql(n) {
 function Ya(n, e) {
   Ql(n), e && n.showToast(e);
 }
-function VP(n, e) {
+function GP(n, e) {
   const t = n.e2;
   !t || e < 0 || e >= t.plan.floors.length || (t.floorIndex = e, t.selection = null, t.editor.setFloor(e), n.activeFloorIndex = e, n.requestUpdate());
 }
-function GP(n) {
+function $P(n) {
   const e = n.e2;
   if (!e) return;
   const t = e.plan.floors[e.plan.floors.length - 1], i = Dv(`Этаж ${e.plan.floors.length + 1}`);
@@ -33961,7 +33968,7 @@ function Nv(n, e) {
   const i = n.e2;
   n.floorNames = i.plan.floors.map((s, r) => s.name || `Этаж ${r + 1}`), n.requestUpdate();
 }
-async function $P(n) {
+async function jP(n) {
   const e = n.e2;
   if (!e) return;
   if (e.plan.floors.length < 2) {
@@ -33982,9 +33989,9 @@ function D0(n) {
 function Uv(n) {
   if (!n.sceneManager || !n.currentPlan) return;
   n.qualityMenuOpen = !1;
-  const e = JSON.parse(JSON.stringify(n.currentPlan)), t = Math.min(n.activeFloorIndex, Math.max(0, e.floors.length - 1)), i = BP(OP(), e, t);
+  const e = JSON.parse(JSON.stringify(n.currentPlan)), t = Math.min(n.activeFloorIndex, Math.max(0, e.floors.length - 1)), i = HP(FP(), e, t);
   n.e2 = i, i.editor.onChange((s) => {
-    i.plan = s, i.canUndo = i.editor.canUndo(), i.canRedo = i.editor.canRedo(), KP(n), n.requestUpdate();
+    i.plan = s, i.canUndo = i.editor.canUndo(), i.canRedo = i.editor.canRedo(), YP(n), n.requestUpdate();
   }), i.editor.onSelect((s) => {
     s?.id !== i.selection?.id && D0(i), i.selection = s, i.bindPrompt && s?.id !== i.bindPrompt && (i.bindPrompt = void 0), n.requestUpdate();
   }), i.editor.onStatus((s) => {
@@ -33993,25 +34000,25 @@ function Uv(n) {
     i.bindPrompt = s.id, D0(i), i.paletteOpen = !1, i.projectOpen = !1, i.tab = "plan", n.requestUpdate(), n.updateComplete.then(() => {
       n.renderRoot?.querySelector("[data-bind-prompt]")?.scrollIntoView({ block: "nearest" });
     });
-  }), n.editor = HP(n), n.editingProjectId = n.currentProjectId, n.editPlanName = e.name ?? "", n.editing = !0, n.editing2 = !0, n.sceneManager.loadPlan(e, !0), n.showToast(
+  }), n.editor = WP(n), n.editingProjectId = n.currentProjectId, n.editPlanName = e.name ?? "", n.editing = !0, n.editing2 = !0, n.sceneManager.loadPlan(e, !0), n.showToast(
     n.tx(
       "Новый конструктор: чертите видом сверху, справа видно 3D",
       "New editor: draw top-down, the 3D preview is on the right"
     )
   );
 }
-function jP(n) {
+function qP(n) {
   const e = n.e2;
   if (!e) return;
   const t = n.renderRoot?.querySelector(".e2-plan-host");
-  t && e.mounted !== t && (e.mounted = t, e.editor.mount(t, e.plan, e.floorIndex), e.editor.setTool(e.tool), e.editor.setSnap(e.snap), e.editor.setPendingModel(e.tool === "furniture" ? e.model : null), e.canUndo = e.editor.canUndo(), e.canRedo = e.editor.canRedo()), qP(n), ea(n);
+  t && e.mounted !== t && (e.mounted = t, e.editor.mount(t, e.plan, e.floorIndex), e.editor.setTool(e.tool), e.editor.setSnap(e.snap), e.editor.setPendingModel(e.tool === "furniture" ? e.model : null), e.canUndo = e.editor.canUndo(), e.canRedo = e.editor.canRedo()), XP(n), ea(n);
 }
 function ea(n) {
   const e = n.e2, t = n.renderRoot;
   if (!e || !t) return;
   const i = t.querySelector("ha-card"), s = t.querySelector(".e2-3d-slot");
   if (!i) return;
-  const r = i.getBoundingClientRect(), o = r.width > 0 && r.width < FP;
+  const r = i.getBoundingClientRect(), o = r.width > 0 && r.width < zP;
   if (o !== e.narrow && (e.narrow = o, n.requestUpdate()), !(!!s && e.showThree && (!e.narrow || e.tab === "3d")) || !s) {
     n.style.setProperty("--e2-vp-vis", "hidden");
     return;
@@ -34023,17 +34030,17 @@ function ea(n) {
   }
   n.style.setProperty("--e2-vp-x", `${Math.round(l.left - r.left)}px`), n.style.setProperty("--e2-vp-y", `${Math.round(l.top - r.top)}px`), n.style.setProperty("--e2-vp-w", `${Math.round(l.width)}px`), n.style.setProperty("--e2-vp-h", `${Math.round(l.height)}px`), n.style.setProperty("--e2-vp-vis", "visible");
 }
-function qP(n) {
+function XP(n) {
   const e = n.e2, t = n.renderRoot;
   if (!e || e.ro || !t) return;
   const i = t.querySelector("ha-card");
   i && (e.ro = new ResizeObserver(() => ea(n)), e.ro.observe(i));
 }
-function XP(n) {
+function KP(n) {
   for (const e of ["--e2-vp-x", "--e2-vp-y", "--e2-vp-w", "--e2-vp-h", "--e2-vp-vis"])
     n.style.removeProperty(e);
 }
-function KP(n) {
+function YP(n) {
   const e = n.e2;
   !e || e.syncTimer || (e.syncTimer = window.setTimeout(() => {
     e.syncTimer = void 0, n.e2 === e && n.sceneManager && n.sceneManager.loadPlan(e.plan, !0);
@@ -34041,42 +34048,42 @@ function KP(n) {
 }
 async function Ov(n) {
   const e = n.e2;
-  await xh(n), e && (e.ro?.disconnect(), e.syncTimer && window.clearTimeout(e.syncTimer), e.editor.destroy()), n.e2 = void 0, n.editing2 = !1, n.editEntry = "legacy", XP(n);
-}
-async function YP(n) {
-  await Ov(n), av(n);
+  await xh(n), e && (e.ro?.disconnect(), e.syncTimer && window.clearTimeout(e.syncTimer), e.editor.destroy()), n.e2 = void 0, n.editing2 = !1, n.editEntry = "legacy", KP(n);
 }
 async function ZP(n) {
+  await Ov(n), av(n);
+}
+async function JP(n) {
   await xh(n), n.editEntry = "e2", Uv(n);
 }
-function JP(n, e) {
+function QP(n, e) {
   const t = n.e2;
   t && (t.tool = e, t.editor.setTool(e), t.editor.setPendingModel(e === "furniture" ? t.model : null), e === "furniture" && (t.paletteFor = "place", t.paletteOpen = !0), n.requestUpdate());
 }
-function QP(n) {
+function ek(n) {
   const e = n.e2;
   e && (e.snap = !e.snap, e.editor.setSnap(e.snap), n.requestUpdate());
 }
-function ek(n) {
+function tk(n) {
   const e = n.e2;
   e && (e.editor.undo(), e.canUndo = e.editor.canUndo(), e.canRedo = e.editor.canRedo(), n.requestUpdate());
 }
-function tk(n) {
+function nk(n) {
   const e = n.e2;
   e && (e.editor.redo(), e.canUndo = e.editor.canUndo(), e.canRedo = e.editor.canRedo(), n.requestUpdate());
 }
-function nk(n) {
+function ik(n) {
   n.e2?.editor.zoomToFit();
 }
 function Lt(n, e) {
   const t = n.e2;
   !t || !t.selection || ("entityId" in e && String(e.entityId ?? "") && (t.bindPrompt = void 0), t.editor.updateSelected(e), t.selection = t.editor.getSelection(), t.canUndo = t.editor.canUndo(), t.canRedo = t.editor.canRedo(), n.requestUpdate());
 }
-function ik(n) {
+function sk(n) {
   const e = n.e2;
   e && (e.editor.deleteSelected(), e.selection = e.editor.getSelection(), e.canUndo = e.editor.canUndo(), n.requestUpdate());
 }
-function sk(n, e) {
+function rk(n, e) {
   const t = n.e2;
   t && (t.model = e, t.paletteFor === "model" && t.selection?.kind === "furniture" ? Lt(n, { model: e }) : t.tool === "furniture" && t.editor.setPendingModel(e), t.paletteOpen = !1, n.requestUpdate());
 }
@@ -34084,11 +34091,11 @@ function N0(n, e) {
   const t = n.e2;
   t && (t.tab = e, n.requestUpdate(), n.updateComplete.then(() => ea(n)));
 }
-function rk(n) {
+function ok(n) {
   const e = n.e2;
   e && (e.showThree = !e.showThree, n.requestUpdate(), n.updateComplete.then(() => ea(n)));
 }
-function ok(n, e) {
+function ak(n, e) {
   const t = n.e2, i = n.renderRoot;
   if (!t || !i) return;
   const s = i.querySelector("ha-card");
@@ -34110,12 +34117,12 @@ function U0(n, e) {
 function Fv(n, e, t) {
   const i = n.e2;
   if (!i) return;
-  const s = Math.max(L0, t * zP);
+  const s = Math.max(L0, t * BP);
   i.sideW = Math.round(Math.min(s, Math.max(L0, e))), n.requestUpdate(), n.updateComplete.then(() => ea(n));
 }
 const cd = 40;
-function ak(n, e) {
-  const t = n.e2, i = t.entityAll ? [] : lh(e.model), s = t3(t.plan, e.itemId), { groups: r, fellBack: o, total: a } = n3(n, i, s), l = t.entityQuery.trim().toLowerCase(), c = r.map((h) => ({ ...h, rows: l ? h.rows.filter((f) => pk(f, h, l)) : h.rows })).filter((h) => h.rows.length > 0), d = c.reduce((h, f) => h + f.rows.length, 0), u = mk(n, c, e.itemId, e.current);
+function lk(n, e) {
+  const t = n.e2, i = t.entityAll ? [] : lh(e.model), s = t3(t.plan, e.itemId), { groups: r, fellBack: o, total: a } = i3(n, i, s), l = t.entityQuery.trim().toLowerCase(), c = r.map((h) => ({ ...h, rows: l ? h.rows.filter((f) => mk(f, h, l)) : h.rows })).filter((h) => h.rows.length > 0), d = c.reduce((h, f) => h + f.rows.length, 0), u = gk(n, c, e.itemId, e.current);
   return D`
     <div class="e2-field e2-pick ${e.prompt ? "e2-bind-ask" : ""}" ?data-bind-prompt=${e.prompt}>
       <span class="e2-lab">Устройство Home Assistant</span>
@@ -34142,14 +34149,14 @@ function ak(n, e) {
   }} />
       ${o ? D`<span class="e2-hint">Для этой модели подходящих доменов не нашлось — показаны все устройства.</span>` : j}
       <div class="e2-groups" data-groups>
-        ${c.map((h) => lk(n, h, l, e.current, u))}
+        ${c.map((h) => ck(n, h, l, e.current, u))}
       </div>
-      ${c.length ? j : D`<span class="e2-hint">${fk(t.entityQuery, a)}</span>`}
-      ${dk(n, e.model, o, d)}
+      ${c.length ? j : D`<span class="e2-hint">${pk(t.entityQuery, a)}</span>`}
+      ${uk(n, e.model, o, d)}
     </div>
   `;
 }
-function lk(n, e, t, i, s) {
+function ck(n, e, t, i, s) {
   const r = n.e2, o = t ? !0 : r.entityOpen[e.key] ?? e.key === s;
   return D`
     <div class="e2-grp" data-area=${e.key} ?data-open=${o}>
@@ -34162,13 +34169,13 @@ function lk(n, e, t, i, s) {
         <span class="e2-grp-count">${e.rows.length}</span>
       </button>
       ${o ? D`<div class="e2-grp-body" role="group" aria-label=${e.area}>
-            ${e.rows.slice(0, cd).map((a) => ck(n, a, t, i))}
+            ${e.rows.slice(0, cd).map((a) => dk(n, a, t, i))}
             ${e.rows.length > cd ? D`<span class="e2-hint">Показаны первые ${cd} из ${e.rows.length} — уточните поиск.</span>` : j}
           </div>` : j}
     </div>
   `;
 }
-function ck(n, e, t, i) {
+function dk(n, e, t, i) {
   const s = e.id === i;
   return D`<button class="e2-entity ${s ? "on" : ""} ${e.taken ? "taken" : ""}"
     data-entity=${e.id} data-taken=${e.taken ?? j}
@@ -34181,7 +34188,7 @@ function ck(n, e, t, i) {
         </span>` : j}
   </button>`;
 }
-function dk(n, e, t, i) {
+function uk(n, e, t, i) {
   const s = n.e2, r = lh(e);
   if (!r.length || t && !s.entityAll) return j;
   const o = () => {
@@ -34190,10 +34197,10 @@ function dk(n, e, t, i) {
   return D`<button class="e2-btn e2-scope" data-act="entity-all"
     aria-pressed=${s.entityAll ? "true" : "false"} @click=${o}>
     ${n.ic(s.entityAll ? "bulb" : "grid")}
-    <span class="e2-btn-lab">${s.entityAll ? `Только подходящие: ${hk(r)}` : `Показать все устройства${i ? "" : " — подходящих нет"}`}</span>
+    <span class="e2-btn-lab">${s.entityAll ? `Только подходящие: ${fk(r)}` : `Показать все устройства${i ? "" : " — подходящих нет"}`}</span>
   </button>`;
 }
-const uk = {
+const hk = {
   light: "свет",
   switch: "выключатели",
   cover: "шторы и ворота",
@@ -34209,11 +34216,11 @@ const uk = {
   water_heater: "водонагреватели",
   humidifier: "увлажнители",
   vacuum: "пылесосы"
-}, hk = (n) => [...new Set(n.map((e) => uk[e] ?? e))].join(", ");
-function fk(n, e) {
+}, fk = (n) => [...new Set(n.map((e) => hk[e] ?? e))].join(", ");
+function pk(n, e) {
   return e ? n.trim() ? `По запросу «${n.trim()}» ничего не найдено` : "Подходящих устройств нет — откройте «Показать все устройства»" : "Home Assistant пока не отдал ни одного устройства";
 }
-function pk(n, e, t) {
+function mk(n, e, t) {
   return `${n.title} ${n.sub} ${e.area}`.toLowerCase().includes(t);
 }
 function Su(n, e) {
@@ -34224,20 +34231,20 @@ function Su(n, e) {
     i.push(n.slice(s, r), D`<mark class="e2-hit">${n.slice(r, r + e.length)}</mark>`), s = r + e.length;
   return i.length ? (i.push(n.slice(s)), D`${i}`) : n;
 }
-function mk(n, e, t, i) {
+function gk(n, e, t, i) {
   if (!e.length) return "";
   if (i) {
     const r = e.find((o) => o.rows.some((a) => a.id === i));
     if (r) return r.key;
   }
-  const s = gk(n, t).trim().toLowerCase();
+  const s = vk(n, t).trim().toLowerCase();
   if (s) {
     const r = e.find((o) => o.area.trim().toLowerCase() === s);
     if (r) return r.key;
   }
   return e[0].key;
 }
-function gk(n, e) {
+function vk(n, e) {
   const t = n.e2, i = t?.plan?.floors?.[t.floorIndex], s = i?.furniture?.find((d) => d.id === e), r = (i?.rooms ?? []).filter((d) => Array.isArray(d.polygon) && d.polygon.length > 2);
   if (!s || !Array.isArray(s.position) || !r.length) return "";
   const o = [Number(s.position[0]) || 0, Number(s.position[2]) || 0];
@@ -34332,13 +34339,13 @@ function O0(n) {
   </div>`;
 }
 const F0 = (n) => n.map((e) => ({ id: e, label: El(e) }));
-function vk(n) {
+function bk(n) {
   const t = n.e2.selection;
   return D`
     <div class="e2-inspect" data-sel=${t?.kind ?? "none"}>
       <div class="e2-inspect-head">
         ${n.ic(t ? "pencil" : "layers")}
-        <span>${bk(n)}</span>
+        <span>${xk(n)}</span>
         ${t ? bt(n, {
     icon: "trash",
     label: "Удалить",
@@ -34346,14 +34353,14 @@ function vk(n) {
     cls: "e2-mini danger",
     act: "delete",
     compact: !0,
-    onClick: () => ik(n)
+    onClick: () => sk(n)
   }) : j}
       </div>
-      <div class="e2-inspect-body">${xk(n)}</div>
+      <div class="e2-inspect-body">${yk(n)}</div>
     </div>
   `;
 }
-function bk(n) {
+function xk(n) {
   const e = n.e2.selection;
   if (!e) return "Этаж";
   switch (e.kind) {
@@ -34369,9 +34376,9 @@ function bk(n) {
       return "Зона";
   }
 }
-function xk(n) {
+function yk(n) {
   const e = n.e2, t = e.selection;
-  if (!t) return yk(n);
+  if (!t) return wk(n);
   if (t.kind === "wall")
     return D`
       ${zn({
@@ -34516,8 +34523,8 @@ function xk(n) {
     value: t.scale,
     onSet: (i) => i > 0 && Lt(n, { scale: i })
   })}
-      ${t.isSet ? wk(n, t.spread, t.count) : j}
-      ${ak(n, {
+      ${t.isSet ? _k(n, t.spread, t.count) : j}
+      ${lk(n, {
     model: t.model,
     itemId: t.id,
     current: t.entityId,
@@ -34531,7 +34538,7 @@ function xk(n) {
     onSet: (i) => Lt(n, { name: i })
   })}`;
 }
-function yk(n) {
+function wk(n) {
   const e = n.e2, t = Wi(n);
   return D`
     ${zo({
@@ -34555,7 +34562,7 @@ function yk(n) {
     </span>
   `;
 }
-function wk(n, e, t) {
+function _k(n, e, t) {
   return D`
     ${zn({
     field: "furn-spread",
@@ -34578,7 +34585,7 @@ function wk(n, e, t) {
     </span>
   `;
 }
-function _k(n) {
+function Mk(n) {
   const e = n.e2, t = e.paletteQuery.trim().toLowerCase(), i = rr.find((r) => r.id === e.paletteCat) ?? rr[0], s = t ? rr.flatMap((r) => r.keys).filter(
     (r) => mn(r).toLowerCase().includes(t) || r.includes(t)
   ) : [...i.keys];
@@ -34619,7 +34626,7 @@ function _k(n) {
         ${s.map(
     (r) => D`<button class="e2-model-cell ${r === e.model ? "on" : ""}" data-model=${r}
             title=${mn(r)} aria-label=${mn(r)}
-            @click=${() => sk(n, r)}>
+            @click=${() => rk(n, r)}>
             <img src=${Xl(r)} alt="" />
             <span>${mn(r)}</span>
           </button>`
@@ -34629,7 +34636,7 @@ function _k(n) {
     </div>
   `;
 }
-function Mk(n) {
+function Sk(n) {
   const e = n.e2;
   return D`
     <div class="e2-scrim" @click=${() => {
@@ -34651,16 +34658,16 @@ function Mk(n) {
   })}
       </div>
       <div class="e2-drawer-body">
-        ${Sk(n)}
         ${Ek(n)}
         ${Ak(n)}
         ${Tk(n)}
         ${Rk(n)}
+        ${Ck(n)}
       </div>
     </div>
   `;
 }
-function Sk(n) {
+function Ek(n) {
   return D`
     <div class="e2-group">Проект</div>
     ${zo({
@@ -34725,7 +34732,7 @@ function Sk(n) {
     </div>
   `;
 }
-function Ek(n) {
+function Ak(n) {
   const e = n.e2, t = e.plan.floors;
   return D`
     <div class="e2-group">Этажи</div>
@@ -34733,7 +34740,7 @@ function Ek(n) {
           ${t.map(
     (i, s) => D`<button class="e2-chip ${s === e.floorIndex ? "on" : ""}" data-floor=${s}
               aria-pressed=${s === e.floorIndex ? "true" : "false"}
-              @click=${() => VP(n, s)}>${i.name || `Этаж ${s + 1}`}</button>`
+              @click=${() => GP(n, s)}>${i.name || `Этаж ${s + 1}`}</button>`
   )}
         </div>` : j}
     ${zo({
@@ -34749,7 +34756,7 @@ function Ek(n) {
     label: "Добавить этаж",
     hint: "Добавить этаж сверху",
     act: "add-floor",
-    onClick: () => GP(n)
+    onClick: () => $P(n)
   })}
       ${t.length > 1 ? bt(n, {
     icon: "trash",
@@ -34757,13 +34764,13 @@ function Ek(n) {
     hint: "Удалить этот этаж со всем, что на нём",
     cls: "danger",
     act: "del-floor",
-    onClick: () => void $P(n)
+    onClick: () => void jP(n)
   }) : j}
     </div>
   `;
 }
-function Ak(n) {
-  const e = WP(n);
+function Tk(n) {
+  const e = VP(n);
   return D`
     <div class="e2-group">Подложка — обвести плоский план</div>
     ${e ? D`
@@ -34834,7 +34841,7 @@ function Ak(n) {
         <span class="e2-hint">затем укажите ширину в метрах и обводите стены поверх</span>`}
   `;
 }
-function Tk(n) {
+function Rk(n) {
   return D`
     <div class="e2-group">Замок редактора</div>
     <div class="e2-field">
@@ -34864,7 +34871,7 @@ function Tk(n) {
     </div>
   `;
 }
-function Rk(n) {
+function Ck(n) {
   return D`
     <div class="e2-group">Старая версия</div>
     <div class="e2-row">
@@ -34883,12 +34890,12 @@ function Rk(n) {
     label: "Открыть старый редактор",
     hint: "Прежний редактор пока остаётся рядом. Правки сохранятся перед переходом.",
     act: "legacy-editor",
-    onClick: () => void YP(n)
+    onClick: () => void ZP(n)
   })}
     </div>
   `;
 }
-const Ck = [
+const Pk = [
   { id: "select", icon: "cursor", label: "Выбор", hint: "Выбрать и передвинуть объект" },
   { id: "wall", icon: "wall", label: "Стена", hint: "Чертить стены: длину и угол можно набрать с клавиатуры" },
   { id: "room", icon: "rect", label: "Комната", hint: "Комната целиком: обвести контур и получить пол со стенами" },
@@ -34899,11 +34906,11 @@ const Ck = [
   { id: "zone", icon: "pin", label: "Зона", hint: "Комната для управления: значок и список устройств" },
   { id: "measure", icon: "ruler", label: "Мерка", hint: "Измерить расстояние на плане" }
 ];
-function Pk(n) {
+function kk(n) {
   const e = n.e2;
   return D`
     <div class="e2-rail" role="toolbar" aria-label="Инструменты конструктора">
-      ${Ck.map(
+      ${Pk.map(
     (t) => bt(n, {
       icon: t.icon,
       label: t.label,
@@ -34911,7 +34918,7 @@ function Pk(n) {
       cls: "e2-tool",
       act: `tool-${t.id}`,
       active: e.tool === t.id,
-      onClick: () => JP(n, t.id)
+      onClick: () => QP(n, t.id)
     })
   )}
       <div class="e2-rail-sep" role="separator"></div>
@@ -34922,7 +34929,7 @@ function Pk(n) {
     cls: "e2-tool e2-snap",
     act: "snap",
     active: e.snap,
-    onClick: () => QP(n)
+    onClick: () => ek(n)
   })}
       ${bt(n, {
     icon: "undo",
@@ -34931,7 +34938,7 @@ function Pk(n) {
     cls: "e2-tool",
     act: "undo",
     disabled: !e.canUndo,
-    onClick: () => ek(n)
+    onClick: () => tk(n)
   })}
       ${bt(n, {
     icon: "redo",
@@ -34940,7 +34947,7 @@ function Pk(n) {
     cls: "e2-tool",
     act: "redo",
     disabled: !e.canRedo,
-    onClick: () => tk(n)
+    onClick: () => nk(n)
   })}
       ${bt(n, {
     icon: "room",
@@ -34948,20 +34955,20 @@ function Pk(n) {
     hint: "Вписать план в экран",
     cls: "e2-tool",
     act: "fit",
-    onClick: () => nk(n)
+    onClick: () => ik(n)
   })}
     </div>
   `;
 }
-const kk = "46%";
-function Ik(n) {
+const Ik = "46%";
+function Lk(n) {
   const e = n.e2;
   if (!e) return j;
-  const t = n.config?.height ?? "500px", i = e.showThree ? e.sideW : 320, s = `height:${t};--e2-side:${i}px;--e2-3d-h:${e.showThree ? kk : "0px"}`, r = e.narrow && e.tab === "3d", o = !e.showThree || e.narrow && e.tab !== "3d", a = e.narrow && e.tab === "plan" && !!e.selection, l = e.narrow && !a;
+  const t = n.config?.height ?? "500px", i = e.showThree ? e.sideW : 320, s = `height:${t};--e2-side:${i}px;--e2-3d-h:${e.showThree ? Ik : "0px"}`, r = e.narrow && e.tab === "3d", o = !e.showThree || e.narrow && e.tab !== "3d", a = e.narrow && e.tab === "plan" && !!e.selection, l = e.narrow && !a;
   return D`
     <div class="e2-shell ${e.narrow ? "narrow" : "wide"}" style=${s}>
-      ${Lk(n)}
-      ${Pk(n)}
+      ${Dk(n)}
+      ${kk(n)}
       <div class="e2-body">
         <div class="e2-panes">
           <div class="e2-plan ${r ? "hidden" : ""} ${a ? "with-sheet" : ""}">
@@ -34975,21 +34982,21 @@ function Ik(n) {
                 tabindex="0"
                 aria-label="Граница между планом и 3D. Стрелками влево и вправо шире или уже"
                 aria-orientation="vertical"
-                @pointerdown=${(c) => ok(n, c)}
+                @pointerdown=${(c) => ak(n, c)}
                 @keydown=${(c) => {
     c.key === "ArrowLeft" && (c.preventDefault(), U0(n, 40)), c.key === "ArrowRight" && (c.preventDefault(), U0(n, -40));
   }}
               ></div>` : j}
           <div class="e2-3d-slot ${o ? "hidden" : ""}" aria-label="Трёхмерный вид"></div>
-          <div class="e2-inspect-wrap ${l ? "hidden" : ""}">${vk(n)}</div>
+          <div class="e2-inspect-wrap ${l ? "hidden" : ""}">${bk(n)}</div>
         </div>
       </div>
-      ${e.paletteOpen ? _k(n) : j}
-      ${e.projectOpen ? Mk(n) : j}
+      ${e.paletteOpen ? Mk(n) : j}
+      ${e.projectOpen ? Sk(n) : j}
     </div>
   `;
 }
-function Lk(n) {
+function Dk(n) {
   const e = n.e2, t = e.plan.floors;
   return D`
     <div class="e2-top">
@@ -35019,7 +35026,7 @@ function Lk(n) {
     hint: e.showThree ? "Отдать плану всю ширину" : "Показать трёхмерный вид рядом с планом",
     cls: "e2-top-btn",
     act: "toggle-3d",
-    onClick: () => rk(n)
+    onClick: () => ok(n)
   })}
       <span class="e2-top-gap"></span>
       <!-- data-act="save" — по нему сохранение находят и автопроверки. -->
@@ -35042,7 +35049,7 @@ function Lk(n) {
     </div>
   `;
 }
-const Dk = Qt`
+const Nk = Qt`
     :host {
       /* --- ГРУНТ ------------------------------------------------------------
          Было 18 почти-чёрных литералов (#0a0b0e #0b0c0e #0f1013 #141519 #14161d
@@ -35185,8 +35192,8 @@ const Dk = Qt`
       /* Ширина правой панели комнаты. */
       --panel-w: clamp(300px, 36%, 470px);
     }
-`, Nk = Qt`
-    ${Dk}
+`, Uk = Qt`
+    ${Nk}
 
     :host {
       display: block;
@@ -35402,7 +35409,7 @@ const Dk = Qt`
         background: var(--w-4);
       }
     }
-`, Uk = Qt`
+`, Ok = Qt`
     .toolbar {
       flex-direction: column;
       align-items: stretch;
@@ -35808,7 +35815,7 @@ const Dk = Qt`
         background: var(--w-3);
       }
     }
-`, Ok = Qt`
+`, Fk = Qt`
     /* Water leak. Sits above the screensaver (z-index 40) on purpose: a panel
        that has dimmed itself to a clock is exactly when a leak most needs to be
        seen. Not dismissible — it goes when the sensor dries, not when tapped. */
@@ -35884,7 +35891,7 @@ const Dk = Qt`
     .leak-b.primary:active { background: var(--tx); }
     .leak-b[disabled] { opacity: 0.55; cursor: default; }
 
-`, Fk = Qt`
+`, zk = Qt`
     .toast {
       position: absolute;
       z-index: var(--z-menu);
@@ -36085,7 +36092,7 @@ const Dk = Qt`
         background: var(--w-4);
       }
     }
-`, zk = Qt`
+`, Bk = Qt`
     .plan-warning {
       position: absolute;
       z-index: var(--z-chrome);
@@ -36135,7 +36142,7 @@ const Dk = Qt`
       text-align: center;
     }
 
-`, Bk = Qt`
+`, Hk = Qt`
     /* ===================================================================
        Room-in-focus layout (Option 1A): 3D + clock + pills on the left,
        the selected room's device panel on the right.
@@ -36611,7 +36618,7 @@ const Dk = Qt`
       }
     }
 
-`, Hk = Qt`
+`, Wk = Qt`
     /* ---- Right-side room control panel ---- */
     .room-panel {
       position: absolute;
@@ -36906,7 +36913,7 @@ const Dk = Qt`
       }
     }
 
-`, Wk = Qt`
+`, Vk = Qt`
     /* ---- Device cards ---- */
     .card {
       background: var(--card);
@@ -37327,7 +37334,7 @@ const Dk = Qt`
       }
     }
 
-`, Vk = Qt`
+`, Gk = Qt`
     /* ---- View toggle (Обзор / Комната) ---- */
     .view-toggle {
       display: inline-flex;
@@ -37379,7 +37386,7 @@ const Dk = Qt`
       }
     }
 
-`, Gk = Qt`
+`, $k = Qt`
     /* ===================================================================
        House overview (Option 1B): summary bar + 3D banner + room grid.
        =================================================================== */
@@ -37852,7 +37859,7 @@ const Dk = Qt`
       }
     }
 
-`, $k = Qt`
+`, jk = Qt`
   /* ---- Кнопка «значок + подпись» ---------------------------------------- */
   .ic-btn {
     display: inline-flex;
@@ -38056,7 +38063,7 @@ const Dk = Qt`
   .search-row input {
     padding-left: calc(var(--sp-3) * 2 + 16px);
   }
-`, jk = Qt`
+`, qk = Qt`
     .e2-field {
       display: flex;
       flex-direction: column;
@@ -38396,7 +38403,7 @@ const Dk = Qt`
         background: var(--w-4);
       }
     }
-`, qk = Qt`
+`, Xk = Qt`
     .e2-pick {
       --e2-pick: 48px;
     }
@@ -38536,9 +38543,9 @@ const Dk = Qt`
       min-height: var(--e2-pick);
       text-align: left;
     }
-`, Xk = Qt`
-    ${jk}
+`, Kk = Qt`
     ${qk}
+    ${Xk}
 
     .e2-shell {
       --e2-tap: 44px;
@@ -38839,7 +38846,7 @@ const Dk = Qt`
       width: 100%;
       text-align: left;
     }
-`, Kk = Qt`
+`, Yk = Qt`
     /* ---- Overview detail slide-over (1B) ---- */
     .detail-back {
       position: absolute;
@@ -39170,14 +39177,14 @@ const Dk = Qt`
       }
     }
 `;
-var Yk = Object.defineProperty, ue = (n, e, t, i) => {
+var Zk = Object.defineProperty, ue = (n, e, t, i) => {
   for (var s = void 0, r = n.length - 1, o; r >= 0; r--)
     (o = n[r]) && (s = o(e, t, s) || s);
-  return s && Yk(e, t, s), s;
+  return s && Zk(e, t, s), s;
 };
 class de extends ar {
   constructor() {
-    super(...arguments), this.planLoading = !1, this.isDemoPlan = !1, this.demoNoticeHidden = !1, this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editing2 = !1, this.editEntry = "legacy", this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.showReport = !1, this.reportMetric = "temp", this.sparkMetric = "auto", this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editZoneSearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.askOpen = !1, this.askData = { title: "" }, this.legacyOpen = !1, this.legacyBusy = !1, this.legacyFinds = [], this.legacyErrors = [], this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.histCache = /* @__PURE__ */ new Map(), this.histInFlight = /* @__PURE__ */ new Set(), this.idleEvents = ["pointerdown", "keydown", "wheel", "touchstart"], this.trackShift = (e) => xR(this, e), this.onActivity = () => jg(this), this.leakAck = !1;
+    super(...arguments), this.planLoading = !1, this.isDemoPlan = !1, this.demoNoticeHidden = !1, this.floorNames = [], this.activeFloorIndex = 0, this.editing = !1, this.editing2 = !1, this.editEntry = "legacy", this.editTool = "wall", this.editSelectedModel = "sofa", this.editSelectedObjModel = null, this.editShowAllEntities = !1, this.editSnap = !0, this.editFloorIndex = 0, this.editSelectedKind = null, this.editOpeningKind = null, this.editOpeningVariant = "single", this.editOpeningWidth = null, this.editSelectedColor = null, this.editSelectedWallLength = null, this.editSelectedWallThickness = null, this.editSelectedWallAngle = null, this.editRoom = null, this.editFurnScale = null, this.editMaterial = "plain", this.editCanUndo = !1, this.editCanRedo = !1, this.editUnderlay = null, this.editCameraDistance = 1, this.editIsLight = !1, this.editBrightness = 0, this.editIsLightSet = !1, this.editSpread = 1, this.editCount = 6, this.editZones = [], this.editSelectedZoneId = null, this.editZonePlacing = !1, this.controlOpen = !1, this.controlEntities = [], this.controlRoom = null, this.controlCategory = null, this.controlPos = [0, 0], this.controlOpenedAt = 0, this.viewMode = "room", this.rooms = [], this.roomPhoto = null, this.roomPhotoBaked = null, this.activeRoomKey = null, this.detailRoomKey = null, this.overviewRoomByKey = /* @__PURE__ */ new Map(), this.now = /* @__PURE__ */ new Date(), this.idle = !1, this.showReport = !1, this.reportMetric = "temp", this.sparkMetric = "auto", this.dragEntity = null, this.dragValue = 0, this.editEntitySearch = "", this.editZoneSearch = "", this.editFurnSearch = "", this.editAllWallColor = "#e8e6e1", this.editAllWallMat = "plain", this.editAllFloorColor = "#cfc7ba", this.editAllFloorMat = "plain", this.importOpen = !1, this.importText = "", this.qualityMenuOpen = !1, this.qualityChoice = "auto", this.editUnlocked = !1, this.pinPromptOpen = !1, this.pinError = "", this.editPinInput = "", this.projectList = [], this.currentProjectId = null, this.editingProjectId = null, this.editPlanName = "", this.paletteOpen = !1, this.askOpen = !1, this.askData = { title: "" }, this.legacyOpen = !1, this.legacyBusy = !1, this.legacyFinds = [], this.legacyErrors = [], this.storedProjects = { projects: {} }, this.planLoaded = !1, this.optimistic = /* @__PURE__ */ new Map(), this.optGen = 0, this.optTemp = /* @__PURE__ */ new Map(), this.optVol = /* @__PURE__ */ new Map(), this.histCache = /* @__PURE__ */ new Map(), this.histInFlight = /* @__PURE__ */ new Set(), this.idleEvents = ["pointerdown", "keydown", "wheel", "touchstart"], this.trackShift = (e) => yR(this, e), this.onActivity = () => jg(this), this.leakAck = !1;
   }
   // -- Lovelace API -----------------------------------------------------------
   setConfig(e) {
@@ -39191,7 +39198,7 @@ class de extends ar {
     return kA();
   }
   static async getConfigElement() {
-    return await Promise.resolve().then(() => Jk), document.createElement(TA);
+    return await Promise.resolve().then(() => Qk), document.createElement(TA);
   }
   // -- Жизненный цикл Lit -----------------------------------------------------
   willUpdate(e) {
@@ -39202,7 +39209,7 @@ class de extends ar {
     e.has("hass") && this.hass && (this.pendingHass = this.hass);
   }
   updated(e) {
-    if (!this.sceneManager && this.viewport && this.isConnected && zT(this), this.editing2 && jP(this), this.pendingHass && this.sceneManager && this.planLoaded && !this.editing && (jl(this, this.pendingHass), this.pendingHass = void 0), this.sceneManager && !this.editing) {
+    if (!this.sceneManager && this.viewport && this.isConnected && zT(this), this.editing2 && qP(this), this.pendingHass && this.sceneManager && this.planLoaded && !this.editing && (jl(this, this.pendingHass), this.pendingHass = void 0), this.sceneManager && !this.editing) {
       const t = dv(this);
       !t && this.leakAck && (this.leakAck = !1), this.sceneManager.setAlarmRooms(
         t ? t.sensors.map((i) => hv(this, i)?.key).filter((i) => !!i) : []
@@ -39265,13 +39272,13 @@ class de extends ar {
     this.editEntry === "e2" ? Uv(this) : av(this);
   }
   onSetWallThickness(e) {
-    lR(this, e);
+    cR(this, e);
   }
   showToast(e) {
     gT(this, e);
   }
   cardName(e, t) {
-    return i3(this, e, t);
+    return s3(this, e, t);
   }
   /** Translate a user-visible string. English is the key + fallback. */
   t(e) {
@@ -39320,20 +39327,20 @@ class de extends ar {
         <!-- Загрузка / сбой с кнопкой «Повторить» / «это пример» / брак в плане.
              Раньше здесь были два молчаливых блока: сырая английская строка
              исключения и предупреждение. См. card/views/plan-state.ts. -->
-        ${fC(this)}
+        ${pC(this)}
 
-        ${this.editing ? j : CR(this)}
+        ${this.editing ? j : PR(this)}
 
-        ${this.editing ? j : this.viewMode === "overview" ? D`${pC(this)}${vC(this)}` : D`${sC(this)}${aC(this)}`}
+        ${this.editing ? j : this.viewMode === "overview" ? D`${mC(this)}${bC(this)}` : D`${rC(this)}${lC(this)}`}
 
-        ${this.showReport && !this.editing ? oC(this) : j}
+        ${this.showReport && !this.editing ? aC(this) : j}
 
-        ${!this.editing && this.idle ? rC(this) : j}
+        ${!this.editing && this.idle ? oC(this) : j}
 
         ${this.editing && !this.editing2 ? D`<div class="overlay top-right">
               <button class="btn ic-btn" title=${this.tx("Открыть новый конструктор — план сверху, 3D рядом", "Open the new editor — top-down plan, 3D beside it")}
                 aria-label=${this.tx("Открыть новый конструктор", "Open the new editor")}
-                @click=${() => void ZP(this)}>${this.ic("layers")}<span class="ic-btn-lab">${this.tx("Новый конструктор", "New editor")}</span></button>
+                @click=${() => void JP(this)}>${this.ic("layers")}<span class="ic-btn-lab">${this.tx("Новый конструктор", "New editor")}</span></button>
               <button class="btn ic-btn" title=${this.tx("Показать план целиком", "Reset the view")}
                 aria-label=${this.tx("Показать план целиком", "Reset the view")}
                 @click=${() => Hg(this)}>${this.ic("room")}<span class="ic-btn-lab">${this.t("Reset")}</span></button>
@@ -39379,9 +39386,9 @@ class de extends ar {
 
         ${this.qualityMenuOpen ? D`<div class="menu-backdrop" @click=${() => this.qualityMenuOpen = !1}></div>` : j}
 
-        ${this.editing && !this.editing2 ? NR(this) : j}
+        ${this.editing && !this.editing2 ? UR(this) : j}
 
-        ${this.editing2 ? Ik(this) : j}
+        ${this.editing2 ? Lk(this) : j}
 
         ${this.importOpen ? D`<div class="import-modal">
               <div class="import-box">
@@ -39424,7 +39431,7 @@ class de extends ar {
 
         ${this.askOpen ? bT(this) : j}
 
-        ${this.controlOpen && !this.editing ? OR(this) : j}
+        ${this.controlOpen && !this.editing ? FR(this) : j}
 
         ${this.toast ? D`<div class="toast">${this.toast}</div>` : j}
 
@@ -39460,7 +39467,6 @@ class de extends ar {
   }
   static {
     this.styles = [
-      Nk,
       Uk,
       Ok,
       Fk,
@@ -39471,8 +39477,9 @@ class de extends ar {
       Vk,
       Gk,
       $k,
-      Xk,
-      Kk
+      jk,
+      Kk,
+      Yk
     ];
   }
 }
@@ -39757,10 +39764,10 @@ console.info(
   "color:#fff;background:#0a84ff;border-radius:4px 0 0 4px;padding:2px 6px",
   "color:#0a84ff;background:#222;border-radius:0 4px 4px 0;padding:2px 6px"
 );
-var Zk = Object.defineProperty, ec = (n, e, t, i) => {
+var Jk = Object.defineProperty, ec = (n, e, t, i) => {
   for (var s = void 0, r = n.length - 1, o; r >= 0; r--)
     (o = n[r]) && (s = o(e, t, s) || s);
-  return s && Zk(e, t, s), s;
+  return s && Jk(e, t, s), s;
 };
 const Eu = "bms-floorplan-card-editor";
 class zr extends ar {
@@ -39924,7 +39931,7 @@ ec([
   fe()
 ], zr.prototype, "_jsonError");
 customElements.get(Eu) || customElements.define(Eu, zr);
-const Jk = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const Qk = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   BmsFloorplanCardEditor: zr,
   EDITOR_TAG: Eu
