@@ -3,6 +3,7 @@
 // ползунки и групповые выключения.
 // ---------------------------------------------------------------------------
 
+import { isHeatOnlyClimate } from '../climate-kind';
 import type { BmsFloorplanCard } from '../ha-3d-floorplan-card';
 import type { RoomInfo } from '../scene/scene-manager';
 import type { HassEntity, HomeAssistant } from '../types';
@@ -515,9 +516,10 @@ export function allOffHouse(host: BmsFloorplanCard): void {
       } else if (e.behavior === 'climate') {
         // Heat-only (modes ⊆ {off, heat}) = warm floor / radiator → keep.
         // Anything that can cool (cool/heat_cool/dry/fan_only/auto) = AC → off.
-        const modes: string[] = attrs.hvac_modes ?? [];
-        const heatOnly = modes.length > 0 && modes.every((m) => m === 'off' || m === 'heat');
-        if (!heatOnly && host.effState(e.entity_id) !== 'off') {
+        // The rule itself lives with the other hvac-mode lists in
+        // `src/climate-kind.ts` — this behaviour is UNCHANGED, only shared, so
+        // allOffCount() cannot drift away from what the button really does.
+        if (!isHeatOnlyClimate(attrs) && host.effState(e.entity_id) !== 'off') {
           host.svc('climate', 'set_hvac_mode', { hvac_mode: 'off' }, e.entity_id, 'off');
         }
       }

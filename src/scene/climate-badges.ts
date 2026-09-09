@@ -7,25 +7,12 @@
 // климата, который в этой комнате ЕСТЬ. Нет кондиционера — нет и кружка: пустых
 // мест в ряду не бывает.
 //
-// ПО ЧЕМУ ОПРЕДЕЛЯЕТСЯ ТИП (сверху вниз, первый сработавший выигрывает):
-//   1) модель предмета, к которому привязана сущность (ac_unit, warm_floor,
-//      radiator/convector, ceiling_vent/ceiling_fan/air_purifier) — самое
-//      надёжное: предмет поставил человек и назвал его сам;
-//   2) для climate.* — hvac_modes: есть охлаждающий режим (cool/heat_cool/dry/
-//      fan_only) — кондиционер; есть только heat — обогрев. Внутри обогрева
-//      тёплый пол от конвектора отличается ТОЛЬКО по названию (подсказки ниже);
-//      подсказка не может перевернуть «греет» в «охлаждает» — худшее, что она
-//      сделает, это оставит общий значок обогрева;
-//   3) для fan.* — сперва имя, и только потом домен. На объекте владельца 13 из
-//      14 «вентиляторов» — это `fan.*_konvektor`: вентилятор ВНУТРИ конвектора,
-//      часть обогрева, а не вентиляция. «Вентиляция» остаётся значением по
-//      умолчанию для домена fan — но лишь там, где имя ничего не сказало;
-//   4) для switch/input_boolean — ТОЛЬКО имя. Голое `switch.rele_3` климатом не
-//      считается (реле может быть чем угодно), а вот реле, которое человек
-//      назвал «Тёплый пол», — считается: на объекте владельца тёплые полы
-//      висят именно на голых реле коллектора, и правило «switch — не климат»
-//      съедало их целиком, оставляя комнату вообще без кружков.
-// Признаков не хватило — рисуется общий кружок «Климат», а не выдуманный тип.
+// ПО ЧЕМУ ОПРЕДЕЛЯЕТСЯ ТИП: здесь — НИ ПО ЧЕМУ. Разбор климата один на всю
+// систему и живёт в `src/climate-kind.ts`: и этот файл, и разделы «мастера»
+// спрашивают его, а не пишут своё. Второго списка моделей, режимов и подсказок
+// по имени в репозитории быть не должно — ровно на нём вторая копия и
+// ошибалась (вентилятор конвектора уезжал в вентиляцию, а тёплый пол на голом
+// реле — в свет).
 //
 // ОДИН ПРИБОР — ОДИН КРУЖОК. Ряд собирается по ТИПАМ, а не по сущностям,
 // поэтому `fan.*_konvektor` и `climate.konvektor_*` одной комнаты попадают в
@@ -40,9 +27,11 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
+import { climateBehaviorOf, climateKindOf, type ClimateEntityRef, type ClimateKind } from '../climate-kind';
 import { drawBadgeCanvas } from './icons';
 
-export type ClimateBadgeType = 'ac' | 'floor' | 'heater' | 'vent' | 'other';
+/** Тип кружка = вид климата из общего разбора: один список на всю систему. */
+export type ClimateBadgeType = ClimateKind;
 /** off — выключено, idle — включено, но простаивает, active — реально работает. */
 export type ClimateBadgeState = 'off' | 'idle' | 'active';
 
@@ -56,11 +45,7 @@ export interface ClimateBadge {
 }
 
 /** Одна привязка комнаты — ровно то, что лежит в RoomInfo.entities. */
-export interface ClimateEntityRef {
-  entity_id: string;
-  behavior: string;
-  model?: string;
-}
+export type { ClimateEntityRef };
 
 /** Знак, подпись и цвета кружка каждого типа. */
 export const CLIMATE_BADGE_STYLE: Record<
@@ -106,82 +91,6 @@ const ROW_DROP = 0.70;
 const BADGE_MAX_SPAN = 2.6;
 const BADGE_MIN_SPAN = 0.3;
 
-// -- Определение типа ---------------------------------------------------------
-
-/** Модель предмета — самый надёжный признак: её выбрал человек. */
-const MODEL_TYPE: Record<string, ClimateBadgeType> = {
-  ac_unit: 'ac',
-  warm_floor: 'floor',
-  radiator: 'heater',
-  convector: 'heater',
-  ceiling_vent: 'vent',
-  ceiling_fan: 'vent',
-  air_purifier: 'vent',
-};
-
-/** Поведения, у которых вообще бывает «работает / не работает». Датчик
- *  температуры тёплого пола — это показание, а не работа, и кружка не даёт. */
-const CONTROL_BEHAVIORS = new Set(['climate', 'switch', 'input_boolean', 'fan']);
-
-/** Режимы, которые умеет только охлаждающая техника. `auto` сюда НЕ входит:
- *  термостаты тёплого пола сплошь и рядом отдают ['off','heat','auto']. */
-const COOL_MODES = ['cool', 'heat_cool', 'dry', 'fan_only'];
-
-/** Подсказки по названию. Для climate.* — последняя ступень, после hvac_modes;
- *  для fan/switch — ПЕРВАЯ и единственная, потому что домен там врёт (см. шапку).
- *  Порядок важен: «тёплый пол» проверяется до «обогрева», а «конвектор» — до
- *  «вентиляции», иначе «Вентилятор конвектора» ушёл бы в вентиляцию. */
-const NAME_HINTS: [ClimateBadgeType, RegExp][] = [
-  ['floor', /(тепл\w*\s*пол|тёплый|teplyi[_ ]?pol|teplyy[_ ]?pol|warm[_ ]?floor|floor[_ ]?heat|underfloor|podogrev|\bpol[_ ]|[_ ]pol\b)/],
-  ['heater', /(конвектор|konvektor|convector|радиатор|radiator|батаре|batare|обогрев|obogrev)/],
-  ['ac', /(кондиц|kondic|konditsion|сплит|split|\bac[_ ]|[_ ]ac\b)/],
-  // `ventil[a-z]*ats` ловит и «ventiliatsiia», и «ventilyacia»; на «вентилятор»
-  // и «ventilyator_konvektor» не срабатывает — там между ventil и ats/ac нет
-  // сплошных букв, а конвектор к тому же выигрывает строкой выше.
-  ['vent', /(вентиляц|вытяж|приточ|ventil[a-z]*ats|ventil[a-z]*ac|vytyazh|pritoch)/],
-];
-
-function hintType(entityId: string, friendly?: unknown): ClimateBadgeType | null {
-  const hay = `${entityId} ${typeof friendly === 'string' ? friendly : ''}`.toLowerCase();
-  for (const [type, re] of NAME_HINTS) if (re.test(hay)) return type;
-  return null;
-}
-
-/** Поведение привязки; `auto` (и пустое) разворачивается в домен сущности. */
-function behaviorOf(e: ClimateEntityRef): string {
-  return !e.behavior || e.behavior === 'auto' ? e.entity_id.split('.')[0] : e.behavior;
-}
-
-/** Тип климата этой сущности, либо null — «это не климат». */
-export function climateTypeOf(e: ClimateEntityRef, ent?: any): ClimateBadgeType | null {
-  const behavior = behaviorOf(e);
-  if (!CONTROL_BEHAVIORS.has(behavior)) return null;
-
-  // Модель предмета выбрал человек — она главнее любого имени и любого домена.
-  const byModel = e.model ? MODEL_TYPE[e.model] : undefined;
-  if (byModel) return byModel;
-
-  const attrs = ent?.attributes;
-  const hint = hintType(e.entity_id, attrs?.friendly_name);
-
-  if (behavior === 'climate') {
-    const modes: string[] = Array.isArray(attrs?.hvac_modes) ? attrs.hvac_modes : [];
-    if (modes.some((m) => COOL_MODES.includes(m))) return 'ac';
-    if (modes.includes('heat')) return hint === 'floor' ? 'floor' : 'heater';
-    return hint ?? 'other';
-  }
-
-  // Вентилятор: имя вперёд домена. «Вентилятор конвектора» — обогрев, и он
-  // сливается с `climate.konvektor_*` той же комнаты в ОДИН кружок. Домен
-  // остаётся вентиляцией только там, где имя промолчало.
-  if (behavior === 'fan') return hint ?? 'vent';
-
-  // Реле и переключатель: климат ТОЛЬКО по имени. «switch.rele_3» может быть
-  // чем угодно, и кружок ему рисовать нельзя; «Тёплый пол» на реле коллектора —
-  // это настоящий тёплый пол, и без кружка комната осталась бы пустой.
-  return hint;
-}
-
 // -- «Работает» против «включён» ----------------------------------------------
 
 const ACTIVE_ACTIONS = new Set(['heating', 'cooling', 'drying', 'fan', 'defrosting', 'preheating']);
@@ -216,9 +125,9 @@ export function computeClimateBadges(
   const buckets = new Map<ClimateBadgeType, { state: ClimateBadgeState; entities: string[] }>();
   for (const e of entities ?? []) {
     const ent = hass?.states?.[e.entity_id];
-    const type = climateTypeOf(e, ent);
+    const type = climateKindOf(e, ent?.attributes);
     if (!type) continue;
-    const state = climateStateOf(behaviorOf(e), ent);
+    const state = climateStateOf(climateBehaviorOf(e), ent);
     const cur = buckets.get(type);
     if (!cur) buckets.set(type, { state, entities: [e.entity_id] });
     else {

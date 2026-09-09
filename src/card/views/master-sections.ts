@@ -2,78 +2,74 @@
 // «Мастер»: РАЗБОР ДОМА ПО РАЗДЕЛАМ — свет, кондиционеры, отопление,
 // вентиляция, шторы. Только счёт и разбор; кнопки и разметка — в master.ts.
 //
-// ЗДЕСЬ ЖЕ ЕДИНСТВЕННОЕ МЕСТО, ГДЕ КЛИМАТ ДЕЛИТСЯ на кондиционер / отопление /
-// вентиляцию — функция climateKindOf(). Она НАМЕРЕННО чистая: ей не нужны ни
-// карточка, ни hass, только атрибуты сущности и модель предмета, к которому её
-// привязали. Значки климата в 3D делает другой человек; когда обе половины
-// сойдутся, свести их надо в ЭТУ функцию, а не завести вторую.
+// РАЗБОР КЛИМАТА ЗДЕСЬ НЕ ЖИВЁТ. Вид климатической техники (кондиционер,
+// тёплый пол, конвектор, вентиляция) определяет ОДНА функция на всю систему —
+// climateKindOf() из `src/climate-kind.ts`; её же спрашивают кружки климата в
+// 3D. Раньше правило было написано здесь во второй раз, и вторая копия
+// ошибалась на живом объекте владельца:
+//   • реле без модели предмета считалось СВЕТОМ — а на объекте оба реле
+//     коллектора это тёплый пол, и кнопка «Выключить весь свет» снимала с них
+//     питание;
+//   • домен `fan` всегда означал вентиляцию — а 13 из 14 «вентиляторов»
+//     объекта это вентилятор ВНУТРИ конвектора, то есть обогрев.
 //
-// Признаки, по которым различаем (в порядке силы):
-//   1. climate.* — по СПИСКУ РЕЖИМОВ устройства (hvac_modes). Это его
-//      собственная правда: умеет холодить — кондиционер; только греет —
-//      отопление; только гоняет воздух — вентиляция.
-//   2. switch/input_boolean/fan — по МОДЕЛИ ПРЕДМЕТА из плана (радиатор,
-//      конвектор, тёплый пол → отопление; вентилятор, вытяжка, очиститель →
-//      вентиляция). У реле нет hvac_modes, и модель — единственный признак,
-//      который человек задал сам.
-//   3. Ничего не подошло — считаем кондиционером: ровно так же поступает
-//      «Выключить всё» (allOffHouse), а два разных ответа на один вопрос хуже,
-//      чем один осторожный.
+// ЧЕМ «МАСТЕР» ОТЛИЧАЕТСЯ ОТ КРУЖКОВ — ровно одним: у него есть раздел «Свет»,
+// которого у кружков нет. Общее правило отвечает только на вопрос «климат
+// такого-то вида или не климат»; что делать с «не климатом», решает уже
+// sectionOf() ниже: светильник — всегда свет, реле и переключатель без
+// климатических признаков — тоже свет, остальное разделов не образует.
+// Понятие «свет» в общий модуль не тащим: кружкам оно не нужно.
 //
-// Почему «только греет» — это modes ⊆ {off, heat}, а не «есть heat»:
-// СОВПАДЕНИЕ с allOffHouse обязательно. Там отопление сохраняется по этому же
-// правилу, и если бы «мастер» считал отоплением ещё и режим `auto`, человек
-// увидел бы устройство в разделе «Отопление» и тут же поймал бы его выключение
-// кнопкой «Выключить всё». Пусть лучше раздел будет уже, чем подпись врёт.
+// Видов климата пять, а разделов у «мастера» три, поэтому SECTION_OF_KIND
+// сводит их: тёплый пол и конвектор — оба «Отопление», а «климат неизвестного
+// вида» уходит в «Кондиционеры». Последнее — осознанная осторожность: ровно
+// так же с ним поступает «Выключить всё» (allOffHouse его гасит), а два разных
+// ответа на один вопрос хуже, чем один осторожный.
 // ---------------------------------------------------------------------------
 
+import {
+  climateBehaviorOf,
+  climateKindOf,
+  isHeatOnlyClimate,
+  type ClimateEntityRef,
+  type ClimateKind,
+} from '../../climate-kind';
 import type { BmsFloorplanCard } from '../../ha-3d-floorplan-card';
 import type { RoomInfo } from '../../scene/scene-manager';
 import { isEntityOffline } from '../state';
 
-export type ClimateKind = 'ac' | 'heat' | 'vent';
-
 /** Разделы «мастера» в порядке показа. */
 export type MasterKey = 'lights' | 'ac' | 'heat' | 'vent' | 'curtains';
 
-/** Модели предметов, к которым привязано реле, — отопление. */
-const HEAT_MODELS = new Set(['radiator', 'convector', 'warm_floor']);
-/** …и вентиляция (вентилятор, приточка, вытяжка, очиститель воздуха). */
-const VENT_MODELS = new Set(['ceiling_fan', 'ceiling_vent', 'air_purifier', 'range_hood']);
-/** …и кондиционер (ИК-реле на сплите). */
-const AC_MODELS = new Set(['ac_unit']);
-
-/** Кондиционер, отопление или вентиляция — по режимам самого устройства.
- *  Чистая функция: ни карточки, ни hass. Держать деление климата ТОЛЬКО здесь. */
-export function climateKindOf(attrs?: { hvac_modes?: unknown }): ClimateKind {
-  const modes = Array.isArray(attrs?.hvac_modes) ? (attrs!.hvac_modes as unknown[]).map(String) : [];
-  if (!modes.length) return 'ac';
-  // Только греет (тёплый пол, конвектор, радиаторный термостат).
-  if (modes.every((m) => m === 'off' || m === 'heat')) return 'heat';
-  // Только гоняет воздух — приточка/вытяжка, прикинувшаяся климатом.
-  if (modes.every((m) => m === 'off' || m === 'fan_only')) return 'vent';
-  return 'ac';
-}
-
-/** Раздел по МОДЕЛИ предмета из плана — для реле, у которых режимов нет. */
-export function modelKind(model?: string): ClimateKind | undefined {
-  if (!model) return undefined;
-  if (HEAT_MODELS.has(model)) return 'heat';
-  if (VENT_MODELS.has(model)) return 'vent';
-  if (AC_MODELS.has(model)) return 'ac';
-  return undefined;
-}
+/** Пять видов климата → три раздела «мастера». Тёплый пол и конвектор — это
+ *  одно «Отопление»; климат неизвестного вида осторожно уходит к кондиционерам
+ *  (см. шапку файла). */
+const SECTION_OF_KIND: Record<ClimateKind, MasterKey> = {
+  ac: 'ac',
+  floor: 'heat',
+  heater: 'heat',
+  vent: 'vent',
+  other: 'ac',
+};
 
 /** Раздел «мастера» для одной привязки. null — устройству здесь не место
  *  (медиа, замки, датчики: у них нет общедомового действия). */
-export function sectionOf(host: BmsFloorplanCard, e: { entity_id: string; behavior: string; model?: string }): MasterKey | null {
-  const domain = e.entity_id.split('.')[0];
-  const b = e.behavior;
-  if (b === 'cover' || domain === 'cover') return 'curtains';
-  if (b === 'climate' || domain === 'climate') return climateKindOf(host.hass?.states[e.entity_id]?.attributes);
-  if (b === 'fan' || domain === 'fan') return 'vent';
-  if (b === 'light') return 'lights'; // светильник — всегда свет, что бы за модель ни была
-  if (b === 'switch' || b === 'input_boolean') return modelKind(e.model) ?? 'lights';
+export function sectionOf(host: BmsFloorplanCard, e: ClimateEntityRef): MasterKey | null {
+  const b = climateBehaviorOf(e); // `auto` разворачивается в домен сущности
+  if (b === 'cover') return 'curtains';
+
+  // Вопрос «климат или нет» задаём ОБЩЕМУ правилу — тому же, что рисует кружки
+  // в 3D. Светильник до него не доходит вовсе: лампа — всегда свет, что бы за
+  // модель предмета к ней ни привязали.
+  if (b !== 'light') {
+    const kind = climateKindOf(e, host.hass?.states[e.entity_id]?.attributes);
+    if (kind) return SECTION_OF_KIND[kind];
+  }
+
+  // «Не климат». Раздел «Свет» — местное решение «мастера»: реле и
+  // переключатель, у которых климатических признаков не нашлось, это свет, и
+  // они остаются там же, где были.
+  if (b === 'light' || b === 'switch' || b === 'input_boolean') return 'lights';
   return null;
 }
 
@@ -208,9 +204,7 @@ export function allOffCount(host: BmsFloorplanCard): number {
         if (attrs.device_class === 'tv') continue; // телевизор не трогаем
         if (!['off', 'paused', 'idle', 'standby', 'unavailable', 'unknown'].includes(s)) n++;
       } else if (e.behavior === 'climate') {
-        const modes: string[] = attrs.hvac_modes ?? [];
-        const heatOnly = modes.length > 0 && modes.every((m) => m === 'off' || m === 'heat');
-        if (!heatOnly && s !== 'off') n++;
+        if (!isHeatOnlyClimate(attrs) && s !== 'off') n++;
       }
     }
   }

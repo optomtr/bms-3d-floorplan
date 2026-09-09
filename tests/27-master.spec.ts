@@ -14,6 +14,11 @@
 //   • на планшете в книжной ориентации цели не мельче 48px и панель не
 //     прокручивается вбок.
 //
+// Второй блок ниже стережёт разбор на ЖИВЫХ сущностях объекта владельца — тех
+// самых, где «мастер» ошибался, пока правило климата было написано во второй
+// раз (реле тёплого пола попадало в «Свет», вентилятор конвектора — в
+// «Вентиляцию»). Те же сущности стерегут кружки в tests/25-climate-badges.
+//
 // Каждая проверка ломалась в исходниках и краснела — чем именно, написано в
 // отчёте к задаче.
 // ---------------------------------------------------------------------------
@@ -358,5 +363,137 @@ test.describe('Мастер: управление домом по раздела
     expect(measured.outside.join('; '), `уехало за край: ${measured.outside.join('; ')}`).toBe('');
     expect(measured.sideScroll, 'панель прокручивается вбок').toBeLessThanOrEqual(0);
     expect(measured.sheetRight).toBeLessThanOrEqual(measured.cardRight + 1);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// ЖИВОЙ ОБЪЕКТ ВЛАДЕЛЬЦА. Никаких придуманных id, и климатических ПРЕДМЕТОВ у
+// этих сущностей нет — тип брать неоткуда, кроме домена и имени. Ровно здесь
+// вторая копия правила и ошибалась:
+//   • оба реле коллектора объекта — тёплый пол, а «мастер» считал их СВЕТОМ, и
+//     кнопка «Выключить весь свет» снимала с пола питание (опасная ошибка);
+//   • 13 из 14 `fan.*` объекта — вентилятор ВНУТРИ конвектора, то есть
+//     обогрев, а «мастер» отправлял их все в «Вентиляцию».
+// Контрольная половина: реле, названное обычной нагрузкой («Розетка»), обязано
+// остаться в «Свете» — иначе «унесли все реле в отопление» прошло бы за
+// исправление.
+// ---------------------------------------------------------------------------
+
+/** Кусок этажа владельца: гардеробная с реле коллектора, кабинет с
+ *  конвектором и санузел с настоящей вентиляцией. */
+function realPlan() {
+  return {
+    name: 'Объект',
+    wallHeight: 2.7,
+    floors: [
+      {
+        name: '1 Этаж',
+        elevation: 0,
+        wallHeight: 2.7,
+        walls: boxWalls(18, 10),
+        // Единственный предмет — светильник. Климатических предметов у этих
+        // сущностей на объекте нет, и модель ничего не подскажет.
+        furniture: [{ id: 'lampG', model: 'ceiling_light', position: [15, 2.5, 2] }],
+        zones: [
+          { id: 'z_kab1', name: 'Кабинет 1', x: 3, z: 2, entities: ['fan.kabinet_1_konvektor'] },
+          { id: 'z_kirish', name: 'Кириш санузел', x: 12, z: 2, entities: ['fan.kirish_sanuzel_spoty_ventiliatsiia_switch_2'] },
+          {
+            id: 'z_gard', name: 'Гардеробная', x: 15, z: 2,
+            entities: [
+              'switch.resepshn_kollektor_2_rele_1_switch_1',
+              'switch.resepshn_kollektor_2_rele_1_switch_2',
+              'switch.rozetka',
+              'light.garderobnaia',
+            ],
+          },
+        ],
+        bindings: [{ entity_id: 'light.garderobnaia', anchor_object: 'lampG', behavior: 'light' }],
+      },
+    ],
+  };
+}
+
+/** Состояния тех же сущностей — имена ровно те, что владелец видит в HA. */
+const realStates = () => ({
+  'fan.kabinet_1_konvektor': { state: 'on', attributes: { friendly_name: 'Вентилятор конвектора' } },
+  'fan.kirish_sanuzel_spoty_ventiliatsiia_switch_2': { state: 'on', attributes: { friendly_name: 'Вентиляция' } },
+  'switch.resepshn_kollektor_2_rele_1_switch_1': { state: 'on', attributes: { friendly_name: 'Тёплый пол' } },
+  'switch.resepshn_kollektor_2_rele_1_switch_2': { state: 'off', attributes: { friendly_name: 'Тёплый пол санузла' } },
+  // Контрольное реле: обычная нагрузка, климатом не притворяется.
+  'switch.rozetka': { state: 'on', attributes: { friendly_name: 'Розетка' } },
+  'light.garderobnaia': { state: 'on', attributes: { friendly_name: 'Свет гардеробной' } },
+});
+
+/** Единственный список id, ушедший в `homeassistant.turn_off`. */
+async function offList(page: Page): Promise<string[]> {
+  const sent = await calls(page);
+  const bulk = sent.filter((c) => c.domain === 'homeassistant' && c.service === 'turn_off');
+  expect(bulk.length, `ждали ровно одно массовое выключение, ушло ${sent.length} команд: ${JSON.stringify(sent)}`).toBe(1);
+  return ([] as string[]).concat(bulk[0].data.entity_id).sort();
+}
+
+test.describe('Мастер на живых сущностях объекта', () => {
+  test('ГЛАВНАЯ: реле «Тёплый пол» — это «Отопление», и «Выключить весь свет» его НЕ трогает', async ({ page }) => {
+    await open(page, realPlan(), realStates());
+
+    // Разделы: свет, отопление (реле пола + вентилятор конвектора), вентиляция.
+    const secs = await page.evaluate(() =>
+      [...window.BMS.root().querySelectorAll('.ms-sec')].map((s) => s.getAttribute('data-sec')),
+    );
+    expect(secs, 'реле коллектора обязаны образовать раздел «Отопление»').toEqual(['lights', 'heat', 'vent', 'alloff']);
+
+    // Кнопка «Выключить весь свет» — то самое опасное место.
+    await clearCalls(page);
+    await press(page, 'lights-off');
+    const off = await offList(page);
+    expect(off, 'в «Свете» остаются лампа и обычная розетка — и только они').toEqual([
+      'light.garderobnaia',
+      'switch.rozetka',
+    ]);
+    for (const pol of ['switch.resepshn_kollektor_2_rele_1_switch_1', 'switch.resepshn_kollektor_2_rele_1_switch_2']) {
+      expect(off, `кнопка «Выключить весь свет» сняла питание с тёплого пола (${pol})`).not.toContain(pol);
+    }
+
+    // И то же самое с другой стороны: «Отопление» гасит именно реле пола.
+    await clearCalls(page);
+    await press(page, 'heat-off');
+    const heatOff = await offList(page);
+    expect(heatOff, 'выключаем отопление: включённое реле пола и вентилятор конвектора').toEqual([
+      'fan.kabinet_1_konvektor',
+      'switch.resepshn_kollektor_2_rele_1_switch_1',
+    ]);
+  });
+
+  test('КОНТРОЛЬНАЯ: реле, названное обычной нагрузкой, осталось в «Свете»', async ({ page }) => {
+    await open(page, realPlan(), realStates());
+
+    // Розетки в «Отоплении» быть не должно — иначе правило унесло туда все
+    // реле подряд, и проверка выше прошла бы даром.
+    await clearCalls(page);
+    await press(page, 'heat-off');
+    expect(await offList(page), 'switch.rozetka — обычная нагрузка, отоплением она не станет').not.toContain('switch.rozetka');
+
+    // Счётчик «Света»: лампа и розетка, обе включены. Реле пола сюда не входят.
+    expect(await textOf(page, '[data-count="lights"]'), 'в «Свете» ровно два устройства').toBe('работает 2 из 2');
+  });
+
+  test('вентилятор конвектора — «Отопление», настоящая вентиляция — «Вентиляция»', async ({ page }) => {
+    await open(page, realPlan(), realStates());
+
+    expect(await textOf(page, '[data-count="heat"]'), 'отопление: два реле пола и вентилятор конвектора').toBe('работает 2 из 3');
+    expect(await textOf(page, '[data-count="vent"]'), 'вентиляция на объекте ровно одна').toBe('работает 1 из 1');
+
+    // Контрольная против «объявили все fan обогревом».
+    await clearCalls(page);
+    await press(page, 'vent-off');
+    expect(await offList(page), 'в «Вентиляции» только настоящая вытяжка').toEqual([
+      'fan.kirish_sanuzel_spoty_ventiliatsiia_switch_2',
+    ]);
+
+    // …а вентилятор конвектора — в «Отоплении», и в вентиляцию не попал.
+    await clearCalls(page);
+    await press(page, 'heat-off');
+    expect(await offList(page), 'fan.kabinet_1_konvektor — обогрев').toContain('fan.kabinet_1_konvektor');
   });
 });
