@@ -72,6 +72,11 @@ export interface PlanEditor {
   updateSelected(patch: Record<string, unknown>): void;
   deleteSelected(): void;
 
+  /** Убрать привязки к перечисленным сущностям (тем, которых в Home Assistant
+   *  уже нет). ОБЫЧНАЯ правка плана: отменяется как любая другая и уезжает тем
+   *  же «Сохранить». Возвращает, сколько привязок убрано. */
+  removeBindings(entityIds: string[]): number;
+
   undo(): void;
   redo(): void;
   canUndo(): boolean;

@@ -104,6 +104,52 @@ export const editor2Styles = css`
       color: var(--tx-hi);
     }
 
+    /* ---- Плашка «привязки к несуществующим устройствам» ------------------
+       Это ТА ЖЕ плашка карточки (.plan-warning): те же цвета, тот же значок,
+       второго вида предупреждений в системе нет. Отличие одно — в карточке она
+       висит над сценой, а здесь стоит В ПОТОКЕ полосой под инструментами,
+       поэтому селектор уточнён оболочкой (.e2-shell), а не переопределён
+       позже: тогда правило не зависит от порядка кусков таблицы. */
+    .e2-shell .plan-warning.e2-warn {
+      position: static;
+      flex: 0 0 auto;
+      align-items: flex-start;
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+      border-top: 0;
+    }
+    .e2-warn-txt {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .e2-warn-what {
+      color: var(--mut);
+      font-size: var(--fs-2);
+    }
+    .e2-warn-list {
+      margin: 0;
+      padding: 0 0 0 var(--sp-4);
+      /* Список бывает длинным (на объекте владельца — четыре, бывает и
+         тридцать): прокручивается САМ, а не растёт на пол-экрана. */
+      max-height: 7.4em;
+      overflow: auto;
+      font-size: var(--fs-2);
+      line-height: 1.5;
+    }
+    .e2-warn-more {
+      color: var(--mut);
+      list-style: none;
+      margin-left: calc(var(--sp-4) * -1);
+    }
+    .e2-warn-act {
+      flex: 0 0 auto;
+      align-self: center;
+    }
+
     /* ---- Тело: полоса инструментов + панели ------------------------------ */
     .e2-body {
       position: relative;
