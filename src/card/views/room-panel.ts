@@ -10,6 +10,7 @@ import { detectIntercom } from '../entities';
 import { historyPts, historyStatus } from '../history';
 import { fmtClockDate, fmtClockTime, roomIcon } from '../i18n';
 import { activeRoom, onResetView, onSelectFloor, selectRoom, setViewMode, toggleSparkMetric } from '../scene';
+import { toggleRoomsBar } from '../prefs';
 import { onSleep, openKiosk, wake } from '../session';
 import { allOffHouse, isEntityOffline, onRoomAllOff } from '../state';
 import { renderClimateCard, renderCoverCard, renderFanCard, renderInfoCard, renderIntercomCard, renderLightCard, renderLockCard, renderMediaCard, renderToggleCard, renderUnavailableCard } from './device-cards';
@@ -104,19 +105,42 @@ export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 
   </div>`;
 }
 
+/** Полоса комнат внизу 3D — вместе с язычком, который её убирает.
+ *
+ *  На живом объекте комнат восемнадцать: плашки переносились в два ряда и
+ *  занимали половину экрана. Свёрнутая полоса оставляет только язычок — по
+ *  нему видно, что там комнаты и сколько их, — а 3D получает освободившееся
+ *  место. Выбор человека помнит устройство (card/prefs.ts), как и качество
+ *  отрисовки; переключатель этажей рядом НЕ прячется — он нужен всегда. */
 export function renderPills(host: BmsFloorplanCard) {
   if (!host.rooms.length) return nothing;
-  return html`<div class="pills">
-    ${host.rooms.map(
-      (r) => html`<button
-        type="button"
-        class="pill ${r.key === host.activeRoomKey ? 'on' : ''}"
-        aria-pressed=${r.key === host.activeRoomKey ? 'true' : 'false'}
-        aria-label=${`${host.tx('Комната', 'Room')}: ${r.name || host.t('Room')}`}
-        @click=${() => selectRoom(host, r.key)}
-      >${host.ic(roomIcon(r.name))}<span>${r.name || host.t('Room')}</span></button>`,
-    )}
-  </div>`;
+  const open = host.roomsBarOpen;
+  const n = host.rooms.length;
+  // Язычок и плашки — соседи внутри .stage-bottom: та уже колонка с отступом,
+  // и своя обёртка была бы лишним слоем ради тех же правил.
+  return html`
+    <button type="button" class="pills-tab" data-act="rooms-bar"
+      aria-expanded=${open ? 'true' : 'false'}
+      aria-controls="rooms-bar"
+      title=${open ? host.tx('Свернуть комнаты', 'Collapse the rooms') : host.tx('Показать комнаты', 'Show the rooms')}
+      aria-label=${open
+        ? host.tx(`Свернуть полосу комнат, их ${n}`, `Collapse the room bar, ${n} rooms`)
+        : host.tx(`Показать комнаты, их ${n}`, `Show the rooms, ${n} of them`)}
+      @click=${() => toggleRoomsBar(host)}
+    >${host.ic('room')}<span>${host.tx('Комнаты', 'Rooms')}</span><em>${n}</em>${host.ic(open ? 'chevDown' : 'chevUp')}</button>
+    ${open
+      ? html`<div class="pills" id="rooms-bar">
+          ${host.rooms.map(
+            (r) => html`<button
+              type="button"
+              class="pill ${r.key === host.activeRoomKey ? 'on' : ''}"
+              aria-pressed=${r.key === host.activeRoomKey ? 'true' : 'false'}
+              aria-label=${`${host.tx('Комната', 'Room')}: ${r.name || host.t('Room')}`}
+              @click=${() => selectRoom(host, r.key)}
+            >${host.ic(roomIcon(r.name))}<span>${r.name || host.t('Room')}</span></button>`,
+          )}
+        </div>`
+      : nothing}`;
 }
 
 export function renderFloorTabs(host: BmsFloorplanCard) {

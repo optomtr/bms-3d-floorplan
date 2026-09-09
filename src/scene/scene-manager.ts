@@ -33,7 +33,7 @@ import { RoomPhoto, makeBackdropTexture } from './backdrop';
 import { Picker, SelectionBox, applyDrawMode, applyLeftReserved } from './picking';
 import { RenderLoop, type RenderLoopHost } from './render-loop';
 import { mergeStaticGeometry, simplifyMaterials } from './static-merge';
-import { ROOM_MARKER_Y, groupRooms } from './room-grouping';
+import { ROOM_MARKER_Y, groupRooms, roomAtPoint } from './room-grouping';
 import { MarkerLayer } from './markers';
 import { clampTarget, createControls, frameBox } from './camera-rig';
 import { setUnderlay } from './underlay';
@@ -144,6 +144,9 @@ export class SceneManager implements RenderLoopHost {
   /** Rooms on the active floor, in marker-build order — the source for the
    *  card's room pills + right-side panel. Rebuilt with the markers. */
   private activeRooms: (RoomInfo & { sprite: THREE.Sprite })[] = [];
+  /** Ключи комнат по индексу контура активного этажа — карта «пол → комната»
+   *  из той же группировки, что строит значки (см. buildMarkers). */
+  private roomKeysByOutline: string[][] = [];
   /** Key of the room the card currently has selected (drives the accent pin). */
   private selectedRoomKey: string | null = null;
   /** The default gradient backdrop, kept so a per-room photo can be swapped in
@@ -749,6 +752,7 @@ export class SceneManager implements RenderLoopHost {
     // пересоберём, как только состояния появятся.
     this.markersBlind = !this.lastHass;
     this.activeRooms = [];
+    this.roomKeysByOutline = [];
     const slot = this.slots[this.activeFloor];
     if (this.editing || !slot) {
       this.markers.clear();
@@ -756,13 +760,14 @@ export class SceneManager implements RenderLoopHost {
       return;
     }
 
-    const { rooms, loose } = groupRooms({
+    const { rooms, loose, roomKeysByOutline } = groupRooms({
       devices: slot.bindings.markerData(),
       outlines: slot.rooms,
       zones: slot.zones,
       elevation: slot.elevation,
       hass: this.lastHass,
     });
+    this.roomKeysByOutline = roomKeysByOutline;
     const sprites = this.markers.build(rooms, loose);
     rooms.forEach((room, i) => this.activeRooms.push({ ...room, sprite: sprites[i] }));
     // Drop a stale selection that no longer maps to a room on this floor.
@@ -1184,17 +1189,46 @@ export class SceneManager implements RenderLoopHost {
       return;
     }
     const hit = this.picker.anchors(e, slot.bindings.anchors);
-    if (!hit) {
-      this.onPick(null);
-      return;
-    }
-    const result = slot.bindings.resolveClick(hit.object);
+    const result = hit ? slot.bindings.resolveClick(hit.object) : null;
     if (result) {
-      const p = hit.point;
+      const p = hit!.point;
       result.point = [p.x, p.y, p.z];
       result.screen = this.picker.screenPos(e);
+      this.onPick(result);
+      return;
     }
-    this.onPick(result);
+
+    // Ничего конкретного под пальцем не оказалось — остаётся САМА КОМНАТА.
+    // Порядок разбора тапа: устройство → домик → пол комнаты. Попасть в
+    // маленький значок на планшете трудно, а в пол комнаты — нет.
+    const room = this.roomOnFloor(e, slot);
+    this.onPick(
+      room
+        ? {
+            entity_id: '',
+            behavior: 'room',
+            roomEntities: room.entities,
+            roomName: room.name,
+            roomKey: room.key,
+            point: room.center,
+            screen: this.picker.screenPos(e),
+          }
+        : null,
+    );
+  }
+
+  /** Комната, по полу которой пришёлся тап. Луч кладётся на плоскость ЭТОГО
+   *  этажа, а дальше отвечает одна общая машинка контуров (roomAtPoint).
+   *
+   *  В режиме правки этого пути нет вовсе: там тап уходит редактору
+   *  (setupPointer), а группировка комнат на время правки не строится
+   *  (buildMarkers) — значков нет, и отвечать было бы нечем. */
+  private roomOnFloor(e: PointerEvent, slot: FloorSlot): (RoomInfo & { sprite: THREE.Sprite }) | null {
+    if (!this.activeRooms.length) return null;
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -slot.elevation);
+    const p = this.picker.ground(e, plane);
+    if (!p) return null;
+    return roomAtPoint(p.x, p.z, slot.rooms, this.roomKeysByOutline, this.activeRooms);
   }
 
   /** Bound entities near a world point (for the control popup). */

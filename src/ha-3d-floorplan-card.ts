@@ -28,6 +28,7 @@ import { isRuLang, uiText, uiTx, localeTag, qualityLabel } from './card/i18n';
 import { applyHass, effectiveState, isControllable, callService, toggleAll } from './card/state';
 import { positionControlPopup, initScene, teardownScene, activeRoom, onSelectFloor, onResetView, onPickQuality } from './card/scene';
 import { loadActiveProject, onSelectProject, onImportText, onImportLoad } from './card/projects';
+import { readRoomsBarOpen } from './card/prefs';
 import { armIdle, wake, onHotspotDown, onHotspotMove, onHotspotUp } from './card/session';
 import { submitPin, cancelPin } from './card/pin';
 import { pushToast, renderAsk, renderLegacyDialog } from './card/dialogs';
@@ -143,6 +144,10 @@ export class BmsFloorplanCard extends LitElement {
   @state() public viewMode: 'room' | 'overview' = 'room';
   /** Rooms on the active floor (from the scene), for the pills + right panel. */
   @state() public rooms: RoomInfo[] = [];
+  /** Развёрнута ли нижняя полоса комнат над 3D. Восемнадцать комнат занимали
+   *  половину экрана, поэтому её можно убрать язычком; выбор помнит само
+   *  устройство (card/prefs.ts), как и качество отрисовки. */
+  @state() public roomsBarOpen = readRoomsBarOpen();
   /** The focused room's design photo, once the scene has confirmed it loads.
    *  Painted as a CSS layer across the whole card (the canvas can't reach behind
    *  the side panel), with the canvas transparent over it. */

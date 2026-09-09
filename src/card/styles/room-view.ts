@@ -132,6 +132,14 @@ export const roomViewStyles = css`
     ha-card.view.room.has-room .stage-bottom {
       right: calc(var(--panel-w) + var(--sp-6));
     }
+    /* Счётчик комнат на язычке, который убирает полосу: на объекте владельца
+       восемнадцать плашек занимали половину экрана. Всё остальное у язычка —
+       общее с плашкой (см. групповой селектор .pill, .pills-tab ниже). */
+    .pills-tab em {
+      font-style: normal;
+      color: var(--tx-hi);
+      font-variant-numeric: tabular-nums;
+    }
     .pills {
       display: flex;
       flex-wrap: wrap;
@@ -444,7 +452,8 @@ export const roomViewStyles = css`
       width: 18px;
       height: 18px;
     }
-    .pill {
+    .pill,
+    .pills-tab {
       display: inline-flex;
       align-items: center;
       gap: var(--sp-3);
@@ -461,7 +470,8 @@ export const roomViewStyles = css`
       transition: background 0.16s, color 0.16s;
       touch-action: manipulation;
     }
-    .pill:active {
+    .pill:active,
+    .pills-tab:active {
       background: var(--w-5);
       color: var(--tx);
     }
@@ -473,6 +483,7 @@ export const roomViewStyles = css`
     @media (hover: hover) {
       .sdot:hover,
       .closebtn:hover,
+      .pills-tab:hover,
       .pill:hover {
         background: var(--card2);
         color: var(--tx);

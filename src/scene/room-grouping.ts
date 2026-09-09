@@ -13,6 +13,10 @@
 //      containing it, so a nook inside a hall wins over the hall.
 //   3) Whatever is in no polygon stays `loose` — its own little marker.
 //
+// Тем же многоугольником отвечают и на обратный вопрос — «какая комната ПОД
+// этой точкой пола», когда человек касается плана мимо всех устройств (см.
+// outlineAt / roomAtPoint внизу файла). Машинка сопоставления одна.
+//
 // Purely a function of its arguments (no scene, no `this`), so the same inputs
 // always give the same rooms — which is what makes the two call sites provably
 // equal.
@@ -55,6 +59,11 @@ export interface RoomGrouping {
   rooms: RoomInfo[];
   /** Devices in no room at all — drawn as individual device markers. */
   loose: RoomDevice[];
+  /** Ключи комнат, ЖИВУЩИХ в каждом контуре (индекс = индекс контура): комната
+   *  самого контура (автогруппировка) и ручные зоны, чьи значки стоят внутри
+   *  него. Нужен там, где известна ТОЧКА на полу, а не устройство: тап по полу
+   *  открывает комнату (см. roomAtPoint). */
+  roomKeysByOutline: string[][];
 }
 
 /** How high above the floor a room's icon floats (metres). */
@@ -68,6 +77,9 @@ export function groupRooms(input: RoomGroupingInput): RoomGrouping {
    *  it really is in states. An *unavailable* entity is still present — only a
    *  truly removed id is dropped. */
   const present = (id: string) => !hass || !!hass.states?.[id];
+
+  const areas = outlines.map((r) => polyArea(r.poly)); // constant across points
+  const roomKeysByOutline: string[][] = outlines.map(() => []);
 
   const behaviorOf = new Map(allDevices.map((d) => [d.entity_id, d.behavior]));
   const modelOf = new Map(allDevices.map((d) => [d.entity_id, d.model]));
@@ -83,8 +95,15 @@ export function groupRooms(input: RoomGroupingInput): RoomGrouping {
     const ents = (z.entities ?? []).filter((id) => !claimed.has(id) && (behaviorOf.has(id) || present(id)));
     if (!ents.length) continue;
     for (const id of ents) claimed.add(id);
+    // Ключ считается ОДИН раз: keyOf нумерует по длине rooms, и второй вызов
+    // после rooms.push дал бы уже другую строку.
+    const key = keyOf(z.id ?? z.name ?? 'zone');
+    // Зона живёт в том же контуре, что и её значок, — по тому же правилу
+    // «самый маленький из содержащих», что и устройства.
+    const zi = outlineAt(z.x, z.z, outlines, areas);
+    if (zi >= 0) roomKeysByOutline[zi].push(key);
     rooms.push({
-      key: keyOf(z.id ?? z.name ?? 'zone'),
+      key,
       id: z.id,
       parentId: z.parentId,
       name: z.name,
@@ -108,18 +127,10 @@ export function groupRooms(input: RoomGroupingInput): RoomGrouping {
   const devices = allDevices.filter((d) => !claimed.has(d.entity_id) && present(d.entity_id));
   const perRoom = new Map<number, RoomDevice[]>();
   const loose: RoomDevice[] = [];
-  const areas = outlines.map((r) => polyArea(r.poly)); // constant across devices
   for (const d of devices) {
     // If several room polygons contain the device (overlapping/auto-floor
     // rooms), pick the SMALLEST — the most specific room it belongs to.
-    let ri = -1;
-    let bestArea = Infinity;
-    for (let i = 0; i < outlines.length; i++) {
-      if (pointInPoly(d.pos[0], d.pos[2], outlines[i].poly) && areas[i] < bestArea) {
-        bestArea = areas[i];
-        ri = i;
-      }
-    }
+    const ri = outlineAt(d.pos[0], d.pos[2], outlines, areas);
     if (ri >= 0) (perRoom.get(ri) ?? perRoom.set(ri, []).get(ri)!).push(d);
     else loose.push(d);
   }
@@ -127,8 +138,10 @@ export function groupRooms(input: RoomGroupingInput): RoomGrouping {
   for (const [ri, ds] of perRoom) {
     const room = outlines[ri];
     const [cx, cz] = polyCentroid(room.poly);
+    const key = keyOf(room.name ?? 'room');
+    roomKeysByOutline[ri].push(key);
     rooms.push({
-      key: keyOf(room.name ?? 'room'),
+      key,
       name: room.name,
       entities: ds.map((d) => ({ entity_id: d.entity_id, behavior: d.behavior, model: d.model })),
       center: [cx, room.elev + ROOM_MARKER_Y, cz],
@@ -136,7 +149,51 @@ export function groupRooms(input: RoomGroupingInput): RoomGrouping {
     });
   }
 
-  return { rooms, loose };
+  return { rooms, loose, roomKeysByOutline };
+}
+
+/** Индекс контура ПОД точкой (world XZ) — самого маленького из содержащих её.
+ *  Это то самое правило «самая специфичная комната», по которому раскладываются
+ *  устройства; и тап по полу, и группировка спрашивают ОДНУ эту функцию.
+ *  −1 — точка вне всех комнат. `areas` — заранее посчитанные площади. */
+export function outlineAt(x: number, z: number, outlines: RoomOutline[], areas?: number[]): number {
+  let ri = -1;
+  let best = Infinity;
+  for (let i = 0; i < outlines.length; i++) {
+    const a = areas ? areas[i] : polyArea(outlines[i].poly);
+    if (pointInPoly(x, z, outlines[i].poly) && a < best) {
+      best = a;
+      ri = i;
+    }
+  }
+  return ri;
+}
+
+/** Комната под ТОЧКОЙ ПОЛА: контур под точкой (outlineAt), а среди комнат этого
+ *  контура — та, чей значок ближе к касанию. Ближе одной комнаты в контуре
+ *  оказывается только там, где человек сам расставил несколько ручных зон, и
+ *  «ближайший значок» — ровно то, во что он целился. */
+export function roomAtPoint<T extends { key: string; center: [number, number, number] }>(
+  x: number,
+  z: number,
+  outlines: RoomOutline[],
+  roomKeysByOutline: string[][],
+  rooms: readonly T[],
+): T | null {
+  const oi = outlineAt(x, z, outlines);
+  const keys = oi >= 0 ? roomKeysByOutline[oi] ?? [] : [];
+  let best: T | null = null;
+  let bestD = Infinity;
+  for (const key of keys) {
+    const r = rooms.find((o) => o.key === key);
+    if (!r) continue;
+    const d = (r.center[0] - x) ** 2 + (r.center[2] - z) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = r;
+    }
+  }
+  return best;
 }
 
 /** A zone's OWN photo always wins. With none set it borrows the photo of the
