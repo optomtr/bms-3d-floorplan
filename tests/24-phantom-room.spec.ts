@@ -103,4 +103,41 @@ test.describe('Лишний «домик»', () => {
 
     expect(after, 'появившееся устройство обязано занять своё место на плане').toContain('light.liustra_3');
   });
+
+  test('ВСЕ привязки мёртвые — призрачная комната не остаётся (случай офисного объекта)', async ({ page }) => {
+    // Тот самый случай. Первая версия починки перестраивала маркеры, только
+    // если у какой-то сущности МЕНЯЛОСЬ наличие. На офисном объекте меняться
+    // было нечему: живые устройства уже были учтены, а мёртвые как
+    // отсутствовали, так и отсутствовали — и два «домика» остались висеть.
+    await openHarness(page);
+    await mountCard(page, {
+      config: {
+        plan: {
+          name: 'Только призраки',
+          wallHeight: 2.7,
+          floors: [{
+            name: '1 Этаж', elevation: 0, wallHeight: 2.7,
+            walls: boxWalls(8, 6),
+            rooms: [{ name: 'Зал', polygon: [[0, 0], [8, 0], [8, 6], [0, 6]] }],
+            furniture: [{ id: 'g1', model: 'ceiling_light', position: [4, 2.5, 3] }],
+            bindings: [{ entity_id: 'light.net_takogo', anchor_object: 'g1', behavior: 'light' }],
+          }],
+        },
+      },
+      states: {},
+      height: '600px',
+    });
+    await settleScene(page);
+
+    const rooms: Array<{ key: string; ids: string[] }> = await page.evaluate(() =>
+      window.BMS.card.sceneManager.getRooms().map((r: any) => ({
+        key: r.key as string,
+        ids: (r.entities || []).map((e: any) => e.entity_id as string),
+      })),
+    );
+    expect(
+      rooms.map((r) => `${r.key}: ${r.ids.join(',')}`),
+      'ни одной комнаты: единственная привязка ведёт к несуществующему устройству',
+    ).toEqual([]);
+  });
 });

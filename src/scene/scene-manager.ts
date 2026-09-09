@@ -129,6 +129,8 @@ export class SceneManager implements RenderLoopHost {
   });
   /** Last hass seen, so markers can colour themselves right after a rebuild. */
   private lastHass?: any;
+  /** Маркеры собраны до прихода состояний — их надо пересобрать. */
+  private markersBlind = false;
   /** Every entity the 3D actually reacts to (bindings + zone membership).
    *  A home has 2000+ entities and the scene cares about a few hundred. */
   private trackedCache: Set<string> | null = null;
@@ -729,6 +731,12 @@ export class SceneManager implements RenderLoopHost {
     // The room grouping is being rebuilt — the cached whole-home view of it
     // (roomsByFloor) is stale by definition.
     this.roomsCache = null;
+    // План строится РАНЬШЕ, чем приходят состояния: на этом проходе проверить
+    // «есть ли сущность в Home Assistant» нечем, и привязки к удалённым
+    // устройствам собираются в отдельную «комнату» с маркером, которую человек
+    // не может удалить — в плане её нет. Запоминаем, что собрали вслепую, и
+    // пересоберём, как только состояния появятся.
+    this.markersBlind = !this.lastHass;
     this.activeRooms = [];
     const slot = this.slots[this.activeFloor];
     if (this.editing || !slot) {
@@ -1183,8 +1191,8 @@ export class SceneManager implements RenderLoopHost {
       if (slot.bindings.updateEntity(entityId, hass)) changed = true;
     }
     if (this.markers.refreshOne(entityId, hass)) changed = true;
-    if (this.notePresence(entityId, hass)) {
-      this.buildMarkers(); // сущность появилась или пропала — раскладка комнат другая
+    if (this.notePresence(entityId, hass) || this.markersBlind) {
+      this.buildMarkers(); // появилась/пропала сущность или маркеры собраны вслепую
       changed = true;
     }
     if (changed) this.loop.invalidate();
@@ -1206,7 +1214,7 @@ export class SceneManager implements RenderLoopHost {
     // дало ДВА «домика» в одной комнате: второй был собран из четырёх
     // привязок к устройствам, которых в Home Assistant уже нет. Удалить его
     // человек не мог — в плане такой комнаты нет, она вычисляется на лету.
-    if (this.notePresenceAll(hass)) {
+    if (this.notePresenceAll(hass) || this.markersBlind) {
       this.buildMarkers();
       changed = true;
     }

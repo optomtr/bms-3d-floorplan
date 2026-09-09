@@ -25430,7 +25430,7 @@ class SA {
     }), this.materialsSimplified = !1, this.staticPR = 1.5, this.viewDragging = !1, this.heavyPlan = !1, this.slots = [], this.loadedPlan = null, this.skippedParts = [], this.activeFloor = 0, this.fullBBox = new ln(), this.cameraDistance = 1, this.qualityChoice = "auto", this.qualityTier = "high", this.downPos = { x: 0, y: 0 }, this.downTime = 0, this.previewGroup = new ot(), this.gizmoGroup = new ot(), this.underlayGroup = new ot(), this.markers = new sA({
       hass: () => this.lastHass,
       invalidate: () => this.loop.invalidate()
-    }), this.trackedCache = null, this.presentTracked = /* @__PURE__ */ new Set(), this.roomsCache = null, this.activeRooms = [], this.selectedRoomKey = null, this.editing = !1, this.groundPlane = new mi(new N(0, 1, 0), 0), this.dragging = !1, this.container = e, this.qualityChoice = OE(), this.qualityTier = this.qualityChoice === "auto" ? Vp() : this.qualityChoice;
+    }), this.markersBlind = !1, this.trackedCache = null, this.presentTracked = /* @__PURE__ */ new Set(), this.roomsCache = null, this.activeRooms = [], this.selectedRoomKey = null, this.editing = !1, this.groundPlane = new mi(new N(0, 1, 0), 0), this.dragging = !1, this.container = e, this.qualityChoice = OE(), this.qualityTier = this.qualityChoice === "auto" ? Vp() : this.qualityChoice;
     const i = ds[this.qualityTier];
     this.renderer = new wm({ antialias: i.aa, alpha: !0, powerPreference: "high-performance" }), this.staticPR = i.pixelRatio, this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, i.pixelRatio)), this.renderer.toneMapping = j0, this.renderer.toneMappingExposure = 1.15, this.renderer.shadowMap.enabled = i.shadows, this.renderer.shadowMap.type = i.shadowType, this.renderer.shadowMap.autoUpdate = !1, this.renderer.shadowMap.needsUpdate = !0, this.renderer.domElement.style.touchAction = "none", this.renderer.domElement.style.display = "block", this.renderer.domElement.style.width = "100%", this.renderer.domElement.style.height = "100%", e.appendChild(this.renderer.domElement), this.scene = new _m(), this.defaultBackdrop = HE(t), this.scene.background = this.defaultBackdrop, this.scene.add(this.previewGroup), this.scene.add(this.gizmoGroup), this.scene.add(this.underlayGroup), this.scene.add(this.markers.group), this.scene.add(this.markers.zoneGroup), this.selection = new XE(this.scene), this.photo = new GE((o) => {
       this.onBackdrop?.(o), this.applyBackdrop();
@@ -25689,7 +25689,7 @@ class SA {
   /** (Re)build the floating device markers for the active floor. Cleared while
    *  editing or when there are no bindings. */
   buildMarkers() {
-    this.roomsCache = null, this.activeRooms = [];
+    this.roomsCache = null, this.markersBlind = !this.lastHass, this.activeRooms = [];
     const e = this.slots[this.activeFloor];
     if (this.editing || !e) {
       this.markers.clear(), this.onRoomsChanged?.([]);
@@ -26006,14 +26006,14 @@ class SA {
     let i = !1;
     for (const s of this.slots)
       s.bindings.updateEntity(e, t) && (i = !0);
-    this.markers.refreshOne(e, t) && (i = !0), this.notePresence(e, t) && (this.buildMarkers(), i = !0), i && this.loop.invalidate();
+    this.markers.refreshOne(e, t) && (i = !0), (this.notePresence(e, t) || this.markersBlind) && (this.buildMarkers(), i = !0), i && this.loop.invalidate();
   }
   /** Full state sync (called on each hass update from the card). */
   syncAll(e) {
     this.lastHass = e;
     let t = !1;
     for (const i of this.slots) i.bindings.update(e) && (t = !0);
-    this.markers.refreshAll(e) && (t = !0), this.notePresenceAll(e) && (this.buildMarkers(), t = !0), t && this.loop.invalidate();
+    this.markers.refreshAll(e) && (t = !0), (this.notePresenceAll(e) || this.markersBlind) && (this.buildMarkers(), t = !0), t && this.loop.invalidate();
   }
   // -- Render loop ------------------------------------------------------------
   start() {
@@ -26042,7 +26042,7 @@ class SA {
     this.teardown = [], this.markers.dispose(), this.clearPlan(), this.clearPreview(), this.clearGizmo(), this.setUnderlay(null), this.setSelection(null), this.gridHelper && (this.scene.remove(this.gridHelper), bs(this.gridHelper), this.gridHelper = void 0), this.defaultBackdrop?.dispose(), this.scene.background = null, this.sun?.shadow?.map?.dispose(), this.scene.clear(), this.onPick = void 0, this.onRoomsChanged = void 0, this.onBackdrop = void 0, this.onGround = void 0, this.onDrag = void 0, this.lastHass = void 0, this.controls.dispose(), this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.width = 0, this.renderer.domElement.height = 0, this.renderer.domElement.remove();
   }
 }
-const EA = "0.177.9", Kp = [
+const EA = "0.177.10", Kp = [
   { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "input_boolean"] },
   { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate", "fan"] },
   { key: "curtains", label: "Curtains", icon: "curtain", behaviors: ["cover"] },
