@@ -418,11 +418,18 @@ test.describe('Движок конструктора: вид сверху', () =
     await type(page, 'w', '8');
     await type(page, 'd', '2,5');
     await enter(page, 'd');
-    // Три двери
+    // Три двери. Точки берём из САМОГО плана — середины трёх разных стен, а не
+    // числа из головы: масштаб «вписать всё» зависит от размера холста, и на
+    // другой машине жёсткая координата промахивается мимо стены (поймано на
+    // сборке под Linux: две двери вместо трёх).
     await call(page, 'setTool', 'door');
-    await tap(page, 4, 1.75);
-    await tap(page, 2, 3.5);
-    await tap(page, 6, 3.5);
+    const before = await floor(page);
+    const mids = (before.walls as any[])
+      .map((w) => [ (w.start[0] + w.end[0]) / 2, (w.start[1] + w.end[1]) / 2 ] as [number, number])
+      .filter((m, i, all) => all.findIndex((n) => Math.hypot(n[0] - m[0], n[1] - m[1]) < 0.01) === i)
+      .slice(0, 3);
+    expect(mids.length, 'в плане обязано быть минимум три стены под двери').toBe(3);
+    for (const [mx, my] of mids) await tap(page, mx, my);
 
     const seconds = (Date.now() - t0) / 1000;
     const f = await floor(page);
