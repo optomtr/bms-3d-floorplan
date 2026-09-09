@@ -76,10 +76,30 @@ function T(): typeof SCENE_TEXT.ru {
   return sceneRu ? SCENE_TEXT.ru : SCENE_TEXT.en;
 }
 
-/** Сущность, которой на самом деле нет: её удалили из Home Assistant или
- *  устройство не отвечает. Это НЕ «выключено» — и выглядеть так не должно. */
+/** Устройство ЕСТЬ в Home Assistant, но не отвечает. Это НЕ «выключено», и
+ *  выглядеть так не должно: человеку у экрана надо знать, что кондиционер не
+ *  на связи, — питание, сеть, шлюз он проверяет сам. */
+export function isEntityUnavailable(ent?: HassEntity): boolean {
+  return !!ent && ent.state === 'unavailable';
+}
+
+/** Сущности в Home Assistant НЕТ ВОВСЕ: её удалили или переименовали, а
+ *  привязка в плане осталась. Это не «нет связи», а УСТАРЕВШАЯ ПРИВЯЗКА.
+ *
+ *  Разница не косметическая. «Нет связи» человек читает как поручение себе и
+ *  идёт проверять розетку — а проверять нечего: устройства, о котором речь, в
+ *  доме нет и никогда не появится. Починить это может только тот, кто правит
+ *  план, поэтому видно оно ему — в конструкторе (плашка «Привязок к
+ *  несуществующим устройствам», см. card/views/editor2/broken.ts), а на
+ *  клиентском плане не рисуется вовсе. */
+export function isEntityMissing(ent?: HassEntity): boolean {
+  return !ent;
+}
+
+/** Ни то, ни другое состояния не показывает — ГАСИТЬ надо в обоих случаях.
+ *  А вот ПИСАТЬ на плане — только про первое (см. applyState). */
 export function isEntityOffline(ent?: HassEntity): boolean {
-  return !ent || ent.state === 'unavailable';
+  return isEntityMissing(ent) || isEntityUnavailable(ent);
 }
 
 function domainOf(entityId: string): string {
@@ -330,14 +350,19 @@ export class BindingManager {
     const friendly =
       ab.def.label ?? ent?.attributes?.friendly_name ?? ab.def.entity_id;
 
-    // Пропавшее (или недоступное) устройство обязано выглядеть ПРОПАВШИМ.
-    // Раньше оно просто не светилось — и человек делал вывод, что врёт
-    // система, а не устройство. Гасим и пишем об этом прямо на плане.
+    // Устройство, которое не показывает состояние, обязано выглядеть погасшим:
+    // раньше оно просто не светилось — и человек делал вывод, что врёт
+    // система, а не устройство.
+    //
+    // Гасим в обоих случаях, а ПИШЕМ только про «unavailable»: устройство есть
+    // и не отвечает — это человеку и чинить. Привязка к удалённой сущности
+    // молчит: см. isEntityMissing.
     if (isEntityOffline(ent)) {
       if (ab.pointLight) ab.pointLight.intensity = 0;
       this.setEmissive(ab, 0x000000, 0);
       ab.spin = undefined;
-      this.showOffline(ab);
+      if (isEntityUnavailable(ent)) this.showOffline(ab);
+      else this.hideStale(ab);
       ab.lastState = sig;
       return true;
     }
@@ -437,6 +462,7 @@ export class BindingManager {
   private showOffline(ab: ActiveBinding): void {
     ab.offlineShown = true;
     if (ab.label) {
+      ab.label.sprite.visible = true; // могла быть спрятана как устаревшая
       ab.label.setText(T().offline, '#ff9a9a');
       return;
     }
@@ -457,6 +483,17 @@ export class BindingManager {
   private hideOffline(ab: ActiveBinding): void {
     ab.offlineShown = false;
     if (ab.offlineLabel) ab.offlineLabel.sprite.visible = false;
+    if (ab.label) ab.label.sprite.visible = true;
+  }
+
+  /** Привязка ведёт в никуда: такой сущности в Home Assistant больше нет.
+   *  На клиентском плане про неё не пишем НИЧЕГО — ни своей подписи «Нет
+   *  связи», ни чужой: последнее показание удалённого датчика висело бы как
+   *  живое. Гасить при этом всё равно надо — гашение делает applyState. */
+  private hideStale(ab: ActiveBinding): void {
+    ab.offlineShown = false;
+    if (ab.offlineLabel) ab.offlineLabel.sprite.visible = false;
+    if (ab.label) ab.label.sprite.visible = false;
   }
 
   /** Есть ли сейчас над этой сущностью надпись «Нет связи». Нужна проверкам:

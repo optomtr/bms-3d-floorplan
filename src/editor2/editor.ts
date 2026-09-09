@@ -23,7 +23,7 @@ import { Hud } from './hud';
 import type { AreaMode, SnapHit, ToolHost } from './host';
 import { emptyDrag } from './host';
 import { InputController } from './input';
-import { OPENING_PRESETS, floorAt } from './model';
+import { OPENING_PRESETS, dropBindings, floorAt } from './model';
 import { wallHeightOf } from './place';
 import { RULER, renderScene } from './render';
 import { applyPatch, buildSelection, deleteSel, selectionAlive } from './selection';
@@ -192,9 +192,7 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
     const floor = this.floor();
     const sel = this.sel;
     if (!floor || !sel) return;
-    this.edit(() => {
-      applyPatch(floor, sel, patch, this.wallHeight());
-    });
+    this.edit(() => applyPatch(floor, sel, patch, this.wallHeight()));
     this.emitSelect();
   }
 
@@ -202,10 +200,16 @@ export class PlanEditorImpl implements PlanEditor, ToolHost {
     const floor = this.floor();
     const sel = this.sel;
     if (!floor || !sel) return;
-    this.edit(() => {
-      deleteSel(floor, sel);
-    });
+    this.edit(() => deleteSel(floor, sel));
     this.select(null);
+  }
+
+  /** Убрать привязки к сущностям, которых в Home Assistant больше нет. Правка
+   *  как правка: попадает в отмену и сохраняется тем же «Сохранить». */
+  removeBindings(entityIds: string[]): number {
+    let gone = 0;
+    this.edit(() => { gone = dropBindings(this.plan, entityIds); });
+    return gone;
   }
 
   undo(): void {

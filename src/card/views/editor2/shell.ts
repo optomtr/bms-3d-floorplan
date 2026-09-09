@@ -18,6 +18,7 @@ import { html, nothing } from 'lit';
 import type { BmsFloorplanCard } from '../../../ha-3d-floorplan-card';
 import { exitEditor2, nudgeSplit, setTab2, startSplitDrag, toggleThree2 } from '../../editor2-commands';
 import { onSavePlan } from '../../projects';
+import { renderE2Broken } from './broken';
 import { renderE2Inspector } from './inspector';
 import { renderE2Palette } from './palette';
 import { renderE2Project } from './project';
@@ -47,6 +48,10 @@ export function renderEditor2(host: BmsFloorplanCard) {
     <div class="e2-shell ${st.narrow ? 'narrow' : 'wide'}" style=${style}>
       ${renderTopBar(host)}
       ${renderE2Toolbar(host)}
+      <!-- Привязки к устройствам, которых в Home Assistant уже нет. Место
+           именно здесь: у клиента на плане про них не пишут (там это только
+           пугает), а чинит их тот, кто открыл конструктор. -->
+      ${renderE2Broken(host)}
       <div class="e2-body">
         <div class="e2-panes">
           <div class="e2-plan ${planHidden ? 'hidden' : ''} ${sheet ? 'with-sheet' : ''}">

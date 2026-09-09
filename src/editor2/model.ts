@@ -328,6 +328,26 @@ export function setFurnitureEntity(floor: FloorDef, furnitureId: string, entityI
   else list.push({ entity_id: id, anchor_object: furnitureId });
 }
 
+/** Убрать со ВСЕХ этажей привязки к перечисленным сущностям. Возвращает,
+ *  сколько их было убрано.
+ *
+ *  Сам предмет на плане ОСТАЁТСЯ: люстра — вещь, которая висит в комнате, а
+ *  привязка — только ссылка на устройство Home Assistant. Убираем ссылку,
+ *  которая ведёт в никуда (сущность удалили или переименовали), а не мебель. */
+export function dropBindings(plan: FloorPlan | null | undefined, entityIds: Iterable<string>): number {
+  const ids = new Set(entityIds);
+  if (!plan || !ids.size) return 0;
+  let gone = 0;
+  for (const f of floorList(plan)) {
+    const before = f.bindings ?? [];
+    if (!before.length) continue;
+    const kept = before.filter((b) => !b?.entity_id || !ids.has(b.entity_id));
+    gone += before.length - kept.length;
+    f.bindings = kept;
+  }
+  return gone;
+}
+
 // --- удаление -------------------------------------------------------------
 
 /** Удалить стену вместе с её проёмами и тем, что в эти проёмы врезано.
