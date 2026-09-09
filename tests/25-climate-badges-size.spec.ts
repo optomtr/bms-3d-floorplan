@@ -182,7 +182,7 @@ async function measure(page: Page): Promise<SizeReport> {
       }
     }
 
-    const onScreen = hr.filter(([x, y]) => x >= 0 && x <= r.width && y >= 0 && y <= r.height).length;
+    const onScreen = hr.filter((h: [number, number, number]) => h[0] >= 0 && h[0] <= r.width && h[1] >= 0 && h[1] <= r.height).length;
 
     const round = (v: number) => Math.round(v * 10) / 10;
     const dist = (sp: any) => Math.hypot(sp.position.x - cp.x, sp.position.y - cp.y, sp.position.z - cp.z);
