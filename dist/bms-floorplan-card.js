@@ -26006,14 +26006,14 @@ class SA {
     let i = !1;
     for (const s of this.slots)
       s.bindings.updateEntity(e, t) && (i = !0);
-    this.markers.refreshOne(e, t) && (i = !0), this.notePresence(e, t) && (i = !0), i && this.loop.invalidate();
+    this.markers.refreshOne(e, t) && (i = !0), this.notePresence(e, t) && (this.buildMarkers(), i = !0), i && this.loop.invalidate();
   }
   /** Full state sync (called on each hass update from the card). */
   syncAll(e) {
     this.lastHass = e;
     let t = !1;
     for (const i of this.slots) i.bindings.update(e) && (t = !0);
-    this.markers.refreshAll(e) && (t = !0), this.notePresenceAll(e) && (t = !0), t && this.loop.invalidate();
+    this.markers.refreshAll(e) && (t = !0), this.notePresenceAll(e) && (this.buildMarkers(), t = !0), t && this.loop.invalidate();
   }
   // -- Render loop ------------------------------------------------------------
   start() {
@@ -26042,7 +26042,7 @@ class SA {
     this.teardown = [], this.markers.dispose(), this.clearPlan(), this.clearPreview(), this.clearGizmo(), this.setUnderlay(null), this.setSelection(null), this.gridHelper && (this.scene.remove(this.gridHelper), bs(this.gridHelper), this.gridHelper = void 0), this.defaultBackdrop?.dispose(), this.scene.background = null, this.sun?.shadow?.map?.dispose(), this.scene.clear(), this.onPick = void 0, this.onRoomsChanged = void 0, this.onBackdrop = void 0, this.onGround = void 0, this.onDrag = void 0, this.lastHass = void 0, this.controls.dispose(), this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.width = 0, this.renderer.domElement.height = 0, this.renderer.domElement.remove();
   }
 }
-const EA = "0.177.8", Kp = [
+const EA = "0.177.9", Kp = [
   { key: "lights", label: "Lights", icon: "bulb", behaviors: ["light", "switch", "input_boolean"] },
   { key: "climate", label: "Climate", icon: "snow", behaviors: ["climate", "fan"] },
   { key: "curtains", label: "Curtains", icon: "curtain", behaviors: ["cover"] },

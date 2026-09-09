@@ -1183,7 +1183,10 @@ export class SceneManager implements RenderLoopHost {
       if (slot.bindings.updateEntity(entityId, hass)) changed = true;
     }
     if (this.markers.refreshOne(entityId, hass)) changed = true;
-    if (this.notePresence(entityId, hass)) changed = true;
+    if (this.notePresence(entityId, hass)) {
+      this.buildMarkers(); // сущность появилась или пропала — раскладка комнат другая
+      changed = true;
+    }
     if (changed) this.loop.invalidate();
   }
 
@@ -1193,7 +1196,20 @@ export class SceneManager implements RenderLoopHost {
     let changed = false;
     for (const slot of this.slots) if (slot.bindings.update(hass)) changed = true;
     if (this.markers.refreshAll(hass)) changed = true;
-    if (this.notePresenceAll(hass)) changed = true;
+    // Появление или ИСЧЕЗНОВЕНИЕ отслеживаемой сущности меняет саму раскладку
+    // комнат, а не только их цвет: маркеры надо строить заново.
+    //
+    // Почему это важно. План строится РАНЬШЕ, чем приходят состояния, поэтому
+    // фильтр «сущности нет в Home Assistant» на первом проходе пропускает
+    // всё. Когда состояния приходят, пропажа замечается, но раньше сбрасывался
+    // только кэш «Обзора» — сами маркеры оставались. На офисном объекте это
+    // дало ДВА «домика» в одной комнате: второй был собран из четырёх
+    // привязок к устройствам, которых в Home Assistant уже нет. Удалить его
+    // человек не мог — в плане такой комнаты нет, она вычисляется на лету.
+    if (this.notePresenceAll(hass)) {
+      this.buildMarkers();
+      changed = true;
+    }
     if (changed) this.loop.invalidate();
   }
 
