@@ -18,6 +18,13 @@ export const ICON_PATHS: Record<string, string[]> = {
   heat: [
     'M12 3.5c3 3.7 5 6 5 9a5 5 0 0 1-10 0c0-1.6.7-3 1.7-4.1.4 1 1.2 1.7 2 1.8-1.2-2.1.3-5 1.3-6.7z',
   ],
+  // Тёплый пол: линия пола и две волны тепла над ней. Отдельный знак от
+  // «пламени» (конвектор/радиатор) — владелец различает их на слух и на плане.
+  floorHeat: [
+    'M3.4 19.8h17.2',
+    'M9 16.4c-2-2 2-3.6 0-5.6s2-3.6 0-5.6',
+    'M15 16.4c-2-2 2-3.6 0-5.6s2-3.6 0-5.6',
+  ],
   auto: ['M20.5 11.5a8.5 8.5 0 1 0-2.6 6.6', 'M20.8 20.3v-5h-5'],
   dry: ['M12 3.5c4 4.6 6 7.2 6 10.2a6 6 0 0 1-12 0c0-3 2-5.6 6-10.2z'],
   fan: [
@@ -188,6 +195,51 @@ export function drawMarkerCanvas(behavior: string): HTMLCanvasElement {
   ctx.scale(k, k);
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (const d of paths) ctx.stroke(new Path2D(d));
+  ctx.restore();
+
+  return canvas;
+}
+
+/**
+ * Кружок-значок состояния климата, для маленького спрайта РЯДОМ с «домиком»
+ * комнаты. Рисуется тем же набором путей, что и всё остальное (никаких эмодзи:
+ * на части планшетов ❄🔥 превращаются в квадрат-«тофу»).
+ *
+ * Две заливки на один и тот же знак, потому что на кружке размером в треть
+ * «домика» цвет один читается плохо:
+ *   filled = true  — светлый диск и тёмный знак: спрайт красится в цвет типа и
+ *                    выглядит ГОРЯЩИМ (устройство работает или простаивает);
+ *   filled = false — тёмный диск и светлый знак: выключено, кружок гасится
+ *                    серым и уходит на второй план.
+ */
+export function drawBadgeCanvas(iconName: string, filled: boolean): HTMLCanvasElement {
+  const SZ = 72;
+  const canvas = document.createElement('canvas');
+  canvas.width = SZ;
+  canvas.height = SZ;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.beginPath();
+  ctx.arc(SZ / 2, SZ / 2, 32, 0, Math.PI * 2);
+  ctx.fillStyle = filled ? 'rgba(255,255,255,0.96)' : 'rgba(18,20,25,0.88)';
+  ctx.fill();
+  // Тёмный кант у горящего кружка: цветной диск иначе теряется на светлой стене.
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = filled ? 'rgba(16,18,23,0.9)' : 'rgba(255,255,255,0.6)';
+  ctx.stroke();
+
+  const paths = ICON_PATHS[iconName] ?? ICON_PATHS.dot;
+  const S = 40;
+  const k = S / 24;
+  ctx.save();
+  ctx.translate((SZ - S) / 2, (SZ - S) / 2);
+  ctx.scale(k, k);
+  // Толще, чем у большого маркера: на 72 px тонкая линия просто исчезает.
+  ctx.strokeStyle = filled ? '#14171c' : '#ffffff';
+  ctx.lineWidth = 2.6;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   for (const d of paths) ctx.stroke(new Path2D(d));

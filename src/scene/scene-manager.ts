@@ -212,6 +212,7 @@ export class SceneManager implements RenderLoopHost {
     this.scene.add(this.gizmoGroup);
     this.scene.add(this.underlayGroup);
     this.scene.add(this.markers.group);
+    this.scene.add(this.markers.badgeGroup);
     this.scene.add(this.markers.zoneGroup);
     this.selection = new SelectionBox(this.scene);
     this.photo = new RoomPhoto((url) => {
@@ -293,6 +294,16 @@ export class SceneManager implements RenderLoopHost {
   /** The floating markers' scene node (диагностика / внешний осмотр). */
   get markerGroup(): THREE.Group {
     return this.markers.group;
+  }
+
+  /** Кружки-значки климата под маркерами комнат (диагностика / автопроверки). */
+  get climateBadgeGroup(): THREE.Group {
+    return this.markers.badgeGroup;
+  }
+
+  /** Что показывают кружки климата прямо сейчас (диагностика / автопроверки). */
+  climateBadges(): ReturnType<MarkerLayer['climateBadges']> {
+    return this.markers.climateBadges();
   }
 
   /** The edit-mode zone dots' scene node. */
@@ -1146,6 +1157,25 @@ export class SceneManager implements RenderLoopHost {
         this.onPick({ entity_id: ud.markerEntity as string, behavior: ud.markerBehavior as string, point, screen });
       }
       return;
+    }
+
+    // Кружок климата стоит вплотную к «домику» и обязан вести туда же: иначе
+    // под крупной кнопкой комнаты появляется полоса, где палец «не работает».
+    const badge = this.picker.marker(e, this.markers.badgeGroup);
+    if (badge) {
+      const room = this.activeRooms.find((r) => r.key === badge.userData.roomKey);
+      if (room) {
+        this.onPick({
+          entity_id: '',
+          behavior: 'room',
+          roomEntities: room.entities,
+          roomName: room.name,
+          roomKey: room.key,
+          point: room.center,
+          screen: this.picker.screenPos(e),
+        });
+        return;
+      }
     }
 
     const slot = this.slots[this.activeFloor];

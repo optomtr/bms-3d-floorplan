@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import type { RoomInfo } from '../types';
+import { ClimateBadgeLayer, computeClimateBadges } from './climate-badges';
 import { drawMarkerCanvas, markerIconName } from './icons';
 import type { RoomDevice } from './room-grouping';
 
@@ -47,6 +48,10 @@ export class MarkerLayer {
   readonly group = new THREE.Group();
   /** Zone icons shown while editing, so they can be positioned. */
   readonly zoneGroup = new THREE.Group();
+  /** Кружки-значки климата, стоящие под «домиком» каждой комнаты. Свой слой:
+   *  маркер комнаты красится целиком (подсветка / выбор / мигание протечки), и
+   *  кружок, оказавшись его частью, потерял бы собственный цвет. */
+  private badgeLayer = new ClimateBadgeLayer();
 
   private texCache = new Map<string, THREE.Texture>();
   /** entity_id -> its marker sprite, for O(1) on/off recolor. */
@@ -56,8 +61,20 @@ export class MarkerLayer {
   private alarmTimer: number | null = null;
   private alarmOn = true;
   private selectedKey: string | null = null;
+  /** Комнаты последней сборки — источник для рядов кружков климата. */
+  private rooms: RoomInfo[] = [];
 
   constructor(private readonly host: MarkerHost) {}
+
+  /** Сцена-узел с кружками климата (сцена добавляет его рядом с маркерами). */
+  get badgeGroup(): THREE.Group {
+    return this.badgeLayer.group;
+  }
+
+  /** Что сейчас показано кружками — для карточки и автопроверок. */
+  climateBadges(): ReturnType<ClimateBadgeLayer['list']> {
+    return this.badgeLayer.list();
+  }
 
   /** Key of the room whose pin wears the accent colour. */
   setSelected(key: string | null): void {
@@ -101,6 +118,8 @@ export class MarkerLayer {
     }
     this.group.clear();
     this.byEntity.clear();
+    this.badgeLayer.clear();
+    this.rooms = [];
   }
 
   /**
@@ -110,6 +129,7 @@ export class MarkerLayer {
    */
   build(rooms: RoomInfo[], loose: RoomDevice[]): THREE.Sprite[] {
     this.clear();
+    this.rooms = rooms;
     const sprites: THREE.Sprite[] = [];
     for (const room of rooms) {
       const [wx, wy, wz] = room.center;
@@ -211,17 +231,32 @@ export class MarkerLayer {
     for (const c of this.group.children) {
       if (this.paint(c as THREE.Sprite, hass)) changed = true;
     }
+    for (const room of this.rooms) if (this.syncBadges(room, hass)) changed = true;
     return changed;
   }
 
   /** Re-colour just the pin holding one entity. True when the colour moved. */
   refreshOne(entityId: string, hass: any): boolean {
     const sp = this.byEntity.get(entityId);
-    return sp ? this.paint(sp, hass) : false;
+    if (!sp) return false;
+    let changed = this.paint(sp, hass);
+    // Обновилась сущность из комнаты — её ряд кружков пересобирается целиком:
+    // «работает» у одного прибора меняет общий кружок типа.
+    if (sp.userData.roomMarker) {
+      const room = this.rooms.find((r) => r.key === sp.userData.roomKey);
+      if (room && this.syncBadges(room, hass)) changed = true;
+    }
+    return changed;
+  }
+
+  /** Привести ряд кружков одной комнаты к её живому состоянию. */
+  private syncBadges(room: RoomInfo, hass: any): boolean {
+    return this.badgeLayer.sync(room.key, room.center, computeClimateBadges(room.entities, hass));
   }
 
   /** Keep markers a roughly constant on-screen size as the camera dollies. */
   updateScales(cameraPos: THREE.Vector3): void {
+    this.badgeLayer.updateScales(cameraPos);
     for (const grp of [this.group, this.zoneGroup]) {
       for (const c of grp.children) {
         const d = cameraPos.distanceTo(c.position);
@@ -260,6 +295,7 @@ export class MarkerLayer {
     }
     this.alarmRooms.clear();
     this.clear();
+    this.badgeLayer.dispose();
     this.clearZoneDots();
     for (const t of this.texCache.values()) t.dispose();
     this.texCache.clear();
