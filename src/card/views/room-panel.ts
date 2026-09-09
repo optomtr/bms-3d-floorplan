@@ -13,6 +13,7 @@ import { activeRoom, onResetView, onSelectFloor, selectRoom, setViewMode, toggle
 import { onSleep, openKiosk, wake } from '../session';
 import { allOffHouse, isEntityOffline, onRoomAllOff } from '../state';
 import { renderClimateCard, renderCoverCard, renderFanCard, renderInfoCard, renderIntercomCard, renderLightCard, renderLockCard, renderMediaCard, renderToggleCard, renderUnavailableCard } from './device-cards';
+import { renderMasterButton, renderMasterPanel } from './master';
 
 /** Compact 24h LINE GRAPH for a room's bound degree sensors (air + floor on one
  *  shared axis). A left gutter shows the temperature scale in degrees with
@@ -152,12 +153,14 @@ export function renderStageChrome(host: BmsFloorplanCard) {
       <button class="sdot" title=${host.tx('Отчёт — графики за сутки', 'Report — 24 h graphs')}
         aria-label=${host.tx('Открыть отчёт', 'Open the report')}
         @click=${() => { host.showReport = true; }}>${host.ic('chart')}</button>
+      ${renderMasterButton(host, true)}
       ${renderViewToggle(host)}
     </div>
     <div class="stage-bottom">
       ${renderFloorTabs(host)}
       ${renderPills(host)}
     </div>
+    ${renderMasterPanel(host)}
   `;
 }
 

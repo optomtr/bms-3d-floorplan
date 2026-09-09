@@ -15,6 +15,7 @@ import { fmtClockDate, fmtClockTime, roomIcon, ruPlural } from '../i18n';
 import { closeDetail, detailRoom, openDetail } from '../scene';
 import { onSleep } from '../session';
 import { allOffHouse, isEntityOffline, lockAction } from '../state';
+import { renderMasterButton, renderMasterPanel } from './master';
 import { renderRoomSpark, renderTempChips, renderViewToggle, roomCards } from './room-panel';
 
 export function renderOverview(host: BmsFloorplanCard) {
@@ -33,6 +34,7 @@ export function renderOverview(host: BmsFloorplanCard) {
       <div class="ov-actions">
         <div class="sumcard act"><div class="sumn">${stats.onCount}</div><div class="suml">${host.t('lights on')}</div></div>
         <div class="sumcard"><div class="sumn">${stats.avgTemp}</div><div class="suml">${host.t('on average')}</div></div>
+        ${renderMasterButton(host)}
         <button type="button" class="ov-master"
           aria-label=${host.tx('Выключить всё в доме', 'Turn everything off')}
           @click=${() => allOffHouse(host)}>${host.ic('power')}<span>${host.t('All off short')}</span></button>
@@ -51,6 +53,7 @@ export function renderOverview(host: BmsFloorplanCard) {
     <div class="ov-grid">
       ${renderOverviewRooms(host, num)}
     </div>
+    ${renderMasterPanel(host)}
   `;
 }
 

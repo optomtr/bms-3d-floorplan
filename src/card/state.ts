@@ -534,3 +534,32 @@ export function allOffHouse(host: BmsFloorplanCard): void {
     }
   }
 }
+
+/** Массово включить или ВЫКЛЮЧИТЬ названный список — без «переключить».
+ *
+ *  toggleAll() решает за человека: «если хоть что-то горит — гасим, иначе
+ *  включаем». Панели «Мастер» этого мало: там две РАЗНЫЕ кнопки, и каждая
+ *  обязана делать ровно то, что на ней написано, даже когда полдома уже в
+ *  нужном состоянии.
+ *
+ *  Список фильтруется так же, как в toggleAll: `homeassistant.turn_off` увёл
+ *  бы в выключение и `script.*`, и `automation.*`, поэтому наружу уходят
+ *  только разрешённые домены (CONTROL_DOMAINS) и только те устройства, что на
+ *  связи — до пропавшего команда не дойдёт, а человек прочитает «выключено»
+ *  как «выключилось». */
+export function setAll(host: BmsFloorplanCard, ids0: string[], on: boolean): void {
+  const ids = ids0.filter((id) => host.canControl(id) && !isEntityOffline(host, id));
+  if (!host.hass || !ids.length) return;
+  const optState = on ? 'on' : 'off';
+  const gens = ids.map((id) => setOptimistic(host, id, optState));
+  const revert = () =>
+    ids.forEach((id, i) => {
+      if (host.optimistic.get(id)?.gen === gens[i]) clearOptimistic(host, id);
+    });
+  try {
+    const p: any = host.hass.callService('homeassistant', on ? 'turn_on' : 'turn_off', { entity_id: ids });
+    if (p && typeof p.catch === 'function') p.catch(revert);
+  } catch {
+    revert();
+  }
+}
