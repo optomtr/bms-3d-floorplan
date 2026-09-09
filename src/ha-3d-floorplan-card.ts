@@ -54,6 +54,7 @@ import { roomPanelStyles } from './card/styles/room-panel';
 import { deviceCardStyles } from './card/styles/device-cards';
 import { viewToggleStyles } from './card/styles/view-toggle';
 import { overviewStyles } from './card/styles/overview';
+import { masterStyles } from './card/styles/master';
 import { stateStyles } from './card/styles/states';
 import { editor2Styles } from './card/styles/editor2';
 import { detailStyles } from './card/styles/detail';
@@ -154,6 +155,9 @@ export class BmsFloorplanCard extends LitElement {
   @state() public activeRoomKey: string | null = null;
   /** Overview (1B): the room opened in the full-screen detail slide-over. */
   @state() public detailRoomKey: string | null = null;
+  /** «Мастер» — выдвижная панель управления домом по разделам (см.
+   *  card/views/master.ts). Открывается из «Обзора» и из полосы над 3D. */
+  @state() public masterOpen = false;
   /** Every floor's rooms keyed by their floor-qualified key, rebuilt each Обзор
    *  render — the detail slide-over resolves a card from any floor through it. */
   public overviewRoomByKey = new Map<string, RoomInfo>();
@@ -710,6 +714,7 @@ export class BmsFloorplanCard extends LitElement {
     deviceCardStyles,
     viewToggleStyles,
     overviewStyles,
+    masterStyles,
     stateStyles,
     editor2Styles,
     detailStyles,
