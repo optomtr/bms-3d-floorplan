@@ -249,6 +249,75 @@ export const PATCHES = {
       },
     ],
   },
+  // --- 13. Навигация пальцами по большому плану -----------------------------
+  'break-nav-one-finger-dead': {
+    kind: 'break',
+    note: 'один палец больше не ведёт план (как было: им можно только вращать)',
+    edits: [
+      {
+        find: 'drag(e, n) {\n    const i = this.groundAt(e, n);\n    if (!i || !this.anchor) return;',
+        replace: 'drag(e, n) {\n    const i = this.groundAt(e, n);\n    if (!i || !this.anchor || 1) return;',
+      },
+    ],
+  },
+  'break-nav-pan-approx': {
+    kind: 'break',
+    note: 'сдвиг считается «примерно» (на 20% меньше) — план уплывает из-под пальца',
+    edits: [
+      {
+        find: 'const s = this.anchor.x - i.x, r = this.anchor.z - i.z;',
+        replace: 'const s = (this.anchor.x - i.x) * 0.8, r = (this.anchor.z - i.z) * 0.8;',
+      },
+    ],
+  },
+  'break-nav-pivot-house': {
+    kind: 'break',
+    note: 'ось вращения на каждый жест возвращается в СЕРЕДИНУ ЗДАНИЯ — жалоба владельца',
+    edits: [
+      {
+        find:
+          'const i = Xn.clamp(n, this.controls.minDistance, this.controls.maxDistance), s = e.position.clone().addScaledVector(this.dir, i), r = this.host.limits();',
+        replace:
+          'const i = Xn.clamp(n, this.controls.minDistance, this.controls.maxDistance), s = (() => { const b = this.host.limits(); return b ? b.getCenter(new (this.dir.constructor)()) : e.position.clone().addScaledVector(this.dir, i); })(), r = this.host.limits();',
+      },
+    ],
+  },
+  'break-nav-min-distance': {
+    kind: 'break',
+    note: 'предел приближения снова от размера плана (на этаже 40 м — четыре метра)',
+    edits: [
+      { find: 'e.maxDistance = c * 3, e.minDistance = Rg,', replace: 'e.maxDistance = c * 3, e.minDistance = Math.max(1.2, l * 0.1),' },
+    ],
+  },
+  'break-nav-tap-eaten': {
+    kind: 'break',
+    note: 'сторож «в жесте был второй палец» срабатывает всегда — тапы перестают доходить',
+    edits: [
+      { find: 'const i = this.multiTouch;', replace: 'const i = !0;' },
+    ],
+  },
+  'break-nav-camera-in-floor': {
+    kind: 'break',
+    note: 'камера больше не держится над полом — при наклоне и приближении уезжает под перекрытие',
+    edits: [
+      { find: 'if (t.position.y < l) {', replace: 'if (!1 && t.position.y < l) {' },
+    ],
+  },
+  'break-nav-edit-pans': {
+    kind: 'break',
+    note: 'в правке один палец ведёт план (схема просмотра протекла в редактор)',
+    edits: [
+      {
+        find: 't.touches = e ? { ONE: Qn.ROTATE, TWO: Qn.DOLLY_PAN } : { ONE: null, TWO: Qn.DOLLY_ROTATE };',
+        replace: 't.touches = { ONE: null, TWO: Qn.DOLLY_ROTATE };',
+      },
+      {
+        find: 'enabled: () => !this.editing && this.controls.enabled',
+        replace: 'enabled: () => this.controls.enabled',
+      },
+    ],
+  },
+
   // --- Поломки для КОНТРОЛЬНЫХ проверок ------------------------------------
   // Контрольная проверка стережёт саму осмысленность соседней («мало кадров» /
   // «мешей нет» верно и для мёртвого стенда). Она тоже обязана уметь краснеть.

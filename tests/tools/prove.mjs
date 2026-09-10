@@ -55,6 +55,16 @@ const CASES = [
   ['10-comma-numbers', 'даёт 3.5', 'fix-comma-numbers', 'green'],
   ['10-comma-numbers', 'контроль', 'break-size-input-dead', 'red'],
   ['10-comma-numbers', 'без помощи браузера', 'fix-comma-numbers', 'green'],
+
+  // Навигация пальцами. Гоняем на одном размере экрана (лёжа 1280 x 800) —
+  // проверка одна и та же, а прогон каждой стоит минуту.
+  ['29-navigation', 'лёжа.*угол этажа', 'break-nav-one-finger-dead', 'red'],
+  ['29-navigation', 'лёжа.*под пальцем', 'break-nav-pan-approx', 'red'],
+  ['29-navigation', 'лёжа.*вокруг видимой', 'break-nav-pivot-house', 'red'],
+  ['29-navigation', 'лёжа.*вплотную', 'break-nav-min-distance', 'red'],
+  ['29-navigation', 'лёжа.*вплотную', 'break-nav-camera-in-floor', 'red'],
+  ['29-navigation', 'лёжа.*одиночный тап', 'break-nav-tap-eaten', 'red'],
+  ['29-navigation', 'лёжа.*рисует стену', 'break-nav-edit-pans', 'red'],
 ];
 
 const only = process.argv.slice(2);

@@ -35,7 +35,8 @@ import { RenderLoop, type RenderLoopHost } from './render-loop';
 import { mergeStaticGeometry, simplifyMaterials } from './static-merge';
 import { ROOM_MARKER_Y, groupRooms, roomAtPoint } from './room-grouping';
 import { MarkerLayer } from './markers';
-import { clampTarget, createControls, frameBox } from './camera-rig';
+import { applyTouchScheme, clampTarget, createControls, frameBox, targetLimits } from './camera-rig';
+import { TouchNav } from './touch-nav';
 import { setUnderlay } from './underlay';
 import type { FloorSlot } from './floor-slot';
 
@@ -114,6 +115,14 @@ export class SceneManager implements RenderLoopHost {
   // pointerdown bookkeeping to distinguish a tap from a drag.
   private downPos = { x: 0, y: 0 };
   private downTime = 0;
+  /** Указатели, лежащие на холсте сейчас, и признак «в жесте был не один
+   *  палец». Щипок двумя пальцами раньше кончался тапом того из них, который
+   *  сдвинулся меньше, — и посреди приближения всплывало окно устройства. */
+  private downIds = new Set<number>();
+  private multiTouch = false;
+
+  /** Пальцы: один ведёт план, два — щипок с поворотом (см. touch-nav.ts). */
+  private touchNav: TouchNav;
 
   // -- Editor support --
   /** Editor preview meshes (wall ghosts, point dots) live here. */
@@ -233,6 +242,15 @@ export class SceneManager implements RenderLoopHost {
       clampTarget(this.camera, this.controls, this.slots[this.activeFloor]?.built.bbox ?? this.fullBBox);
       this.loop.invalidate();
     });
+    this.touchNav = new TouchNav(this.renderer.domElement, this.camera, this.controls, {
+      groundY: () => this.slots[this.activeFloor]?.elevation ?? 0,
+      pivotRoot: () => this.slots[this.activeFloor]?.group ?? null,
+      limits: () => targetLimits(this.slots[this.activeFloor]?.built.bbox ?? this.fullBBox),
+      // В правке один палец принадлежит инструменту; пока тащат предмет,
+      // камера вообще стоит (applyCameraGate).
+      enabled: () => !this.editing && this.controls.enabled,
+    });
+    this.teardown.push(() => this.touchNav.dispose());
 
     // Dynamic resolution: coarse while a finger is dragging the view, sharp the
     // instant it lifts (release listeners on window so they fire even off-canvas).
@@ -630,6 +648,14 @@ export class SceneManager implements RenderLoopHost {
   private setupPointer(): void {
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', (e) => {
+      // Новая серия касаний: «зависшие» указатели прошлого жеста забываем —
+      // иначе один потерянный pointerup выключил бы тапы навсегда.
+      if (e.isPrimary) {
+        this.downIds.clear();
+        this.multiTouch = false;
+      }
+      this.downIds.add(e.pointerId);
+      if (this.downIds.size > 1) this.multiTouch = true;
       this.downPos = { x: e.clientX, y: e.clientY };
       this.downTime = performance.now();
       // Editing: a single-pointer press may grab a draggable object.
@@ -644,6 +670,9 @@ export class SceneManager implements RenderLoopHost {
       }
     });
     el.addEventListener('pointerup', (e) => {
+      const wasMulti = this.multiTouch;
+      this.downIds.delete(e.pointerId);
+      if (!this.downIds.size) this.multiTouch = false;
       if (this.dragging) {
         this.dragging = false;
         this.applyCameraGate(); // mappings (LEFT/ONE) are unchanged
@@ -666,6 +695,8 @@ export class SceneManager implements RenderLoopHost {
       // popup never opens.
       const slop = e.pointerType === 'mouse' ? 6 : 12;
       if (moved >= slop || dt >= 600) return;
+      // В жесте участвовал второй палец — это щипок или поворот, а не тап.
+      if (wasMulti) return;
       if (this.editing && this.onGround?.click) {
         const p = this.groundIntersect(e);
         if (p) this.onGround.click(p, e);
@@ -714,6 +745,9 @@ export class SceneManager implements RenderLoopHost {
 
   setEditMode(on: boolean, elevation = 0): void {
     this.editing = on;
+    // Схема пальцев зависит от режима, и переключить её надо здесь: выход из
+    // правки идёт через setEditMode(false), а не только через setDrawMode.
+    applyTouchScheme(this.controls, on);
     // The editor draws every frame: previews follow the pointer, so there is
     // nothing to invalidate on.
     this.loop.setContinuous(on);
@@ -1114,7 +1148,7 @@ export class SceneManager implements RenderLoopHost {
    *  always fully controllable while editing, and only a real drag suspends it. */
   setDrawMode(_drawing: boolean): void {
     this.applyCameraGate();
-    applyDrawMode(this.controls);
+    applyDrawMode(this.controls, this.editing);
   }
 
   /** Reserve LEFT mouse / one finger for dragging the selected object. */

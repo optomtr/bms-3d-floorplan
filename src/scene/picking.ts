@@ -14,6 +14,7 @@
 
 import * as THREE from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { applyTouchScheme } from './camera-rig';
 
 /** Tags the builder writes on meshes, which a pick walks up the tree to find. */
 export type PickTag = 'wallIndex' | 'roomIndex';
@@ -129,7 +130,7 @@ export class Picker {
  * distinguishes a TAP (tool action) from a DRAG (camera), and suspends the
  * camera only while actually dragging a grabbed object/handle.
  */
-export function applyDrawMode(controls: OrbitControls): void {
+export function applyDrawMode(controls: OrbitControls, editing: boolean): void {
   controls.enableRotate = true;
   controls.enableZoom = true;
   controls.enablePan = true;
@@ -138,7 +139,9 @@ export function applyDrawMode(controls: OrbitControls): void {
     MIDDLE: THREE.MOUSE.DOLLY,
     RIGHT: THREE.MOUSE.PAN,
   };
-  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  // Пальцы — по режиму: в правке один палец за инструментом, в просмотре им
+  // ведут план (см. camera-rig.applyTouchScheme). Мышь выше не меняется.
+  applyTouchScheme(controls, editing);
 }
 
 /**
