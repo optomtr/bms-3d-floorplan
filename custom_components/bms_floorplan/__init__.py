@@ -24,12 +24,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
-from . import legacy_api, plan_api, standalone_server
+from . import legacy_api, pairing, pairing_api, plan_api, standalone_server
 from .const import (
     CARD_TAG,
     DATA_ACTIVE,
     DATA_ALLOW_KIOSK_EXIT,
     DATA_MODULE_URL,
+    DATA_PAIRING,
     DATA_PIN_STORE,
     DATA_PLAN_STORE,
     DATA_STATIC_PATH,
@@ -37,6 +38,8 @@ from .const import (
     DEFAULT_ALLOW_KIOSK_EXIT,
     DOMAIN,
     OPT_ALLOW_KIOSK_EXIT,
+    PAIRING_STORAGE_KEY,
+    PAIRING_STORAGE_VERSION,
     PANEL_ICON,
     PANEL_TITLE,
     PANEL_URL,
@@ -45,6 +48,9 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
     URL_BASE,
+    WS_KIOSK_APPROVE,
+    WS_KIOSK_LIST,
+    WS_KIOSK_REVOKE,
     WS_LEGACY_GET,
     WS_PIN_GET,
     WS_PIN_SET,
@@ -109,7 +115,16 @@ def _unregister_ws(hass: HomeAssistant) -> None:
     try:
         handlers = hass.data.get(_WS_HANDLERS_KEY)
         if isinstance(handlers, dict):
-            for command in (WS_PLAN_GET, WS_PLAN_SET, WS_LEGACY_GET, WS_PIN_GET, WS_PIN_SET):
+            for command in (
+                WS_PLAN_GET,
+                WS_PLAN_SET,
+                WS_LEGACY_GET,
+                WS_PIN_GET,
+                WS_PIN_SET,
+                WS_KIOSK_LIST,
+                WS_KIOSK_APPROVE,
+                WS_KIOSK_REVOKE,
+            ):
                 handlers.pop(command, None)
     except Exception as err:  # noqa: BLE001 - best effort
         _LOGGER.debug("Не удалось снять WS-команды: %s", err)
@@ -170,11 +185,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         store = plan_api.PlanStore(hass)
         data[DATA_PLAN_STORE] = store
 
+    # Личности киосков. Отдельный приватный документ: они не имеют отношения к
+    # плану и не должны исчезать вместе с ним. Загрузка доводит до конца
+    # прерванный отзыв доступа (надгробие пишется раньше удаления пользователя).
+    pairs: pairing.PairingManager | None = data.get(DATA_PAIRING)
+    if pairs is None:
+        pairs = pairing.PairingManager(
+            hass,
+            Store(
+                hass,
+                PAIRING_STORAGE_VERSION,
+                PAIRING_STORAGE_KEY,
+                private=True,
+                atomic_writes=True,
+            ),
+        )
+        data[DATA_PAIRING] = pairs
+        try:
+            await pairs.async_load()
+        except Exception:
+            # Громко: без личностей киоски уедут на экран привязки, и владелец
+            # увидит на стене код вместо планировки.
+            _LOGGER.exception("Не удалось прочитать личности киосков")
+
     # WebSocket first: it is what a kiosk page on another origin can actually
     # reach. Re-registered on every setup because unload takes them back out.
     try:
         plan_api.async_register_ws(hass, store)
         legacy_api.async_register_ws(hass)
+        pairing_api.async_register_ws(hass)
     except Exception:
         # Loud: without this the kiosk silently falls back to per-user data and a
         # tablet keeps showing another account's stale plan.
@@ -189,6 +228,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.http.register_view(standalone_server.AppLauncherView(hass))
             hass.http.register_view(standalone_server.AppLauncherManifestView(hass))
             hass.http.register_view(plan_api.PlanView(hass))
+            # Ручки привязки: без входа (устройство с отвергнутым токеном обязано
+            # уметь восстановиться), защищены секретом устройства.
+            hass.http.register_view(pairing_api.PairStartView(hass))
+            hass.http.register_view(pairing_api.PairStatusView(hass))
+            hass.http.register_view(pairing_api.PairRenewView(hass))
             data[DATA_VIEWS] = True
         except Exception as err:  # noqa: BLE001 - best effort
             _LOGGER.debug("Не удалось зарегистрировать views: %s", err)
@@ -233,6 +277,20 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     except Exception as err:  # noqa: BLE001 - removal must not fail the delete
         _LOGGER.warning("Не удалось удалить хранилище PIN: %s", err)
 
+    # Личности киосков: сначала отзываем доступ (пользователи HA и их токены
+    # переживают удаление интеграции), потом удаляем сам документ.
+    pairs = (hass.data.get(DOMAIN) or {}).get(DATA_PAIRING)
+    if pairs is not None:
+        for device in list(pairs.devices):
+            try:
+                await pairs.revoke(device, "removed")
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Не удалось отозвать доступ киоска %s: %s", device, err)
+    try:
+        await Store(hass, PAIRING_STORAGE_VERSION, PAIRING_STORAGE_KEY).async_remove()
+    except Exception as err:  # noqa: BLE001 - removal must not fail the delete
+        _LOGGER.warning("Не удалось удалить хранилище киосков: %s", err)
+
     # Drop the in-memory copy so a re-add starts empty, but KEEP the
     # static-path/view guards: those routes still exist in aiohttp and must not
     # be registered a second time.
@@ -240,4 +298,5 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if data is not None:
         data.pop(DATA_PLAN_STORE, None)
         data.pop(DATA_PIN_STORE, None)
+        data.pop(DATA_PAIRING, None)
         data[DATA_ACTIVE] = False

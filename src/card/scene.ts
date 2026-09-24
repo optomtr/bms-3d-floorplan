@@ -48,7 +48,44 @@ export function initScene(host: BmsFloorplanCard): void {
     if (url) bakeRoomPhoto(host, url);
   });
   host.sceneManager.start();
+  watchContextLoss(host);
   loadActiveProject(host);
+}
+
+/** Потеря контекста WebGL.
+ *
+ *  Планшет на стене, проспавший ночь (или просто переживший нехватку памяти),
+ *  отдаёт GL-контекст системе. Обработчика на это не было ни одного: сцена
+ *  после такого не рисуется больше НИКОГДА, и на стене висит чёрный
+ *  прямоугольник до тех пор, пока к панели не подойдёт человек и не обновит
+ *  страницу. Владелец описывал это как «перестаёт работать».
+ *
+ *  preventDefault обязателен: без него браузер даже не пытается выдать
+ *  контекст заново. Сцену пересобираем целиком — новый холст получает свежий
+ *  контекст, тогда как восстановленный старый пришлось бы вручную заливать
+ *  текстурами, геометрией и шейдерами заново. */
+function watchContextLoss(host: BmsFloorplanCard): void {
+  const canvas = host.sceneManager?.renderer?.domElement;
+  if (!canvas) return;
+  const rebuild = (): void => {
+    if (!host.isConnected) return;
+    // Посреди правки сцену рвать нельзя — потеряется несохранённое. Такой
+    // карточке остаётся дождаться выхода из редактора.
+    if (host.editing) return;
+    if (host.sceneManager) teardownScene(host);
+    host.requestUpdate(); // updated() соберёт сцену заново, с новым холстом
+  };
+  canvas.addEventListener(
+    'webglcontextlost',
+    (e: Event) => {
+      e.preventDefault();
+      // Не внутри обработчика: сносить renderer, который сейчас на стеке
+      // события собственного холста, — плохая идея.
+      setTimeout(rebuild, 0);
+    },
+    false,
+  );
+  canvas.addEventListener('webglcontextrestored', () => setTimeout(rebuild, 0), false);
 }
 
 /** Render the room photo once with its blur/dim already applied, so the card

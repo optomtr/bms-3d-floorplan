@@ -20,3 +20,6 @@ playwright-report/
 
 # Служебные файлы инструментов, в продукт не входят
 .claude-flow/
+
+# Рабочие копии агентов
+.claude/worktrees/

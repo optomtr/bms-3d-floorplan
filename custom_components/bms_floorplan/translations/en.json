@@ -13,15 +13,49 @@
   "options": {
     "step": {
       "init": {
-        "title": "Kiosk settings",
+        "title": "BMS Floor Plan",
         "description": "The kiosk is served at /bms-floorplan-kiosk and shows the 3D floor plan only.",
+        "menu_options": {
+          "settings": "Kiosk settings",
+          "approve": "Approve a tablet code",
+          "devices": "Paired kiosks"
+        }
+      },
+      "settings": {
+        "title": "Kiosk settings",
         "data": {
           "allow_kiosk_exit": "Allow leaving the kiosk"
         },
         "data_description": {
           "allow_kiosk_exit": "A long press in the bottom-right corner opens the full Home Assistant UI under the tablet's account. Leave this off if the tablet is reachable by strangers."
         }
+      },
+      "approve": {
+        "title": "Approve a tablet code",
+        "description": "Enter the six-digit code the tablet shows. Home Assistant creates a dedicated NON-admin user for this kiosk and gives it its own access, so the tablet keeps working even when nobody has logged into Home Assistant for months.\n\nCodes waiting for approval: {waiting}.",
+        "data": {
+          "code": "Code shown on the tablet"
+        }
+      },
+      "devices": {
+        "title": "Paired kiosks",
+        "description": "Revoking blocks the kiosk identity, revokes every token of its user and deletes that user. The tablet will then show a fresh pairing code.",
+        "data": {
+          "revoke": "Revoke access"
+        }
       }
+    },
+    "error": {
+      "code_expired": "Code not found or expired. Ask the tablet for a new one.",
+      "invalid_code": "The code is six digits.",
+      "device_limit": "Too many paired kiosks.",
+      "invalid_secret": "The tablet sent an invalid secret — ask it for a new code."
+    },
+    "abort": {
+      "kiosk_approved": "Kiosk approved. The tablet connects by itself within a few seconds.",
+      "kiosk_revoked": "Access revoked.",
+      "no_kiosks": "No paired kiosks yet.",
+      "pairing_unavailable": "Pairing is unavailable: restart Home Assistant."
     }
   }
 }

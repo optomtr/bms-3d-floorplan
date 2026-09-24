@@ -61,6 +61,27 @@ WS_PLAN_GET = f"{DOMAIN}/plan/get"
 WS_PLAN_SET = f"{DOMAIN}/plan/set"
 WS_LEGACY_GET = f"{DOMAIN}/legacy/get"
 
+# --- Привязка киоска (своя личность устройства) ------------------------------
+# Киоск на стене больше не зависит от того, входил ли кто-нибудь в Home
+# Assistant с этого планшета. Он однократно привязывается по шестизначному коду
+# и дальше живёт со своим НЕадминистративным пользователем и долгим токеном.
+# Ручки НЕ требуют входа — иначе устройство с отвергнутым токеном не смогло бы
+# восстановиться; их защищает секрет устройства (см. pairing_api).
+PAIR_BASE_PATH = f"/api/{DOMAIN}/pair"
+PAIR_START_PATH = f"{PAIR_BASE_PATH}/start"
+PAIR_STATUS_PATH = f"{PAIR_BASE_PATH}/status"
+PAIR_RENEW_PATH = f"{PAIR_BASE_PATH}/renew"
+
+# Отдельный документ: личности киосков не имеют отношения к плану и не должны
+# теряться вместе с ним. Хранится приватно (0600), наружу — только SHA-256.
+PAIRING_STORAGE_VERSION = 1
+PAIRING_STORAGE_KEY = f"{DOMAIN}.kiosks"
+
+# Подтверждение и отзыв — только администратору.
+WS_KIOSK_LIST = f"{DOMAIN}/kiosk/list"
+WS_KIOSK_APPROVE = f"{DOMAIN}/kiosk/approve"
+WS_KIOSK_REVOKE = f"{DOMAIN}/kiosk/revoke"
+
 # --- Document versioning ---------------------------------------------------
 # Two reserved keys the SERVER owns inside the stored plan document. A writer
 # sends `base_version`; when it no longer matches, the write is refused instead
@@ -121,3 +142,4 @@ DATA_PLAN_STORE = "plan_store"
 DATA_PIN_STORE = "pin_store"
 DATA_STATIC_PATH = "static_path_registered"
 DATA_VIEWS = "views_registered"
+DATA_PAIRING = "pairing"

@@ -87,13 +87,23 @@
       Киоск «BMS Планировка» — только 3D-планировка, без бокового меню и шапки
       Home Assistant.
 
-      КАК ЭТО РАБОТАЕТ (рекомендуемый и единственный живой режим):
-      интеграция отдаёт эту страницу по адресу
+      КАК ЭТО РАБОТАЕТ: интеграция отдаёт эту страницу по адресу
       http://<адрес-Home-Assistant>:8123/bms-floorplan-kiosk на собственном порту
-      HA. Страница НЕ содержит ни адреса, ни токена: она подключается к HA по
-      той же сессии браузера, под которой планшет уже вошёл в Home Assistant.
-      Поэтому её безопасно оставлять включённой, даже если HA доступен снаружи.
-      Планшет, не вошедший в HA, получит страницу только для просмотра.
+      HA. Адреса и токена в самом файле нет.
+
+      ВХОД (по порядку, ни один отказ не конечный):
+        1. СВОЯ привязка киоска. Планшет однократно называет администратору
+           шестизначный код, тот подтверждает его в настройках интеграции, и HA
+           выпускает отдельного НЕадминистративного пользователя с долгим
+           токеном. Дальше киоск ни от чьего входа не зависит: токен продлевается
+           заранее, а если его отвергли — восстанавливается по секрету сам.
+        2. Сессия Home Assistant этого браузера (localStorage hassTokens) —
+           если планшет уже вошёл в HA.
+        3. Экран с кодом привязки. Он появляется только когда входа нет вообще и
+           гаснет сам, как только администратор подтвердит код.
+
+      Секрет киоска — 256 бит из crypto.getRandomValues. Он не показывается на
+      экране, не попадает ни в URL, ни в QR; сервер хранит только его SHA-256.
 
       РУЧНАЯ РАЗДАЧА ПАПКИ (только просмотр): положите рядом собранный
       bms-floorplan-card.js и, при желании, выгруженный plan.json, раздайте
@@ -113,101 +123,1222 @@
     <script>
       if (!customElements.get('ha-card')) customElements.define('ha-card', class extends HTMLElement {});
     </script>
+
+<!-- BMS_KIOSK_CORE:BEGIN — собрано из standalone/kiosk/*.js скриптом tools/sync-kiosk.mjs.
+     Править ЗДЕСЬ нельзя: правка живёт в standalone/kiosk/, иначе две копии
+     киоска снова разъедутся. Проверка: npm run check:kiosk. -->
+<script>
+  (function () {
+    'use strict';
+
+  // ===== standalone/kiosk/10-util.js =====
+  // ---------------------------------------------------------------------------
+  // Общие мелочи ядра киоска.
+  //
+  // Всё, что здесь есть, обязано работать на планшете, который никто не трогает
+  // месяцами: ни одна ветка не имеет права закончиться просьбой к человеку.
+  // ---------------------------------------------------------------------------
+
+  /** Пространство имён в localStorage. Общее для обеих копий страницы: планшет,
+   *  переехавший с одного адреса киоска на другой, сохраняет привязку. */
+  const NS = 'bms_floorplan_kiosk';
+
+  const HEX64 = /^[0-9a-f]{64}$/;
+  const HEX32 = /^[0-9a-f]{32}$/;
+
+  const now = () => Date.now();
+
+  function lsGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      // Приватный режим / отключённое хранилище: киоск обязан работать и так,
+      // просто без памяти между перезапусками.
+      return null;
+    }
+  }
+
+  function lsSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function lsDel(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* см. lsGet */
+    }
+  }
+
+  function jparse(text) {
+    if (typeof text !== 'string') return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Криптографически стойкие случайные байты в hex. Источник — SecureRandom
+   *  браузера (crypto.getRandomValues); Math.random для секрета недопустим. */
+  function randHex(bytes) {
+    const buf = new Uint8Array(bytes);
+    crypto.getRandomValues(buf);
+    let out = '';
+    for (const b of buf) out += b.toString(16).padStart(2, '0');
+    return out;
+  }
+
+  /** Пауза между попытками: 1, 2, 4… секунды с разбросом, ПОТОЛОК 60 секунд.
+   *  Разброс нужен, чтобы десяток планшетов на объекте не долбил вернувшийся
+   *  Home Assistant в одну и ту же миллисекунду. */
+  const BACKOFF_CAP_MS = 60000;
+  function backoff(attempt) {
+    const base = Math.min(1000 * Math.pow(2, Math.min(Math.max(attempt, 0), 6)), BACKOFF_CAP_MS);
+    const jittered = Math.round(base * (0.7 + Math.random() * 0.6));
+    return Math.max(500, Math.min(jittered, BACKOFF_CAP_MS));
+  }
+
+  const errMsg = (e) => (e && e.message ? e.message : String(e));
+
+  /** План считается годным только с хотя бы одним этажом: пустой документ на
+   *  стене неотличим от поломки. */
+  const validPlan = (p) => !!p && Array.isArray(p.floors) && p.floors.length > 0;
+
+  /** Значение ?card=/?plan= разрешается ровно так, как это сделали бы
+   *  import()/fetch(), и обязано остаться НА ЭТОМ ЖЕ origin. Так отсекаются
+   *  data:, javascript:, blob:, чужие абсолютные адреса, //host и трюки с
+   *  пробелами — регулярное выражение так не умеет. */
+  function sameOrigin(u) {
+    if (!u) return null;
+    try {
+      const r = new URL(u, location.href);
+      return r.origin === location.origin ? r.href : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Из документа {active, projects} достаём активный (или первый годный) план. */
+  function pickProject(data) {
+    if (!data || !data.projects) return null;
+    let id = data.active;
+    if (!(id && validPlan(data.projects[id]))) {
+      id = Object.keys(data.projects).find((k) => validPlan(data.projects[k]));
+    }
+    return id ? data.projects[id] : null;
+  }
+
+  /** Пауза. Объявлена функцией, а не const-стрелкой: ядро склеивается из
+   *  нескольких файлов в один блок, и const здесь означал бы мёртвую зону
+   *  для всего, что объявлено выше (в этом репозитории это уже ловили). */
+  function sleepMs(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  // ===== standalone/kiosk/20-store.js =====
+  // ---------------------------------------------------------------------------
+  // Что киоск помнит между запусками: свою привязку, последний показанный план и
+  // когда он в последний раз перезагружал сам себя.
+  // ---------------------------------------------------------------------------
+
+  const LS_CRED = NS + '.cred'; // собственная привязка киоска (токен + секрет)
+  const LS_PEND = NS + '.pending'; // незавершённая привязка (код показан, ждём админа)
+  const LS_PLAN = NS + '.plan'; // последний показанный план
+  const LS_RELOAD = NS + '.reload'; // отметка последней самоперезагрузки
+
+  // --- Привязка ---------------------------------------------------------------
+
+  /** Привязка читается СТРОГО: чужая или побитая запись не должна утащить киоск
+   *  в бесконечные 400-е. Не прошла проверку — считаем, что привязки нет. */
+  function readCred() {
+    const c = jparse(lsGet(LS_CRED));
+    if (!c || typeof c !== 'object') return null;
+    if (typeof c.device_id !== 'string' || !HEX32.test(c.device_id)) return null;
+    if (typeof c.secret !== 'string' || !HEX64.test(c.secret)) return null;
+    if (c.token !== undefined && typeof c.token !== 'string') return null;
+    return c;
+  }
+
+  function writeCred(cred) {
+    return lsSet(LS_CRED, JSON.stringify(cred));
+  }
+
+  function dropCred() {
+    lsDel(LS_CRED);
+  }
+
+  /** Незавершённая привязка переживает перезагрузку: человек, который уже пошёл
+   *  за администратором, не должен вернуться к ДРУГОМУ коду на экране. */
+  function readPending() {
+    const p = jparse(lsGet(LS_PEND));
+    if (!p || typeof p !== 'object') return null;
+    if (typeof p.secret !== 'string' || !HEX64.test(p.secret)) return null;
+    if (typeof p.device_id !== 'string' || !HEX32.test(p.device_id)) return null;
+    if (typeof p.code !== 'string' || !/^[0-9]{6}$/.test(p.code)) return null;
+    if (!(Number(p.until) > now())) return null;
+    return p;
+  }
+
+  function writePending(p) {
+    lsSet(LS_PEND, JSON.stringify(p));
+  }
+
+  function dropPending() {
+    lsDel(LS_PEND);
+  }
+
+  // --- Последний план ---------------------------------------------------------
+
+  /** Копия плана без фотографий комнат. Фото — base64 и занимают почти весь
+   *  объём хранилища; геометрия важнее картинки, пустой экран хуже обоих. */
+  function stripPhotos(plan) {
+    const lean = JSON.parse(JSON.stringify(plan));
+    for (const f of lean.floors || []) {
+      for (const z of f.zones || []) delete z.bgImage;
+      delete f.bgImage;
+    }
+    return lean;
+  }
+
+  /** Запомнить план, чтобы следующий запуск начался с картинки, а не с пустоты. */
+  function cachePlan(plan) {
+    if (!validPlan(plan)) return false;
+    let text;
+    try {
+      text = JSON.stringify(plan);
+    } catch {
+      return false;
+    }
+    if (lsSet(LS_PLAN, text)) return true;
+    try {
+      return lsSet(LS_PLAN, JSON.stringify(stripPhotos(plan)));
+    } catch {
+      return false;
+    }
+  }
+
+  function cachedPlan() {
+    const p = jparse(lsGet(LS_PLAN));
+    return validPlan(p) ? p : null;
+  }
+
+  // --- Самоперезагрузка -------------------------------------------------------
+
+  /** Сторож перезагружает страницу не чаще, чем раз в столько. Отметка лежит в
+   *  localStorage, а не в памяти: она обязана пережить саму перезагрузку, иначе
+   *  сторож превращается в бесконечный цикл. */
+  const RELOAD_MIN_GAP_MS = 5 * 60 * 1000;
+
+  function mayReload() {
+    const t = Number(lsGet(LS_RELOAD)) || 0;
+    // Часы планшета могут уехать назад (NTP после сна) — отметка из будущего
+    // не должна запереть сторожа навсегда.
+    if (t > now()) return true;
+    return now() - t > RELOAD_MIN_GAP_MS;
+  }
+
+  function markReload() {
+    lsSet(LS_RELOAD, String(now()));
+  }
+
+  // ===== standalone/kiosk/30-auth.js =====
+  // ---------------------------------------------------------------------------
+  // Очередь входов. Ни один отказ здесь не конечный.
+  //
+  // Порядок: свой токен киоска → токен сессии Home Assistant (hassTokens) →
+  // привязка по коду. Ручной токен из ⚙ (только у страницы, которую раздают
+  // папкой) идёт впереди всех: его ввёл человек руками, значит это осознанный
+  // выбор устройства.
+  //
+  // Отказ ЛЮБОГО источника помечает его негодным и передаёт очередь следующему.
+  // Раньше страница на auth_invalid поднимала у себя вечный флаг отказа входа и
+  // замирала до тех пор, пока кто-нибудь не подойдёт и не перезапустит её руками.
+  // Именно это владелец и видел: «время от времени перестаёт работать».
+  // Сторож проверок следит, чтобы тот флаг не вернулся (tests/33-kiosk-sync).
+  // ---------------------------------------------------------------------------
+
+  /** Пока столько миллисекунд до конца действия токена — обновляем заранее.
+   *  Токен киоска живёт 10 лет, поэтому «заранее» — это год: обновление
+   *  случается раз в годы, а не каждую ночь. */
+  const TOKEN_RENEW_AHEAD_MS = 365 * 24 * 3600 * 1000;
+
+  /** Сессионный токен фронтенда HA живёт полчаса — его обновляем за минуту. */
+  const SESSION_RENEW_AHEAD_MS = 60000;
+
+  /** Источник, который только что отвергли, не трогаем столько. */
+  const SOURCE_COOLDOWN_MS = 5 * 60 * 1000;
+
+  const auth = {
+    /** Ручной токен признан негодным (до перезагрузки или новой правки в ⚙). */
+    staticBadUntil: 0,
+    /** Сессия HA признана негодной до этого момента. */
+    sessionBadUntil: 0,
+    /** Сколько раз подряд обновление токена киоска не дало результата. */
+    renewFails: 0,
+    /** Чем вошли в текущий сокет — чтобы знать, что гасить на auth_invalid. */
+    source: null,
+  };
+
+  /** Полный адрес HTTP-ручки Home Assistant. */
+  function haApi(path) {
+    const base = (cfg.apiBase || '').replace(/\/+$/, '');
+    return base + path;
+  }
+
+  /** POST в ручку привязки. Ответ всегда разбирается как JSON; сетевой сбой и
+   *  отказ сервера различаются по полю `status`. */
+  async function pairPost(path, body) {
+    const r = await fetch(haApi('/api/bms_floorplan/pair' + path), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Привязка — не то, что браузеру можно отдать из кэша.
+      cache: 'no-store',
+      body: JSON.stringify(body),
+    });
+    let data = null;
+    try {
+      data = await r.json();
+    } catch {
+      data = null;
+    }
+    if (!r.ok) {
+      const err = new Error((data && data.error) || 'pair_http_' + r.status);
+      err.status = r.status;
+      err.code = data && data.error;
+      throw err;
+    }
+    return data || {};
+  }
+
+  /** Обновление токена киоска по секрету. Секрет РОТИРУЕТСЯ: новый пишется на
+   *  устройство ДО отправки, вместе со стабильным request_id, поэтому потерянный
+   *  ответ повторяется тем же запросом, а не ломает привязку. */
+  async function renewKioskToken(cred) {
+    const next = cred.pending_secret && HEX64.test(cred.pending_secret) ? cred.pending_secret : randHex(32);
+    const reqId = cred.request_id && HEX32.test(cred.request_id) ? cred.request_id : randHex(16);
+    if (cred.pending_secret !== next || cred.request_id !== reqId) {
+      writeCred({ ...cred, pending_secret: next, request_id: reqId });
+    }
+    const res = await pairPost('/renew', {
+      device_id: cred.device_id,
+      secret: cred.secret,
+      next_secret: next,
+      request_id: reqId,
+    });
+    if (!res || typeof res.access_token !== 'string' || !res.access_token) {
+      throw new Error('renew_no_token');
+    }
+    const fresh = {
+      device_id: cred.device_id,
+      secret: next,
+      token: res.access_token,
+      // Срок — подсказка для упреждающего обновления, право решает Home Assistant.
+      exp: now() + (Number(res.expires_in) || 3650 * 24 * 3600) * 1000,
+      renewed: now(),
+    };
+    writeCred(fresh);
+    return fresh;
+  }
+
+  /** Токен сессии, который фронтенд Home Assistant сохранил для этого origin.
+   *  Возвращает строку или null. НИКОГДА не бросает: любой сбой — это просто
+   *  «сейчас не получилось», и очередь идёт дальше. */
+  async function sessionToken() {
+    const t = jparse(lsGet('hassTokens'));
+    if (!t || !t.access_token) return null;
+    if ((t.expires || 0) - now() >= SESSION_RENEW_AHEAD_MS) return t.access_token;
+    // Почти истёкший токен НЕ отправляем как есть: он вызвал бы auth_invalid.
+    if (!t.refresh_token) return null;
+    let r;
+    try {
+      r = await fetch(haApi('/auth/token'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        cache: 'no-store',
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: t.refresh_token,
+          client_id: t.clientId || location.origin + '/',
+        }),
+      });
+    } catch {
+      // Сети нет — это временно, наказывать источник нечем.
+      return null;
+    }
+    if (!r.ok) {
+      // 400/403 значит, что refresh-токен отозвали: сессия мертва. Сам ключ
+      // hassTokens не стираем — он принадлежит фронтенду HA, не нам.
+      if (r.status === 400 || r.status === 403) auth.sessionBadUntil = now() + SOURCE_COOLDOWN_MS;
+      return null;
+    }
+    const j = await r.json().catch(() => null);
+    if (!j || !j.access_token) return null;
+    t.access_token = j.access_token;
+    t.expires = now() + (Number(j.expires_in) || 1800) * 1000;
+    lsSet('hassTokens', JSON.stringify(t));
+    return t.access_token;
+  }
+
+  /** Следующий годный токен: {source, token} либо null, если входа нет вообще.
+   *  null — НЕ тупик: он включает экран привязки, который сам гаснет, как только
+   *  администратор подтвердит код. */
+  async function nextToken() {
+    if (cfg.staticToken && now() >= auth.staticBadUntil) {
+      return { source: 'static', token: cfg.staticToken };
+    }
+
+    const cred = readCred();
+    if (cred) {
+      const fresh = cred.token && (cred.exp || 0) - now() > TOKEN_RENEW_AHEAD_MS;
+      if (fresh) return { source: 'kiosk', token: cred.token };
+      try {
+        const updated = await renewKioskToken(cred);
+        auth.renewFails = 0;
+        return { source: 'kiosk', token: updated.token };
+      } catch (err) {
+        // Личность сервер не знает (отозвали или переставили HA) — привязка
+        // больше ничего не стоит, выбрасываем её и идём дальше по очереди.
+        if (err.status === 403 || err.status === 404) {
+          dropCred();
+        } else {
+          auth.renewFails++;
+          // Сервер сказал «рано» либо просто не отвечает: старый токен, если он
+          // ещё есть, вполне мог остаться рабочим — пробуем им.
+          if (cred.token) return { source: 'kiosk', token: cred.token };
+        }
+      }
+    }
+
+    if (cfg.useSession && now() >= auth.sessionBadUntil) {
+      const tk = await sessionToken();
+      if (tk) return { source: 'session', token: tk };
+    }
+
+    return null;
+  }
+
+  /** Вход отвергнут. Гасим ровно тот источник, которым входили, и отдаём очередь
+   *  следующему — вместо того чтобы остановиться. */
+  function invalidate(source) {
+    if (source === 'static') {
+      // Значение из ⚙ не стираем: человек должен увидеть, что он ввёл, и
+      // поправить. На этот запуск источник просто выключен.
+      auth.staticBadUntil = now() + 24 * 3600 * 1000;
+      return;
+    }
+    if (source === 'session') {
+      auth.sessionBadUntil = now() + SOURCE_COOLDOWN_MS;
+      return;
+    }
+    if (source === 'kiosk') {
+      const cred = readCred();
+      if (!cred) return;
+      // Токен негоден — выбрасываем ИМЕННО его, секрет остаётся: по нему киоск
+      // сам выпишет новый токен на следующем круге.
+      const next = { ...cred };
+      delete next.token;
+      delete next.exp;
+      writeCred(next);
+      // Секрет тоже не помог дважды подряд — привязки больше нет, уходим к
+      // сессии, а если и её нет — к экрану привязки.
+      if (auth.renewFails >= 2) {
+        dropCred();
+        auth.renewFails = 0;
+      }
+    }
+  }
+
+  // ===== standalone/kiosk/40-ui.js =====
+  // ---------------------------------------------------------------------------
+  // То, что киоск показывает на стене: пометка «нет связи» и экран привязки.
+  //
+  // Оба элемента и их стили создаёт ядро, а не страница: так обе копии киоска
+  // выглядят и ведут себя одинаково, и расхождению неоткуда взяться.
+  // ---------------------------------------------------------------------------
+
+  const ui = {
+    offline: null,
+    pair: null,
+    pairCode: null,
+    pairNote: null,
+    shown: false,
+  };
+
+  function injectStyles() {
+    if (document.getElementById('bms-kiosk-style')) return;
+    const style = document.createElement('style');
+    style.id = 'bms-kiosk-style';
+    style.textContent = [
+      '#bms-offline{position:fixed;left:10px;bottom:10px;z-index:30;font:12px/1.2 system-ui,sans-serif;',
+      'color:#ffe0b8;background:rgba(58,40,20,.85);padding:5px 10px;border-radius:8px;pointer-events:none;display:none}',
+      '#bms-offline.on{display:block}',
+      '#bms-pair{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;',
+      'background:rgba(10,14,22,.72);backdrop-filter:blur(3px);font:16px/1.5 system-ui,sans-serif;color:#e8eef7;padding:16px}',
+      '#bms-pair.on{display:flex}',
+      '#bms-pair .card{max-width:420px;width:100%;background:#16243d;border:1px solid rgba(255,255,255,.14);',
+      'border-radius:16px;padding:22px 24px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.45)}',
+      '#bms-pair h2{margin:0 0 6px;font-size:18px}',
+      '#bms-pair p{margin:0;font-size:13px;color:#9fb3cc}',
+      '#bms-pair .code{margin:16px 0 12px;font:700 40px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;',
+      'letter-spacing:.16em;color:#fff}',
+      '#bms-pair .note{margin-top:12px;font-size:12px;color:#7f93ad;min-height:1.5em}',
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  /** Пометка «нет связи». Показывается ТОЛЬКО когда план уже на экране: пустой
+   *  экран с пометкой — это всё тот же пустой экран. */
+  function setOffline(on, text) {
+    if (!ui.offline) {
+      ui.offline = document.createElement('div');
+      ui.offline.id = 'bms-offline';
+      document.body.appendChild(ui.offline);
+    }
+    ui.offline.textContent = text || 'нет связи';
+    ui.offline.classList.toggle('on', !!on);
+  }
+
+  function buildPairOverlay() {
+    if (ui.pair) return;
+    injectStyles();
+    const wrap = document.createElement('div');
+    wrap.id = 'bms-pair';
+    wrap.innerHTML =
+      '<div class="card">' +
+      '<h2>Подключение планшета</h2>' +
+      '<p>Назовите этот код администратору Home Assistant.</p>' +
+      '<div class="code">······</div>' +
+      '<p>Настройки → Устройства и службы → BMS Планировка → Настроить → «Подтвердить код планшета».</p>' +
+      '<div class="note"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    ui.pair = wrap;
+    ui.pairCode = wrap.querySelector('.code');
+    ui.pairNote = wrap.querySelector('.note');
+  }
+
+  function showPairing(code, note) {
+    buildPairOverlay();
+    ui.shown = true;
+    if (code) ui.pairCode.textContent = code;
+    ui.pairNote.textContent = note || 'Жду подтверждения…';
+    ui.pair.classList.add('on');
+  }
+
+  function hidePairing() {
+    ui.shown = false;
+    if (ui.pair) ui.pair.classList.remove('on');
+  }
+
+  // --- Сама привязка ----------------------------------------------------------
+
+  const pairing = {
+    running: false,
+    attempt: 0,
+  };
+
+  /** Один круг привязки: получить код (или поднять уже показанный), дождаться
+   *  подтверждения администратора, выписать токен. Живёт до успеха; сам гаснет,
+   *  как только токен получен. Второй раз параллельно не запускается. */
+  async function runPairing() {
+    if (pairing.running) return;
+    if (!cfg.canPair) {
+      // Папку раздают вручную и адрес Home Assistant неизвестен — привязывать
+      // не к чему. Это единственный случай, когда нужен человек.
+      showPairing('——————', 'Укажите адрес Home Assistant (⚙).');
+      return;
+    }
+    pairing.running = true;
+    try {
+      for (;;) {
+        if (readCred()) return; // вход уже появился другим путём
+        let session = readPending();
+        if (!session) {
+          try {
+            const secret = randHex(32);
+            const res = await pairPost('/start', { secret, name: cfg.deviceName });
+            if (!res.code || !res.device_id) throw new Error('pair_start_bad');
+            session = {
+              secret,
+              device_id: res.device_id,
+              code: String(res.code),
+              until: now() + (Number(res.expires_in) || 600) * 1000,
+            };
+            writePending(session);
+          } catch (err) {
+            // Ограничение частоты, HA ещё не поднялся, интеграция выключена —
+            // всё это временно. Ждём и пробуем снова, экран не тупик.
+            showPairing(null, 'Подключаюсь к Home Assistant…');
+            await sleepMs(backoff(pairing.attempt++));
+            continue;
+          }
+        }
+        showPairing(session.code, 'Жду подтверждения…');
+        pairing.attempt = 0;
+
+        // Ожидание администратора. Опрос каждые 3 секунды; истёкший код
+        // выбрасывается и выписывается новый — сам, без человека.
+        let approved = false;
+        while (now() < session.until) {
+          await sleepMs(3000);
+          try {
+            const st = await pairPost('/status', {
+              device_id: session.device_id,
+              secret: session.secret,
+            });
+            if (st && st.approved) {
+              approved = true;
+              break;
+            }
+          } catch (err) {
+            if (err.status === 403) {
+              // Сервер такой личности не знает: код протух или его отозвали.
+              break;
+            }
+            // Связи нет — просто ждём дальше.
+          }
+        }
+        if (!approved) {
+          dropPending();
+          continue;
+        }
+
+        // Подтверждено: выписываем токен по секрету и переезжаем в постоянную
+        // привязку. Секрет при этом ротируется (см. renewKioskToken).
+        const cred = { device_id: session.device_id, secret: session.secret };
+        writeCred(cred);
+        try {
+          await renewKioskToken(cred);
+        } catch (err) {
+          if (err.status === 403 || err.status === 404) {
+            dropCred();
+            dropPending();
+            continue; // личность не прижилась — начинаем привязку заново
+          }
+          await sleepMs(backoff(pairing.attempt++));
+          continue; // токен выпишется на следующем круге очереди входов
+        }
+        dropPending();
+        hidePairing();
+        // Токен есть — не ждём следующего круга пауз, подключаемся сейчас же.
+        kick('привязка подтверждена');
+        return;
+      }
+    } finally {
+      pairing.running = false;
+    }
+  }
+
+  // ===== standalone/kiosk/50-live.js =====
+  // ---------------------------------------------------------------------------
+  // Живое соединение с Home Assistant и всё, что заставляет его вернуться.
+  //
+  // Правила, которых здесь держимся:
+  //   * ни одна ветка не заканчивается ожиданием человека;
+  //   * пауза между попытками растёт, но не больше 60 секунд;
+  //   * пока план на экране, он там и остаётся — с пометкой «нет связи»;
+  //   * если ничего не получалось три минуты, страница перезагружает сама себя,
+  //     но не чаще раза в пять минут (см. mayReload).
+  // ---------------------------------------------------------------------------
+
+  /** Ничего не получалось столько — перезагружаем страницу. */
+  const WATCHDOG_MS = 3 * 60 * 1000;
+  /** Как часто сторож смотрит на часы. */
+  const WATCHDOG_TICK_MS = 15000;
+  /** Сокет молчит дольше этого, несмотря на ping, — рвём сами. Браузер о
+   *  мёртвом соединении после сна планшета может не узнать часами. */
+  const PING_DEAD_MS = 75000;
+  const PING_EVERY_MS = 30000;
+  /** Скачок системных часов больше этого = планшет спал (или проснулся NTP). */
+  const WAKE_GAP_MS = 30000;
+  /** Сколько времени дать на восстановление после пробуждения, прежде чем
+   *  сторожу будет позволено перезагрузить страницу. */
+  const WAKE_GRACE_MS = 60000;
+  /** Как часто перечитываем сохранённый план (события об этом HA не шлёт). */
+  const PLAN_POLL_MS = 10000;
+  /** Сколько ждать ответа на проверочный ping после пробуждения. */
+  const KICK_PING_TIMEOUT_MS = 5000;
+
+  const live = {
+    ws: null,
+    reqId: 10,
+    pending: new Map(),
+    subs: new Map(),
+    states: {},
+    card: null,
+    planJson: null,
+    planLoaded: false,
+    attempt: 0,
+    timer: 0,
+    heartbeat: 0,
+    lastGood: 0,
+    pushQueued: false,
+    reloads: 0,
+    glRecoveries: 0,
+  };
+
+  // --- Отправка ---------------------------------------------------------------
+
+  function request(msg) {
+    return new Promise((res, rej) => {
+      const sock = live.ws;
+      // Сокет закрыт (нажатие во время переподключения) — отказываем сразу,
+      // карточка откатит оптимистичный вид, а не зависнет.
+      if (!sock || sock.readyState !== WebSocket.OPEN) {
+        rej(new Error('сокет закрыт'));
+        return;
+      }
+      const id = ++live.reqId;
+      msg.id = id;
+      live.pending.set(id, { res, rej });
+      try {
+        sock.send(JSON.stringify(msg));
+      } catch (e) {
+        live.pending.delete(id);
+        rej(e);
+      }
+    });
+  }
+
+  /** Подписка на поток команды (домофонная сигнализация WebRTC). Повторяет
+   *  hass.connection.subscribeMessage(cb, msg). */
+  function subscribe(cb, msg) {
+    return new Promise((res, rej) => {
+      const sock = live.ws;
+      if (!sock || sock.readyState !== WebSocket.OPEN) {
+        rej(new Error('сокет закрыт'));
+        return;
+      }
+      const id = ++live.reqId;
+      live.subs.set(id, cb);
+      live.pending.set(id, {
+        res: () =>
+          res(() => {
+            live.subs.delete(id);
+            return request({ type: 'unsubscribe_events', subscription: id }).catch(() => {});
+          }),
+        rej: (e) => {
+          live.subs.delete(id);
+          rej(e);
+        },
+      });
+      try {
+        sock.send(JSON.stringify({ ...msg, id }));
+      } catch (e) {
+        live.subs.delete(id);
+        live.pending.delete(id);
+        rej(e);
+      }
+    });
+  }
+
+  function callService(domain, service, data) {
+    const p = request({ type: 'call_service', domain, service, service_data: data || {} });
+    p.catch(() => {});
+    return p;
+  }
+
+  const callWS = (msg) => request(msg);
+
+  // --- Карточка ---------------------------------------------------------------
+
+  function ensureCard(plan) {
+    if (live.card) return live.card;
+    const el = document.createElement('bms-floorplan-card');
+    el.setConfig(cfg.cardConfig(plan));
+    document.body.appendChild(el);
+    live.card = el;
+    watchGl(el);
+    return el;
+  }
+
+  /** Показать (возможно, новый) план. true, если картинка действительно
+   *  изменилась. */
+  function applyPlan(plan) {
+    if (!validPlan(plan)) return false;
+    const json = JSON.stringify(plan);
+    if (live.card && json === live.planJson) return false;
+    live.planJson = json;
+    if (!live.card) {
+      ensureCard(plan);
+      return true;
+    }
+    live.card.setConfig(cfg.cardConfig(plan));
+    return true;
+  }
+
+  function pushHass() {
+    if (live.pushQueued || !live.card) return;
+    live.pushQueued = true;
+    requestAnimationFrame(() => {
+      live.pushQueued = false;
+      if (!live.card) return;
+      const hass = { states: { ...live.states }, callService, callWS };
+      if (cfg.decorateHass) cfg.decorateHass(hass);
+      live.card.hass = hass;
+    });
+  }
+
+  /** Потеря контекста WebGL — вторая линия обороны.
+   *
+   *  Первая живёт в самой карточке (src/card/scene.ts): она пересобирает сцену
+   *  на webglcontextlost/restored. Если это почему-то не сработало, киоск через
+   *  шесть секунд собирает карточку заново с нуля: планшет, проспавший ночь,
+   *  обязан проснуться с картинкой, а не с чёрным прямоугольником. */
+  function watchGl(cardEl) {
+    const attach = () => {
+      const canvas = cardEl.renderRoot && cardEl.renderRoot.querySelector('canvas');
+      if (!canvas) return false;
+      if (canvas.__bmsGlWatched) return true;
+      canvas.__bmsGlWatched = true;
+      canvas.addEventListener(
+        'webglcontextlost',
+        () => {
+          setTimeout(() => {
+            const gone = !cardEl.isConnected || !cardEl.sceneManager || canvas.isContextLost?.();
+            if (!gone) return;
+            live.glRecoveries++;
+            rebuildCard();
+          }, 6000);
+        },
+        false,
+      );
+      return true;
+    };
+    if (attach()) return;
+    // Холст появляется только после первой отрисовки карточки.
+    let tries = 0;
+    const t = setInterval(() => {
+      if (attach() || ++tries > 40) clearInterval(t);
+    }, 250);
+  }
+
+  /** Собрать карточку заново из последнего известного плана. */
+  function rebuildCard() {
+    const plan = jparse(live.planJson) || cachedPlan();
+    const old = live.card;
+    live.card = null;
+    live.planJson = null;
+    if (old) {
+      try {
+        old.remove();
+      } catch {
+        /* уже убрана */
+      }
+    }
+    if (plan) {
+      applyPlan(plan);
+      pushHass();
+    }
+  }
+
+  // --- Состояние на экране ----------------------------------------------------
+
+  function markGood() {
+    live.lastGood = now();
+    setOffline(false);
+  }
+
+  function markOffline(why) {
+    if (live.card) setOffline(true, 'нет связи');
+    else cfg.setStatus(why || 'подключаюсь к Home Assistant…', true);
+  }
+
+  // --- Соединение -------------------------------------------------------------
+
+  function scheduleReconnect(why, immediate) {
+    if (live.timer) return;
+    markOffline(why);
+    const delay = immediate ? 0 : backoff(live.attempt++);
+    live.timer = setTimeout(() => {
+      live.timer = 0;
+      connect();
+    }, delay);
+  }
+
+  /** Немедленное переподключение: сеть вернулась, вкладку показали, планшет
+   *  проснулся. Сбрасывает накопленную паузу — ждать больше нечего. */
+  function kick(why) {
+    // После пробуждения даём минуту на восстановление, иначе сторож перезагрузит
+    // страницу раньше, чем сокет успеет открыться.
+    live.lastGood = Math.max(live.lastGood, now() - WATCHDOG_MS + WAKE_GRACE_MS);
+    const sock = live.ws;
+    if (sock && sock.readyState === WebSocket.OPEN) {
+      // Сокет выглядит живым. После сна это часто неправда: планшет вернулся в
+      // сеть с другого адреса, а браузер об этом ещё не знает и будет держать
+      // «открытое» соединение часами. Поэтому спрашиваем — и ждём ответа.
+      let answered = false;
+      request({ type: 'ping' }).then(
+        () => {
+          answered = true;
+          markGood();
+        },
+        () => {},
+      );
+      setTimeout(() => {
+        if (answered || live.ws !== sock) return;
+        live.attempt = 0; // это не череда неудач, а одно пробуждение
+        closeSock(sock);
+      }, KICK_PING_TIMEOUT_MS);
+      return;
+    }
+    if (sock && sock.readyState === WebSocket.CONNECTING) return;
+    live.attempt = 0;
+    clearTimeout(live.timer);
+    live.timer = 0;
+    scheduleReconnect(why, true);
+  }
+
+  function stopHeartbeat() {
+    if (live.heartbeat) clearInterval(live.heartbeat);
+    live.heartbeat = 0;
+  }
+
+  function startHeartbeat(sock) {
+    stopHeartbeat();
+    live.heartbeat = setInterval(() => {
+      if (live.ws !== sock || sock.readyState !== WebSocket.OPEN) return;
+      request({ type: 'ping' }).then(markGood, () => {});
+      if (now() - live.lastGood > PING_DEAD_MS) {
+        try {
+          sock.close();
+        } catch {
+          /* уже закрыт */
+        }
+      }
+    }, PING_EVERY_MS);
+  }
+
+  function connect() {
+    clearTimeout(live.timer);
+    live.timer = 0;
+    let sock;
+    try {
+      sock = live.ws = new WebSocket(cfg.wsUrl);
+    } catch (e) {
+      // Неверный адрес — раньше это была остановка навсегда. Теперь просто
+      // ещё одна неудачная попытка.
+      scheduleReconnect('адрес Home Assistant не открывается');
+      return;
+    }
+    // Продолжения от сокета, который уже заменён новым, игнорируем: устаревший
+    // обработчик не должен отправлять в новый сокет и затирать состояние.
+    const current = () => live.ws === sock;
+
+    sock.onmessage = async (ev) => {
+      if (!current()) return;
+      let m;
+      try {
+        m = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      if (m.type === 'auth_required') {
+        let got = null;
+        try {
+          got = await nextToken();
+        } catch {
+          got = null;
+        }
+        if (!current()) return;
+        if (!got) {
+          // Входа нет ни одного — показываем код привязки. Экран сам погаснет,
+          // как только администратор его подтвердит.
+          auth.source = null;
+          runPairing();
+          closeSock(sock);
+          return;
+        }
+        auth.source = got.source;
+        try {
+          sock.send(JSON.stringify({ type: 'auth', access_token: got.token }));
+        } catch {
+          closeSock(sock);
+        }
+      } else if (m.type === 'auth_invalid') {
+        // Ключевая правка. Раньше здесь ставился флаг, после которого страница
+        // не подключалась уже никогда.
+        invalidate(auth.source);
+        auth.source = null;
+        closeSock(sock);
+      } else if (m.type === 'auth_ok') {
+        hidePairing();
+        dropPending();
+        markGood();
+        live.attempt = 0;
+        startHeartbeat(sock);
+        try {
+          const res = await request({ type: 'get_states' });
+          if (!current()) return;
+          const next = {};
+          for (const s of res || []) next[s.entity_id] = s;
+          live.states = next; // пересобираем → уходят удалённые сущности
+          markGood();
+          if (cfg.onConnected) {
+            try {
+              await cfg.onConnected({ request, subscribe, states: live.states });
+            } catch {
+              /* надстройка страницы не имеет права ронять синхронизацию */
+            }
+          }
+          if (!current()) return;
+          const plan = await cfg.fetchPlan(request);
+          if (!current()) return;
+          if (plan) {
+            applyPlan(plan);
+            cachePlan(plan);
+            live.planLoaded = true;
+            cfg.setStatus('', false);
+          } else if (!live.card) {
+            cfg.setStatus('подключено · план ещё не сохранён', true);
+          }
+          pushHass();
+          await request({ type: 'subscribe_events', event_type: 'state_changed' });
+          markGood();
+        } catch (e) {
+          if (!current()) return;
+          closeSock(sock);
+        }
+      } else if (m.type === 'result' || m.type === 'pong') {
+        const p = live.pending.get(m.id);
+        if (p) {
+          live.pending.delete(m.id);
+          if (m.type === 'pong' || m.success) p.res(m.result);
+          else p.rej(m.error || new Error('вызов не удался'));
+        }
+        markGood();
+      } else if (m.type === 'event' && live.subs.has(m.id)) {
+        const cb = live.subs.get(m.id);
+        if (cb) cb(m.event);
+        markGood();
+      } else if (m.type === 'event' && m.event && m.event.event_type === 'state_changed') {
+        const d = m.event.data;
+        if (d.new_state) live.states[d.entity_id] = d.new_state;
+        else delete live.states[d.entity_id];
+        markGood();
+        pushHass();
+      }
+    };
+
+    sock.onclose = () => {
+      if (!current()) return;
+      stopHeartbeat();
+      live.pending.forEach((p) => p.rej(new Error('соединение закрыто')));
+      live.pending.clear();
+      live.subs.clear();
+      scheduleReconnect('связь потеряна — переподключаюсь…');
+    };
+
+    sock.onerror = () => closeSock(sock);
+  }
+
+  function closeSock(sock) {
+    try {
+      sock.close();
+    } catch {
+      /* уже закрыт */
+    }
+    // Сокет, закрытый до открытия, события close не получит — подстрахуемся.
+    if (live.ws === sock && sock.readyState === WebSocket.CLOSED) {
+      scheduleReconnect('связь потеряна — переподключаюсь…');
+    }
+  }
+
+  // --- Сторож и пробуждение ---------------------------------------------------
+
+  function installRecovery() {
+    // Сторож: ничего не получалось три минуты → перезагрузка, но не чаще чем
+    // раз в пять минут (отметка лежит в localStorage и переживает перезагрузку).
+    setInterval(() => {
+      if (ui.shown) return; // ждём человека с кодом — перезагрузка ничего не даст
+      if (now() - live.lastGood < WATCHDOG_MS) return;
+      if (!mayReload()) return;
+      markReload();
+      live.reloads++;
+      if (cfg.onReload) cfg.onReload();
+      else location.reload();
+    }, WATCHDOG_TICK_MS);
+
+    // Планшет спал: системные часы прыгнули вперёд сильнее, чем шёл таймер.
+    // Сокет после такого почти всегда зомби, хотя readyState говорит OPEN.
+    let tick = now();
+    setInterval(() => {
+      const t = now();
+      const gap = t - tick - 1000;
+      tick = t;
+      if (gap > WAKE_GAP_MS) kick('планшет проснулся');
+    }, 1000);
+
+    addEventListener('online', () => kick('сеть вернулась'));
+    addEventListener('pageshow', () => kick('страница показана'));
+    addEventListener('focus', () => kick('окно активно'));
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) kick('вкладку показали');
+    });
+
+    // Перечитываем сохранённый план: HA не шлёт о нём событий, а правки в
+    // редакторе должны доезжать до стены сами.
+    setInterval(async () => {
+      if (!live.ws || live.ws.readyState !== WebSocket.OPEN) return;
+      let plan = null;
+      try {
+        plan = await cfg.fetchPlan(request);
+      } catch {
+        return;
+      }
+      if (plan && applyPlan(plan)) {
+        cachePlan(plan);
+        live.planLoaded = true;
+        pushHass();
+      }
+    }, PLAN_POLL_MS);
+  }
+
+  // ===== standalone/kiosk/60-start.js =====
+  // ---------------------------------------------------------------------------
+  // Точка входа ядра. Страница описывает СВОИ особенности (адрес бандла, откуда
+  // берётся план, надстройки вроде домофона), всё остальное — здесь.
+  // ---------------------------------------------------------------------------
+
+  let cfg = null;
+
+  /** Загрузка бандла карточки. Раньше единственный неудачный import оставлял на
+   *  стене надпись и пустоту навсегда; теперь это просто попытка из многих.
+   *  На повторах к адресу добавляется метка: браузер запоминает неудачный
+   *  разбор модуля, и без неё второй import вернул бы ту же ошибку не спросив
+   *  сеть. */
+  async function loadCardBundle() {
+    for (let n = 0; ; n++) {
+      const url = n === 0 ? cfg.cardUrl : cfg.cardUrl + (cfg.cardUrl.includes('?') ? '&' : '?') + '_r=' + n;
+      try {
+        await import(url);
+        return;
+      } catch (err) {
+        cfg.setStatus('карточка не загрузилась, повторяю… (' + errMsg(err) + ')', true);
+        await sleepMs(backoff(n));
+      }
+    }
+  }
+
+  function normalize(options) {
+    const o = options || {};
+    return {
+      cardUrl: o.cardUrl,
+      wsUrl: o.wsUrl,
+      apiBase: o.apiBase || '',
+      useSession: !!o.useSession,
+      staticToken: typeof o.staticToken === 'string' ? o.staticToken : '',
+      // Привязываться можно только к известному адресу Home Assistant. При
+      // ручной раздаче папки без адреса — единственный случай, когда без
+      // человека не обойтись.
+      canPair: o.canPair !== undefined ? !!o.canPair : !!(o.useSession || o.apiBase),
+      deviceName: o.deviceName || 'BMS Планировка · киоск',
+      setStatus: o.setStatus || (() => {}),
+      cardConfig: o.cardConfig,
+      fetchPlan: o.fetchPlan,
+      onConnected: o.onConnected || null,
+      decorateHass: o.decorateHass || null,
+      onReload: o.onReload || null,
+    };
+  }
+
+  async function start(options) {
+    cfg = normalize(options);
+    injectStyles();
+
+    // Сначала — то, что уже известно. Планшет показывает прошлый план сразу,
+    // ещё до всякой сети, и больше никогда не встречает человека пустотой.
+    await loadCardBundle();
+    const cached = cachedPlan();
+    if (cached) {
+      applyPlan(cached);
+      setOffline(true, 'нет связи');
+      cfg.setStatus('', false);
+    }
+
+    // Полный срок сторожа на первое подключение, а не «уже три минуты как
+    // ничего не получалось» с самого запуска.
+    live.lastGood = now();
+    installRecovery();
+    connect();
+  }
+
+  /** Приборная панель для автопроверок и для разбора жалобы с объекта. */
+  function state() {
+    const cred = readCred();
+    return {
+      source: auth.source,
+      hasKioskCred: !!cred,
+      hasKioskToken: !!(cred && cred.token),
+      pairing: ui.shown,
+      pairCode: ui.pairCode ? ui.pairCode.textContent : null,
+      offline: !!(ui.offline && ui.offline.classList.contains('on')),
+      socket: live.ws ? live.ws.readyState : -1,
+      planOnScreen: !!live.card,
+      planLoaded: live.planLoaded,
+      attempt: live.attempt,
+      reloads: live.reloads,
+      glRecoveries: live.glRecoveries,
+      sinceGoodMs: now() - live.lastGood,
+      entities: Object.keys(live.states).length,
+    };
+  }
+
+  // Наружу отдаём ровно то, что нужно обёртке страницы и автопроверкам.
+  window.BMSKiosk = {
+    start,
+    state,
+    kick,
+    request,
+    callService,
+    subscribe,
+    sameOrigin,
+    pickProject,
+    validPlan,
+    cachedPlan,
+  };
+
+  })();
+</script>
+<!-- BMS_KIOSK_CORE:END -->
+
     <script type="module">
-      const $ = (s) => document.querySelector(s);
-      const statusEl = $('#status');
-      // Сообщение показываем ТОЛЬКО когда что-то не так; в норме (подключение,
-      // связь есть) плашка скрыта. `show` по умолчанию false = скрыто.
+      // Обёртка ЭТОЙ копии киоска. Всё общее — в ядре выше (исходник:
+      // standalone/kiosk/*.js). Здесь остаётся только то, чем эта страница
+      // отличается от корневой: выход из киоска по углу и путь к плану.
+      const K = window.BMSKiosk;
+      const statusEl = document.querySelector('#status');
+      // Сообщение показываем ТОЛЬКО когда что-то не так; в норме плашка скрыта.
       const setStatus = (t, show = false) => {
         statusEl.textContent = t;
-        statusEl.style.display = show ? 'block' : 'none';
+        statusEl.style.display = show && t ? 'block' : 'none';
       };
-      const errMsg = (e) => (e && e.message ? e.message : String(e));
 
       // Конфигурация, внедрённая киоск-сервером интеграции (доверенная), если есть.
       const inj = window.__HA3D__ && typeof window.__HA3D__ === 'object' ? window.__HA3D__ : null;
-      // Страницу отдаёт сам Home Assistant по своему пути: используем уже
-      // существующий вход браузера вместо встроенного токена.
+      // Страницу отдаёт сам Home Assistant по своему пути.
       const useSession = !!(inj && inj.useSession);
 
       const params = new URLSearchParams(location.search);
-      // Защита ?card=/?plan=: разрешаем значение так же, как это сделали бы
-      // import()/fetch(), и требуем ТОТ ЖЕ origin. Так отсекаются data:,
-      // javascript:, blob:, чужие абсолютные адреса, //host и трюки с
-      // пробелами/управляющими символами — регулярное выражение так не умеет.
-      const sameOrigin = (u) => {
-        if (!u) return null;
-        try {
-          const r = new URL(u, location.href);
-          return r.origin === location.origin ? r.href : null;
-        } catch {
-          return null;
-        }
-      };
       // Путь к карточке: сперва доверенный путь от сервера (HA отдаёт бандл со
       // своего корня, а не рядом с этой страницей), затем ?card= того же origin.
-      const cardUrl = (inj && inj.cardUrl) || sameOrigin(params.get('card')) || './bms-floorplan-card.js';
-      const planUrl = sameOrigin(params.get('plan')) || './plan.json';
-
-      // Токен Home Assistant на этой странице не хранится и не вводится: живой
-      // режим работает только по сессии браузера (см. комментарий выше).
-
-      // Сессионная авторизация: берём токен, который фронтенд HA сохранил для
-      // этого origin, и обновляем его near-expiry. Два разных отказа:
-      //   • вернулся null → на устройстве не выполнен вход (конечное состояние)
-      //   • ИСКЛЮЧЕНИЕ    → временно (HA перезапускается) → повторить попытку.
-      // Почти истёкший токен никогда не отправляется как есть: он вызвал бы
-      // auth_invalid и намертво зафиксировал ошибку.
-      async function getSessionToken() {
-        let raw;
-        try {
-          raw = localStorage.getItem('hassTokens');
-        } catch {
-          return null;
-        }
-        if (!raw) return null;
-        let t;
-        try {
-          t = JSON.parse(raw);
-        } catch {
-          return null;
-        }
-        if (!t || !t.access_token) return null;
-        if ((t.expires || 0) - Date.now() < 60000) {
-          if (!t.refresh_token) throw new Error('сессия истекла');
-          const r = await fetch('/auth/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              grant_type: 'refresh_token',
-              refresh_token: t.refresh_token,
-              client_id: t.clientId || location.origin + '/',
-            }),
-          });
-          if (!r.ok) throw new Error('не удалось обновить токен: ' + r.status);
-          const j = await r.json();
-          t.access_token = j.access_token;
-          t.expires = Date.now() + (j.expires_in || 1800) * 1000;
-          try { localStorage.setItem('hassTokens', JSON.stringify(t)); } catch {}
-        }
-        return t.access_token;
-      }
+      const cardUrl = (inj && inj.cardUrl) || K.sameOrigin(params.get('card')) || './bms-floorplan-card.js';
+      const planUrl = K.sameOrigin(params.get('plan')) || './plan.json';
 
       // --- Выход из киоска (по умолчанию ВЫКЛЮЧЕН) -------------------------
       // Удержание угла уводит того, кто его выполнил, в ПОЛНЫЙ интерфейс Home
       // Assistant под учётной записью планшета. Поэтому жест существует только
-      // если администратор включил его в настройках интеграции
-      // (Настройки → Устройства и службы → BMS Планировка → Настроить).
-      //
-      // Цель перехода — путь ТОГО ЖЕ origin, никогда не абсолютный адрес:
-      // именно это делает выход независимым от порта (HA на :8123 или за
-      // обратным прокси на :80). ?ha=/lovelace/foo выбирает конкретную панель и
-      // запоминается на устройстве, чтобы установленное приложение (которое
-      // стартует без строки запроса) попадало туда же.
+      // если администратор включил его в настройках интеграции.
       const allowExit = !!(inj && inj.allowExit);
       if (allowExit) {
         const HA_HOME_KEY = 'bms_floorplan_ha_home';
-        const haHomeParam = sameOrigin(params.get('ha'));
+        const haHomeParam = K.sameOrigin(params.get('ha'));
         if (haHomeParam) {
           const u = new URL(haHomeParam);
           try { localStorage.setItem(HA_HOME_KEY, u.pathname + u.search); } catch {}
@@ -235,31 +1366,13 @@
           corner.addEventListener(ev, endHold);
       }
 
-      // --- Карточка и план -------------------------------------------------
-      let card;
-      function ensureCard(plan) {
-        if (card) return card;
-        card = document.createElement('bms-floorplan-card');
-        card.setConfig({ type: 'custom:bms-floorplan-card', height: '100vh', plan });
-        document.body.appendChild(card);
-        return card;
-      }
-      const validPlan = (p) => !!p && Array.isArray(p.floors) && p.floors.length > 0;
-      // Из документа {active, projects} достаём активный (или первый годный) план.
-      function pickPlan(data) {
-        if (!data || !data.projects) return null;
-        let id = data.active;
-        if (!(id && validPlan(data.projects[id]))) {
-          id = Object.keys(data.projects).find((k) => validPlan(data.projects[k]));
-        }
-        return id ? data.projects[id] : null;
-      }
+      // --- План ------------------------------------------------------------
       async function fetchFilePlan() {
         try {
           const r = await fetch(planUrl, { cache: 'no-cache' });
           if (r.ok) {
             const p = await r.json();
-            if (validPlan(p)) return p;
+            if (K.validPlan(p)) return p;
           }
         } catch {
           /* нет plan.json — это нормально */
@@ -267,203 +1380,53 @@
         return null;
       }
 
-      // --- Старт ------------------------------------------------------------
-      async function boot() {
+      // План берём из ОБЩЕГО хранилища интеграции — того самого, куда пишет
+      // редактор. Если его ещё нет (свежая установка), читаем по-пользовательский
+      // документ СТАРОЙ версии: только чтение, ничего туда не записываем.
+      async function fetchPlan(request) {
         try {
-          await import(cardUrl);
-        } catch (err) {
-          setStatus('не удалось загрузить карточку: ' + errMsg(err), true);
-          return;
+          const p = K.pickProject(await request({ type: 'bms_floorplan/plan/get' }));
+          if (p) return p;
+        } catch {
+          /* команда недоступна — идём к запасному варианту */
         }
-        if (useSession) {
-          connectLive();
-        } else {
-          const plan = await fetchFilePlan();
-          if (plan) ensureCard(plan);
+        try {
+          const res = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
+          const p = K.pickProject(res && res.value);
+          if (p) return p;
+        } catch {
+          /* старая интеграция — остаётся файл рядом */
+        }
+        return fetchFilePlan();
+      }
+
+      // --- Старт ------------------------------------------------------------
+      if (useSession) {
+        K.start({
+          cardUrl,
+          wsUrl: location.origin.replace(/^http/, 'ws') + '/api/websocket',
+          apiBase: '',
+          useSession: true,
+          setStatus,
+          cardConfig: (plan) => ({ type: 'custom:bms-floorplan-card', height: '100vh', plan }),
+          fetchPlan,
+        });
+      } else {
+        // Папку раздают вручную: живого управления в этом режиме нет намеренно.
+        (async () => {
+          const plan = (await fetchFilePlan()) || K.cachedPlan();
+          if (plan) {
+            const card = document.createElement('bms-floorplan-card');
+            card.setConfig({ type: 'custom:bms-floorplan-card', height: '100vh', plan });
+            document.body.appendChild(card);
+          }
           setStatus(
             (plan ? 'только просмотр' : 'только просмотр · плана нет') +
               ' · откройте киоск по адресу Home Assistant',
             true,
           );
-        }
+        })();
       }
-
-      // --- Живой клиент Home Assistant (WebSocket) --------------------------
-      function connectLive() {
-        let states = {};
-        const pending = new Map();
-        let ws = null;
-        let reqId = 10;
-        let pushQueued = false;
-        let planLoaded = false;
-        let authFailed = false; // неверный вход не должен крутить вечный реконнект
-        let syncFails = 0; // подряд идущие сбои синхронизации → пауза подольше
-        const wsUrl = location.origin.replace(/^http/, 'ws') + '/api/websocket';
-
-        // Мост вызовов карточки в этот сокет. callWS даёт карточке общий план
-        // интеграции (и PIN-замок редактора), callService управляет
-        // устройствами (с откатом оптимистичного состояния).
-        const callWS = (msg) => request(msg);
-        const callService = (domain, service, data) => {
-          const p = request({ type: 'call_service', domain, service, service_data: data || {} });
-          p.catch(() => {});
-          return p;
-        };
-
-        function pushHass() {
-          if (pushQueued || !card) return;
-          pushQueued = true;
-          requestAnimationFrame(() => {
-            pushQueued = false;
-            if (card) card.hass = { states: { ...states }, callService, callWS };
-          });
-        }
-        function request(msg) {
-          return new Promise((res, rej) => {
-            // Если сокет не открыт (например, нажатие во время переподключения),
-            // отклоняем сразу — карточка откатит оптимистичный вид, а не зависнет.
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-              rej(new Error('сокет закрыт'));
-              return;
-            }
-            const id = ++reqId;
-            msg.id = id;
-            pending.set(id, { res, rej });
-            try {
-              ws.send(JSON.stringify(msg));
-            } catch (e) {
-              pending.delete(id);
-              rej(e);
-            }
-          });
-        }
-        // План берём из ОБЩЕГО хранилища интеграции — того самого, куда пишет
-        // редактор. Если его ещё нет (свежая установка), читаем на всякий случай
-        // по-пользовательский документ СТАРОЙ версии: только чтение, ничего туда
-        // не записываем.
-        async function fetchSharedPlan() {
-          try {
-            const data = await request({ type: 'bms_floorplan/plan/get' });
-            const plan = pickPlan(data);
-            if (plan) return plan;
-          } catch {
-            /* команда недоступна — идём к запасному варианту */
-          }
-          try {
-            const res = await request({ type: 'frontend/get_user_data', key: 'ha3d_floorplans' });
-            return pickPlan(res && res.value);
-          } catch {
-            return null;
-          }
-        }
-        function open() {
-          setStatus('подключение…');
-          let sock;
-          try {
-            sock = ws = new WebSocket(wsUrl);
-          } catch (e) {
-            setStatus('не удалось открыть соединение с Home Assistant', true);
-            return;
-          }
-          // Игнорируем продолжения от сокета, который уже заменён новым, чтобы
-          // устаревший обработчик не отправлял в новый сокет и не затирал состояние.
-          const current = () => ws === sock;
-
-          sock.onmessage = async (ev) => {
-            if (!current()) return;
-            let m;
-            try {
-              m = JSON.parse(ev.data);
-            } catch {
-              return;
-            }
-            if (m.type === 'auth_required') {
-              let tk;
-              try {
-                tk = await getSessionToken();
-              } catch (e) {
-                // Токен временно недоступен (HA перезапускается) — переподключимся.
-                if (!current()) return;
-                setStatus('ждём Home Assistant…', true);
-                try { sock.close(); } catch {}
-                return;
-              }
-              if (!current()) return;
-              if (!tk) {
-                authFailed = true;
-                setStatus('войдите в Home Assistant на этом устройстве', true);
-                try { sock.close(); } catch {}
-                return;
-              }
-              sock.send(JSON.stringify({ type: 'auth', access_token: tk }));
-            } else if (m.type === 'auth_invalid') {
-              authFailed = true;
-              setStatus('сессия Home Assistant истекла — обновите страницу', true);
-              try { sock.close(); } catch {}
-            } else if (m.type === 'auth_ok') {
-              setStatus('подключено');
-              try {
-                const res = await request({ type: 'get_states' });
-                if (!current()) return;
-                const next = {};
-                for (const s of res || []) next[s.entity_id] = s;
-                states = next; // пересобираем → уходят удалённые сущности
-                syncFails = 0;
-                if (!planLoaded) {
-                  const plan = (await fetchSharedPlan()) || (await fetchFilePlan());
-                  if (!current()) return;
-                  if (plan) {
-                    ensureCard(plan);
-                    planLoaded = true; // фиксируем только когда показан НАСТОЯЩИЙ план
-                  } else {
-                    setStatus('подключено · план ещё не сохранён', true);
-                  }
-                }
-                pushHass();
-                await request({ type: 'subscribe_events', event_type: 'state_changed' });
-              } catch (e) {
-                if (!current()) return;
-                syncFails++;
-                setStatus('сбой синхронизации — повторяем…', true);
-                try { sock.close(); } catch {}
-              }
-            } else if (m.type === 'result') {
-              const p = pending.get(m.id);
-              if (p) {
-                pending.delete(m.id);
-                m.success ? p.res(m.result) : p.rej(m.error || new Error('вызов не удался'));
-              }
-            } else if (m.type === 'event' && m.event && m.event.event_type === 'state_changed') {
-              const d = m.event.data;
-              if (d.new_state) states[d.entity_id] = d.new_state;
-              else delete states[d.entity_id];
-              pushHass();
-            }
-          };
-          sock.onclose = () => {
-            if (!current()) return;
-            pending.forEach((p) => p.rej(new Error('соединение закрыто')));
-            pending.clear();
-            if (authFailed) {
-              setStatus('сессия Home Assistant истекла — обновите страницу', true);
-              return; // не долбим HA бесполезными попытками
-            }
-            // При повторяющихся сбоях увеличиваем паузу, чтобы устойчивая ошибка
-            // не превращалась в горячий цикл; обычный обрыв повторяется быстро.
-            const delay = Math.min(2500 * Math.pow(2, Math.min(syncFails, 5)), 60000);
-            setStatus('связь потеряна — повторяем…', true);
-            setTimeout(open, delay);
-          };
-          sock.onerror = () => {
-            try {
-              sock.close();
-            } catch {}
-          };
-        }
-        open();
-      }
-
-      boot();
     </script>
   </body>
 </html>
