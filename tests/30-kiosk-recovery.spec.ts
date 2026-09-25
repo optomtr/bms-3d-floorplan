@@ -90,6 +90,54 @@ for (const which of Object.keys(KIOSK_PAGES) as KioskPage[]) {
       expect((await kioskState(page)).source).toBe('kiosk');
     });
 
+    /**
+     * «Мне ничего не делать больше?» — владелец, открыв киоск в браузере после
+     * обновления. Не делать: пока сессия браузера (вошёл администратор) жива,
+     * киоск сам берёт код и сам подтверждает его — экран кода не появляется
+     * вовсе. Потом сессия умирает, а киоск работает своей личностью.
+     */
+    test('сессия администратора — киоск сам обзаводится личностью, код не нужен никогда', async ({ page }) => {
+      await openKiosk(page, which, {
+        session: { access: 'session-token-1' },
+        grant: ['session-token-1'],
+        blockReload: true,
+      });
+      await waitLive(page);
+      expect((await kioskState(page)).source).toBe('session');
+      await page.waitForFunction(() => window.BMSKiosk.state().selfPaired, undefined, { timeout: 15_000, polling: 100 });
+      const st = await kioskState(page);
+      expect(st.hasKioskToken).toBe(true);
+      expect(st.pairing).toBe(false); // экрана кода не было
+      expect(await ha(page, (HA) => HA.wsApprovals)).toBe(1);
+
+      // Прошли месяцы, HA не открывали: сессия браузера умерла насовсем.
+      await ha(page, (HA) => {
+        HA.revoke('session-token-1');
+        HA.set({ refreshOk: false });
+        HA.killSockets();
+      });
+      await waitLive(page);
+      const after = await kioskState(page);
+      expect(after.source).toBe('kiosk');
+      expect(after.pairing).toBe(false);
+    });
+
+    test('сессия не администратора — тихой привязки нет, работает как раньше', async ({ page }) => {
+      await openKiosk(page, which, {
+        session: { access: 'session-token-1' },
+        grant: ['session-token-1'],
+        sessionAdmin: false,
+        blockReload: true,
+      });
+      await waitLive(page);
+      await page.waitForTimeout(1_500);
+      const st = await kioskState(page);
+      expect(st.source).toBe('session');
+      expect(st.selfPaired).toBe(false);
+      expect(st.hasKioskCred).toBe(false); // отказ не оставил полупривязки
+      expect(await ha(page, (HA) => HA.wsApprovals)).toBe(0);
+    });
+
     test('Home Assistant перезапустился — возвращается сам, план с экрана не пропадает', async ({ page }) => {
       await openKiosk(page, which, {
         cred: { token: 'kiosk-token-0' },

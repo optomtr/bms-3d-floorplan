@@ -177,3 +177,33 @@ async function runPairing() {
     pairing.running = false;
   }
 }
+
+/** Тихая привязка — киоск становится независимым, пока сессия браузера ещё жива.
+ *
+ *  Киоск, открытый после входа в Home Assistant, работает сессией браузера. Её
+ *  время ограничено: когда HA давно не открывали, она умирает, и тогда на
+ *  стене появился бы код привязки — человеку пришлось бы подойти. Владелец
+ *  просил, чтобы киоск не просил никогда. Поэтому, пока сессия жива, киоск
+ *  сам берёт код и сам же подтверждает его этой сессией: подтверждать вправе
+ *  администратор, а в этом браузере вошёл именно он. Экран при этом не
+ *  меняется. Вошёл не администратор или интеграция старая — ничего не делаем:
+ *  киоск работает сессией, а без неё покажет код, как и раньше.
+ *
+ *  Один раз за загрузку страницы: отказ не повторяется в цикле. */
+const selfPairing = { tried: false, done: false };
+async function selfPair() {
+  if (selfPairing.tried || !cfg.canPair || readCred() || pairing.running) return;
+  selfPairing.tried = true;
+  try {
+    const secret = randHex(32);
+    const res = await pairPost('/start', { secret, name: cfg.deviceName });
+    if (!res.code || !res.device_id) return;
+    await request({ type: 'bms_floorplan/kiosk/approve', code: String(res.code) });
+    const cred = { device_id: res.device_id, secret };
+    writeCred(cred);
+    await renewKioskToken(cred);
+    selfPairing.done = true;
+  } catch {
+    /* не администратор, связь оборвалась — останется прежний путь */
+  }
+}

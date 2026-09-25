@@ -49,6 +49,10 @@
     /** Сессия фронтенда HA: отвечает ли /auth/token. */
     refreshOk: true,
     sessionToken: 'session-token-1',
+    /** Сессия браузера принадлежит администратору: он вправе подтвердить код. */
+    sessionAdmin: true,
+    /** Сколько раз код подтвердили командой WebSocket (тихая привязка). */
+    wsApprovals: 0,
     /** Состояние поддельной привязки. */
     pair: { code: '424242', device_id: hex(16), secret: null, approved: false, issued: 0 },
   };
@@ -74,6 +78,8 @@
           wsOpens: HA.wsOpens,
           pairStarts: HA.pairStarts,
           renews: HA.renews,
+          sessionAdmin: HA.sessionAdmin,
+          wsApprovals: HA.wsApprovals,
         }),
       );
     } catch {
@@ -201,6 +207,7 @@
         HA.save();
         if (HA.validTokens.has(m.access_token)) {
           this.__authed = true;
+          this.__token = m.access_token;
           this.__deliver({ type: 'auth_ok', ha_version: '2026.9.2' });
         } else {
           this.__deliver({ type: 'auth_invalid', message: 'Invalid access token' });
@@ -227,6 +234,16 @@
         ok({ value: null });
       } else if (m.type === 'call_service') {
         ok(null);
+      } else if (m.type === 'bms_floorplan/kiosk/approve') {
+        // Как в HA: команда require_admin. Токен киоска — НЕ администратор,
+        // сессия браузера — администратор, если так настроено в проверке.
+        const admin = String(this.__token || '').startsWith('session-token') && HA.sessionAdmin;
+        if (!admin) return bad('unauthorized');
+        if (!HA.pair.secret || m.code !== HA.pair.code) return bad('code_expired');
+        HA.pair.approved = true;
+        HA.wsApprovals++;
+        HA.save();
+        ok({ device_id: HA.pair.device_id });
       } else {
         bad('unknown_command');
       }

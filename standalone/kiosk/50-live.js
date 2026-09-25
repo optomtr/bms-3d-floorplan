@@ -363,6 +363,9 @@ function connect() {
         pushHass();
         await request({ type: 'subscribe_events', event_type: 'state_changed' });
         markGood();
+        // Вошли сессией браузера — самое время обзавестись своей личностью,
+        // пока сессия жива (см. selfPair). Фоном: подключение уже работает.
+        if (auth.source === 'session') selfPair();
       } catch (e) {
         if (!current()) return;
         closeSock(sock);

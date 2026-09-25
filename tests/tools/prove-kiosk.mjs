@@ -67,6 +67,19 @@ export const PATCHES = {
       ["    if (!document.hidden) kick('вкладку показали');", "    if (!document.hidden) { /* ничего */ }"],
     ],
   },
+  'break-no-self-pair': {
+    note: 'киоск на сессии администратора не заводит свою личность — через месяцы снова попросит код',
+    edits: [["        if (auth.source === 'session') selfPair();", "        /* тихой привязки нет */"]],
+  },
+  'break-self-pair-half': {
+    note: 'личность записывается до подтверждения — отказ оставляет полупривязку',
+    edits: [
+      [
+        "    await request({ type: 'bms_floorplan/kiosk/approve', code: String(res.code) });\n    const cred = { device_id: res.device_id, secret };\n    writeCred(cred);",
+        "    const cred = { device_id: res.device_id, secret };\n    writeCred(cred);\n    await request({ type: 'bms_floorplan/kiosk/approve', code: String(res.code) });",
+      ],
+    ],
+  },
   'break-renew-never': {
     note: 'отвергнутый токен не восстанавливается по секрету',
     edits: [["      const updated = await renewKioskToken(cred);", "      const updated = { token: cred.token };"]],
@@ -104,6 +117,8 @@ const CASES = [
   ['30-kiosk-recovery', 'код привязки, подтверждение', 'break-no-pairing', 'red'],
   ['30-kiosk-recovery', 'прошлый план остаётся', 'break-no-plan-cache', 'red'],
   ['32-kiosk-watchdog', 'три минуты без связи', 'break-no-watchdog', 'red'],
+  ['30-kiosk-recovery', 'сессия администратора', 'break-no-self-pair', 'red'],
+  ['30-kiosk-recovery', 'сессия не администратора', 'break-self-pair-half', 'red'],
 ];
 
 const only = process.argv.slice(2);

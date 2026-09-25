@@ -81,6 +81,7 @@ function state() {
     planLoaded: live.planLoaded,
     attempt: live.attempt,
     reloads: live.reloads,
+    selfPaired: selfPairing.done,
     glRecoveries: live.glRecoveries,
     sinceGoodMs: now() - live.lastGood,
     entities: Object.keys(live.states).length,

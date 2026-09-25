@@ -23,6 +23,7 @@ export interface KioskState {
   planLoaded: boolean;
   attempt: number;
   reloads: number;
+  selfPaired: boolean;
   glRecoveries: number;
   sinceGoodMs: number;
   entities: number;
@@ -44,6 +45,8 @@ export interface KioskOptions {
   cred?: { token?: string | null; withSecret?: boolean };
   /** Токен сессии Home Assistant в localStorage hassTokens. */
   session?: { access?: string; expiresInMs?: number; refresh?: string | null } | null;
+  /** false — в браузере вошёл не администратор: подтверждать код ему нельзя. */
+  sessionAdmin?: boolean;
   /** План, показанный в прошлый раз (кэш на устройстве). */
   cachedPlan?: boolean;
   /** Запретить сторожу перезагружать страницу (проверка не про него). */
@@ -85,6 +88,7 @@ export async function openKiosk(page: Page, which: KioskPage, opts: KioskOptions
         for (const t of opts.grant || []) HA.grant(t);
         if (opts.down) HA.set({ down: true });
         if (opts.refreshOk === false) HA.set({ refreshOk: false });
+        if (opts.sessionAdmin === false) HA.set({ sessionAdmin: false });
         if (opts.cred) {
           const secret = hex(32);
           HA.pair.device_id = hex(16);
