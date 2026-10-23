@@ -30364,13 +30364,13 @@ function CC(t) {
 }
 const U0 = /(valve|klapan|kran|клапан|кран)/i, O0 = /(water|leak|protech|voda|suv|вод|протеч)/i;
 function kC(t) {
-  const e = t.filter(({ id: o, name: a }) => {
-    if (!/^(valve|switch)\./.test(o)) return !1;
-    if (/(water[_a-z0-9]*valve|valve[_a-z0-9]*water)/i.test(o)) return !0;
-    const l = `${o} ${a}`;
-    return o.startsWith("valve.") ? O0.test(l) || U0.test(l) : U0.test(l) && O0.test(l);
-  }).map((o) => o.id), n = e.filter((o) => o.startsWith("valve.")), i = (o) => o.slice(o.indexOf(".") + 1), s = e.filter((o) => !o.startsWith("valve.") && !n.some((a) => i(a) === i(o))), r = [...n, ...s];
-  return n.length === 1 && s.length === 0 ? n[0] : r.length === 1 ? r[0] : void 0;
+  const e = t.filter(({ id: i, name: s }) => {
+    if (!/^(valve|switch)\./.test(i)) return !1;
+    if (/(water[_a-z0-9]*valve|valve[_a-z0-9]*water)/i.test(i)) return !0;
+    const r = `${i} ${s}`;
+    return i.startsWith("valve.") ? O0.test(r) || U0.test(r) : U0.test(r) && O0.test(r);
+  }).map((i) => i.id), n = e.filter((i) => i.startsWith("valve."));
+  return n.length ? n.length === 1 ? n[0] : void 0 : e.length === 1 ? e[0] : void 0;
 }
 function Fv(t, e) {
   return t.rooms.find((n) => n.entities.some((i) => i.entity_id === e));

@@ -19,6 +19,9 @@ const states = (valve: string, wet: boolean) => ({
   ...baseStates(),
   'valve.klapan_protechki': { state: valve, attributes: { friendly_name: 'Клапан протечки' } },
   'switch.klapan_protechki': { state: valve === 'open' ? 'on' : 'off', attributes: { friendly_name: 'Клапан протечки' } },
+  // Каналы реле того же крана — у владельца они тоже есть и не должны прятать кнопку.
+  'switch.klapan_protechki_switch_1': { state: 'off', attributes: { friendly_name: 'Клапан протечки Switch 1' } },
+  'switch.klapan_protechki_switch_2': { state: 'off', attributes: { friendly_name: 'Клапан протечки Switch 2' } },
   'binary_sensor.detskaia_devochka_datchik': { state: wet ? 'on' : 'off', attributes: { friendly_name: 'Детская Девочка датчик', device_class: 'moisture' } },
 });
 

@@ -53,8 +53,8 @@ export function valveShut(host: BmsFloorplanCard, valve: string): boolean {
  *  Found by name: «water…valve» in the id, or a Russian/Uzbek valve word
  *  («клапан», «кран», klapan, kran) next to water/leak words. У владельца кран
  *  заведён дважды — `valve.klapan_protechki` и `switch.klapan_protechki`
- *  («Клапан протечки»): один и тот же кран, поэтому настоящий `valve.*`
- *  берём вместо выключателя-двойника, а не считаем их двумя кранами. */
+ *  («Клапан протечки»), плюс каналы реле `…_switch_1/_2`: один и тот же кран,
+ *  поэтому настоящий `valve.*` берём, а выключатели не считаем кранами. */
 export function waterValve(host: BmsFloorplanCard): string | undefined {
   const st = host.hass?.states ?? {};
   return pickWaterValve(Object.keys(st).map((id) => ({ id, name: String(st[id]?.attributes?.friendly_name ?? '') })));
@@ -73,13 +73,13 @@ export function pickWaterValve(entities: { id: string; name: string }[]): string
     if (id.startsWith('valve.')) return WATER_WORD.test(text) || VALVE_WORD.test(text);
     return VALVE_WORD.test(text) && WATER_WORD.test(text);
   }).map((e) => e.id);
+  // Настоящий кран (домен valve) главнее выключателей: у владельца рядом с
+  // valve.klapan_protechki ещё switch.klapan_protechki и каналы реле того же
+  // крана …_switch_1/_2 — это не другие краны. Выключатель — только если
+  // valve.* нет совсем.
   const valves = found.filter((id) => id.startsWith('valve.'));
-  const objectId = (id: string) => id.slice(id.indexOf('.') + 1);
-  // Выключатель с тем же именем, что у valve.*, — двойник того же крана.
-  const rest = found.filter((id) => !id.startsWith('valve.') && !valves.some((v) => objectId(v) === objectId(id)));
-  const all = [...valves, ...rest];
-  if (valves.length === 1 && rest.length === 0) return valves[0];
-  return all.length === 1 ? all[0] : undefined;
+  if (valves.length) return valves.length === 1 ? valves[0] : undefined;
+  return found.length === 1 ? found[0] : undefined;
 }
 
 /** The room a sensor sits in — known only where the plan binds it to one. */
