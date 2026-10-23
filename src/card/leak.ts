@@ -48,13 +48,38 @@ export function valveShut(host: BmsFloorplanCard, valve: string): boolean {
 /** The shut-off to reopen by hand once the leak is dealt with. Closing it is
  *  the automation's job; this card only ever opens it, and only when the user
  *  taps. With several candidates we offer no button at all rather than one
- *  that might cut the wrong supply. */
+ *  that might cut the wrong supply.
+ *
+ *  Found by name: «water…valve» in the id, or a Russian/Uzbek valve word
+ *  («клапан», «кран», klapan, kran) next to water/leak words. У владельца кран
+ *  заведён дважды — `valve.klapan_protechki` и `switch.klapan_protechki`
+ *  («Клапан протечки»): один и тот же кран, поэтому настоящий `valve.*`
+ *  берём вместо выключателя-двойника, а не считаем их двумя кранами. */
 export function waterValve(host: BmsFloorplanCard): string | undefined {
   const st = host.hass?.states ?? {};
-  const found = Object.keys(st).filter(
-    (id) => /^(valve|switch)\./.test(id) && /(water[_a-z0-9]*valve|valve[_a-z0-9]*water)/i.test(id),
-  );
-  return found.length === 1 ? found[0] : undefined;
+  return pickWaterValve(Object.keys(st).map((id) => ({ id, name: String(st[id]?.attributes?.friendly_name ?? '') })));
+}
+
+const VALVE_WORD = /(valve|klapan|kran|клапан|кран)/i;
+const WATER_WORD = /(water|leak|protech|voda|suv|вод|протеч)/i;
+
+/** Pure part of [waterValve] — exported for tests. */
+export function pickWaterValve(entities: { id: string; name: string }[]): string | undefined {
+  const found = entities.filter(({ id, name }) => {
+    if (!/^(valve|switch)\./.test(id)) return false;
+    if (/(water[_a-z0-9]*valve|valve[_a-z0-9]*water)/i.test(id)) return true;
+    const text = `${id} ${name}`;
+    // valve.* уже кран по домену — достаточно слова про воду/протечку.
+    if (id.startsWith('valve.')) return WATER_WORD.test(text) || VALVE_WORD.test(text);
+    return VALVE_WORD.test(text) && WATER_WORD.test(text);
+  }).map((e) => e.id);
+  const valves = found.filter((id) => id.startsWith('valve.'));
+  const objectId = (id: string) => id.slice(id.indexOf('.') + 1);
+  // Выключатель с тем же именем, что у valve.*, — двойник того же крана.
+  const rest = found.filter((id) => !id.startsWith('valve.') && !valves.some((v) => objectId(v) === objectId(id)));
+  const all = [...valves, ...rest];
+  if (valves.length === 1 && rest.length === 0) return valves[0];
+  return all.length === 1 ? all[0] : undefined;
 }
 
 /** The room a sensor sits in — known only where the plan binds it to one. */
