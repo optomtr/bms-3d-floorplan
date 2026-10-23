@@ -21,7 +21,13 @@ import { renderMasterButton, renderMasterPanel } from './master';
  *  faint horizontal gridlines. Uniform-scaled (so the axis text isn't
  *  distorted). Appears once a temperature sensor is bound and its history
  *  loads; renders nothing with no bound sensor or no data. */
+/** Графики за сутки скрыты в плане («Графики в комнатах» в редакторе). */
+export function chartsHidden(host: BmsFloorplanCard): boolean {
+  return !!(host.editor?.hideCharts ?? host.currentPlan?.hideCharts);
+}
+
 export function renderRoomSpark(host: BmsFloorplanCard, room: RoomInfo, metric: 'auto' | 'temp' | 'floor' | 'humidity' = 'auto') {
+  if (chartsHidden(host)) return nothing;
   const defs = ([
     { key: 'temp', id: room.tempSensor, cls: 'air', label: 'Воздух', unit: '°' },
     { key: 'floor', id: room.floorSensor, cls: 'warm', label: 'Пол', unit: '°' },
@@ -174,9 +180,9 @@ export function renderStageChrome(host: BmsFloorplanCard) {
       <button class="sdot" title=${host.t('All off short')}
         aria-label=${host.tx('Выключить всё в доме', 'Turn everything off')}
         @click=${() => allOffHouse(host)}>${host.ic('power')}</button>
-      <button class="sdot" title=${host.tx('Отчёт — графики за сутки', 'Report — 24 h graphs')}
+      ${chartsHidden(host) ? nothing : html`<button class="sdot" title=${host.tx('Отчёт — графики за сутки', 'Report — 24 h graphs')}
         aria-label=${host.tx('Открыть отчёт', 'Open the report')}
-        @click=${() => { host.showReport = true; }}>${host.ic('chart')}</button>
+        @click=${() => { host.showReport = true; }}>${host.ic('chart')}</button>`}
       ${renderMasterButton(host, true)}
       ${renderViewToggle(host)}
     </div>

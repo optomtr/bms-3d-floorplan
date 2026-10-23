@@ -268,6 +268,9 @@ export interface FloorPlan {
   wallHeight?: number;
   /** Saved reset-view distance multiplier for this project (<1 closer). */
   cameraDistance?: number;
+  /** Графики за сутки (в карточке комнаты и «Отчёт») скрыты. Владелец: «эти
+   *  графики можно скрыть полностью». Хранится в плане — киоск видит то же. */
+  hideCharts?: boolean;
   /** Legacy / single-building: floors live here. */
   floors: FloorDef[];
   /** Designer Mode: multiple buildings (each with its own floors). */

@@ -67,6 +67,19 @@ export function renderEditorProject(host: BmsFloorplanCard) {
         </div>
         <div class="toolrow">
           ${edBtn(host, {
+            icon: 'chart',
+            label: host.editor?.hideCharts
+              ? T('Графики в комнатах: скрыты', 'Room graphs: hidden')
+              : T('Графики в комнатах: показаны', 'Room graphs: shown'),
+            hint: T(
+              'Суточные графики в карточке комнаты и кнопка «Отчёт». Сохраняется с проектом.',
+              'The 24 h graphs in the room card and the Report button. Saved with the project.',
+            ),
+            onClick: () => { host.editor?.setHideCharts(!host.editor.hideCharts); host.requestUpdate(); },
+          })}
+        </div>
+        <div class="toolrow">
+          ${edBtn(host, {
             icon: 'download',
             label: host.tx('Перенести из старой версии', 'Import from the old version'),
             hint: host.tx(

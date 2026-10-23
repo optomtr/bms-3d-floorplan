@@ -37,7 +37,7 @@ import { enterEditNow, exitEdit, trackShift, onSetWallThickness } from './card/e
 import { currentLeak, roomOfEntity, renderLeakAlert } from './card/leak';
 import { renderEditor } from './card/views/editor-panel';
 import { renderControlPopup } from './card/views/control-popup';
-import { renderRoomPanel, renderStageChrome, renderScreensaver, renderReport } from './card/views/room-panel';
+import { renderRoomPanel, renderStageChrome, renderScreensaver, renderReport, chartsHidden } from './card/views/room-panel';
 import { renderPlanState } from './card/views/plan-state';
 import { renderOverview, renderDetail } from './card/views/overview';
 // Новый конструктор (ставится РЯДОМ со старым; старый пока не удаляем).
@@ -555,7 +555,7 @@ export class BmsFloorplanCard extends LitElement {
             ? html`${renderOverview(this)}${renderDetail(this)}`
             : html`${renderStageChrome(this)}${renderRoomPanel(this)}`}
 
-        ${this.showReport && !this.editing ? renderReport(this) : nothing}
+        ${this.showReport && !this.editing && !chartsHidden(this) ? renderReport(this) : nothing}
 
         ${!this.editing && this.idle ? renderScreensaver(this) : nothing}
 

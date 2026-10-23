@@ -1726,6 +1726,17 @@ export class EditorController {
     this.onChange?.();
   }
 
+  /** Графики за сутки скрыты (сохраняется с проектом). */
+  get hideCharts(): boolean {
+    return !!this.plan.hideCharts;
+  }
+
+  setHideCharts(hide: boolean): void {
+    if (hide) this.plan.hideCharts = true;
+    else delete this.plan.hideCharts;
+    this.onChange?.();
+  }
+
   removeUnderlay(): void {
     const fl = this.floor();
     if (!fl.underlay) return;
